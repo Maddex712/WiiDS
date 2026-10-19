@@ -18,7 +18,7 @@ aren't emulated. They run as native Android code through static recompilation an
 
 ## Games
 
-| Game | How it runs | The second screen | Disc it needs |
+| Game | How it runs | The second screen | Disc (see below) |
 |---|---|---|---|
 | **Mario Kart Wii** and **Retro Rewind** | Static recompilation (DriftDroid / WiiCompiled) | Live overhead course map with every racer, standings and race timer | Europe/PAL, `RMCP01` revision 0 |
 | **New Super Mario Bros. Wii** | Static recompilation (NSMB Wii recompilation) | Course progress, Star Coins, score and an NSMB2-style stored-item box, all in the game's own fonts and art | USA, `SMNE01` revision 1 |
@@ -90,9 +90,47 @@ Genuine captures from an AYN Thor, with a caption bar added. Where both screens 
 ## What you'll need
 
 - An **AYN Thor**. WiiDS is built around its two screens. Single-screen devices are planned later.
-- **Your own game discs**, dumped yourself. WiiDS will tell you exactly which disc (game ID, region and
-  revision) each game needs and which file formats it accepts.
-- For Retro Rewind and MSMBWii, the mods themselves come from their official sources.
+- **Your own game discs**, dumped yourself (for example with CleanRip on a Wii, or from Dolphin). Each game
+  is built from one exact version of the disc, so the region and revision must match the table below.
+  The app checks every file in your games folder and tells you if it's the wrong version.
+
+### Exact game files for each game
+
+| Game | Disc you need | Game ID | Region | Revision | Redump SHA-1 of a clean dump |
+|---|---|---|---|---|---|
+| Mario Kart Wii | Mario Kart Wii | `RMCP01` | Europe (PAL) | 0 | n/a |
+| Retro Rewind | the same Mario Kart Wii disc | `RMCP01` | Europe (PAL) | 0 | n/a |
+| New Super Mario Bros. Wii | New Super Mario Bros. Wii | `SMNE01` | USA | **1** | `aa7b134a7606435ddcd735f2964ebdecde38c2ef` |
+| MSMBWii: Just a Little Adventure | the same NSMB Wii disc | `SMNE01` | USA | **1** | `aa7b134a7606435ddcd735f2964ebdecde38c2ef` |
+| Super Mario Sunshine | Super Mario Sunshine (GameCube) | `GMSE01` | USA | 0 | `8d094f2c5c112aba9660f0478b16c7f2caf63cbf` |
+
+**Not supported (yet):** the USA Mario Kart Wii disc (`RMCE01`), other regions, NSMB Wii revisions 0 and 2,
+and PAL or Japanese Super Mario Sunshine.
+
+**File types the first release will accept:**
+
+| Format | Extension | Accepted |
+|---|---|---|
+| Plain disc image | `.iso`, `.gcm` | ✅ |
+| Dolphin compressed | `.rvz` | ✅ |
+| Wii backup | `.wbfs` (including split `.wbf1`) | ✅ |
+| Other compressed images | `.wia`, `.gcz`, `.ciso` | ✅ |
+| NKit | `.nkit.iso`, `.nkit.gcz` | ❌ Convert to RVZ or ISO in Dolphin first |
+
+**How to check your disc:** in Dolphin, the game list shows the Game ID. Right-click the game, choose
+**Properties → Info**, and look at **Revision**.
+
+## Mods in the first release
+
+Both mods are part of the first release:
+
+- **Retro Rewind** (Mario Kart Wii): the Retro Rewind engine is built into WiiDS. The track pack itself
+  (about 2 GB) downloads and updates in the app with one tap, straight from Retro Rewind's official servers.
+- **MSMBWii: Just a Little Adventure** (NSMB Wii): its engine changes are built into WiiDS. Its level pack
+  downloads in the app with one tap from the mod's official page.
+
+Mod files are fetched from their creators' official sources rather than rehosted, out of respect for
+their work. If the authors give permission, they'll be bundled directly instead.
 
 ## Credits
 
