@@ -34,7 +34,7 @@ aren't emulated. They run as native Android code through static recompilation an
 |---|---|---|---|
 | **Mario Kart Wii** and **Retro Rewind** | Static recompilation (DriftDroid / WiiCompiled) | Live overhead course map with every racer, standings and race timer | Europe/PAL, `RMCP01` revision 0 |
 | **New Super Mario Bros. Wii** | Static recompilation (NSMB Wii recompilation) | Course progress, Star Coins, score and an NSMB2-style stored-item box, all in the game's own fonts and art | USA, `SMNE01` revision 1 |
-| **MSMBWii: Just a Little Adventure** | The same engine, with MidiGuyDP's fan level pack | The same companion, with its own case and save | NSMB Wii disc above, plus the mod |
+| **MSMBWii: Just a Little Adventure** | The same engine, with MidiGuyDP's fan level pack | The same companion, with its own case and save | NSMB Wii disc above; mod included |
 | **Super Mario Sunshine** | Decompilation port, built for Android | A "Delfino Tours" episode tracker, the game's own live title sky, and FLUDD's tank | USA, `GMSE01` revision 0 |
 | **Super Mario Eclipse 1.1.0** | Sunshine expansion in its own native runtime processes | The Sunshine companion design, with Eclipse-specific context handling | Uses your USA Sunshine disc; official patch and installer included |
 
@@ -44,8 +44,8 @@ aren't emulated. They run as native Android code through static recompilation an
 - **Six cases with matching plastic colors:** white Mario Kart/Retro Rewind, red NSMB/MSMBWii, black Sunshine/Eclipse.
 - **One APK, separate saves.** Eclipse's official 1.1.0 patch and MSMBWii's pack are bundled; Retro Rewind installs from its official servers. No companion APK is required.
 - **A real game shelf.** A carousel of game cases: open one, and the disc lifts out and spins up as the
-  game boots. Wii games sit together on the shelf; the GameCube case comes last, with a
-  correctly sized 8 cm mini disc.
+  game boots. Wii games sit together on the shelf; Sunshine and Eclipse use black
+  GameCube cases with correctly sized 8 cm mini discs.
 - **Bottom screens designed per game**, built from each game's own art (and, for Mario Kart and NSMB, its fonts) rather than a generic overlay.
 - **NSMB2-style item reserve** for New Super Mario Bros. Wii: a spare power-up waits in the box on the
   bottom screen, and pressing R3 drops it from the top of the screen.
@@ -106,9 +106,9 @@ Genuine captures from an AYN Thor, with a caption bar added. Where both screens 
 ## What you'll need
 
 - An **AYN Thor**. WiiDS is built around its two screens. Single-screen devices are planned later.
-- **Your own game discs**, dumped yourself (for example with CleanRip on a Wii, or from Dolphin). Each game
+- **Your own game discs**, dumped yourself (for example with CleanRip on a Wii). Each game
   is built from one exact version of the disc, so the region and revision must match the table below.
-  The app checks every file in your games folder and tells you if it's the wrong version.
+  Import supported images through **Your games**; the app verifies their supported version.
 
 ### Exact game files for each game
 
@@ -119,11 +119,17 @@ Genuine captures from an AYN Thor, with a caption bar added. Where both screens 
 | New Super Mario Bros. Wii | New Super Mario Bros. Wii | `SMNE01` | USA | **1** | `aa7b134a7606435ddcd735f2964ebdecde38c2ef` |
 | MSMBWii: Just a Little Adventure | the same NSMB Wii disc | `SMNE01` | USA | **1** | `aa7b134a7606435ddcd735f2964ebdecde38c2ef` |
 | Super Mario Sunshine | Super Mario Sunshine (GameCube) | `GMSE01` | USA | 0 | `8d094f2c5c112aba9660f0478b16c7f2caf63cbf` |
+| Super Mario Eclipse 1.1.0 | the same Sunshine source disc; apply the included official patch | `GMSE01` source → `GMSE04` installed | USA source | 0 (source) | same clean Sunshine source hash above |
+
+For Eclipse, first import the unchanged supported Sunshine disc, then choose **Install Eclipse**.
+WiiDS checks the source disc, bundled 1.1.0 patch and resulting image, and keeps Eclipse's image,
+settings and saves separate from regular Sunshine. The exact supported prepatched Eclipse image
+can also be imported; other images sharing the `GMSE04` header are not accepted as the same build.
 
 **Not supported (yet):** the USA Mario Kart Wii disc (`RMCE01`), other regions, NSMB Wii revisions 0 and 2,
 and PAL or Japanese Super Mario Sunshine.
 
-**File types the first release will accept:**
+**Disc-image formats accepted by beta.2:**
 
 | Format | Extension | Accepted |
 |---|---|---|
@@ -136,17 +142,26 @@ and PAL or Japanese Super Mario Sunshine.
 **How to check your disc:** in Dolphin, the game list shows the Game ID. Right-click the game, choose
 **Properties → Info**, and look at **Revision**.
 
-## Mods in the first release
+## Mods in beta.2
 
-Both mods are part of the first release:
+All three mod integrations are included in the one APK:
 
-- **Retro Rewind** (Mario Kart Wii): the Retro Rewind engine is built into WiiDS. The track pack itself
-  (about 2 GB) downloads and updates in the app with one tap, straight from Retro Rewind's official servers.
-- **MSMBWii: Just a Little Adventure** (NSMB Wii): its engine changes are built into WiiDS. Its level pack
-  downloads in the app with one tap from the mod's official page.
+- **Retro Rewind** (Mario Kart Wii): its native runtime and 398 rendered lower-screen maps are bundled.
+  The actual track/content pack installs and updates in the app from Retro Rewind's official servers.
+  Compatibility checks keep the pack aligned with the included runtime; cached maps still require
+  the loaded course archive's matching identity and SHA-256.
+- **MSMBWii: Just a Little Adventure** (NSMB Wii): its native runtime and level-pack archive are bundled.
+  The mod installs after importing the supported NSMB Wii disc, with its own save profile.
+- **Super Mario Eclipse 1.1.0** (Sunshine): its native runtime, unchanged official VCDIFF patch and
+  on-device installer are bundled. Apply the patch to your own supported Sunshine disc through
+  **Your games → Install Eclipse**. No separate Eclipse app or downloaded game image is required.
 
-Mod files are fetched from their creators' official sources rather than rehosted, out of respect for
-their work. If the authors give permission, they'll be bundled directly instead.
+The complete selected presentation is also bundled: retail/fan covers and discs, Wii Menu music,
+UI sounds, companion HUDs/fonts, menu/settings art, retail maps and the Retro Rewind map cache
+(1,381 files, 555,876,343 bytes). Its manifest records each file's size and SHA-256. This presentation
+does not replace the required game discs or Retro Rewind content installation. Existing valid user
+overrides remain separate and preserved. See the [component notices](docs/release/WIIDS-NOTICE.md)
+for mod and presentation credits and terms.
 
 ## Credits
 
@@ -157,6 +172,9 @@ WiiDS stands on the work of these projects and people:
 - **sms-pc-port** and **sms-launcher** (Chase Myers / chasem-dev), on the **Super Mario Sunshine decompilation** (doldecomp)
 - **Retro Rewind** (ZPL and the Retro Rewind team)
 - **MSMBWii: Just a Little Adventure** (MidiGuyDP and Fredo), using **Another Super Mario Bros. Wii** code (Skawo, Treeki)
+- **Super Mario Eclipse** (Eclipse Team / JoshuaMKW), **BetterSunshineEngine**, **BetterSunshineMoveset** and **SunshineHeaderInterface**
+- **Some-Crappy-Edits**: Eclipse fan disc design; the selected Eclipse cover was supplied by the owner and its creator is unverified
+- **Nintendo**: original game artwork, fonts/UI and the supplied Wii Menu recording; approved generated disc/app-logo artwork is identified in the component notices
 - **Dolphin**, **SDL**, **aurora** and the other open-source libraries each project credits
 
 The Mario Kart Wii work also lives in its own repository: [Maddex712/mkwii-thor](https://github.com/Maddex712/mkwii-thor).
@@ -165,8 +183,10 @@ The Mario Kart Wii work also lives in its own repository: [Maddex712/mkwii-thor]
 
 WiiDS is an unofficial fan project. It is not affiliated with, endorsed by or sponsored by Nintendo.
 Mario Kart, Super Mario, New Super Mario Bros., Super Mario Sunshine, Wii and GameCube are trademarks of
-Nintendo. No games, ROMs, disc images or extracted game files are distributed here. Please own the games
-you play.
+Nintendo. No original or patched ROM/disc images, personal saves or private keys are included.
+The release does include compiled native engines, the specified mod components and the selected
+presentation assets described above. Code licences do not relicense third-party artwork or music.
+Please own the games you play.
 
 ## Development assistance
 
