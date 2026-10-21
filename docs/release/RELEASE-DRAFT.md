@@ -1,11 +1,11 @@
-# WiiDS 0.9.0-beta.4 — release preparation
+# WiiDS 0.9.0-beta.5 â€” release preparation
 
 This file describes packaging and verification scope. Completed build results
 are recorded in the published release notes and inventory.
 
 One signed ARM64 APK brings together the current AYN Thor case launcher, six game
 cases, per-game lower screens, settings and physical controls. Package
-`io.github.maddex712.wiids`, version `0.9.0-beta.4`, Android version code `904`.
+`io.github.maddex712.wiids`, version `0.9.0-beta.5`, Android version code `905`.
 
 - Mario Kart Wii and Retro Rewind: independent lower-screen course map, standings,
   timer and live racers. Retro Rewind's supported runtime is included; its content
@@ -80,7 +80,7 @@ python scripts/Stage-Presentation.py --serial 192.168.15.95:5555 --capture-root 
 python experiments/release/stage_licenses.py
 
 Push-Location reference/driftdroid/android
-.\gradlew.bat assembleRelease -PthorBuild=true -PwiidsApp=true -PthorRetroRewind=true -PwiidsVersionName=0.9.0-beta.4 -PwiidsVersionCode=904 --console=plain --no-daemon
+.\gradlew.bat assembleRelease -PthorBuild=true -PwiidsApp=true -PthorRetroRewind=true -PwiidsVersionName=0.9.0-beta.5 -PwiidsVersionCode=904 --console=plain --no-daemon
 Pop-Location
 ```
 

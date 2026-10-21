@@ -87,12 +87,12 @@
   ],
   "missing_roots": [],
   "source_coverage": {
-    "expected_source_files": 6663,
+    "expected_source_files": 6671,
     "roots": {
-      "reference/driftdroid": 1508,
+      "reference/driftdroid": 1510,
       "reference/nsmbw-android-e1": 1203,
       "reference/nsmbw-android-msmbwii": 1203,
-      "reference/sms-thor": 248,
+      "reference/sms-thor": 249,
       "reference/sms-launcher-thor": 23,
       "reference/sms-eclipse-thor": 275,
       "reference/eclipse-launcher-thor": 13,
@@ -104,7 +104,7 @@
       "experiments/release": 18,
       "experiments/eclipse-thor": 15,
       "experiments/nsmbw-thor": 47,
-      "experiments/sunshine-thor": 11,
+      "experiments/sunshine-thor": 16,
       "experiments/launcher-spines": 2,
       "third_party/eclipse": 96,
       "third_party/BetterSunshineEngine": 143,
@@ -6273,6 +6273,10 @@
       "sha256": "34ba1a4bd585ee107225200552eff07c20bd4b17ab03b12cb7f1c28df39bb50a",
       "bytes": 7629
     },
+    "experiments/sunshine-thor/HUD_FIT.md": {
+      "sha256": "fa1d523659339431d827d76ee4a99b4d200030909f5f5a1f167e9a1657595075",
+      "bytes": 4922
+    },
     "experiments/sunshine-thor/LAUNCHER_INTEGRATION.md": {
       "sha256": "15692bef5486c222e5ab528a18aa4852b90cf20035f1b79665181f1aa6361e45",
       "bytes": 2618
@@ -6285,6 +6289,10 @@
       "sha256": "9222e2f9f14b8bdcf9e61a9645db8ce894c1ec8df1b028d23ab52348b121e052",
       "bytes": 3719
     },
+    "experiments/sunshine-thor/POLISH.md": {
+      "sha256": "ac5954b0c15fbba20e5fcde7c40e3b163d9a931e81dc4772ba5880303688a681",
+      "bytes": 5300
+    },
     "experiments/sunshine-thor/Package-ThorApk.ps1": {
       "sha256": "2bc3c46b495d4c5e0125c8f9d997988551114482049919a593a231a611c720fa",
       "bytes": 3746
@@ -6294,12 +6302,16 @@
       "bytes": 2976
     },
     "experiments/sunshine-thor/README.md": {
-      "sha256": "d3b5d8917ad4d2a1e7e8267ecddd14360220cb9f4491d4e04929fa618cc8c284",
-      "bytes": 2392
+      "sha256": "32fae62f5e15363626f880be74c1ce6ec41fef06e702104ed8fc088f59d3418d",
+      "bytes": 2779
     },
     "experiments/sunshine-thor/RUNTIME_RESEARCH.md": {
       "sha256": "a80defb9916faa8099bc3557dc08ebbcfa503643e3c5f3d474f82f60ab2e61b5",
       "bytes": 8936
+    },
+    "experiments/sunshine-thor/SKY_CAPTURE.md": {
+      "sha256": "0f726f32b4d960c9531dac5ed6622b1e5140fdb0a81bc5718ecf6c2aebe1a791",
+      "bytes": 5522
     },
     "experiments/sunshine-thor/Stage-Thor.py": {
       "sha256": "ec2fab257bc9800169cf699e8942ed6e52e5c198f1788e2e038bbf3892ecb6df",
@@ -6308,6 +6320,14 @@
     "experiments/sunshine-thor/THOR_POST_INTRO.md": {
       "sha256": "b486b1f8403ee233fc3e779348bbb748ba4c6be8f6dcdb51bedf649b1d986b55",
       "bytes": 3887
+    },
+    "experiments/sunshine-thor/Test-HudAnchors.py": {
+      "sha256": "9c0c4ca22953d8c76199d3e5810838af0aae63fd60ab851b35b630c4e5d703c4",
+      "bytes": 7229
+    },
+    "experiments/sunshine-thor/Test-SkyCapture.py": {
+      "sha256": "101db6c12da1a3f59fb59459326e9f96addf92cfbdfc2d056a3a6e8f4af20119",
+      "bytes": 2841
     },
     "experiments/sunshine-thor/ThorDiscValidationTest.java": {
       "sha256": "0d699100577d58651edea13acbb8abda4413fa16c3b6868ee341d586bcaaa62b",
@@ -6321,9 +6341,21 @@
       "sha256": "5642c57a601e16faa1c91eae973594adae2196fb8d13316fd3f8a27f751d9173",
       "bytes": 3185
     },
+    "experiments/sunshine-thor/sky_capture_mock.cpp": {
+      "sha256": "7b4aa736db228cb4bb2e718f6682558ace57d970fb2f523f899351d6285a5d4c",
+      "bytes": 9016
+    },
     "experiments/sunshine-thor/sunshine-thor-android.patch": {
       "sha256": "2b766ec61cc9e9491a05bd316d44c5d710c8643e5904a8f5aa47c03a1adf5c22",
       "bytes": 23177
+    },
+    "experiments/sunshine-thor/test_map_framing.py": {
+      "sha256": "5d86d7700960669c932c106243aa94c7d087173143e71d366ce4d0f082fdd202",
+      "bytes": 6956
+    },
+    "experiments/sunshine-thor/test_motion.py": {
+      "sha256": "b1fc6c1dc19744b27f1439f1cbc5d6de65ea40dc687b187cebc50ea6a9cc6eca",
+      "bytes": 2993
     },
     "reference/driftdroid/.gitattributes": {
       "sha256": "0c6e8d66a3d4e53612a228ea721dcc1ddaeba0d088e758986280c0f9c1a31c88",
@@ -6737,6 +6769,10 @@
       "sha256": "5ba274f38d0aac546771c3f1ca0c9376970ef10e63dac3b2a114ca8b1ebe7b9a",
       "bytes": 17152
     },
+    "reference/driftdroid/android/app/src/main/java/dev/chasem/smslauncher/ThorMapFraming.java": {
+      "sha256": "2a823cf9fb38207c77bd56ca9437aae50ecfb9f4c93435952936265e563037d7",
+      "bytes": 5177
+    },
     "reference/driftdroid/android/app/src/main/java/dev/chasem/smslauncher/ThorSessionShutdown.java": {
       "sha256": "fefff6dc00bb3f16d3bd5d5991588cefe099d49e6947f764f76f227b8449e099",
       "bytes": 921
@@ -6745,9 +6781,13 @@
       "sha256": "40cbdaaa3a3dc5f7705abf4fe2ebd815773a3268302e224c26b529c530393285",
       "bytes": 2203
     },
+    "reference/driftdroid/android/app/src/main/java/dev/chasem/smslauncher/ThorSunshineMotion.java": {
+      "sha256": "3f7f28fc67a2df7dff487215e8bbe1f5b879892c582e851b5bb3cf8d82069863",
+      "bytes": 1024
+    },
     "reference/driftdroid/android/app/src/main/java/dev/chasem/smslauncher/ThorSunshineScreen.java": {
-      "sha256": "2a2c6aada1a27ddf3d4cd75d709f91878cd53143fbc04f889cecd687dd79eef7",
-      "bytes": 53355
+      "sha256": "8bde636c494badb2a9efcc755128b1e8edf3dc40f9c5e503ac65665b3a3b04d0",
+      "bytes": 55458
     },
     "reference/driftdroid/android/app/src/main/java/org/libsdl/app/HIDDevice.java": {
       "sha256": "81da1b64281575c46e501f1d623691bd713cdfaa29fd055143920361e08f9d5a",
@@ -26518,8 +26558,8 @@
       "bytes": 1357
     },
     "reference/sms-thor/android/thor_snapshot.cpp": {
-      "sha256": "9e4c27556087e6f207e1ac8cced6aabad88c8dd2e550b238a1dbfc2305c87ea0",
-      "bytes": 17627
+      "sha256": "d7da4643cd8041e10e6f7502ef09604cfc3fce6c011514565644f85a5690a2fd",
+      "bytes": 17762
     },
     "reference/sms-thor/bindings.txt": {
       "sha256": "f2d4a7cd32a51a34d6ce587ef15b73b5f641fadd986761810c57df3b591d05ad",
@@ -27566,8 +27606,12 @@
       "bytes": 3349
     },
     "reference/sms-thor/decomp-patches/zzz-thor-01-hud.patch": {
-      "sha256": "ce2180d773fda300ba2bad1ffdb84f4bf65ed47dba646b375b107e7211517faf",
-      "bytes": 2792
+      "sha256": "fdc547f21bf22b89a98b7851c1e7337d2e0fd55379fd5e33a55e91a26d6a8811",
+      "bytes": 3155
+    },
+    "reference/sms-thor/decomp-patches/zzz-thor-02-stable-hud-anchors.patch": {
+      "sha256": "7c957baaf4d96fc7b8e8f3e15ed16ecd1ab22d26ddf77a0458ec6ed2535e985b",
+      "bytes": 964
     },
     "reference/sms-thor/docs/64-BIT.md": {
       "sha256": "74ce568710c00bb397df11c60662d830de1bfa0b90d21a32fdf768a867b54184",
@@ -27774,8 +27818,8 @@
       "bytes": 23755
     },
     "reference/sms-thor/platform/gx/include/sms_gx/gx_pc.h": {
-      "sha256": "ae2f72e190d35ccf635079c983d38e3b5f90a45d75eb561168c4d5d86d223853",
-      "bytes": 13293
+      "sha256": "1ef0c51005e477895f50936dd4d3565ef554cb4332ac3c814c2b7d7f74f10958",
+      "bytes": 13435
     },
     "reference/sms-thor/platform/gx/include/sms_gx/gxvert_pc.h": {
       "sha256": "23c596d3a9ad91481f8aba090a38f43268abe0450f9ecdb21b531971e55f8034",
@@ -27874,8 +27918,8 @@
       "bytes": 7561
     },
     "reference/sms-thor/platform/gx/src/gx_render.cpp": {
-      "sha256": "5c1c1a899da7e7d7d1beb20d9e0f57668f3df41d6e640d22ad267011abe7fc1f",
-      "bytes": 149391
+      "sha256": "ed69225ecf3917e83f33e5a3d7b5a9c254d0b9bbd85dba0728cb227223092dfa",
+      "bytes": 155587
     },
     "reference/sms-thor/platform/gx/src/gx_screen_extent.h": {
       "sha256": "62943494a2242a61b759590c6b36107bd399daef930355b88062252efa9584e2",
@@ -28292,6 +28336,10 @@
     "reference/sms-thor/src/port_include/port_presence.h": {
       "sha256": "6b69cda99ef02781cffea7d0b98a149cac057d8c9d3a46939b2001ef50c2a4ff",
       "bytes": 903
+    },
+    "reference/sms-thor/src/port_include/port_thor_hud_layout.h": {
+      "sha256": "f7a2f882f0b17194f4ab9703bc0b5284d58eb9fc47f03289ad06cd24d576a725",
+      "bytes": 1295
     },
     "reference/sms-thor/src/port_include/printf.h": {
       "sha256": "8bd90e85d1f18fe6b8bbdcebf7aeb27227dea507128a1fe0e320a59aabe3291e",
@@ -28754,7 +28802,7 @@
       "bytes": 5179
     },
     "release/version.properties": {
-      "sha256": "e2a7bc39302e6e96c3453697725da4aaaaa5bf17bfecd6bcdd9d919e30a990cb",
+      "sha256": "458777f4a0b0c93625b119653dbb15e232dcea5845f404e56173302df18bd902",
       "bytes": 129
     },
     "scripts/Bake-ThorCustomMaps.py": {

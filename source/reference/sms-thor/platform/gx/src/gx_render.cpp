@@ -19,6 +19,7 @@
 #include <atomic>
 #include <unordered_map>
 
+extern "C" { static void resetAsyncSkyCapture(); }
 namespace gx {
 
 uint32_t g_statTexUploads, g_statShaderCompiles;
@@ -2755,6 +2756,7 @@ void GXPC_PrepareStage(int stage) {
 
 void GXPC_Shutdown(void) {
     if (!s_ready) return;
+    resetAsyncSkyCapture();
     textureShutdown();
     shaderShutdown();
     for (int i = 0; i < OVERLAY_SLOTS; i++) {
@@ -3066,6 +3068,129 @@ void GXPC_ReadEFB(uint8_t* rgba, int* w, int* h) {
 // title's sky with it).
 static GLuint s_captureFbo, s_captureTex;
 static int s_captureW, s_captureH;
+// BEGIN THOR ASYNC SKY
+// The title's lower-screen sky is presentation only. It must never wait for the
+// GPU or for a GL-thread result. All GL work runs in a queued command; fences
+// are polled with timeout zero and a full ring simply keeps the last picture.
+// Unlike the existing optional area photo, sky frames use only 320x180 RGBA.
+enum { kAsyncSkyW = 320, kAsyncSkyH = 180, kAsyncSkyBytes = kAsyncSkyW * kAsyncSkyH * 4 };
+struct AsyncSkyCapture {
+    GLuint fbo = 0, tex = 0, pbo[3] = {};
+    GLsync fence[3] = {};
+    uint32_t issued[3] = {}, next = 0;
+    uint8_t pixels[kAsyncSkyBytes] = {};
+    uint8_t scratch[kAsyncSkyBytes] = {};
+    uint32_t sequence = 0;
+    int pixelsLocked = 0, queued = 0;
+};
+static AsyncSkyCapture s_asyncSky;
+static uint32_t s_asyncSkyConsumed;
+
+static void resetAsyncSkyCapture() {
+    glt::sync([] {
+        for (int i = 0; i < 3; ++i) {
+            if (s_asyncSky.fence[i]) glDeleteSync(s_asyncSky.fence[i]);
+            if (s_asyncSky.pbo[i]) glDeleteBuffers(1, &s_asyncSky.pbo[i]);
+            s_asyncSky.fence[i] = nullptr;
+            s_asyncSky.pbo[i] = 0;
+            s_asyncSky.issued[i] = 0;
+        }
+        if (s_asyncSky.tex) glDeleteTextures(1, &s_asyncSky.tex);
+        if (s_asyncSky.fbo) glDeleteFramebuffers(1, &s_asyncSky.fbo);
+        s_asyncSky.tex = s_asyncSky.fbo = 0;
+        s_asyncSky.next = 0;
+        __atomic_store_n(&s_asyncSky.sequence, 0, __ATOMIC_RELEASE);
+        __atomic_store_n(&s_asyncSky.queued, 0, __ATOMIC_RELEASE);
+    });
+    s_asyncSkyConsumed = 0;
+}
+
+int GXPC_CaptureSkyEFB(uint8_t* rgba, int w, int h) {
+    if (!s_ready || !rgba || w != kAsyncSkyW || h != kAsyncSkyH) return 0;
+    int copied = 0;
+    // This lock is only a try: neither producer nor consumer ever spins/waits.
+    if (!__atomic_exchange_n(&s_asyncSky.pixelsLocked, 1, __ATOMIC_ACQUIRE)) {
+        const uint32_t seq = __atomic_load_n(&s_asyncSky.sequence, __ATOMIC_ACQUIRE);
+        if (seq && seq != s_asyncSkyConsumed) {
+            memcpy(rgba, s_asyncSky.pixels, kAsyncSkyBytes);
+            s_asyncSkyConsumed = seq;
+            copied = 1;
+        }
+        __atomic_store_n(&s_asyncSky.pixelsLocked, 0, __ATOMIC_RELEASE);
+    }
+    if (__atomic_exchange_n(&s_asyncSky.queued, 1, __ATOMIC_ACQ_REL)) return copied;
+    flushBatch();
+    glcInvalidate();
+    const int sourceW = scaled(s_efbW), sourceH = scaled(EFB_H);
+    const GLuint source = efbReadFbo(0, 0, INT32_MAX, INT32_MAX, GL_COLOR_BUFFER_BIT);
+    const GLuint restoreFbo = s_efbFbo;
+    glt::post([=] {
+        int newest = -1;
+        bool ready[3] = {};
+        for (int i = 0; i < 3; ++i) {
+            if (!s_asyncSky.fence[i]) continue;
+            const GLenum status = glClientWaitSync(s_asyncSky.fence[i], 0, 0);
+            if (status == GL_ALREADY_SIGNALED || status == GL_CONDITION_SATISFIED) {
+                ready[i] = true;
+                if (newest < 0 || int32_t(s_asyncSky.issued[i] - s_asyncSky.issued[newest]) > 0) newest = i;
+            } else if (status == GL_WAIT_FAILED) {
+                glDeleteSync(s_asyncSky.fence[i]);
+                s_asyncSky.fence[i] = nullptr;
+            }
+        }
+        if (newest >= 0 && !__atomic_exchange_n(&s_asyncSky.pixelsLocked, 1, __ATOMIC_ACQUIRE)) {
+            glBindBuffer(GL_PIXEL_PACK_BUFFER, s_asyncSky.pbo[newest]);
+            const void* pixels = glMapBufferRange(GL_PIXEL_PACK_BUFFER, 0, kAsyncSkyBytes, GL_MAP_READ_BIT);
+            if (pixels) {
+                memcpy(s_asyncSky.scratch, pixels, kAsyncSkyBytes);
+                if (glUnmapBuffer(GL_PIXEL_PACK_BUFFER)) {
+                    memcpy(s_asyncSky.pixels, s_asyncSky.scratch, kAsyncSkyBytes);
+                    __atomic_add_fetch(&s_asyncSky.sequence, 1, __ATOMIC_RELEASE);
+                }
+            }
+            glBindBuffer(GL_PIXEL_PACK_BUFFER, 0);
+            __atomic_store_n(&s_asyncSky.pixelsLocked, 0, __ATOMIC_RELEASE);
+            // Newest completed frame wins; never replay a queue of old pictures.
+            for (int i = 0; i < 3; ++i) if (ready[i]) {
+                glDeleteSync(s_asyncSky.fence[i]);
+                s_asyncSky.fence[i] = nullptr;
+            }
+        }
+        int free = -1;
+        for (int i = 0; i < 3; ++i) if (!s_asyncSky.fence[i]) { free = i; break; }
+        if (free >= 0) {
+            if (!s_asyncSky.fbo) {
+                glGenTextures(1, &s_asyncSky.tex);
+                glBindTexture(GL_TEXTURE_2D, s_asyncSky.tex);
+                glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, w, h, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
+                glGenFramebuffers(1, &s_asyncSky.fbo);
+                glBindFramebuffer(GL_FRAMEBUFFER, s_asyncSky.fbo);
+                glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, s_asyncSky.tex, 0);
+            }
+            if (!s_asyncSky.pbo[free]) {
+                glGenBuffers(1, &s_asyncSky.pbo[free]);
+                glBindBuffer(GL_PIXEL_PACK_BUFFER, s_asyncSky.pbo[free]);
+                glBufferData(GL_PIXEL_PACK_BUFFER, kAsyncSkyBytes, nullptr, GL_STREAM_READ);
+            }
+            glDisable(GL_SCISSOR_TEST);
+            glBindFramebuffer(GL_READ_FRAMEBUFFER, source);
+            glBindFramebuffer(GL_DRAW_FRAMEBUFFER, s_asyncSky.fbo);
+            glBlitFramebuffer(0, 0, sourceW, sourceH, 0, 0, w, h, GL_COLOR_BUFFER_BIT, GL_LINEAR);
+            glBindFramebuffer(GL_FRAMEBUFFER, s_asyncSky.fbo);
+            glPixelStorei(GL_PACK_ALIGNMENT, 1);
+            glBindBuffer(GL_PIXEL_PACK_BUFFER, s_asyncSky.pbo[free]);
+            glReadPixels(0, 0, w, h, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
+            s_asyncSky.fence[free] = glFenceSync(GL_SYNC_GPU_COMMANDS_COMPLETE, 0);
+            s_asyncSky.issued[free] = ++s_asyncSky.next;
+            glBindBuffer(GL_PIXEL_PACK_BUFFER, 0);
+        }
+        glBindFramebuffer(GL_FRAMEBUFFER, restoreFbo);
+        __atomic_store_n(&s_asyncSky.queued, 0, __ATOMIC_RELEASE);
+    });
+    glcInvalidate();
+    return copied;
+}
+// END THOR ASYNC SKY
 int GXPC_CaptureEFB(uint8_t* rgba, int w, int h) {
     if (!rgba || w <= 0 || h <= 0) return 0;
     flushBatch();

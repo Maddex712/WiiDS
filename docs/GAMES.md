@@ -71,6 +71,14 @@ a moving Mario marker. It also shows the area and episode, original-art Shine/bl
 and episode Shine slots in the supported retail areas. The menu companion uses the game's live title
 sky.
 
+The beta.5 Original Sunshine presentation update gives the lower screen display-aligned motion,
+moving clouds during gameplay and elapsed-time fades. Its map fit excludes ceilings, submerged
+terrain and sparse remote components so the main Airstrip island fills the panel, while Mario's
+marker uses the same world transform. This is an overview adaptation, not a complete survey of
+every collision surface: the small remote Airstrip island is omitted. The upper MARIO label fits
+the screen, and the stock life-meter animation keeps a fixed widescreen anchor. The complete
+damage-meter animation has not been verified live. Eclipse is unchanged by this pass.
+
 Import your **USA `GMSE01`, revision 0** dump. PAL and Japanese Sunshine images are not supported by
 this build. Sunshine keeps its own data and save profile, separate from Eclipse.
 
@@ -94,9 +102,11 @@ apps are not replaced, and their saves are not automatically copied into WiiDS.
 
 ## Display and testing notes
 
-The launcher and revised NSMB/Sunshine-family gallery images were captured in WiiDS 0.9.0-beta.3 and
-keep those labels. Beta.4 changes disc/mod installation and setup text; the launcher and companion
-designs shown in those images are unchanged.
+Original Sunshine's current Airstrip and title-sky images were captured in WiiDS 0.9.0-beta.5.
+The unchanged launcher, NSMB and Eclipse images retain their beta.3 labels, along with Sunshine's
+older file-selection and case captures. Mario Kart retains its existing capture context.
+Every image keeps its actual capture-version label; selected scene captures do not establish
+animation cadence or a complete playthrough.
 
 1080p and a 60 FPS target are the normal starting settings. The optional 120 FPS modes are experimental.
 For the recompiled Wii games, 120 FPS interpolates presentation while game logic remains at 60 Hz.

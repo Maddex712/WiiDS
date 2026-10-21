@@ -27,6 +27,7 @@ import android.os.Looper;
 import android.os.SystemClock;
 import android.util.Log;
 import android.view.Display;
+import android.view.Choreographer;
 import android.view.View;
 import android.view.Window;
 import android.view.WindowManager;
@@ -58,17 +59,17 @@ final class ThorSunshineScreen implements DisplayManager.DisplayListener {
     private static final int APP_SETTINGS = 10, APP_CHARACTER_SELECT = 11;
 
     static native int nativeSnapshot(int[] out);
-    /** The title's 3D sky as the game drew it (640x360 RGBA, rows top first); 0 when not newer than [have]. */
+    /** The title's 3D sky (320x180 RGBA); 0 when not newer than [have]. */
     static native int nativeSky(java.nio.ByteBuffer out, int have);
     /** The area's photo (same format as the sky), taken before the HUD; 0 when not newer than [have]. */
     static native int nativePhoto(java.nio.ByteBuffer out, int have);
     /** The area's floor triangles (11 floats each); the count, with the export's sequence in seq[0]. */
     static native int nativeFloor(java.nio.ByteBuffer out, int have, int[] seq);
-    private static final int SKY_W = 640, SKY_H = 360;
+    private static final int SKY_W = 320, SKY_H = 180, PHOTO_W = 640, PHOTO_H = 360;
     private final java.nio.ByteBuffer skyPixels = java.nio.ByteBuffer.allocateDirect(SKY_W * SKY_H * 4);
     private final Bitmap sky = Bitmap.createBitmap(SKY_W, SKY_H, Bitmap.Config.ARGB_8888);
     private int skySeq;
-    private final java.nio.ByteBuffer photoPixels = java.nio.ByteBuffer.allocateDirect(SKY_W * SKY_H * 4);
+    private final java.nio.ByteBuffer photoPixels = java.nio.ByteBuffer.allocateDirect(PHOTO_W * PHOTO_H * 4);
     private int photoSeq;
     private Bitmap photo;        // the current area's photo (the picture part, 16:9)
     private String photoScene = "";
@@ -168,10 +169,6 @@ final class ThorSunshineScreen implements DisplayManager.DisplayListener {
             try { n = nativeSnapshot(words); }
             catch (UnsatisfiedLinkError notLoaded) { if (!linkWarned) { linkWarned = true; Log.w(TAG, "Snapshot bridge unavailable", notLoaded); } }
             Snapshot next = n >= WORDS_V2 && words[0] >= 2 ? new Snapshot(words, n) : null;
-            try {
-                int seq = nativeSky(skyPixels, skySeq);
-                if (seq != 0) { skyPixels.rewind(); sky.copyPixelsFromBuffer(skyPixels); skyPixels.rewind(); skySeq = seq; }
-            } catch (UnsatisfiedLinkError notLoaded) { /* reported once by the snapshot bridge */ }
             if (next != null) {
                 pollPhoto(next);
                 pollFloor(next);
@@ -192,11 +189,11 @@ final class ThorSunshineScreen implements DisplayManager.DisplayListener {
         try {
             int seq = nativePhoto(photoPixels, photoSeq);
             if (seq == 0) return;
-            Bitmap raw = Bitmap.createBitmap(SKY_W, SKY_H, Bitmap.Config.ARGB_8888);
+            Bitmap raw = Bitmap.createBitmap(PHOTO_W, PHOTO_H, Bitmap.Config.ARGB_8888);
             photoPixels.rewind(); raw.copyPixelsFromBuffer(photoPixels); photoPixels.rewind();
             // The game draws 448 of the EFB's 528 lines (rows top first): that part is the picture.
-            int rows = Math.round(SKY_H * 448f / 528f);
-            photo = Bitmap.createBitmap(raw, 0, 0, SKY_W, rows);
+            int rows = Math.round(PHOTO_H * 448f / 528f);
+            photo = Bitmap.createBitmap(raw, 0, 0, PHOTO_W, rows);
             photoScene = s.scene;
             photoSeq = seq;
             Log.i(TAG, "Area photo for " + photoScene);
@@ -345,39 +342,12 @@ final class ThorSunshineScreen implements DisplayManager.DisplayListener {
 
         static AreaMap build(float[] f, int n, int w, int h, boolean night, String scene) {
             final int F = FLOOR_FLOATS;
-            // Giant flat triangles are out-of-bounds catch floors and ceilings, not ground.
-            float[] area = new float[n];
-            int land = 0;
-            for (int i = 0; i < n; i++) {
-                int o = i * F;
-                area[i] = Math.abs((f[o + 2] - f[o]) * (f[o + 5] - f[o + 1]) - (f[o + 4] - f[o]) * (f[o + 3] - f[o + 1])) / 2;
-                if (f[o + 10] == 0) land++;
-            }
-            if (land < 8) return null;
-            float[] landAreas = new float[land];
-            for (int i = 0, j = 0; i < n; i++) if (f[i * F + 10] == 0) landAreas[j++] = area[i];
-            Arrays.sort(landAreas);
-            float big = Math.max(4.0e7f, landAreas[Math.min(land - 1, (int) (land * 0.98f))] * 6);
+            ThorMapFraming.Fit fit = ThorMapFraming.fit(f, n, w, h);
+            if (fit == null) return null;
             int kept = 0;
             Integer[] order = new Integer[n];
-            for (int i = 0; i < n; i++) if (f[i * F + 10] != 0 || area[i] < big) order[kept++] = i;
-            // Frame on the land, ignoring a sliver of outliers on each side.
-            float[] xs = new float[kept * 3], zs = new float[kept * 3], ys = new float[kept];
-            int nx = 0, ny = 0;
-            for (int j = 0; j < kept; j++) {
-                int o = order[j] * F;
-                if (f[o + 10] != 0) continue;
-                for (int v = 0; v < 3; v++) { xs[nx] = f[o + v * 2]; zs[nx] = f[o + v * 2 + 1]; nx++; }
-                ys[ny++] = f[o + 6];
-            }
-            if (nx < 3) return null;
-            float[] sx = Arrays.copyOf(xs, nx), sz = Arrays.copyOf(zs, nx), sy = Arrays.copyOf(ys, ny);
-            Arrays.sort(sx); Arrays.sort(sz); Arrays.sort(sy);
-            float minX = sx[(int) (nx * 0.004f)], maxX = sx[Math.min(nx - 1, (int) (nx * 0.996f))];
-            float minZ = sz[(int) (nx * 0.004f)], maxZ = sz[Math.min(nx - 1, (int) (nx * 0.996f))];
-            float lo = sy[(int) (ny * 0.03f)], hi = sy[Math.min(ny - 1, (int) (ny * 0.97f))];
-            float k = Math.min(w * 0.9f / Math.max(1, maxX - minX), h * 0.88f / Math.max(1, maxZ - minZ));
-            float ox = w / 2f - (minX + maxX) / 2 * k, oz = h / 2f - (minZ + maxZ) / 2 * k;
+            for (int i = 0; i < n; i++) if (fit.draw[i]) order[kept++] = i;
+            float lo = fit.lowY, hi = fit.highY, k = fit.k, ox = fit.ox, oz = fit.oz;
             Integer[] sorted = Arrays.copyOf(order, kept);
             Arrays.sort(sorted, (a, b) -> Float.compare(f[a * F + 6], f[b * F + 6]));
 
@@ -490,6 +460,49 @@ final class ThorSunshineScreen implements DisplayManager.DisplayListener {
         private Bitmap base;
         String baseKey = "";
         private float markerX = Float.NaN, markerY;
+        private float elapsedDraw = 1f / 60f;
+        private long previousDraw;
+        private final ThorSunshineMotion motion = new ThorSunshineMotion();
+        private boolean frameQueued;
+        private final Choreographer.FrameCallback frame = new Choreographer.FrameCallback() {
+            @Override public void doFrame(long frameNanos) {
+                frameQueued = false;
+                if (!isAttachedToWindow() || getWindowVisibility() != VISIBLE) return;
+                if (motion.frameDue(frameNanos)) {
+                    try {
+                        int seq = nativeSky(skyPixels, skySeq);
+                        if (seq != 0) {
+                            skyPixels.rewind(); sky.copyPixelsFromBuffer(skyPixels);
+                            skyPixels.rewind(); skySeq = seq;
+                        }
+                    } catch (UnsatisfiedLinkError notLoaded) { /* snapshot bridge reports availability */ }
+                    invalidate();
+                }
+                queueFrame();
+            }
+        };
+
+        private void queueFrame() {
+            if (!frameQueued && isAttachedToWindow() && getWindowVisibility() == VISIBLE) {
+                frameQueued = true;
+                Choreographer.getInstance().postFrameCallback(frame);
+            }
+        }
+
+        @Override protected void onAttachedToWindow() {
+            super.onAttachedToWindow(); motion.reset(); previousDraw = 0; queueFrame();
+        }
+
+        @Override protected void onDetachedFromWindow() {
+            Choreographer.getInstance().removeFrameCallback(frame); frameQueued = false;
+            super.onDetachedFromWindow();
+        }
+
+        @Override protected void onWindowVisibilityChanged(int visibility) {
+            super.onWindowVisibilityChanged(visibility);
+            if (visibility == VISIBLE) { motion.reset(); previousDraw = 0; queueFrame(); }
+            else { Choreographer.getInstance().removeFrameCallback(frame); frameQueued = false; }
+        }
 
         Board(Context context) {
             super(context); setFocusable(false); setClickable(false);
@@ -509,7 +522,10 @@ final class ThorSunshineScreen implements DisplayManager.DisplayListener {
             c.save();
             c.translate((getWidth() - W * scale) / 2, (getHeight() - H * scale) / 2);
             c.scale(scale, scale);
-            float t = (SystemClock.uptimeMillis() - born) / 1000f;
+            long now = SystemClock.uptimeMillis();
+            elapsedDraw = previousDraw == 0 ? 1f / 60f : Math.min(0.1f, (now - previousDraw) / 1000f);
+            previousDraw = now;
+            float t = (now - born) / 1000f;
             Snapshot s = shown;
             Area area = Area.from(s);
             // Phases follow the game: black through boot, the Nintendo logo and movies; the title's
@@ -525,14 +541,13 @@ final class ThorSunshineScreen implements DisplayManager.DisplayListener {
             boolean eclipseMenu = state == APP_SETTINGS || state == APP_CHARACTER_SELECT;
             boolean sky = playing || state == APP_TITLE || state == APP_MENU || eclipseMenu;
             float target = sky ? Math.max(0, Math.min(255, s.light)) / 255f : 0;
-            light += (target - light) * 0.4f;
+            light = ThorSunshineMotion.follow(light, target, elapsedDraw, 0.065f);
             if (Math.abs(target - light) < 0.004f) light = target;
-            long now = SystemClock.uptimeMillis();
             if (!fileSelect) fileSelectSince = -1;
             else if (fileSelectSince < 0) fileSelectSince = now;
             paint.setColor(0xff000000);
             if (light > 0.002f) {
-                backdrop(c);
+                backdrop(c, inCourse, t);
                 if (inCourse) {
                     course(c, s, area, t);
                 } else if (eclipseMenu) {
@@ -548,7 +563,6 @@ final class ThorSunshineScreen implements DisplayManager.DisplayListener {
             if (light < 0.998f) { paint.setColor(Color.argb((int) (255 * (1 - light)), 0, 0, 0)); c.drawRect(0, 0, W, H, paint); }
             paint.setColor(0xff000000);
             c.restore();
-            postInvalidateDelayed(33); // Mario's marker and the current episode move gently
         }
 
         /**
@@ -556,7 +570,7 @@ final class ThorSunshineScreen implements DisplayManager.DisplayListener {
          * frame), cropped to this screen's shape around the sun. Until the game has drawn one, a
          * plain stand-in.
          */
-        private void backdrop(Canvas c) {
+        private void backdrop(Canvas c, boolean inCourse, float t) {
             if (skySeq != 0) {
                 // The game draws 448 of the EFB's 528 lines (rows top first); that part is the 16:9
                 // picture. Crop it to this screen's shape on the sun's side.
@@ -565,11 +579,48 @@ final class ThorSunshineScreen implements DisplayManager.DisplayListener {
                 Rect from = new Rect((int) (SKY_W - cropW), 0, SKY_W, (int) rows);
                 r.set(0, 0, W, H);
                 paint.setColor(0xff000000);
-                c.drawBitmap(sky, from, r, paint);
+                if (inCourse) {
+                    c.save(); c.clipRect(0, 0, W, H);
+                    c.translate(12f * (float) Math.sin(t * .012f), 5f * (float) Math.sin(t * .017f));
+                    c.scale(1.035f, 1.035f, W / 2, H / 2);
+                    c.drawBitmap(sky, from, r, paint); c.restore();
+                } else c.drawBitmap(sky, from, r, paint);
+                if (inCourse) driftingClouds(c, t);
                 return;
             }
             Bitmap stand = cached("sky", this::buildSky);
             if (stand != null) c.drawBitmap(stand, 0, 0, paint);
+            if (inCourse) driftingClouds(c, t);
+        }
+
+        /** Two small transparent strips slide independently; the live map and postcard stay fixed. */
+        private void driftingClouds(Canvas c, float t) {
+            for (int layer = 0; layer < 2; layer++) {
+                final int which = layer;
+                Bitmap strip = cached("drift-" + layer, () -> buildCloudStrip(which));
+                if (strip == null) continue;
+                float offset = ThorSunshineMotion.cloudOffset(t, layer == 0 ? 5f : 8f, W * 2);
+                float y = layer == 0 ? 10f : 800f;
+                paint.setAlpha(eclipse ? 28 : 82);
+                for (int tile = -1; tile <= 1; tile++) {
+                    r.set(tile * W * 2 + offset, y, (tile + 1) * W * 2 + offset, y + 280f);
+                    c.drawBitmap(strip, null, r, paint);
+                }
+                paint.setAlpha(255);
+            }
+        }
+
+        private Bitmap buildCloudStrip(int layer) {
+            Bitmap puff = art.get("option-windows_kumo05");
+            if (puff == null) return null;
+            Bitmap out = Bitmap.createBitmap(620, 70, Bitmap.Config.ARGB_8888);
+            Canvas c = new Canvas(out);
+            Paint p = new Paint(Paint.ANTI_ALIAS_FLAG | Paint.FILTER_BITMAP_FLAG);
+            for (int k = 0; k < 5; k++) {
+                float x = 44 + k * 124 + (layer == 0 ? 0 : 35), size = 80 + (k % 3) * 14;
+                c.drawBitmap(puff, null, new RectF(x - size / 2, 6 + (k % 2) * 10, x + size / 2, 62), p);
+            }
+            return out;
         }
 
         // ------------------------------------------------------------ cached scenery
@@ -837,7 +888,8 @@ final class ThorSunshineScreen implements DisplayManager.DisplayListener {
             x = Math.max(MAP_L + 40, Math.min(MAP_R - 40, x));
             y = Math.max(MAP_T + 40, Math.min(MAP_B - 40, y));
             if (Float.isNaN(markerX) || Math.abs(x - markerX) + Math.abs(y - markerY) > 200) { markerX = x; markerY = y; }
-            else { markerX += (x - markerX) * 0.45f; markerY += (y - markerY) * 0.45f; }
+            else { markerX = ThorSunshineMotion.follow(markerX, x, elapsedDraw, 0.055f);
+                markerY = ThorSunshineMotion.follow(markerY, y, elapsedDraw, 0.055f); }
             float ring = 50 + 8 * (float) Math.sin(t * 3f);
             paint.setStyle(Paint.Style.STROKE); paint.setStrokeWidth(6); paint.setColor(0x96ffffff);
             c.drawCircle(markerX, markerY, ring, paint);

@@ -1,5 +1,11 @@
 # Sunshine native Thor adaptation
 
+Current Original Sunshine beta.5 presentation work is described in
+[POLISH.md](POLISH.md), [HUD_FIT.md](HUD_FIT.md) and [SKY_CAPTURE.md](SKY_CAPTURE.md).
+Those documents separate host-test results from installed-candidate evidence
+and pending live checks. The preparation/defaults below describe the historical
+initial standalone bring-up; they are not current combined WiiDS defaults.
+
 Requested: native Super Mario Sunshine on AYN Thor, opened from the existing
 Mario Kart/Retro Rewind/NSMB carousel. Keep its design and existing games intact.
 

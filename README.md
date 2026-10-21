@@ -41,7 +41,7 @@ aren't emulated. They run as native Android code through static recompilation an
 | **Retro Rewind** | The community Mario Kart Wii expansion, in its own launcher entry | The Mario Kart companion with a matching supported-course map cache | Same Mario Kart Wii disc; install the content pack in-app |
 | **New Super Mario Bros. Wii** | Static recompilation (NSMB Wii recompilation) | Course progress, Star Coin tray, score, stored-item box and world route with NSMB2-style world bubbles | USA, `SMNE01` revision 1 |
 | **MSMBWii: Just a Little Adventure** | The same engine, with MidiGuyDP's fan level pack | The same companion, with its own case and save | NSMB Wii disc above; mod included |
-| **Super Mario Sunshine** | Decompilation port, built for Android | Live area map and Mario marker, postcard, episode Shines and original-art counters; live title sky in menus | USA, `GMSE01` revision 0 |
+| **Super Mario Sunshine** | Decompilation port, built for Android | Enlarged area map and Mario marker, moving cloud backdrop, postcard, episode Shines and original-art counters; live title sky in menus | USA, `GMSE01` revision 0 |
 | **Super Mario Eclipse 1.1.0** | Sunshine expansion in its own native runtime processes | The same live-map companion, with Eclipse-specific area and menu handling | Uses your USA Sunshine disc; official patch and installer included |
 
 Read the [game guide](docs/GAMES.md) for each game's setup, companion screen and current limitations.
@@ -107,9 +107,10 @@ separate game image. Updating WiiDS in place keeps existing profiles; uninstalli
 Genuine captures from an AYN Thor, with a caption bar added. Where both screens are shown, the top screen is above and the bottom screen below.
 Game titles identify Original, Retro Rewind and the other mod entries separately. Mario Kart and
 Retro Rewind retain their existing gameplay captures because their presentation is unchanged.
-The revised NSMB and Sunshine family screenshots carry explicit WiiDS 0.9.0-beta.3 labels.
-Beta.4 updates disc/mod installation and setup text; the case launcher and companion designs shown
-here are unchanged. The images retain their actual capture-version labels.
+Original Sunshine's Airstrip and title-sky images below were captured in **WiiDS 0.9.0-beta.5**.
+The unchanged launcher, NSMB and Eclipse images retain their **beta.3** labels, as do Sunshine's
+older file-selection and case captures. Mario Kart images retain their existing capture context.
+Each image identifies the build that actually produced it.
 Captures document their named scene, rather than implying every course or stage was retested.
 
 ### Launcher and Options — captured in WiiDS 0.9.0-beta.3
@@ -166,15 +167,20 @@ own save profile.
 
 ### Super Mario Sunshine
 
-Fresh WiiDS 0.9.0-beta.3 captures of **Original Super Mario Sunshine**: the file-selection screen,
-real Delfino Airstrip gameplay and the current black GameCube case. The lower gameplay display
-shows its postcard, live collision-floor map, Mario marker and original-art counters.
+**Original Super Mario Sunshine in WiiDS 0.9.0-beta.5:** the larger Airstrip overview fills the
+lower map panel, with Mario's marker, postcard and original-art counters over moving clouds.
+The upper capture shows the complete MARIO label. The title capture shows the game's live sky
+and birds on both displays; a still image illustrates the scene, not its animation rate.
 
 <p align="center">
-  <img src="docs/images/sunshine-beta3-airstrip.png" width="420" alt="Original Super Mario Sunshine in WiiDS 0.9.0-beta.3: Mario, Peach and Toads at Delfino Airstrip above; area postcard, live collision-floor map with Mario marker, Shine, blue-coin and coin counters below">
-  <img src="docs/images/sunshine-beta3-file-select.png" width="420" alt="Original Super Mario Sunshine in WiiDS 0.9.0-beta.3: file selection above; Sunshine logo, live sky and Welcome to Isle Delfino companion below">
+  <img src="docs/images/sunshine-beta5-airstrip.png" width="420" alt="Original Super Mario Sunshine in WiiDS 0.9.0-beta.5: Delfino Airstrip gameplay with the complete MARIO label above; larger overhead main-island map and Mario marker, postcard and original-art counters below">
+  <img src="docs/images/sunshine-beta5-title-sky.png" width="420" alt="Original Super Mario Sunshine in WiiDS 0.9.0-beta.5: actual title sky and birds on the upper display, with the live sky companion on the lower display">
 </p>
+
+These unchanged file-selection and black GameCube case images remain labeled **WiiDS 0.9.0-beta.3**.
+
 <p align="center">
+  <img src="docs/images/sunshine-beta3-file-select.png" width="420" alt="Original Super Mario Sunshine in WiiDS 0.9.0-beta.3: file selection above; Sunshine logo, live sky and Welcome to Isle Delfino companion below">
   <img src="docs/images/sunshine-beta3-open-case.png" width="420" alt="Original Super Mario Sunshine in WiiDS 0.9.0-beta.3: its black GameCube case open above, with the cover and mini disc; selected disc readiness on the lower display">
 </p>
 

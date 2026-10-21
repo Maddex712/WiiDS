@@ -275,12 +275,14 @@ extern "C" void port_thor_publish(void)
 }
 
 // The title's sky for the lower screen: TCardLoad calls this as its 2D layer starts, so the
-// frame holds the 3D sky, sun and clouds without the logo. Captured a few times a second on
+// frame holds the 3D sky, sun and clouds without the logo. Queued each title frame on
 // the "Press Start" screens (TCardLoad 10, 9 and 3) into one of two buffers; the UI
 // copies the newest buffer the game is not writing.
 extern "C" int GXPC_CaptureEFB(u8* rgba, int w, int h);
+extern "C" int GXPC_CaptureSkyEFB(u8* rgba, int w, int h);
 namespace {
-enum { kSkyW = 640, kSkyH = 360, kSkyBytes = kSkyW * kSkyH * 4 };
+enum { kSkyW = 320, kSkyH = 180, kSkyBytes = kSkyW * kSkyH * 4,
+       kPhotoW = 640, kPhotoH = 360, kPhotoBytes = kPhotoW * kPhotoH * 4 };
 u8 g_sky[2][kSkyBytes];
 int g_skyLatest = -1, g_skyReading = -1;
 uint32_t g_skySeq;
@@ -288,14 +290,12 @@ uint32_t g_skySeq;
 
 extern "C" void port_thor_capture_sky(int screen)
 {
-	static unsigned frame;
 	// Not 8: leaving the title, the camera turns to the beach; the last sky frame is kept.
 	if (screen != 3 && screen != 9 && screen != 10) return;
-	if (++frame % 4) return;
 	const int latest = __atomic_load_n(&g_skyLatest, __ATOMIC_ACQUIRE);
 	const int slot = latest == 0 ? 1 : 0;
 	if (__atomic_load_n(&g_skyReading, __ATOMIC_ACQUIRE) == slot) return;
-	if (!GXPC_CaptureEFB(g_sky[slot], kSkyW, kSkyH)) return;
+	if (!GXPC_CaptureSkyEFB(g_sky[slot], kSkyW, kSkyH)) return;
 	// The EFB's alpha is the game's destination alpha, not coverage: the picture is opaque.
 	for (int i = 3; i < kSkyBytes; i += 4) g_sky[slot][i] = 0xFF;
 	static bool dumped;
@@ -307,7 +307,7 @@ extern "C" void port_thor_capture_sky(int screen)
 	__atomic_add_fetch(&g_skySeq, 1, __ATOMIC_RELEASE);
 }
 
-// Copies the newest sky (640x360 RGBA, rows top first as the EFB is kept; the picture is the top 448/528) when it is newer than `have`;
+// Copies the newest sky (320x180 RGBA, rows top first as the EFB is kept; the picture is the top 448/528) when it is newer than `have`;
 // returns its sequence number, or 0 when there is nothing new.
 extern "C" __attribute__((visibility("default"))) uint32_t port_thor_sky(u8* out, int size, uint32_t have)
 {
@@ -342,15 +342,18 @@ extern "C" int port_thor_hud_split(void)
 	return split;
 }
 
-// How far (game x) to move the lives pane, whose left edge is at [left], to the corner.
-extern "C" int port_thor_lives_shift(int left)
+// How far (game x) to move the lives artwork, not merely its container, to the corner.
+#include <port_thor_hud_layout.h>
+extern "C" int port_thor_lives_shift(int left, int contentLeft)
 {
-	// SMS_WIDESCREEN_HUD=edges already places the HUD's pieces itself.
 	const char* edges = getenv("SMS_WIDESCREEN_HUD");
-	if (edges && !strcmp(edges, "edges")) return 0;
-	const float extra = 320.0f * (port_widescreen - 1.0f);  // each side beyond 4:3, in game x
-	const int dx = (int)(-extra - (float)left + 6.0f);
-	return dx < 0 ? dx : 0;
+	return port_thor_hud_lives_offset(port_widescreen, left, contentLeft, edges && !strcmp(edges, "edges"));
+}
+
+extern "C" int port_thor_life_shift(void)
+{
+	const char* edges = getenv("SMS_WIDESCREEN_HUD");
+	return port_thor_hud_life_offset(port_widescreen, edges && !strcmp(edges, "edges"));
 }
 
 extern "C" void port_thor_hud_swoosh(u32 white, u32 black)
@@ -360,7 +363,7 @@ extern "C" void port_thor_hud_swoosh(u32 white, u32 black)
 }
 
 namespace {
-u8 g_photo[kSkyBytes];
+u8 g_photo[kPhotoBytes];
 uint32_t g_photoSeq;
 int g_photoReading;
 } // namespace
@@ -373,19 +376,19 @@ extern "C" void port_thor_capture_photo(void)
 	if (!__atomic_load_n(&g_photoWanted, __ATOMIC_ACQUIRE)) return;
 	if (__atomic_load_n(&g_photoReading, __ATOMIC_ACQUIRE)) return;
 	__atomic_store_n(&g_photoWanted, false, __ATOMIC_RELEASE);
-	if (!GXPC_CaptureEFB(g_photo, kSkyW, kSkyH)) return;
-	for (int i = 3; i < kSkyBytes; i += 4) g_photo[i] = 0xFF;
+	if (!GXPC_CaptureEFB(g_photo, kPhotoW, kPhotoH)) return;
+	for (int i = 3; i < kPhotoBytes; i += 4) g_photo[i] = 0xFF;
 	__atomic_add_fetch(&g_photoSeq, 1, __ATOMIC_RELEASE);
 }
 
-// The newest area photo (same format as the sky) when newer than `have`; its sequence or 0.
+// The newest area photo (640x360 RGBA) when newer than `have`; its sequence or 0.
 extern "C" __attribute__((visibility("default"))) uint32_t port_thor_photo(u8* out, int size, uint32_t have)
 {
-	if (!out || size < kSkyBytes) return 0;
+	if (!out || size < kPhotoBytes) return 0;
 	const uint32_t seq = __atomic_load_n(&g_photoSeq, __ATOMIC_ACQUIRE);
 	if (seq == 0 || seq == have) return 0;
 	__atomic_store_n(&g_photoReading, 1, __ATOMIC_RELEASE);
-	memcpy(out, g_photo, kSkyBytes);
+	memcpy(out, g_photo, kPhotoBytes);
 	__atomic_store_n(&g_photoReading, 0, __ATOMIC_RELEASE);
 	return __atomic_load_n(&g_photoSeq, __ATOMIC_ACQUIRE) == seq ? seq : 0;
 }

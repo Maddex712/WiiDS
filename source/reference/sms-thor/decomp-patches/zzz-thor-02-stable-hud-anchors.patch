@@ -1,0 +1,29 @@
+Reason: Thor split HUD: keep the life meter on its right-side widescreen anchor throughout its unchanged stock animation.
+--- a/libs/JSystem/src/J2D/J2DPane.cpp
++++ b/libs/JSystem/src/J2D/J2DPane.cpp
+@@ -13,6 +13,10 @@
+ // container, and all it contains) as one.
+ extern "C" void GXPC_HudPaneBegin(float x1, float x2);
+ extern "C" void GXPC_HudPaneEnd(void);
++#if defined(__ANDROID__)
++#include <port_thor_hud_layout.h>
++extern "C" int port_thor_hud_split(void);
++#endif
+ #endif
+ 
+ J2DPane::J2DPane()
+@@ -216,7 +220,13 @@
+ 		}
+ 
+ #ifdef TARGET_PC
+-		GXPC_HudPaneBegin(mGlobalBounds.x1, mGlobalBounds.x2);
++		// Life keeps its authored right-hand owner throughout its damage animation.
++#if defined(__ANDROID__)
++		if (port_thor_hud_anchor_right(mUserInfoTag, port_thor_hud_split() != 0))
++			GXPC_HudPaneBegin(640.0f, 640.0f);
++		else
++#endif
++			GXPC_HudPaneBegin(mGlobalBounds.x1, mGlobalBounds.x2);
+ #endif
+ 		if (isOrthoGraf) {
+ 			((J2DOrthoGraph*)p_grafCtx)

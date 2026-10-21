@@ -194,6 +194,8 @@ void GXPC_ReadEFB(uint8_t* rgba, int* w, int* h);
 int GXPC_ReadXFB(const void* xfb, uint8_t* rgba, int* w, int* h);
 /* The frame drawn so far, scaled to w x h on the GPU (rows top first). */
 int GXPC_CaptureEFB(uint8_t* rgba, int w, int h);
+// Nonblocking title-sky readback, exactly 320x180 RGBA; 0 retains the previous frame.
+int GXPC_CaptureSkyEFB(uint8_t* rgba, int w, int h);
 
 /* Statistics for the current frame (reset by GXCopyDisp). */
 typedef struct GXPCStats {
