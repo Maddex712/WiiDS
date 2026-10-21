@@ -103,6 +103,15 @@ Genuine captures from an AYN Thor, with a caption bar added. Where both screens 
   <img src="docs/images/sunshine-gameplay.jpg" width="420" alt="Super Mario Sunshine gameplay in 16:9 on the AYN Thor's top screen">
 </p>
 
+### Super Mario Eclipse 1.1.0
+
+WiiDS 0.9.0-beta.2: Eclipse's black GameCube case and tutorial, captured from the combined APK. The Sunshine-style companion is retained below; Eclipse's game data and saves stay separate from regular Sunshine.
+
+<p align="center">
+  <img src="docs/images/eclipse-open-case.png" width="420" alt="Super Mario Eclipse 1.1.0 in WiiDS 0.9.0-beta.2: its black GameCube case open above and selected disc details below">
+  <img src="docs/images/eclipse-tutorial.png" width="420" alt="Super Mario Eclipse 1.1.0 tutorial in WiiDS 0.9.0-beta.2: Mario speaking with the training guide above, tutorial companion map and counters below">
+</p>
+
 ## What you'll need
 
 - An **AYN Thor**. WiiDS is built around its two screens. Single-screen devices are planned later.
