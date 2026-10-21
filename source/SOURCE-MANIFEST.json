@@ -87,7 +87,7 @@
   ],
   "missing_roots": [],
   "source_coverage": {
-    "expected_source_files": 6662,
+    "expected_source_files": 6663,
     "roots": {
       "reference/driftdroid": 1508,
       "reference/nsmbw-android-e1": 1203,
@@ -101,7 +101,7 @@
       "wiids": 213,
       "release": 0,
       "docs/release": 0,
-      "experiments/release": 17,
+      "experiments/release": 18,
       "experiments/eclipse-thor": 15,
       "experiments/nsmbw-thor": 47,
       "experiments/sunshine-thor": 11,
@@ -6229,6 +6229,10 @@
       "sha256": "6010bc4834ca9549f3d1a58d58a62056b46671811e0a593d317f98950f3fd5b3",
       "bytes": 9909
     },
+    "experiments/release/test_launcher_touch.py": {
+      "sha256": "b64c6fa01bf07943336a8e4f8b0df11450910e276ed2ffab6c8566dd40eafb63",
+      "bytes": 7813
+    },
     "experiments/release/test_msmbwii_install.py": {
       "sha256": "f7f07f722675fd29c1ebfa8d99ab2091153621dcd3d7412af6f96255682a79cc",
       "bytes": 13816
@@ -6926,8 +6930,8 @@
       "bytes": 14135
     },
     "reference/driftdroid/android/app/src/main/kotlin/com/driftdroid/android/ThorLauncherView.kt": {
-      "sha256": "9e5d69aac06fa7b86aa33de588eb32f8a2ffd12fb218ca6d8dd255003308abd9",
-      "bytes": 70400
+      "sha256": "314f4733b6f76c3593a7536e68dc18d8f6326b3fb637b3548dfd2de69645717e",
+      "bytes": 70982
     },
     "reference/driftdroid/android/app/src/main/kotlin/com/driftdroid/android/ThorLibraryCompanionView.kt": {
       "sha256": "e13d526ac9392252592110229567bf3034be985e1cbf83011051a34f2521a510",

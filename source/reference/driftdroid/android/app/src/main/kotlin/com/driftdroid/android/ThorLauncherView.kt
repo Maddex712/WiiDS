@@ -1210,6 +1210,12 @@ internal class ThorLauncherView(
 
     /** Pointer/touch only mirrors the explicit actions: pick a case, pick the visible disc. */
     override fun onTouchEvent(event: MotionEvent): Boolean {
+        // The volume panel is controller-operated. Its backing Options rows are not touch
+        // targets while covered; treating one as activate() would unexpectedly toggle mute.
+        if (options && musicPanel) {
+            downTarget = -1
+            return true
+        }
         val x = (event.x - offsetX) / scale
         val y = (event.y - offsetY) / scale
         val index = bounds.lastOrNull { it.first.contains(x, y) }?.second ?: -1
@@ -1218,15 +1224,19 @@ internal class ThorLauncherView(
                 downTarget = index
                 // A side case in the carousel is first brought to the front, not opened.
                 downWasFront = options || index == selection || index >= caseCount
-                if (index in 0..caseCount && options && !musicPanel) select(index)
-                else if (index in 0..caseCount && state == State.BROWSE) select(index)
+                if (options) {
+                    if (index in optionEntries().indices && !musicPanel) select(index)
+                } else if (index in 0..caseCount && state == State.BROWSE) select(index)
             }
             MotionEvent.ACTION_UP -> {
                 if (index >= 0 && index == downTarget) {
                     performClick()
                     when {
+                        // Options have their own row indices; a later row must not be mistaken
+                        // for the carousel's encoded disc target (10 + case index).
+                        options -> if (index in optionEntries().indices) activate()
                         index >= 10 -> if (state == State.OPEN) chooseDisc()
-                        options || (state == State.BROWSE && downWasFront) -> activate()
+                        state == State.BROWSE && downWasFront -> activate()
                     }
                 }
                 downTarget = -1
