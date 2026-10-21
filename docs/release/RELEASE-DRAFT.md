@@ -17,6 +17,11 @@ cases, per-game lower screens, settings and physical controls. Package
   in this APK; no additional Eclipse APK is required for the combined app.
 - The approved minimal WiiDS icon; white Mario Kart cases, red NSMB cases and
   black GameCube cases; opening-case and lifting/spinning-disc animations.
+- The owner's selected current cover/disc artwork, menu music and UI/HUD assets,
+  packaged as the exact hash-verified presentation snapshot.
+- Rendered Retro Rewind lower-screen map cache, with its map index and referenced
+  PNG/JSON receipts. Cached maps still require the loaded course archive's exact
+  basename and SHA-256; incompatible/unknown courses retain the normal fallback.
 - Existing video, controller, menu-music, updater and diagnostic settings.
 
 Players supply their own supported game discs. Neither an original game image nor
@@ -46,27 +51,32 @@ are not replaced; their personal saves are not copied into WiiDS automatically.
 
 ## Appearance and content
 
-Game-derived HUD, font, map and menu assets are reconstructed from the player's
-disc/mod installation. Optional user-selected artwork remains user content. The
-release does not bundle ROMs, owner saves or private credentials. Record any
-separately bundled authorised mod assets explicitly in the release inventory.
+This release carries the exact current cover/disc images, Wii Menu music and
+UI/HUD/settings presentation selected by the owner, so a new install gets that
+presentation with the application. Its manifest records each file's size and
+SHA-256. User overrides remain separate; the packaged snapshot supplies the
+default/fallback. The on-device disc/mod art builders remain available for
+content that is missing or needs regeneration.
 
-The owner's private retail/fan cover scans and Wii Menu recording are not bundled.
-Disc-derived case compositions and title audio provide the initial experience;
-private artwork/audio can remain optional user customisation. The approved new
-minimal application icon is included. The Eclipse patch travels unchanged with
-the team's attribution and applicable mod/patcher licence texts.
+The application icon and approved generated disc artwork are included. The
+Eclipse fan disc design is credited to Some-Crappy-Edits; the retail game artwork,
+fonts/UI and Wii Menu recording retain Nintendo attribution. See the application
+notice for the owner-supplied Eclipse cover's unverified creator. These credits
+do not imply Nintendo endorsement or assign the code's GPL licence to artwork.
+ROMs, owner saves and private credentials are excluded. The Eclipse patch travels
+unchanged with the team's attribution and applicable mod/patcher licence texts.
 
 ## Build the prepared release
 
 Start with the pinned source checkouts and privately generated translations from
 supported owner discs. Build/stage the current native runtimes first using the
-component build notes. The ordinary merge staging command below replaces its
-own asset staging directory, so run it **before** Eclipse patch staging:
+component build notes. Merge staging replaces only its own two runtime trees and
+MSMBWii archive, preserving the presentation snapshot and staged Eclipse patch:
 
 ```powershell
 python experiments/release/stage_merged.py
 python experiments/eclipse-thor/Stage-Embedded.py --bundle-patch --sdk-root .tools/android-sdk
+python scripts/Stage-Presentation.py --serial 192.168.15.95:5555 --capture-root build/public-release/presentation-capture --revision thor-2026-10-20-r2
 python experiments/release/stage_licenses.py
 
 Push-Location reference/driftdroid/android
@@ -100,6 +110,24 @@ python experiments/eclipse-thor/Prepare-Eclipse.py --source "C:\path\to\your\GMS
 
 The source archive includes that helper and the exact patch fingerprints, not the
 generated private image or the mod archive itself.
+
+`Stage-Presentation.py` captures a configured Thor during release preparation;
+its example address is this owner's device, not a required public endpoint.
+Rebuilders use the already included presentation tree from the matching source
+archive, so no access to the owner's device is needed. Merge staging preserves
+that tree. Capturing another device is an explicit optional authoring step.
+
+The matching source release also includes the exact presentation manifest and
+only its listed payloads at `build/wiids-merge/assets/presentation/`. Approved
+formats are PNG/JPEG images, WAV audio, JSON, native RGBA settings images and TSV
+glyph metadata. The source exporter verifies hashes and sizes before including
+this explicit staging tree; other `build/` game files are not exported.
+
+The rendered Retro Rewind cache contains PNG/JSON presentation, not its SZS
+course archives. The actual mod pack still installs from official servers.
+Publish the named full source ZIP as a release asset so all matching source and
+presentation files travel together without adding hundreds of megabytes of
+generated map imagery to the repository history.
 
 ## Validation and limits
 

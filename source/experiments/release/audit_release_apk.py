@@ -22,6 +22,7 @@ MOD_ZIPS = {'assets/mods/MSMBWii.zip': 'be135baea3a6caeb6510574e5bf0ed55a6e3fdfb
 MOD_PATCHES = {'25c6b08333802bca17c1e6571c7289a6382a32a85af1aa5bd224acfbac6a8bf0':
                'Eclipse 1.1.0 official VCDIFF patch'}
 WINDOW = 64
+PRESENTATION_GROUPS = {'launcher', 'launcher-audio', 'thor-map', 'nsmbw-hud', 'msmbwii-hud', 'sms-hud', 'eclipse-hud'}
 
 
 def stream_sha(stream):
@@ -35,6 +36,75 @@ def disc_magic(header):
     return (header[:4] in {b'WBFS', b'RVZ\x01', b'WIA\x01', b'CISO'} or
             header[0x18:0x1C] == b'\x5d\x1c\x9e\xa3' or
             header[0x1C:0x20] == b'\xc2\x33\x9f\x3d')
+
+
+def presentation_audit(archive):
+    prefix = 'assets/presentation/'
+    names = {name for name in archive.namelist() if name.startswith(prefix) and not name.endswith('/')}
+    if not names:
+        return [], None
+    errors = []
+    manifest_name = prefix + 'manifest.json'
+    try:
+        if archive.getinfo(manifest_name).file_size > 4 * 1024 * 1024:
+            raise ValueError('oversized manifest')
+        manifest = json.loads(archive.read(manifest_name))
+        if manifest.get('schema') != 1 or manifest.get('kind') != 'wiids-bundled-presentation':
+            raise ValueError('unexpected manifest schema/kind')
+        revision = manifest.get('revision')
+        if not isinstance(revision, str) or not revision or any(c not in 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_.-' for c in revision):
+            raise ValueError('unsafe revision')
+        entries = manifest.get('files')
+        if not isinstance(entries, list) or not entries or len(entries) > 8192:
+            raise ValueError('invalid file table')
+        approved, targets, total = {manifest_name}, set(), 0
+        for entry in entries:
+            target, asset, size, digest = (entry.get(key) for key in ('target', 'asset', 'bytes', 'sha256'))
+            if not isinstance(target, str) or not isinstance(asset, str):
+                raise ValueError('invalid path field')
+            path = PurePosixPath(target)
+            if path.is_absolute() or len(path.parts) < 2 or path.parts[0] not in PRESENTATION_GROUPS or '..' in path.parts or '\\' in target:
+                raise ValueError('unsafe target path')
+            if asset != 'presentation/files/' + target or target in targets:
+                raise ValueError('inconsistent or duplicate target')
+            if not isinstance(size, int) or not 0 < size <= 128 * 1024 * 1024:
+                raise ValueError('invalid file size')
+            if not isinstance(digest, str) or len(digest) != 64 or any(c not in '0123456789abcdef' for c in digest):
+                raise ValueError('invalid file hash')
+            suffix = path.suffix.lower()
+            allowed = {'.png', '.jpg', '.wav', '.json'}
+            if target.startswith('thor-map/thor_settings/'):
+                allowed = {'.rgba', '.tsv'}
+            if suffix not in allowed:
+                raise ValueError('non-presentation payload: ' + target)
+            name = 'assets/' + asset
+            info = archive.getinfo(name)
+            if info.file_size != size:
+                raise ValueError('size mismatch: ' + target)
+            with archive.open(info) as stream:
+                if stream_sha(stream) != digest:
+                    raise ValueError('hash mismatch: ' + target)
+            with archive.open(info) as stream:
+                header = stream.read(16)
+            if ((suffix == '.png' and not header.startswith(b'\x89PNG\r\n\x1a\n')) or
+                (suffix == '.jpg' and not header.startswith(b'\xff\xd8\xff')) or
+                (suffix == '.wav' and not (header[:4] == b'RIFF' and header[8:12] == b'WAVE'))):
+                raise ValueError('image/audio header mismatch: ' + target)
+            if suffix == '.json':
+                json.loads(archive.read(info))
+            elif suffix == '.tsv':
+                archive.read(info).decode('utf-8')
+            approved.add(name); targets.add(target); total += size
+        if total > 768 * 1024 * 1024:
+            raise ValueError('presentation exceeds total limit')
+        if approved != names:
+            raise ValueError('unlisted or absent presentation files')
+        return [], {'revision': revision, 'files': len(entries), 'bytes': total,
+                    'manifest_sha256': hashlib.sha256(archive.read(manifest_name)).hexdigest(),
+                    'all_payload_hashes_verified': True}
+    except (ValueError, KeyError, TypeError, AttributeError, UnicodeError) as error:
+        errors.append('Invalid bundled presentation: ' + str(error))
+    return errors, None
 
 
 def windows(data, count=12):
@@ -101,6 +171,8 @@ def local_sources():
 def audit(apk, sources):
     findings, inventory, libraries, mods = [], [], {}, []
     with zipfile.ZipFile(apk) as archive:
+        presentation_errors, presentation = presentation_audit(archive)
+        findings.extend(presentation_errors)
         names = archive.namelist()
         if len(names) != len(set(names)):
             findings.append('Duplicate ZIP entries')
@@ -169,6 +241,7 @@ def audit(apk, sources):
             'status': 'pass' if not findings else 'failed', 'findings': findings,
             'inventory': inventory,
             'approved_mod_payloads': mods,
+            'approved_presentation': presentation,
             'native_libraries': {name: {'bytes': len(data), 'sha256': hashlib.sha256(data).hexdigest()}
                                  for name, data in libraries.items()},
             'source_window_checks': sample_results,

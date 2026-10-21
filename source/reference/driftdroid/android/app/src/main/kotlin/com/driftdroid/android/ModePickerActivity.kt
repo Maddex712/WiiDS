@@ -84,9 +84,47 @@ class ModePickerActivity : Activity() {
     @Volatile private var updateCancelled = false
     private var updateInstalling = false
     private val mainHandler = Handler(Looper.getMainLooper())
+    private var presentationLoading = false
+    private var libraryResumed = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        if (BuildConfig.THOR_BUILD && ThorBundledPresentation.available(this)) {
+            presentationLoading = true
+            val preparing = TextView(this).apply {
+                text = "Preparing your WiiDS library…"
+                textSize = 22f
+                setTextColor(Color.rgb(0x47, 0x55, 0x64))
+                setBackgroundColor(Color.rgb(0xF1, 0xF5, 0xF8))
+                gravity = Gravity.CENTER
+            }
+            setContentView(preparing)
+            val app = applicationContext
+            Thread {
+                var lastProgress = 0L
+                val error = runCatching {
+                    ThorBundledPresentation.install(app) { done, total ->
+                        val now = android.os.SystemClock.uptimeMillis()
+                        if (now - lastProgress >= 100 || done == total) {
+                            lastProgress = now
+                            runOnUiThread { if (!isFinishing && !isDestroyed) preparing.text = "Preparing your WiiDS library… ${done * 100 / total}%" }
+                        }
+                    }
+                }.exceptionOrNull()
+                runOnUiThread {
+                    if (isFinishing || isDestroyed) return@runOnUiThread
+                    presentationLoading = false
+                    if (error != null) android.util.Log.w("WiiDS", "Bundled presentation could not be prepared; existing files were kept", error)
+                    createLibrary()
+                    if (libraryResumed) resumeLibrary()
+                }
+            }.apply { name = "WiiDsPresentation"; isDaemon = true }.start()
+            return
+        }
+        createLibrary()
+    }
+
+    private fun createLibrary() {
         refreshNsmbInstalled()
         buildUi()
         if (routePendingThorUpdate()) return
@@ -102,6 +140,11 @@ class ModePickerActivity : Activity() {
 
     override fun onResume() {
         super.onResume()
+        libraryResumed = true
+        if (!presentationLoading) resumeLibrary()
+    }
+
+    private fun resumeLibrary() {
         applyThorFullscreen()
         if (routePendingThorUpdate()) return
         // First run: nothing imported yet, so start where every game is set up.
@@ -156,6 +199,7 @@ class ModePickerActivity : Activity() {
     }
 
     override fun onPause() {
+        libraryResumed = false
         thorLauncher?.onHostPaused()
         // During a committed launch the lower companion stays up until onStop, so the lower
         // display never flashes the system home screen before the game's own presentation.

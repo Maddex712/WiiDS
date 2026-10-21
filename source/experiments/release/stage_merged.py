@@ -10,9 +10,11 @@ libc++_shared.so and libpng16.so come from the host build (checked compatible).
 Run before scripts/Package-Thor.ps1. Never stages game data.
 """
 import hashlib
+import os
 import shutil
 import subprocess
 import sys
+import uuid
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -42,6 +44,49 @@ def run(*args):
     return result.stdout
 
 
+def replace_runtime_assets(name, source):
+    """Replace this stager's named runtime tree, preserving other release assets."""
+    if name not in RUNTIME_ASSETS:
+        raise ValueError('Unknown runtime asset tree')
+    ASSETS.mkdir(parents=True, exist_ok=True)
+    root = ASSETS.resolve()
+    if not root.is_relative_to((ROOT / 'build').resolve()) or not root.is_relative_to(ROOT.resolve()):
+        raise ValueError('Asset staging root escapes the workspace build directory')
+    token = uuid.uuid4().hex
+    target = ASSETS / name
+    stage = ASSETS / f'.{name}.{token}.new'
+    backup = ASSETS / f'.{name}.{token}.old'
+
+    def checked(path):
+        if path not in (target, stage, backup) or path.parent.resolve() != root:
+            raise ValueError('Unexpected runtime staging path')
+        if path.is_symlink() or (hasattr(path, 'is_junction') and path.is_junction()):
+            raise ValueError('Runtime asset staging may not follow a symlink/junction')
+        if not path.resolve().is_relative_to(root):
+            raise ValueError('Runtime staging target escapes its asset root')
+
+    def cleanup(path):
+        checked(path)
+        if path.exists():
+            shutil.rmtree(path)
+
+    for path in (target, stage, backup):
+        checked(path)
+    try:
+        shutil.copytree(source, stage)
+        if target.exists():
+            os.replace(target, backup)
+        try:
+            os.replace(stage, target)
+        except BaseException:
+            if backup.exists():
+                os.replace(backup, target)
+            raise
+        cleanup(backup)
+    finally:
+        cleanup(stage)
+
+
 def main():
     JNI.mkdir(parents=True, exist_ok=True)
     for name, source in LIBRARIES.items():
@@ -59,10 +104,8 @@ def main():
     exports = run(NDK / 'llvm-nm.exe', '-D', '--defined-only', JNI / 'libSDL2.so')
     if 'Java_org_libsdl_app_' in exports or 'Java_org_libsdl_sdl2_app_' not in exports:
         sys.exit('libSDL2.so is not the relocated WiiDS build')
-    if ASSETS.exists():
-        shutil.rmtree(ASSETS)
     for name, source in RUNTIME_ASSETS.items():
-        shutil.copytree(source, ASSETS / name)
+        replace_runtime_assets(name, source)
         print(f'assets/{name}: {sum(1 for p in (ASSETS / name).rglob("*") if p.is_file())} files')
     # MSMBWii is included with its authors' permission (docs/release/PERMISSIONS.md). Only the
     # exact known release is staged; the app checks it again before unpacking.

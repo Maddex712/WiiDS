@@ -66,6 +66,10 @@ PRIVATE_PREFIXES = (('android', 'build'), ('android', 'app', 'build'),
     ('runtime', 'assets'))
 SOURCE_SUFFIXES = {'.c', '.cc', '.cpp', '.cxx', '.h', '.hh', '.hpp', '.hxx',
                    '.kt', '.kts', '.java', '.cs', '.py', '.ps1', '.sh'}
+PRESENTATION_ROOT = ROOT / 'build/wiids-merge/assets/presentation'
+PRESENTATION_SUFFIXES = {'.png', '.jpg', '.jpeg', '.wav', '.json', '.rgba', '.tsv'}
+PRESENTATION_TARGETS = {'launcher', 'launcher-audio', 'thor-map', 'nsmbw-hud',
+                        'msmbwii-hud', 'sms-hud', 'eclipse-hud'}
 DENIED_NAMES = {'local.properties', 'keystore.properties', 'settings.txt',
                 'config.toml', 'verification.json', 'receipt.json', 'agents.md'}
 SECRETS = re.compile(rb'(?:-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----\r?\n[A-Za-z0-9+/]{32,}|'
@@ -148,10 +152,96 @@ def expected_source_files(directory: Path):
             yield path.relative_to(directory).as_posix(), path
 
 
+def add_presentation(entries):
+    """Include only the explicitly curated manifest's presentation payloads.
+
+    This exception cannot recursively scoop up other ignored build/assets files.
+    Keep the staging path so the source snapshot reproduces Gradle's asset tree.
+    """
+    root = PRESENTATION_ROOT
+    if not root.resolve().is_relative_to(ROOT.resolve()):
+        raise RuntimeError('Presentation staging root escapes the workspace')
+    manifest_path = root / 'manifest.json'
+    if manifest_path.is_symlink() or not manifest_path.is_file():
+        raise RuntimeError('The release presentation manifest has not been staged')
+    raw_manifest = manifest_path.read_bytes()
+    manifest = json.loads(raw_manifest)
+    if manifest.get('schema') != 1 or manifest.get('kind') != 'wiids-bundled-presentation':
+        raise RuntimeError('Unrecognised bundled presentation manifest')
+    files = manifest.get('files')
+    revision = manifest.get('revision')
+    if not isinstance(files, list) or not 1 <= len(files) <= 8192:
+        raise RuntimeError('Invalid bundled presentation file count')
+    if not isinstance(revision, str) or not re.fullmatch('[A-Za-z0-9_.-]{1,96}', revision):
+        raise RuntimeError('Invalid bundled presentation revision')
+    targets = set()
+    expected = {'manifest.json'}
+    total = 0
+    for item in files:
+        if not isinstance(item, dict):
+            raise RuntimeError('Invalid bundled presentation entry')
+        asset, target = item.get('asset'), item.get('target')
+        if not isinstance(asset, str) or not isinstance(target, str):
+            raise RuntimeError('Invalid presentation asset/target name')
+        target_path = PurePosixPath(target)
+        if (target.startswith('/') or '\\' in target or target_path.as_posix() != target
+                or any(p in ('', '.', '..') for p in target.split('/'))
+                or len(target_path.parts) < 2 or target_path.parts[0] not in PRESENTATION_TARGETS):
+            raise RuntimeError('Unsafe presentation target path')
+        if target_path.suffix.lower() not in PRESENTATION_SUFFIXES:
+            raise RuntimeError('Unapproved presentation format: ' + target)
+        if asset != 'presentation/files/' + target or target in targets:
+            raise RuntimeError('Unexpected or duplicate presentation asset mapping')
+        size, digest = item.get('bytes'), item.get('sha256')
+        if (type(size) is not int or not 0 < size <= 128 * 1024 * 1024
+                or not isinstance(digest, str) or not re.fullmatch('[a-f0-9]{64}', digest)):
+            raise RuntimeError('Invalid presentation size/hash metadata')
+        relative = 'files/' + target
+        path = root / relative
+        if path.is_symlink() or not path.resolve().is_relative_to(root.resolve()):
+            raise RuntimeError('Presentation symlink/path escape')
+        if not path.is_file() or path.stat().st_size != size:
+            raise RuntimeError('Presentation file missing or wrong size: ' + target)
+        data = path.read_bytes()
+        if hashlib.sha256(data).hexdigest() != digest:
+            raise RuntimeError('Presentation file hash mismatch: ' + target)
+        suffix = target_path.suffix.lower()
+        if suffix == '.png' and not data.startswith(b'\x89PNG\r\n\x1a\n'):
+            raise RuntimeError('Invalid PNG presentation payload')
+        if suffix in ('.jpg', '.jpeg') and not data.startswith(b'\xff\xd8\xff'):
+            raise RuntimeError('Invalid JPEG presentation payload')
+        if suffix == '.wav' and not (data.startswith(b'RIFF') and data[8:12] == b'WAVE'):
+            raise RuntimeError('Invalid WAV presentation payload')
+        if suffix == '.json':
+            json.loads(data)
+        if suffix == '.tsv':
+            data.decode('utf-8-sig')
+        if suffix in ('.json', '.tsv') and SECRETS.search(data):
+            raise RuntimeError('Potential secret in presentation metadata')
+        total += size
+        if total > 768 * 1024 * 1024:
+            raise RuntimeError('Presentation payload exceeds release limit')
+        targets.add(target)
+        expected.add(relative)
+        entries['build/wiids-merge/assets/presentation/' + relative] = data
+    actual = {p.relative_to(root).as_posix() for p in root.rglob('*') if p.is_file()}
+    if actual != expected:
+        raise RuntimeError('Presentation tree contains missing or unlisted files')
+    entries['build/wiids-merge/assets/presentation/manifest.json'] = raw_manifest
+    return {'revision': revision, 'manifest_sha256': hashlib.sha256(raw_manifest).hexdigest(),
+            'files': len(files), 'bytes': total,
+            'source': 'Exact owner-approved current presentation snapshot; attribution in WIIDS-NOTICE.md'}
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--output', type=Path, default=ROOT / 'build/release-source/WiiDS-source-candidate.zip')
+    parser.add_argument('--check-presentation', action='store_true',
+                        help='Validate the exact staged presentation only; do not create a source archive')
     args = parser.parse_args()
+    if args.check_presentation:
+        print(json.dumps(add_presentation({})))
+        return
     output = args.output.resolve()
     if output.exists():
         raise SystemExit(f'Refusing to overwrite: {output}')
@@ -235,6 +325,7 @@ def main():
     logo = ROOT / 'build/branding/wiids-thor-minimal-v4.png'
     if logo.is_file():
         entries['build/branding/wiids-thor-minimal-v4.png'] = logo.read_bytes()
+    presentation = add_presentation(entries)
     coverage = {}
     omitted = []
     for prefix, directory in source_roots:
@@ -256,7 +347,8 @@ def main():
         'missing_roots': missing,
         'source_coverage': {'expected_source_files': sum(coverage.values()),
                             'roots': coverage, 'omissions': omitted},
-        'excluded': 'ROMs; disc/game data; translated/generated game code; extracted assets; saves; keys; binaries; private logs; build trees',
+        'presentation_assets': presentation,
+        'excluded': 'ROMs; disc/game data; translated/generated game code; unlisted extracted assets; saves; keys; native binaries; private logs; other build trees',
         'limitations': [
             'Candidate requires review against the exact APK library/source inventory.',
             'Submodules and binary upstream build dependencies are fetched from pinned upstream sources.',

@@ -1,8 +1,9 @@
 # Step 3: every game's art built on the device
 
-`wiids/art` (C++, linked into `libwiidsdisc.so`) builds all companion art from the player's own
-imported disc. WiiDS ships none of it. `rom/WiiDsArt.kt` runs it in the background after each
-import, and the Games screen re-runs anything missing.
+`wiids/art` (C++, linked into `libwiidsdisc.so`) can build companion art from the player's own
+imported disc. The current release also contains the owner's approved presentation snapshot;
+the generated fallback remains available. `rom/WiiDsArt.kt` runs background preparation after
+each import, and the Games screen can rebuild missing content.
 
 | Art | Source on the disc | Output (app storage) | Check against the PC tools |
 |---|---|---|---|
@@ -28,8 +29,10 @@ import, and the Games screen re-runs anything missing.
 - Cases (`art_cases.cpp`): Mario Kart (logo, Mario's kart, items, chequered strip), NSMB
   (port of compose_case_art.py), MSMBWii (band over the NSMB case), Sunshine (title logo over
   sky, sea and sand). Text uses each game's own fonts. Every case pair is optional now.
-- Not included for strangers: the owner's own Wii Menu music file (the disc's title theme is
-  used) and the owner-supplied box scans.
+- The current public presentation bundle includes the owner-selected covers/discs,
+  Wii Menu music and UI/HUD artwork. See `RELEASE-DRAFT.md` and its hashed
+  `presentation/manifest.json`; the generators above remain available for missing
+  or regenerated content. This supersedes the earlier generator-only art plan.
 - Host test: `experiments/release/disc-test/build.bat` builds `wiids_art_tool`
   (`nsmb`, `sms`, `mkw`, `mkwaudio`, `maps`, `mapNN`, `casesmkw`, `casesnsmb`, `casessms`, `banner`).
 

@@ -8,8 +8,9 @@ New Super Mario Bros., Super Mario Sunshine, Wii and GameCube are trademarks of 
 images. Its native engines include compiled runtime and translated game logic;
 required original disc sections and game-derived presentation assets are read
 or reconstructed from your own imported disc and checked against supported
-fingerprints. Authorised mod components are identified below. Please only play
-games you own.
+fingerprints. This release also carries the owner's explicitly selected current
+presentation assets, as listed in its hashed presentation manifest. Authorised
+mod components are identified below. Please only play games you own.
 
 Source and project page: https://github.com/Maddex712/WiiDS
 
@@ -42,6 +43,27 @@ Source and project page: https://github.com/Maddex712/WiiDS
 
 Portions of this software are copyright © 2026 The FreeType Project (www.freetype.org).
 All rights reserved.
+
+## Included presentation
+
+The owner requested that this release preserve the current covers, discs, menu
+music and lower-screen/settings artwork. The bundled presentation manifest lists
+the exact files, sizes and SHA-256 hashes. These assets are separate from ROMs,
+personal saves and credentials, none of which are included.
+
+- Nintendo: original game cover/disc artwork, game-derived UI/HUD/fonts and the
+  supplied Wii Menu recording. Nintendo names and artwork remain their respective
+  owners' material; inclusion does not imply Nintendo approval or endorsement.
+- Some-Crappy-Edits: Eclipse fan disc design, cropped/normalised from the creator's
+  supplied mockup. The selected Eclipse cover was supplied by the owner; its
+  independent creator has not been verified.
+- The approved Retro Rewind disc design and minimal WiiDS app logo were generated
+  with the built-in image tool and selected by the owner.
+
+The owner's authorisation to package this configured presentation is not a claim
+that the owner created every asset. The project's code licence does not relicense
+third-party presentation material. Component licence texts and the Eclipse mod
+payload terms remain separately applicable.
 
 ## Licences in this folder
 

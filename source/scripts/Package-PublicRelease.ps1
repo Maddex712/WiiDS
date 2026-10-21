@@ -114,6 +114,9 @@ try {
     if (!(Test-Path -LiteralPath (Join-Path $projectRoot 'build/wiids-merge/assets/mods/eclipse-v1.1.0.xdelta') -PathType Leaf)) {
         throw 'The bundled, verified official Eclipse patch is required.'
     }
+    # The complete owner-selected presentation is part of this release. Validate
+    # only its manifest-listed asset formats/paths/hashes; never scoop up build/.
+    Invoke-Checked $Python @((Join-Path $projectRoot 'experiments/release/export_release_source.py'), '--check-presentation')
     Invoke-Checked $Python @((Join-Path $projectRoot 'experiments/release/stage_licenses.py'))
     $before = @{}
     Get-ChildItem -LiteralPath $jniRoot -Filter '*.so' -File | ForEach-Object {

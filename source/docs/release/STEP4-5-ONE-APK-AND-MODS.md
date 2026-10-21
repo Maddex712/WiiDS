@@ -1,5 +1,10 @@
 # Steps 4–5: one APK, mod download
 
+This document records the original merged-runtime bring-up. The current six-case
+beta.2 release additionally embeds Eclipse and the approved full presentation
+snapshot; use `RELEASE-DRAFT.md`, `SOURCE-RELEASE.md` and
+`experiments/eclipse-thor/EMBEDDED_RELEASE.md` for its exact packaging/install path.
+
 `scripts/Package-Thor.ps1` now builds **build/WiiDS.apk**: app id `io.github.maddex712.wiids`,
 label "WiiDS", minSdk 30, signed with the WiiDS release key (153 MB, libraries compressed).
 It installs beside the private standalone builds (different app id), so nothing on the Thor is

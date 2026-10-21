@@ -2,7 +2,10 @@
 
 <img src="docs/images/wiids-minimal-logo.png" width="120" alt="Minimal WiiDS dual-screen app logo">
 
-Reviewed source snapshot: [source/](source/) (runtime, Android frontend, translators and build tools).
+Reviewed code snapshot: [source/](source/) (runtime, Android frontend, translators and build tools).
+The **complete matching source bundle**, including the large approved presentation payload, is the named
+`WiiDS-0.9.0-beta.2-source.zip` asset in [Releases](https://github.com/Maddex712/WiiDS/releases).
+GitHub's automatic Source code ZIP and this Git tree omit that large media payload; use the named release source ZIP to rebuild the exact package.
 
 Release preparation: [source and rebuild notes](docs/release/SOURCE-RELEASE.md),
 [release checklist](docs/release/RELEASE-DRAFT.md), and
@@ -37,6 +40,7 @@ aren't emulated. They run as native Android code through static recompilation an
 
 ## Highlights
 
+- **The complete presentation:** selected retail/fan covers and discs, Wii Menu music and UI sounds, original HUD/fonts/settings artwork and cached lower-screen maps are bundled. Existing user overrides and saves are preserved.
 - **Six cases with matching plastic colors:** white Mario Kart/Retro Rewind, red NSMB/MSMBWii, black Sunshine/Eclipse.
 - **One APK, separate saves.** Eclipse's official 1.1.0 patch and MSMBWii's pack are bundled; Retro Rewind installs from its official servers. No companion APK is required.
 - **A real game shelf.** A carousel of game cases: open one, and the disc lifts out and spins up as the

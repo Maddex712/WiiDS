@@ -15,8 +15,12 @@ import java.security.MessageDigest
  * WiiCompiled/ThorMap; removing a folder goes back to the built one.
  */
 internal object ThorLauncherFolders {
-    fun cases(context: Context, thorMap: File): File = custom(context, "launcher", "artwork.json") ?: File(thorMap, "launcher")
-    fun audio(context: Context, thorMap: File): File = custom(context, "launcher-audio", "audio.json") ?: File(thorMap, "launcher-audio")
+    fun cases(context: Context, thorMap: File): File = custom(context, "launcher", "artwork.json")
+        ?: bundled(context, "launcher", "artwork.json") ?: File(thorMap, "launcher")
+    fun audio(context: Context, thorMap: File): File = custom(context, "launcher-audio", "audio.json")
+        ?: bundled(context, "launcher-audio", "audio.json") ?: File(thorMap, "launcher-audio")
+    private fun bundled(context: Context, name: String, manifest: String): File? =
+        ThorBundledPresentation.root(context)?.let { File(it, name) }?.takeIf { File(it, manifest).isFile }
     private fun custom(context: Context, name: String, manifest: String): File? =
         context.getExternalFilesDir(null)?.let { File(it, "custom/$name") }?.takeIf { File(it, manifest).isFile }
 }

@@ -30,6 +30,21 @@ It stages the embedded Eclipse host/bootstrap and verified official patch, then
 licences, before invoking the combined app's Gradle release target. It refuses
 debug-key fallback and preserves the other staged runtime libraries.
 
+The exact approved master icon is included at
+`build/branding/wiids-thor-minimal-v4.png`. Regenerate all legacy/round/adaptive
+launcher resources before Gradle packaging when restoring a source-only checkout:
+
+```powershell
+python -m pip install Pillow
+python scripts/Stage-WiiDSIcon.py build/branding/wiids-thor-minimal-v4.png --receipt-dir build/branding/rebuild-icon-receipt
+```
+
+Use a fresh receipt directory on each run. The icon packager keeps prior resource
+copies there. Merge staging now replaces only its own named runtime directories,
+so the source archive's `build/wiids-merge/assets/presentation/` tree and staged
+Eclipse patch are preserved. `Stage-Presentation.py` is needed only to capture a
+new configured device presentation; normal source rebuilds use the included tree.
+
 The archive also includes the actual fixed-up Eclipse/BSE/moveset/header sources
 under `third_party/`, plus the modified SDL2 source used by the combined launcher.
 Their original pins are recorded in the manifest. The upstream Eclipse CMake
@@ -46,8 +61,12 @@ including the scripts needed to generate/build them; merely linking to this
 showcase repository or supplying a patch against an unspecified base is
 insufficient. Record dependency versions and build flags for the exact release.
 
-The candidate exporter intentionally leaves out all ROMs, extracted assets,
-translated game outputs, saves, private logs, keys and binaries. It must not be
+The candidate exporter intentionally leaves out all ROMs, unlisted extracted
+assets, translated game outputs, saves, private logs, keys and native binaries.
+It includes the explicitly approved current presentation manifest and only its
+listed/hash-verified PNG/JPEG/WAV/JSON/RGBA/TSV files at
+`build/wiids-merge/assets/presentation/`. This narrow asset-tree exception never
+exports arbitrary files from the ignored build directory. It must not be
 described as complete corresponding source until the inventory and generation
 path are reviewed. This source snapshot has not been rebuilt from scratch on a
 second computer.
@@ -62,7 +81,18 @@ second computer.
 - SDL, aurora, Dolphin-derived portions, FreeType and compression/graphics
   dependencies: retain each component's notices and applicable source obligations.
 
-Source and binary licences do not grant redistribution rights to Nintendo art,
-music, disc data, or unrelated fan artwork. The application can reconstruct its
-game HUD/art from the user's disc and accept optional custom art. The source
-archive does not include the owner's private cover/disc/music files.
+The owner explicitly requested packaging the selected current covers, discs,
+music and UI/HUD presentation. The matching source snapshot includes that exact
+manifested presentation to reproduce the released build. Nintendo game artwork,
+fonts/UI and Wii Menu music retain their attribution; Some-Crappy-Edits is credited
+for the Eclipse fan disc, and the approved generated disc/app-logo assets are
+identified in the notice. The owner-supplied Eclipse cover's creator is unverified.
+The owner's packaging instruction is not a claim of authorship or Nintendo
+endorsement, and the code licences do not relicense third-party artwork.
+
+The bundled Retro Rewind map cache consists of rendered PNG maps and their
+referenced JSON index/receipts, with archive-name/SHA compatibility gating retained.
+No SZS course archive or playable mod pack is part of that presentation snapshot.
+The preferred download is the named full matching source ZIP attached to the
+release. Repository source-code snapshots alone may omit this large asset tree;
+the named release archive includes both source and the exact presentation.

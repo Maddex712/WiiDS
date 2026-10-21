@@ -1,5 +1,7 @@
 """Positive and negative publication-scanner fixtures (no owner data)."""
 import importlib.util
+import hashlib
+import json
 from pathlib import Path
 import random
 import tempfile
@@ -54,6 +56,29 @@ class ReleaseAuditTests(unittest.TestCase):
 
     def test_extracted_game_asset_rejected(self):
         self.assertEqual(self.check_apk({'assets/retail/Race.szs': b'private game pixels'})['status'], 'failed')
+
+    def presentation(self):
+        data = b'\x89PNG\r\n\x1a\n' + bytes(16)
+        target = 'launcher/original-cover.png'
+        asset = 'presentation/files/' + target
+        manifest = {'schema': 1, 'kind': 'wiids-bundled-presentation', 'revision': 'test-r1',
+                    'files': [{'asset': asset, 'target': target, 'sha256': hashlib.sha256(data).hexdigest(), 'bytes': len(data)}]}
+        return {'assets/' + asset: data, 'assets/presentation/manifest.json': json.dumps(manifest).encode()}
+
+    def test_approved_presentation_hash_checked(self):
+        report = self.check_apk(self.presentation())
+        self.assertEqual(report['status'], 'pass')
+        self.assertTrue(report['approved_presentation']['all_payload_hashes_verified'])
+
+    def test_presentation_mismatch_rejected(self):
+        entries = self.presentation()
+        entries['assets/presentation/files/launcher/original-cover.png'] = b'wrong bytes'
+        self.assertEqual(self.check_apk(entries)['status'], 'failed')
+
+    def test_unlisted_presentation_payload_rejected(self):
+        entries = self.presentation()
+        entries['assets/presentation/files/launcher/extra.png'] = b'unlisted'
+        self.assertEqual(self.check_apk(entries)['status'], 'failed')
 
 
 if __name__ == '__main__':
