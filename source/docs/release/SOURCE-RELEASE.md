@@ -23,7 +23,7 @@ of the snapshot, rather than merely links to unmodified upstream repositories.
    notes. Stage merged libraries and licence notices, then package the Android
    release. Create your own signing key; the owner's key is never included.
 
-For the exact prepared one-APK beta.3 packaging command, see
+For the exact prepared one-APK beta.4 packaging command, see
 `docs/release/RELEASE-DRAFT.md` and `scripts/Package-PublicRelease.ps1`. The wrapper
 uses an explicit or environment-configured JDK/SDK and already-staged runtimes.
 It stages the embedded Eclipse host/bootstrap and verified official patch, then

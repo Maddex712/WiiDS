@@ -87,9 +87,9 @@
   ],
   "missing_roots": [],
   "source_coverage": {
-    "expected_source_files": 6659,
+    "expected_source_files": 6662,
     "roots": {
-      "reference/driftdroid": 1507,
+      "reference/driftdroid": 1508,
       "reference/nsmbw-android-e1": 1203,
       "reference/nsmbw-android-msmbwii": 1203,
       "reference/sms-thor": 248,
@@ -101,7 +101,7 @@
       "wiids": 213,
       "release": 0,
       "docs/release": 0,
-      "experiments/release": 15,
+      "experiments/release": 17,
       "experiments/eclipse-thor": 15,
       "experiments/nsmbw-thor": 47,
       "experiments/sunshine-thor": 11,
@@ -5758,11 +5758,11 @@
       "bytes": 1064
     },
     "docs/release/RELEASE-DRAFT.md": {
-      "sha256": "2b61ad0e3d6f8e5a93850aac3f19c7a97dabd81995944ac37fb967b232971da4",
-      "bytes": 8310
+      "sha256": "1a8a3c38d7e3fe970cc83535f0d20106a54604e4aef06849df0ccdab5448cad9",
+      "bytes": 8312
     },
     "docs/release/SOURCE-RELEASE.md": {
-      "sha256": "2a0048e5e5a07d20743d72fb6e02ddf6d56ed9970b530c9d7d9361fcf01d0062",
+      "sha256": "cff52d4c5d3cc123a9861ba6cd5ccffad46187b48370914e75c6e1d9a7f18a24",
       "bytes": 6148
     },
     "docs/release/STEP1-RELEASE-BASICS.md": {
@@ -6224,6 +6224,14 @@
     "experiments/release/test_bundled_presentation.py": {
       "sha256": "94105fe7d1fa0119e90fc92172e9a13a99dd27d3ba00e9c62ef2d1215fe1103a",
       "bytes": 12471
+    },
+    "experiments/release/test_eclipse_retry.py": {
+      "sha256": "6010bc4834ca9549f3d1a58d58a62056b46671811e0a593d317f98950f3fd5b3",
+      "bytes": 9909
+    },
+    "experiments/release/test_msmbwii_install.py": {
+      "sha256": "f7f07f722675fd29c1ebfa8d99ab2091153621dcd3d7412af6f96255682a79cc",
+      "bytes": 13816
     },
     "experiments/release/test_release_audit.py": {
       "sha256": "972a61002d2c356d21ef6306a4b472c54b4c4018bcd4a88cdb89e2126961ebc2",
@@ -6834,8 +6842,8 @@
       "bytes": 2986
     },
     "reference/driftdroid/android/app/src/main/kotlin/com/driftdroid/android/GamesActivity.kt": {
-      "sha256": "37ce85fa0858289f2b68054cd7c7de1054dd48bf1836a73d8ea218c77741ac44",
-      "bytes": 22207
+      "sha256": "99a23722bc647aa572abd726528c7d6dfc38ab21179aa6f176b2371f1993f3be",
+      "bytes": 22738
     },
     "reference/driftdroid/android/app/src/main/kotlin/com/driftdroid/android/GpuDriverSettings.kt": {
       "sha256": "ea1e79f07fced175d1019a133822f7ad0be88edc1d8a4c1dea7356ec2fa092a4",
@@ -6918,8 +6926,8 @@
       "bytes": 14135
     },
     "reference/driftdroid/android/app/src/main/kotlin/com/driftdroid/android/ThorLauncherView.kt": {
-      "sha256": "858852a0f38210c4a7f03a561e47f9a1fa7a8a875ee9837bb902f16504087c2d",
-      "bytes": 70416
+      "sha256": "9e5d69aac06fa7b86aa33de588eb32f8a2ffd12fb218ca6d8dd255003308abd9",
+      "bytes": 70400
     },
     "reference/driftdroid/android/app/src/main/kotlin/com/driftdroid/android/ThorLibraryCompanionView.kt": {
       "sha256": "e13d526ac9392252592110229567bf3034be985e1cbf83011051a34f2521a510",
@@ -6993,9 +7001,13 @@
       "sha256": "d89ca35c6878ba19b64a0149a204a24f4e1b4ed1b1aec9983d3fec955516145d",
       "bytes": 3509
     },
+    "reference/driftdroid/android/app/src/main/kotlin/com/driftdroid/android/rom/MsmbwiiInstallCommit.kt": {
+      "sha256": "c1324c44a3be214b2afe220782c4b6b5eec6036af4500a66defb12c9763b3d3e",
+      "bytes": 6654
+    },
     "reference/driftdroid/android/app/src/main/kotlin/com/driftdroid/android/rom/MsmbwiiMod.kt": {
-      "sha256": "234725623626ab4f1161195683e98fed5672e74b88611875ba2ce0143bee890f",
-      "bytes": 6914
+      "sha256": "bc90b0db5307acf2942a33614baf2d418a5fbd9ba63f082f0e8ba28d6cbcec8f",
+      "bytes": 7723
     },
     "reference/driftdroid/android/app/src/main/kotlin/com/driftdroid/android/rom/RomImportOverlay.kt": {
       "sha256": "e0a418b58c12cf907d3972d2ed15036e443c29517f5ce2520ef1bfa127a6bbd0",
@@ -28738,7 +28750,7 @@
       "bytes": 5179
     },
     "release/version.properties": {
-      "sha256": "f881b0cc5744d81cd74f8cbe09afa9b7a74ff6f36b284726e3f005bbac04b410",
+      "sha256": "e2a7bc39302e6e96c3453697725da4aaaaa5bf17bfecd6bcdd9d919e30a990cb",
       "bytes": 129
     },
     "scripts/Bake-ThorCustomMaps.py": {

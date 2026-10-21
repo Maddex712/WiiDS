@@ -880,7 +880,7 @@ internal class ThorLauncherView(
             stroke.color = 0x33000000; stroke.strokeWidth = 2f; c.drawRoundRect(rect, 18f, 18f, stroke)
         }
         text(c, if (muted) "Muted" else "Volume  $volume", 960f, 600f, 44f, 820f, true)
-        text(c, if (ThorLauncherAudio.available()) "Theme from your Mario Kart Wii disc" else "Music not staged on this device",
+        text(c, if (ThorLauncherAudio.available()) "Menu music is ready" else "Music not staged on this device",
             960f, 690f, 30f, 820f, true)
     }
 

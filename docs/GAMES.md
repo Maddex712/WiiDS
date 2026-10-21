@@ -8,6 +8,10 @@ The main shelf groups each original game with its mod: Mario Kart Wii/Retro Rewi
 NSMB Wii/MSMBWii, and Sunshine/Eclipse. Choose a family first, then choose the game inside it.
 The printed cases and lower-screen readiness panel identify which version will launch.
 
+For split WBFS imports, keep the `.wbfs` file and its `.wbf1`/later numbered parts together in the
+same folder. Grant storage access and use **Search again** in **Your games**, which collects sibling
+parts. **Choose file** opens only the single selected file.
+
 ## Mario Kart Wii
 
 The original Wii racing game, with its normal courses, characters, items and race rules. The race runs
@@ -53,9 +57,11 @@ does not replace your regular NSMB Wii save.
 The [current Original NSMB Wii screenshots](../README.md#new-super-mario-bros-wii) show this shared
 companion design; MSMBWii's current gallery image shows its separate case and readiness panel.
 
-Import the **USA revision 1 NSMB Wii disc** above, then choose **Install mod** on MSMBWii's card in
-**Your games**. The authorised level-pack archive and native runtime are bundled in WiiDS, so a
-separate companion APK or game-image download is not needed.
+Import the **USA revision 1 NSMB Wii disc** above. Installation of the bundled MSMBWii mod starts
+automatically after that import. If it was cancelled or did not finish, open MSMBWii's card in
+**Your games** and choose **Install mod** or **Retry mod installation**. The authorised level-pack
+archive and native runtime are bundled in WiiDS, so a separate companion APK or game-image download
+is not needed.
 
 ## Super Mario Sunshine
 
@@ -81,11 +87,16 @@ First import the unchanged **USA `GMSE01`, revision 0** Sunshine disc, then choo
 in **Your games**. The unmodified official 1.1.0 patch and its installer are bundled. WiiDS verifies
 the source disc, patch and resulting image before committing Eclipse's separate installation.
 The exact supported prepatched image can also be imported; a matching game ID alone is insufficient.
+If installation is cancelled, **Retry Eclipse installation** tries the bundled patch again.
 
 Regular Sunshine's image, settings and saves stay separate. Existing standalone Sunshine or Eclipse
 apps are not replaced, and their saves are not automatically copied into WiiDS.
 
 ## Display and testing notes
+
+The launcher and revised NSMB/Sunshine-family gallery images were captured in WiiDS 0.9.0-beta.3 and
+keep those labels. Beta.4 changes disc/mod installation and setup text; the launcher and companion
+designs shown in those images are unchanged.
 
 1080p and a 60 FPS target are the normal starting settings. The optional 120 FPS modes are experimental.
 For the recompiled Wii games, 120 FPS interpolates presentation while game logic remains at 60 Hz.

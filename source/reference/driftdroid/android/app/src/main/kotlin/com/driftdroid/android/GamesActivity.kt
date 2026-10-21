@@ -219,17 +219,19 @@ class GamesActivity : Activity() {
             val found = scan?.matching(disc).orEmpty()
             when {
                 game == Game.ECLIPSE && !disc.isInstalled(this) && GameCatalog.Disc.SUNSHINE_USA.isInstalled(this) -> {
-                    if (!eclipseMessage.isNullOrEmpty()) {
-                        show(card, "$eclipseMessage Choose the raw v1.1.0.xdelta from Eclipse Team's official patch pack to try another copy.", AMBER)
-                        button(card, "Choose Eclipse patch", !installBusy) { chooseModFile(eclipse = true) }
-                    } else if (EclipseMod.bundled(this)) {
-                        show(card, "Your Sunshine disc is ready. Eclipse Team's 1.1.0 patch is included; your original game and saves are kept.", GREEN)
-                        button(card, "Install Eclipse", !installBusy) {
+                    val failed = !eclipseMessage.isNullOrEmpty()
+                    if (EclipseMod.bundled(this)) {
+                        show(card, if (failed) "$eclipseMessage You can retry with the included Eclipse 1.1.0 patch." else
+                            "Your Sunshine disc is ready. Eclipse Team's 1.1.0 patch is included; your original game and saves are kept.",
+                            if (failed) AMBER else GREEN)
+                        button(card, if (failed) "Retry Eclipse installation" else "Install Eclipse", !installBusy) {
                             eclipseMessage = null
                             if (!EclipseMod.start(this)) eclipseMessage = BUSY
                         }
                     } else {
-                        show(card, "Your Sunshine disc is ready. Choose patches/v1.1.0.xdelta from Eclipse Team's official 1.1.0 pack, or import an already patched GMSE04 image.", GREEN)
+                        show(card, if (failed) "$eclipseMessage Choose the raw v1.1.0.xdelta from Eclipse Team's official patch pack to try another copy." else
+                            "Your Sunshine disc is ready. Choose patches/v1.1.0.xdelta from Eclipse Team's official 1.1.0 pack, or import an already patched GMSE04 image.",
+                            if (failed) AMBER else GREEN)
                         button(card, "Choose Eclipse patch", !installBusy) { chooseModFile(eclipse = true) }
                     }
                 }
@@ -245,16 +247,23 @@ class GamesActivity : Activity() {
                 }
                 disc.isInstalled(this) && game == Game.MSMBWII && !GameCatalog.msmbwiiModInstalled(this) -> {
                     val failed = !modMessage.isNullOrEmpty()
-                    if (failed) {
+                    if (MsmbwiiMod.bundled(this)) {
+                        show(card, if (failed) "$modMessage You can retry with the included MSMBWii mod." else
+                            "Your disc is ready. The mod is included with WiiDS.", if (failed) AMBER else GREEN)
+                        button(card, if (failed) "Retry mod installation" else "Install mod", !installBusy) {
+                            modMessage = null
+                            if (!MsmbwiiMod.start(this)) modMessage = BUSY
+                        }
+                    } else if (failed) {
                         show(card, "$modMessage You can also download MSMBWii.zip yourself from ${MsmbwiiMod.SOURCE_NAME} and choose it.", AMBER)
                         button(card, "Choose MSMBWii.zip", !installBusy) { chooseModFile() }
-                    } else if (MsmbwiiMod.bundled(this)) {
-                        show(card, "Your disc is ready. The mod is included with WiiDS.", GREEN)
-                        button(card, "Install mod", !installBusy) { modMessage = null; MsmbwiiMod.start(this) }
                     } else {
                         show(card, "Your disc is ready. The free mod comes from its official page " +
                             "(MSMBWii.zip, 2.9 MB, ${MsmbwiiMod.SOURCE_NAME}).", GREEN)
-                        button(card, "Download mod", !installBusy) { modMessage = null; MsmbwiiMod.start(this) }
+                        button(card, "Download mod", !installBusy) {
+                            modMessage = null
+                            if (!MsmbwiiMod.start(this)) modMessage = BUSY
+                        }
                     }
                 }
                 disc.isInstalled(this) && com.driftdroid.android.rom.WiiDsArt.building == disc -> {

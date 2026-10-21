@@ -5,6 +5,7 @@ import android.net.Uri
 import java.io.File
 import java.io.FileOutputStream
 import java.io.InputStream
+import java.io.IOException
 import java.net.HttpURLConnection
 import java.net.URL
 import java.security.MessageDigest
@@ -40,6 +41,10 @@ object MsmbwiiMod {
 
     fun cancel() { cancelled = true }
 
+    private fun checkCancel() {
+        if (cancelled) throw IOException("Mod installation cancelled. Your existing mod and saves were kept.")
+    }
+
     fun acknowledge() { if (!state.running) state = State() }
 
     /** Downloads from the official page ([picked] == null) or installs the player's own copy. */
@@ -60,8 +65,14 @@ object MsmbwiiMod {
     private fun install(context: Context, picked: Uri?): String? {
         val modDir = GameCatalog.msmbwiiModDir(context)
         val download = File(modDir.parentFile, "MSMBWii.zip.part")
+        val temp = File(modDir.parentFile, modDir.name + ".importing")
+        var ownsStaging = false
         modDir.parentFile?.mkdirs()
         try {
+            MsmbwiiInstallCommit.recover(modDir)?.let { return it }
+            if (MsmbwiiInstallCommit.orphanedStagedSave(temp, modDir))
+                return "An interrupted mod installation holds a saved game in its staging folder. Both copies were kept for recovery."
+            checkCancel()
             if (picked == null && bundled(context)) {
                 context.assets.open(BUNDLED).use { copyLimited(it, download) }
             } else if (picked == null) {
@@ -80,26 +91,23 @@ object MsmbwiiMod {
             }
             if (download.length() != SIZE || sha256(download) != SHA256)
                 return "That isn't the MSMBWii.zip release WiiDS knows (it should be ${SIZE} bytes). Nothing was changed."
-            val temp = File(modDir.parentFile, modDir.name + ".importing")
-            temp.deleteRecursively()
+            checkCancel()
+            if (temp.exists() && !temp.deleteRecursively()) throw IOException("The previous staging folder couldn't be cleared. Your mod and saves were kept.")
+            ownsStaging = true
             unpack(download, temp)
+            checkCancel()
             File(temp, "riivolution/config").mkdirs()
             File(temp, "riivolution/config/SMNE.xml").writeText(OPTION_CONFIG)
             if (!File(temp, "msmbwiijala/AnotherRes/SystemUS_1.bin").isFile) {
                 temp.deleteRecursively()
                 return "The mod archive is incomplete."
             }
-            // Keep the mod's own save folder (msmbwiijala/save) across a reinstall.
-            val oldSave = File(modDir, "msmbwiijala/save")
-            if (oldSave.isDirectory) {
-                File(temp, "msmbwiijala/save").deleteRecursively()
-                oldSave.renameTo(File(temp, "msmbwiijala/save"))
-            }
-            modDir.deleteRecursively()
-            if (!temp.renameTo(modDir)) return "The mod couldn't be moved into place. Check free storage."
-            return null
+            MsmbwiiInstallCommit.preserveSave(modDir, temp, ::checkCancel)
+            checkCancel()
+            return MsmbwiiInstallCommit.publish(temp, modDir, ::checkCancel)
         } finally {
             download.delete()
+            if (ownsStaging) temp.deleteRecursively()
         }
     }
 
@@ -108,7 +116,7 @@ object MsmbwiiMod {
             val buffer = ByteArray(64 * 1024)
             var total = 0L
             while (true) {
-                if (cancelled) throw IllegalStateException("Download cancelled.")
+                checkCancel()
                 val n = input.read(buffer)
                 if (n < 0) break
                 total += n
@@ -124,6 +132,7 @@ object MsmbwiiMod {
         val root = target.canonicalFile
         ZipInputStream(zip.inputStream().buffered()).use { stream ->
             while (true) {
+                checkCancel()
                 val entry = stream.nextEntry ?: break
                 val name = entry.name.replace('\\', '/')
                 val wanted = name.startsWith("msmbwiijala/") || name.startsWith("riivolution/") || name == "Readme (Credits).txt"
@@ -132,9 +141,18 @@ object MsmbwiiMod {
                 if (!out.path.startsWith(root.path + File.separator)) throw IllegalStateException("Unsafe path in the mod archive.")
                 if (entry.isDirectory) { out.mkdirs(); continue }
                 out.parentFile?.mkdirs()
-                FileOutputStream(out).use { stream.copyTo(it) }
+                FileOutputStream(out).use { output ->
+                    val buffer = ByteArray(64 * 1024)
+                    while (true) {
+                        checkCancel()
+                        val count = stream.read(buffer)
+                        if (count < 0) break
+                        output.write(buffer, 0, count)
+                    }
+                }
             }
         }
+        checkCancel()
     }
 
     private fun sha256(file: File): String {
@@ -142,11 +160,13 @@ object MsmbwiiMod {
         file.inputStream().use { input ->
             val buffer = ByteArray(64 * 1024)
             while (true) {
+                checkCancel()
                 val n = input.read(buffer)
                 if (n < 0) break
                 digest.update(buffer, 0, n)
             }
         }
+        checkCancel()
         return digest.digest().joinToString("") { "%02x".format(it) }
     }
 }

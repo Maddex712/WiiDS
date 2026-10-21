@@ -4,7 +4,7 @@
 
 Reviewed code snapshot: [source/](source/) (runtime, Android frontend, translators and build tools).
 The **complete matching source bundle**, including the large approved presentation payload, is the named
-`WiiDS-0.9.0-beta.3-source.zip` asset in [Releases](https://github.com/Maddex712/WiiDS/releases).
+`WiiDS-0.9.0-beta.4-source.zip` asset in [Releases](https://github.com/Maddex712/WiiDS/releases).
 GitHub's automatic Source code ZIP and this Git tree omit that large media payload; use the named release source ZIP to rebuild the exact package.
 
 Release preparation: [source and rebuild notes](docs/release/SOURCE-RELEASE.md),
@@ -48,11 +48,15 @@ Read the [game guide](docs/GAMES.md) for each game's setup, companion screen and
    your browser or file manager.
 2. A preparation screen unpacks the bundled cases, music and companion artwork. With no games
    imported yet, **Your games** opens automatically. Allow storage access to search for your own
-   dumps, or use **Choose file**. The exact supported regions and revisions are listed below.
+   dumps, or use **Choose file** for a single image. For split WBFS, keep `.wbfs` and all `.wbf1`
+   (and later numbered) parts together and use **Search again**, which collects the sibling parts.
+   **Choose file** opens only the selected file. Exact supported regions and revisions are listed below.
 3. Import a supported disc and keep WiiDS open while it checks and prepares the game.
    You can import just the games you own; the six visible cases are not six supplied ROMs.
-4. Add the optional mods: **Install mod** on MSMBWii's card after NSMB Wii is imported;
-   **Install Eclipse** after Sunshine is imported. Both patches are bundled.
+4. MSMBWii's bundled mod installation starts automatically after importing NSMB Wii. If it was
+   cancelled or did not finish, its card offers **Install mod** or **Retry mod installation**.
+   After importing Sunshine, choose **Install Eclipse**. If cancelled, **Retry Eclipse installation**
+   tries the bundled patch again. Both patches are included in the APK.
    For Retro Rewind, press **Y** in the library or open **Retro Rewind updates** in Options
    and download the newest release supported by this APK. Its track pack needs internet access.
 5. Return to the case shelf. Use the Thor's physical controls to browse. Press **A** to choose a
@@ -91,11 +95,13 @@ Genuine captures from an AYN Thor, with a caption bar added. Where both screens 
 Game titles identify Original, Retro Rewind and the other mod entries separately. Mario Kart and
 Retro Rewind retain their existing gameplay captures because their presentation is unchanged.
 The revised NSMB and Sunshine family screenshots carry explicit WiiDS 0.9.0-beta.3 labels.
+Beta.4 updates disc/mod installation and setup text; the case launcher and companion designs shown
+here are unchanged. The images retain their actual capture-version labels.
 Captures document their named scene, rather than implying every course or stage was retested.
 
-### Current launcher: WiiDS 0.9.0-beta.3
+### Launcher and Options — captured in WiiDS 0.9.0-beta.3
 
-New captures from the installed beta.3 build, with each complete upper display above its lower display.
+Captures from the installed beta.3 build, with each complete upper display above its lower display.
 The shelf now keeps original/mod families together during transitions, including NSMB/MSMBWii when
 moving back to Mario Kart. Retail and community scanned spines are visible on the angled cases.
 These are launcher captures; each gameplay section below identifies its game and capture context.
@@ -192,6 +198,7 @@ For Eclipse, first import the unchanged supported Sunshine disc, then choose **I
 WiiDS checks the source disc, bundled 1.1.0 patch and resulting image, and keeps Eclipse's image,
 settings and saves separate from regular Sunshine. The exact supported prepatched Eclipse image
 can also be imported; other images sharing the `GMSE04` header are not accepted as the same build.
+If installation is cancelled, **Retry Eclipse installation** reuses the bundled patch.
 
 **Not supported (yet):** the USA Mario Kart Wii disc (`RMCE01`), other regions, NSMB Wii revisions 0 and 2,
 and PAL or Japanese Super Mario Sunshine.
@@ -206,6 +213,10 @@ and PAL or Japanese Super Mario Sunshine.
 | Other compressed images | `.wia`, `.gcz`, `.ciso` | ✅ |
 | NKit | `.nkit.iso`, `.nkit.gcz` | ❌ Convert to RVZ or ISO in Dolphin first |
 
+For split WBFS images, keep the `.wbfs` file and its `.wbf1`/later numbered parts in the same folder.
+Grant storage access and use **Search again** in **Your games** so WiiDS finds all the sibling parts.
+**Choose file** grants access to one selected file and does not collect the other parts.
+
 **How to check your disc:** in Dolphin, the game list shows the Game ID. Right-click the game, choose
 **Properties → Info**, and look at **Revision**.
 
@@ -218,10 +229,12 @@ All three mod integrations are included in the one APK:
   Compatibility checks keep the pack aligned with the included runtime; cached maps still require
   the loaded course archive's matching identity and SHA-256.
 - **MSMBWii: Just a Little Adventure** (NSMB Wii): its native runtime and level-pack archive are bundled.
-  The mod installs after importing the supported NSMB Wii disc, with its own save profile.
+  Mod installation starts automatically after importing the supported NSMB Wii disc, with its own
+  save profile. Its card offers **Install mod** or **Retry mod installation** if it did not finish.
 - **Super Mario Eclipse 1.1.0** (Sunshine): its native runtime, unchanged official VCDIFF patch and
   on-device installer are bundled. Apply the patch to your own supported Sunshine disc through
   **Your games → Install Eclipse**. No separate Eclipse app or downloaded game image is required.
+  **Retry Eclipse installation** uses the bundled patch again after cancellation.
 
 The complete selected presentation is also bundled: retail/fan covers and discs, printed case spines, Wii Menu music,
 UI sounds, companion HUDs/fonts, menu/settings art, retail maps and the Retro Rewind map cache.
