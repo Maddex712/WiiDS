@@ -1,0 +1,18 @@
+name: Remove pull request preview
+# A closed pull request's pre-release goes away; launchers that chose it are
+# told to pick another update channel.
+on:
+  pull_request:
+    types: [closed]
+permissions:
+  contents: write
+jobs:
+  remove:
+    if: github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    steps:
+      - env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          TAG: pr-${{ github.event.pull_request.number }}
+        run: gh release delete "$TAG" --cleanup-tag --yes || echo "No preview release $TAG."

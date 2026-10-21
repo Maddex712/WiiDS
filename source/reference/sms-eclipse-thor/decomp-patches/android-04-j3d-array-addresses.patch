@@ -1,0 +1,14 @@
+Reason: J3D vertex array commands must encode MEM1-relative addresses when Android relocates the arena.
+--- a/libs/JSystem/src/J3D/J3DGraphBase/J3DTevs.cpp
++++ b/libs/JSystem/src/J3D/J3DGraphBase/J3DTevs.cpp
+@@ -10,0 +11,3 @@
++#if defined(TARGET_PC) && defined(__ANDROID__)
++#include <dolphin/os.h>
++#endif
+@@ -58,0 +62,4 @@
++#if defined(TARGET_PC) && defined(__ANDROID__)
++	// The command needs an arena offset, not a cached CPU pointer.
++	GXCmd1u32(ptr ? OSCachedToPhysical(ptr) : 0);
++#else
+@@ -59,0 +67 @@
++#endif

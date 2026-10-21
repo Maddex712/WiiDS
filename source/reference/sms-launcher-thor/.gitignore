@@ -1,0 +1,16 @@
+node_modules/
+dist/
+preview/
+tool-assets/
+*.log
+.DS_Store
+/android/.gradle/
+/android/local.properties
+/android/app/build/
+/android/app/.cxx/
+/android/build/
+
+# Mac signing output from scripts/make-mac-cert.sh; keep it out of the repo
+*.p12
+MAC_CSC_LINK.txt
+mac-signing-password.txt

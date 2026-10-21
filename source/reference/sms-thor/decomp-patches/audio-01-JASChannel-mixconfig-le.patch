@@ -1,0 +1,37 @@
+Reason: Audio: TChannel::MixConfig and playLogicalChannel read the bus number and pan/fx selectors through a big-endian byte/bitfield view of a u16; on little-endian hosts the bus came out as the low byte (connect_table[0x50], out of range). Lay the fields out so they name the same bits.
+--- a/libs/JSystem/include/JSystem/JAudio/JASystem/JASChannel.hpp
++++ b/libs/JSystem/include/JSystem/JAudio/JASystem/JASChannel.hpp
+@@ -93,9 +93,17 @@
+ 	union MixConfig {
+ 		u16 mWhole;
+ 		struct {
++#if defined(TARGET_PC) && __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
++			// Same fields of mWhole as MWCC's big-endian layout gives: the bus
++			// in the high byte, l0 in the high nibble of the low byte.
++			u8 l1 : 4;
++			u8 l0 : 4;
++			u8 u;
++#else
+ 			u8 u;
+ 			u8 l0 : 4;
+ 			u8 l1 : 4;
++#endif
+ 		} mParts;
+ 	};
+ 
+--- a/libs/JSystem/src/JAudio/JASystem/JASChannel.cpp
++++ b/libs/JSystem/src/JAudio/JASystem/JASChannel.cpp
+@@ -874,8 +874,13 @@
+ 		union {
+ 			u16 asS16;
+ 			struct {
++#if defined(TARGET_PC) && __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
++				u8 lo; // hi must stay the high byte of asS16 (the bus number)
++				u8 hi;
++#else
+ 				u8 hi;
+ 				u8 lo;
++#endif
+ 			} asP;
+ 		} s;
+ 		s.asS16 = unkA8[i].mWhole;

@@ -1,0 +1,104 @@
+/generated/
+/Assets/
+/assets/
+/DiscData/
+/PulsarPacks/
+*.dol
+*.rel
+*.szs
+*.arc
+*.brres
+*.thp
+*.bmg
+*.brsar
+*.breff
+*.u8
+*.carc
+*.iso
+*.rvz
+*.wbfs
+*.nkit
+*.ciso
+*.gcm
+*.wad
+Code.pul
+
+# Build output
+/build/
+/build-*/
+/android-native-build/
+/android-pgo-gen/
+/linux-native-build/
+/switch-native-build/
+/switch-build/
+/switch-build-pgo/
+/dist/
+/out/
+[Bb]in/
+[Oo]bj/
+*.o
+*.obj
+*.a
+*.lib
+*.pdb
+*.ilk
+*.map
+CMakeCache.txt
+CMakeFiles/
+cmake-build-*/
+
+
+# .NET
+/translator/TestResults/
+**/TestResults/
+*.user
+*.suo
+*.userprefs
+project.lock.json
+.packages/
+
+# Launcher artifacts
+/Launcher/artifacts/
+/Launcher/dist/
+/Launcher/WiiCompiled-Setup.exe
+*.exe
+*.msi
+
+
+# Local tooling and editors
+/.vs/
+/.vscode/
+/.idea/
+/tools/
+/TEMP/
+/tmp/
+/test_output/
+*.log
+output.txt
+
+
+# Hermes continuity folder (private handoff notes - never commit)
+hermes/
+
+# Android / Gradle
+android/local.properties
+android/.gradle/
+android/.idea/
+android/*/build/
+android/*/.cxx/
+android/captures/
+android/.externalNativeBuild/
+
+# Prebuilt native libraries dropped in manually for on-device testing (libWiiCompiled.so etc.)
+# contain the user's own compiled/translated game code - same "never commit game-derived output"
+# rule as /generated/, /build/, /Assets/ above. Never committed, never distributed via the repo.
+android/*/src/main/jniLibs/
+
+# Reference clone of another project (chrissotraidis/kartpad), pulled locally for research only -
+# not part of this project and must never be committed here.
+/kartpadrepo/
+
+
+# Local tooling (never commit)
+.claude/
+Launcher/kartpadrepo/

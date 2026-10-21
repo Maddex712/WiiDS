@@ -1,0 +1,144 @@
+Reason: port: the pause menu shows the save state buttons (L1 + R1) and LOAD SAVE STATE at its top right, and hosts the save state menu (src/savestate_menu.cpp)
+--- a/src/GC2D/PauseMenu2.cpp
++++ b/src/GC2D/PauseMenu2.cpp
+@@ -34,6 +34,97 @@
+ 
+ extern JPAEmitterManager* gpEmitterManager4D2;
+ 
++#ifdef TARGET_PC
++#include "port_savestate.h"
++#include "port_savestate_menu.h"
++#include <string.h>
++
++// Port: the save state hint at the pause menu's top right (save states,
++// port_savestate.h): SAVE_STATE's buttons, L1 + R1 by default, and "LOAD SAVE
++// STATE". Pressing them while paused opens the state menu (patch
++// zzzz-savestate-01). The buttons are the launcher's prompt icons, drawn
++// through the system font as the HUD's are (patch zzz-prompts-01), or their
++// names where there are none.
++static f32 PauseHintTextWidth(JUTFont* font, const char* text, f32 size)
++{
++	f32 width = 0.0f;
++	for (; *text; text++)
++		width += font->getWidth((u8)*text) * (size / font->getWidth());
++	return width;
++}
++
++static void PauseStateHintDraw(TPauseMenu2* menu, JDrama::TGraphics* gfx)
++{
++	if (menu->mState == TPauseMenu2::MENU_SAVING || menu->mState == TPauseMenu2::MENU_CLOSED
++	    || SaveStateMenuIsOpen())
++		return;
++	const u8 alpha = menu->mMenuPane->getAlpha(); // fades with the menu
++	PortSaveStateHint hint;
++	port_savestate_hint(&hint);
++	if (!hint.count || !alpha)
++		return;
++	JUTResFont* font = gpSystemFont;
++	const char* const kLabel = "LOAD SAVE STATE";
++	const f32 textSize = 18.0f, iconSize = 34.0f, gap = 6.0f;
++	// two lines in the top right corner, right-aligned: the buttons, and under
++	// them what they do, clear of the lives counter at the top centre
++	f32 widths[2];
++	f32 buttons = 0.0f;
++	for (int i = 0; i < hint.count; i++) {
++		widths[i] = hint.hasImage[i] ? iconSize : PauseHintTextWidth(font, hint.label[i], textSize);
++		buttons += widths[i];
++	}
++	// the plus between two buttons is an image too: the system font's "+" is the X button
++	const f32 plusWidth = 16.0f;
++	if (hint.count == 2)
++		buttons += plusWidth + 2.0f * gap;
++	// the orthograph runs from 0 to the viewport's size
++	const JDrama::TRect& viewport = gfx->getViewport();
++	const f32 right       = viewport.getWidth() - 28.0f;
++	const f32 buttonsLine = 50.0f, labelLine = 74.0f;
++
++	J2DOrthoGraph graph(viewport);
++	graph.setPort(); // the menu's screen left its own projection
++	graph.setup2D();
++	// a drop shadow, then the hint (the icons' shadow is their shape in black)
++	for (int pass = 0; pass < 2; pass++) {
++		const f32 offset = pass == 0 ? 2.0f : 0.0f;
++		const JUtility::TColor colour
++		    = pass == 0 ? JUtility::TColor(0, 0, 0, alpha / 2) : JUtility::TColor(255, 255, 255, alpha);
++		f32 x = right - buttons + offset;
++		const f32 y = buttonsLine + offset;
++		font->setGX();
++		font->setCharColor(colour);
++		for (int i = 0; i < hint.count; i++) {
++			if (i == 1) {
++				font->drawChar_scale(x + gap, y - 2.0f, plusWidth, plusWidth, PORT_PROMPT_PLUS, false);
++				x += plusWidth + 2.0f * gap;
++			}
++			if (hint.hasImage[i])
++				font->drawChar_scale(x, y + 4.0f, iconSize, iconSize, PORT_PROMPT_SAVESTATE + i, false);
++			else
++				font->drawString_size_scale(x, y, textSize, textSize, hint.label[i], strlen(hint.label[i]), false);
++			x += widths[i];
++		}
++		font->drawString_size_scale(right - PauseHintTextWidth(font, kLabel, textSize) + offset, labelLine + offset,
++		                            textSize, textSize, kLabel, strlen(kLabel), false);
++	}
++	gfx->setScissor(gfx->getScissor());
++}
++
++// A position-only state load closes the menu as Continue does (patch
++// zzzz-savestate-01).
++void PauseMenuCloseForStateLoad()
++{
++	TPauseMenu2* menu = gpMarDirector ? gpMarDirector->unkAC : nullptr;
++	if (!menu || menu->mState != TPauseMenu2::MENU_OPEN)
++		return;
++	menu->mSelectedItem       = 0;
++	menu->mSelectionConfirmed = true;
++	menu->setDrawEnd();
++}
++#endif
++
+ // rogue includes needed for matching sinit & bss
+ #include <MSound/MSSetSound.hpp>
+ #include <MSound/MSoundBGM.hpp>
+@@ -45,6 +136,13 @@
+ // two orthographs of each site out in reverse source order).
+ void TPauseMenu2::draw(JDrama::TGraphics* gfx)
+ {
++#ifdef TARGET_PC
++	// under the save state menu only the paused game shows
++	if (mState == MENU_OPEN && SaveStateMenuIsOpen()) {
++		SaveStateMenuSetAlpha(mMenuPane->getAlpha());
++		return;
++	}
++#endif
+ 	switch (mState) {
+ 	case MENU_APPEARING: {
+ 		J2DOrthoGraph graph(gfx->getViewport());
+@@ -64,6 +162,14 @@
+ 	default:
+ 		break;
+ 	}
++#ifdef TARGET_PC
++	PauseStateHintDraw(this, gfx);
++	// the save state menu fades with the pause menu (it draws last in the frame)
++	if (mState == MENU_OPEN)
++		SaveStateMenuSetAlpha(mMenuPane->getAlpha());
++	else
++		SaveStateMenuClose();
++#endif
+ }
+ 
+ TPauseMenu2::TPauseMenu2(const char* pName)
+@@ -424,6 +530,13 @@
+ // disappearWindow, reached at depth 2, stay out of line as in the map.
+ inline void TPauseMenu2::move()
+ {
++#ifdef TARGET_PC
++	// the save state menu has the pad while it is open
++	if (mState == MENU_OPEN && SaveStateMenuIsOpen()) {
++		SaveStateMenuMove(mGamePad);
++		return;
++	}
++#endif
+ 	switch (mState) {
+ 	case MENU_APPEARING:
+ 		appearWindow();

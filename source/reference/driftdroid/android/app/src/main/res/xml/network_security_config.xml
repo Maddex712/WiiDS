@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- MSMBWii's official page serves only plain HTTP. Cleartext is allowed for that one host; the
+     download is accepted only if its size and SHA-256 match the known release (MsmbwiiMod.kt). -->
+<network-security-config>
+    <domain-config cleartextTrafficPermitted="true">
+        <domain includeSubdomains="false">riivolution.nanolx.org</domain>
+    </domain-config>
+</network-security-config>

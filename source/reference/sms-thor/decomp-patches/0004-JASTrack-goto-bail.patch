@@ -1,0 +1,20 @@
+Reason: g++: goto bail jumps over u32 r31 = 0; hoist the declaration above the loop
+--- a/libs/JSystem/src/JAudio/JASystem/JASTrack.cpp
++++ b/libs/JSystem/src/JAudio/JASystem/JASTrack.cpp
+@@ -744,6 +744,7 @@
+ 	mIntrMgr.timerProcess();
+ 
+ 	s32 retcode;
++	u32 r31 = 0;
+ 	do {
+ 		tryInterrupt();
+ 
+@@ -768,7 +769,7 @@
+ 			return -1;
+ 	} while (retcode == -2);
+ 
+-	u32 r31 = 0;
++	r31 = 0;
+ 	for (int i = 0; i != TIMED_Count; ++i) {
+ 		MoveParam_* param = &mTimedParam.mMoveParams[i];
+ 		if (param->mMoveTime > 0.0f) {

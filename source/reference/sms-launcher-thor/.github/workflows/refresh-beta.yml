@@ -1,0 +1,53 @@
+name: Refresh Beta
+# Keeps the Beta channel on the newest launcher main and the newest game.
+#   - every push to main rebuilds Beta;
+#   - every hour, Beta is rebuilt if the game's branch has new commits;
+#   - Actions > Refresh Beta > Run workflow rebuilds it right away.
+# The build itself is build.yml with "beta".
+on:
+  push:
+    branches: [main]
+  schedule:
+    - cron: '23 * * * *'
+  workflow_dispatch:
+permissions:
+  contents: read
+# One Beta build at a time. A push to main (merges are linear, so the newest
+# commit has everything) or a manual run cancels the build in progress. The
+# hourly check never cancels: it waits, replacing any older waiting run.
+concurrency:
+  group: refresh-beta
+  cancel-in-progress: ${{ github.event_name != 'schedule' }}
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    outputs:
+      stale: ${{ steps.check.outputs.stale }}
+    steps:
+      - id: check
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          EVENT: ${{ github.event_name }}
+          SHA: ${{ github.sha }}
+        run: |
+          if [ "$EVENT" != schedule ]; then echo stale=true >> "$GITHUB_OUTPUT"; exit 0; fi
+          pinned=$(gh api "repos/$GH_REPO/contents/src/game-release.json?ref=$SHA" -H 'Accept: application/vnd.github.raw')
+          game_repo=$(jq -r '.repository | sub("^https://github.com/"; "") | sub("\\.git$"; "")' <<<"$pinned")
+          game=$(gh api "repos/$game_repo/commits/$(jq -r .branch <<<"$pinned")" --jq .sha)
+          built=$(gh release view beta --json body --jq .body 2>/dev/null | grep -o '<!-- beta launcher=[0-9a-f]* game=[0-9a-f]* -->' || true)
+          if [ "$built" = "<!-- beta launcher=$SHA game=$game -->" ]; then
+            echo "Beta is already launcher ${SHA:0:7} with game ${game:0:7}."; echo stale=false >> "$GITHUB_OUTPUT"
+          else
+            echo "Beta is out of date; rebuilding with game ${game:0:7}."; echo stale=true >> "$GITHUB_OUTPUT"
+          fi
+  build:
+    needs: check
+    if: needs.check.outputs.stale == 'true'
+    uses: ./.github/workflows/build.yml
+    with:
+      beta: true
+    secrets: inherit
+    permissions:
+      contents: write
+      pull-requests: write

@@ -1,0 +1,16 @@
+Reason: the draw-sync thread must not read a relocated FIFO pointer (below 0x80000000) as its shutdown message.
+--- a/src/System/DrawSyncManager.cpp
++++ b/src/System/DrawSyncManager.cpp
+@@ -95,0 +96,10 @@ void* TDrawSyncManager::threadFunc(void* param_1)
++#ifdef TARGET_PC
++		// MEM1 is not always at 0x80000000 on a host: on Android, ART's large
++		// object space holds that range and the port relocates MEM1 (to
++		// 0x40800000 on the AYN Thor), so FIFO pointers fall below it. A
++		// relocated FIFO pointer read as the shutdown message ended this
++		// thread on the first breakpoint push, and the game froze on its next
++		// draw-sync token with the queue full. Tokens are u16 and the only
++		// shutdown message is exactly 0x10000 (~TDrawSyncManager).
++		if ((size_t)msg > 0x10000) {
++#else
+@@ -96,0 +107 @@ void* TDrawSyncManager::threadFunc(void* param_1)
++#endif

@@ -1,5 +1,14 @@
 # WiiDS
 
+<img src="docs/images/wiids-minimal-logo.png" width="120" alt="Minimal WiiDS dual-screen app logo">
+
+Reviewed source snapshot: [source/](source/) (runtime, Android frontend, translators and build tools).
+
+Release preparation: [source and rebuild notes](docs/release/SOURCE-RELEASE.md),
+[release checklist](docs/release/RELEASE-DRAFT.md), and
+[component credits](docs/release/WIIDS-NOTICE.md). The final APK's matching source
+archive and SHA-256 checksums belong beside it under GitHub Releases.
+
 **Wii and GameCube favourites, running natively on the AYN Thor, with a second screen that works like a DS.**
 
 WiiDS turns the AYN Thor's two displays into something that feels like a Nintendo handheld that never
@@ -7,9 +16,9 @@ existed: the game runs on the top screen, and the bottom screen gets its own pur
 such as a live course map, a stored-item box, Star Coin slots or an episode guide. The games
 aren't emulated. They run as native Android code through static recompilation and decompilation ports.
 
-> **Status: in development.** There are no app downloads yet. This page shows where the project is,
-> using real captures from an AYN Thor. You'll always need your own game discs; WiiDS never includes
-> or provides games, ROMs or game files.
+> **Status: public beta.** Download the signed Android APK, matching source and checksums from
+> [GitHub Releases](https://github.com/Maddex712/WiiDS/releases). Bring your own supported game discs.
+> The APK includes native engines and authorised mod patches, with no original or patched disc images.
 
 <p align="center">
   <img src="docs/images/mkw-retro-rewind-peach-circuit.jpg" width="640"
@@ -24,9 +33,12 @@ aren't emulated. They run as native Android code through static recompilation an
 | **New Super Mario Bros. Wii** | Static recompilation (NSMB Wii recompilation) | Course progress, Star Coins, score and an NSMB2-style stored-item box, all in the game's own fonts and art | USA, `SMNE01` revision 1 |
 | **MSMBWii: Just a Little Adventure** | The same engine, with MidiGuyDP's fan level pack | The same companion, with its own case and save | NSMB Wii disc above, plus the mod |
 | **Super Mario Sunshine** | Decompilation port, built for Android | A "Delfino Tours" episode tracker, the game's own live title sky, and FLUDD's tank | USA, `GMSE01` revision 0 |
+| **Super Mario Eclipse 1.1.0** | Sunshine expansion in its own native runtime processes | The Sunshine companion design, with Eclipse-specific context handling | Uses your USA Sunshine disc; official patch and installer included |
 
 ## Highlights
 
+- **Six cases with matching plastic colors:** white Mario Kart/Retro Rewind, red NSMB/MSMBWii, black Sunshine/Eclipse.
+- **One APK, separate saves.** Eclipse's official 1.1.0 patch and MSMBWii's pack are bundled; Retro Rewind installs from its official servers. No companion APK is required.
 - **A real game shelf.** A carousel of game cases: open one, and the disc lifts out and spins up as the
   game boots. Wii games sit together on the shelf; the GameCube case comes last, with a
   correctly sized 8 cm mini disc.

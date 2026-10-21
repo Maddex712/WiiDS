@@ -1,0 +1,105 @@
+--- a/runtime/src/guest_profiler.cpp
++++ b/runtime/src/guest_profiler.cpp
+@@ -1,3 +1,4 @@
++#include "nsmbw_disc_revision.h"
+ // NSMBW_PROFILE=<start s>:<length s> (Windows): a sampling profiler for the game thread. From
+ // <start> seconds after the first presented frame, for <length> seconds, the thread that presents
+ // frames is suspended about a thousand times a second and its instruction pointer recorded. At the
+@@ -51,7 +52,7 @@
+             uint32_t total) {
+     // Every translated function's host entry point, sorted, to find which one a sample falls in.
+     std::vector<Entry> entries;
+-    for (const auto& [lo, hi] : {std::pair{0x80004000u, 0x80340000u}, std::pair{0x807684C0u, 0x80B8E340u}}) {
++    for (const auto& [lo, hi] : {std::pair{0x80004000u, 0x80340000u}, std::pair{NsmbwRevisionAddress(0x807684C0u, 0x80768500u), NsmbwRevisionAddress(0x80B8E340u, 0x80B8E360u)}}) {
+         for (uint32_t address = lo; address < hi; address += 4) {
+             if (const TranslatedFunctionInfo* info = TranslatedFunctionRegistry::FindByAddressPtr(address);
+                 info != nullptr && info->entryPoint != nullptr && info->address == address) {
+--- a/runtime/src/hle/vi.cpp
++++ b/runtime/src/hle/vi.cpp
+@@ -1,3 +1,4 @@
++#include "nsmbw_disc_revision.h"
+ #include "frame_input.h"
+ #include "det_hash.h"
+ #include "timebase_contract.h"
+@@ -420,10 +421,10 @@
+ void LogGuestModulesOnce() {
+     struct ExpectedModule { uint32_t id; const char* name; uint32_t image; uint32_t bss; };
+     static constexpr ExpectedModule kExpected[] = {
+-        {1, "d_profileNP", 0x807684C0u, 0x8076D460u},
+-        {2, "d_basesNP", 0x8076D680u, 0x80990820u},
+-        {3, "d_enemiesNP", 0x809A2CC0u, 0x80B11440u},
+-        {4, "d_en_bossNP", 0x80B1C940u, 0x80B89AC0u},
++        {1, "d_profileNP", NsmbwRevisionAddress(0x807684C0u, 0x80768500u), NsmbwRevisionAddress(0x8076D460u, 0x8076D4A0u)},
++        {2, "d_basesNP", NsmbwRevisionAddress(0x8076D680u, 0x8076D6C0u), NsmbwRevisionAddress(0x80990820u, 0x80990840u)},
++        {3, "d_enemiesNP", NsmbwRevisionAddress(0x809A2CC0u, 0x809A2CE0u), NsmbwRevisionAddress(0x80B11440u, 0x80B11460u)},
++        {4, "d_en_bossNP", NsmbwRevisionAddress(0x80B1C940u, 0x80B1C960u), NsmbwRevisionAddress(0x80B89AC0u, 0x80B89AE0u)},
+     };
+     static uint32_t s_reported = 0;  // one bit per module id
+     if (s_reported == 0x1Eu) {
+--- a/runtime/src/netplay/game_menus.cpp
++++ b/runtime/src/netplay/game_menus.cpp
+@@ -1,3 +1,4 @@
++#include "nsmbw_disc_revision.h"
+ #include "netplay/game_menus.h"
+ 
+ #include "memory.h"
+@@ -27,18 +28,18 @@
+ constexpr uint32_t kFileSelectCursor = 0x2A4;
+ 
+ // dSelectPlayer_c::StateID_* (d_basesNP .bss, fixed by the pre-linked layout).
+-constexpr uint32_t kSpStartWait = 0x809953C0u;
+-constexpr uint32_t kSpOnStage = 0x80995400u;
+-constexpr uint32_t kSpInfoOnStage = 0x80995440u;
+-constexpr uint32_t kSpButtonChange = 0x80995480u;
+-constexpr uint32_t kSpSelect = 0x809954C0u;
+-constexpr uint32_t kSpMultiSelect = 0x80995500u;
+-constexpr uint32_t kSpButtonAnime = 0x80995540u;
+-constexpr uint32_t kSpExit = 0x80995580u;
++constexpr uint32_t kSpStartWait = NsmbwRevisionAddress(0x809953C0u, 0x809953E0u);
++constexpr uint32_t kSpOnStage = NsmbwRevisionAddress(0x80995400u, 0x80995420u);
++constexpr uint32_t kSpInfoOnStage = NsmbwRevisionAddress(0x80995440u, 0x80995460u);
++constexpr uint32_t kSpButtonChange = NsmbwRevisionAddress(0x80995480u, 0x809954A0u);
++constexpr uint32_t kSpSelect = NsmbwRevisionAddress(0x809954C0u, 0x809954E0u);
++constexpr uint32_t kSpMultiSelect = NsmbwRevisionAddress(0x80995500u, 0x80995520u);
++constexpr uint32_t kSpButtonAnime = NsmbwRevisionAddress(0x80995540u, 0x80995560u);
++constexpr uint32_t kSpExit = NsmbwRevisionAddress(0x80995580u, 0x809955A0u);
+ // dCourseSelectMenu_c's and Pausewindow_c's current StateID (it names itself at +4).
+ constexpr uint32_t kPauseMenuState = 0x234;
+ // dFileSelect_c::StateID_SelectWait.
+-constexpr uint32_t kFsSelectWait = 0x80992050u;
++constexpr uint32_t kFsSelectWait = NsmbwRevisionAddress(0x80992050u, 0x80992070u);
+ 
+ uint32_t Find(uint16_t profile) {
+     uint32_t node = 0;
+--- a/runtime/src/system_bridge.cpp
++++ b/runtime/src/system_bridge.cpp
+@@ -1,3 +1,4 @@
++#include "nsmbw_disc_revision.h"
+ #include "system_bridge.h"
+ 
+ #include <cctype>
+@@ -521,7 +522,7 @@
+     // Retro-WFC payload URL, and OSGetAppGamename reads the app code mirrors
+     // at 0x80003180/0x80003194 while building NAS auth fields.
+     entries.push_back({0x80000000u, 0x534D4E45u, "Disc game code"}); // SMNE
+-    entries.push_back({0x80000004u, 0x30310001u, "Disc maker/id"});  // "01", disc 0, version 1 (boot.bin)
++    entries.push_back({0x80000004u, 0x30310000u | kNsmbwDiscRevision, "Disc maker/id"});  // "01", disc 0, selected revision (boot.bin)
+     entries.push_back({0x80003180u, 0x534D4E45u, "OS app game code"}); // SMNE
+     entries.push_back({0x80003194u, 0x534D4E45u, "OS app gamename"});  // SMNE
+     // NSMBW's OSInit (newer SDK than Mario Kart's) compares the running IOS (0x80003140) with the
+--- /dev/null
++++ b/runtime/include/nsmbw_disc_revision.h
+@@ -0,0 +1,13 @@
++#pragma once
++
++#include <cstdint>
++
++// E1 is the upstream default. Thor E2 must opt in at compile time and translate
++// the matching owner-supplied E2 DOL/REL inputs with recomp-e2.yml.
++#if defined(NSMBW_DISC_REVISION_E2) && NSMBW_DISC_REVISION_E2
++inline constexpr uint32_t kNsmbwDiscRevision = 2;
++inline constexpr uint32_t NsmbwRevisionAddress(uint32_t e1, uint32_t e2) { return e2; }
++#else
++inline constexpr uint32_t kNsmbwDiscRevision = 1;
++inline constexpr uint32_t NsmbwRevisionAddress(uint32_t e1, uint32_t e2) { return e1; }
++#endif

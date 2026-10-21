@@ -1,0 +1,10 @@
+# Build output and local machine settings.
+/.gradle/
+/build/
+/app/build/
+/local.properties
+*.apk
+*.aab
+
+# libmain.so and the runtime's data files, staged from the native build by tools/stage-android.ps1.
+/native/

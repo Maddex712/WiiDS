@@ -1,0 +1,111 @@
+name: Release launcher on version bump
+on:
+  push:
+    branches: [main]
+permissions:
+  contents: write
+concurrency:
+  group: launcher-release
+  cancel-in-progress: false
+jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    outputs:
+      release: ${{ steps.version.outputs.release }}
+      tag: ${{ steps.version.outputs.tag }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Check package version
+        id: version
+        run: node scripts/version-change.js
+        env:
+          GITHUB_EVENT_BEFORE: ${{ github.event.before }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Create tag and draft release
+        if: steps.version.outputs.release == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+          TAG: ${{ steps.version.outputs.tag }}
+        run: |
+          if ! git ls-remote --exit-code --tags origin "refs/tags/$TAG" >/dev/null; then
+            git tag "$TAG"
+            git push origin "$TAG"
+          fi
+          gh release view "$TAG" >/dev/null 2>&1 || gh release create "$TAG" --draft --title "$TAG" --generate-notes
+  verify-game:
+    needs: prepare
+    if: needs.prepare.outputs.release == 'true'
+    uses: ./.github/workflows/build-tools-smoke.yml
+    with:
+      ref: ${{ needs.prepare.outputs.tag }}
+    permissions:
+      contents: read
+  publish:
+    needs: [prepare, verify-game]
+    if: needs.prepare.outputs.release == 'true'
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.prepare.outputs.tag }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm test
+      - name: Attach the verified build tools for this OS
+        run: node scripts/download-tool-asset.js
+        env:
+          SMS_RELEASE_TAG: ${{ needs.prepare.outputs.tag }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Configure optional macOS signing
+        if: runner.os == 'macOS'
+        shell: bash
+        env:
+          MAC_CSC_LINK: ${{ secrets.MAC_CSC_LINK }}
+          MAC_CSC_KEY_PASSWORD: ${{ secrets.MAC_CSC_KEY_PASSWORD }}
+        run: |
+          if [[ -n "$MAC_CSC_LINK" && -n "$MAC_CSC_KEY_PASSWORD" ]]; then
+            printf 'CSC_LINK=%s\n' "$MAC_CSC_LINK" >> "$GITHUB_ENV"
+            printf 'CSC_KEY_PASSWORD=%s\n' "$MAC_CSC_KEY_PASSWORD" >> "$GITHUB_ENV"
+          fi
+      - name: Configure optional Windows signing
+        if: runner.os == 'Windows'
+        shell: bash
+        env:
+          WINDOWS_CSC_LINK: ${{ secrets.WIN_CSC_LINK }}
+          WINDOWS_CSC_KEY_PASSWORD: ${{ secrets.WIN_CSC_KEY_PASSWORD }}
+        run: |
+          if [[ -n "$WINDOWS_CSC_LINK" && -n "$WINDOWS_CSC_KEY_PASSWORD" ]]; then
+            printf 'WIN_CSC_LINK=%s\n' "$WINDOWS_CSC_LINK" >> "$GITHUB_ENV"
+            printf 'WIN_CSC_KEY_PASSWORD=%s\n' "$WINDOWS_CSC_KEY_PASSWORD" >> "$GITHUB_ENV"
+          fi
+      - run: npm run release
+        env:
+          SMS_RELEASE_TAG: ${{ needs.prepare.outputs.tag }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CSC_IDENTITY_AUTO_DISCOVERY: "false"
+  finalize:
+    needs: [prepare, verify-game, publish]
+    if: needs.prepare.outputs.release == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Publish complete release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+          TAG: ${{ needs.prepare.outputs.tag }}
+        run: gh release edit "$TAG" --draft=false

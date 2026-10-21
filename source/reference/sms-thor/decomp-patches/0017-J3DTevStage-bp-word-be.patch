@@ -1,0 +1,18 @@
+Reason: endian: J3DTevStage::load reads its {reg,op,AB,CD} bytes as one u32 BP command; build it big-endian
+--- a/libs/JSystem/include/JSystem/J3D/J3DGraphBase/Components/J3DTevStage.hpp
++++ b/libs/JSystem/include/JSystem/J3D/J3DGraphBase/Components/J3DTevStage.hpp
+@@ -150,8 +150,14 @@
+ 	void load(u32) const
+ 	{
+ 		GDOverflowCheck(10);
++#ifdef TARGET_PC
++		// {reg, op, AB, CD} bytes form a big-endian BP command word.
++		J3DGDWriteBPCmd(port_be32(&mTevColorReg));
++		J3DGDWriteBPCmd(port_be32(&mTevAlphaReg));
++#else
+ 		J3DGDWriteBPCmd(*(u32*)&mTevColorReg);
+ 		J3DGDWriteBPCmd(*(u32*)&mTevAlphaReg);
++#endif
+ 	}
+ 
+ public:

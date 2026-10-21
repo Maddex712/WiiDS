@@ -1,0 +1,92 @@
+Reason: port: the *4LiveActor script commands touch TLiveActor fields only on real TLiveActors; Super Mario Eclipse's Red Lily City switch script calls setDead4LiveActor on map statics (TMapStaticObj), and retail's out-of-bounds mLiveFlag write lands natively in the next map static's MActor pointer, which crashed episode 2
+--- a/src/System/EventWatcher.cpp
++++ b/src/System/EventWatcher.cpp
+@@ -389,6 +389,30 @@
+ // TODO: removeme
+ extern const TNerveBase<TLiveActor>* NerveGetByIndex(int param_1);
+ 
++#ifdef TARGET_PC
++// The *4LiveActor commands trust the script to name a TLiveActor. Super Mario
++// Eclipse's Red Lily City switch script also names map statics (TMapStaticObj,
++// a THitActor but no TLiveActor), so retail touches mLiveFlag (0xF0) past the
++// 0x80-byte object, in the next heap block. Natively that write lands in the
++// next map static's MActor pointer, and drawing it crashes. Treat only real
++// TLiveActors as live actors.
++static TLiveActor* EventWatcherLiveActor(JDrama::TNameRef* ref)
++{
++	return dynamic_cast<TLiveActor*>(ref);
++}
++
++// A THitActor that is no TLiveActor keeps retail's collision change.
++static void EventWatcherSetNoCollision(JDrama::TNameRef* ref, s32 value)
++{
++	if (THitActor* hitActor = dynamic_cast<THitActor*>(ref)) {
++		if (value)
++			hitActor->onHitFlag(HIT_FLAG_NO_COLLISION);
++		else
++			hitActor->offHitFlag(HIT_FLAG_NO_COLLISION);
++	}
++}
++#endif
++
+ static void evPushNerve4LiveActor(TSpcTypedInterp<TEventWatcher>* interp,
+                                   u32 arg_num)
+ {
+@@ -397,8 +421,13 @@
+ 	const TNerveBase<TLiveActor>* nerve = NerveGetByIndex(nerveId);
+ 	const char* actorName               = interp->pop().getDataString();
+ 
++#ifdef TARGET_PC
++	TLiveActor* liveActor
++	    = EventWatcherLiveActor(JDrama::TNameRefGen::search2(actorName));
++#else
+ 	TLiveActor* liveActor
+ 	    = (TLiveActor*)JDrama::TNameRefGen::search2(actorName);
++#endif
+ 	if (liveActor && nerve)
+ 		liveActor->mSpine->pushNerve(nerve);
+ 
+@@ -414,7 +443,11 @@
+ 	interp->verifyArgNum(2, &arg_num);
+ 	int flag = TSpcSlice(interp->pop()).getDataInt();
+ 
++#ifdef TARGET_PC
++	TLiveActor* liveActor = EventWatcherLiveActor(getNameRefPtr(interp->pop()));
++#else
+ 	TLiveActor* liveActor = (TLiveActor*)getNameRefPtr(interp->pop());
++#endif
+ 
+ 	int result = 0;
+ 	if (liveActor)
+@@ -429,8 +462,15 @@
+ 	s32 value             = TSpcSlice(interp->pop()).getDataInt();
+ 	const char* actorName = interp->pop().getDataString();
+ 
++#ifdef TARGET_PC
++	JDrama::TNameRef* ref = JDrama::TNameRefGen::search2(actorName);
++	TLiveActor* liveActor = EventWatcherLiveActor(ref);
++	if (!liveActor)
++		EventWatcherSetNoCollision(ref, value);
++#else
+ 	TLiveActor* liveActor
+ 	    = (TLiveActor*)JDrama::TNameRefGen::search2(actorName);
++#endif
+ 	if (liveActor) {
+ 		if (value) {
+ 			liveActor->onLiveFlag(LIVE_FLAG_HIDDEN);
+@@ -460,8 +500,15 @@
+ 	s32 value             = TSpcSlice(interp->pop()).getDataInt();
+ 	const char* actorName = interp->pop().getDataString();
+ 
++#ifdef TARGET_PC
++	JDrama::TNameRef* ref = JDrama::TNameRefGen::search2(actorName);
++	TLiveActor* liveActor = EventWatcherLiveActor(ref);
++	if (!liveActor)
++		EventWatcherSetNoCollision(ref, value);
++#else
+ 	TLiveActor* liveActor
+ 	    = (TLiveActor*)JDrama::TNameRefGen::search2(actorName);
++#endif
+ 	if (liveActor) {
+ 		if (value) {
+ 			liveActor->onLiveFlag(LIVE_FLAG_DEAD);

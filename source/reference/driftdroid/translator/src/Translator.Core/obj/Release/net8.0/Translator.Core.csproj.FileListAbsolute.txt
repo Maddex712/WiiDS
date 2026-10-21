@@ -1,0 +1,12 @@
+C:\Users\super\Documents\ChatGPT\PORTING\reference\driftdroid\translator\src\Translator.Core\bin\Release\net8.0\Translator.Core.deps.json
+C:\Users\super\Documents\ChatGPT\PORTING\reference\driftdroid\translator\src\Translator.Core\bin\Release\net8.0\Translator.Core.dll
+C:\Users\super\Documents\ChatGPT\PORTING\reference\driftdroid\translator\src\Translator.Core\bin\Release\net8.0\Translator.Core.pdb
+C:\Users\super\Documents\ChatGPT\PORTING\reference\driftdroid\translator\src\Translator.Core\obj\Release\net8.0\Translator.Core.GeneratedMSBuildEditorConfig.editorconfig
+C:\Users\super\Documents\ChatGPT\PORTING\reference\driftdroid\translator\src\Translator.Core\obj\Release\net8.0\Translator.Core.AssemblyInfoInputs.cache
+C:\Users\super\Documents\ChatGPT\PORTING\reference\driftdroid\translator\src\Translator.Core\obj\Release\net8.0\Translator.Core.AssemblyInfo.cs
+C:\Users\super\Documents\ChatGPT\PORTING\reference\driftdroid\translator\src\Translator.Core\obj\Release\net8.0\Translator.Core.csproj.CoreCompileInputs.cache
+C:\Users\super\Documents\ChatGPT\PORTING\reference\driftdroid\translator\src\Translator.Core\obj\Release\net8.0\Translator.Core.sourcelink.json
+C:\Users\super\Documents\ChatGPT\PORTING\reference\driftdroid\translator\src\Translator.Core\obj\Release\net8.0\Translator.Core.dll
+C:\Users\super\Documents\ChatGPT\PORTING\reference\driftdroid\translator\src\Translator.Core\obj\Release\net8.0\refint\Translator.Core.dll
+C:\Users\super\Documents\ChatGPT\PORTING\reference\driftdroid\translator\src\Translator.Core\obj\Release\net8.0\Translator.Core.pdb
+C:\Users\super\Documents\ChatGPT\PORTING\reference\driftdroid\translator\src\Translator.Core\obj\Release\net8.0\ref\Translator.Core.dll

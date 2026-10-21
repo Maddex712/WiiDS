@@ -1,0 +1,43 @@
+Reason: port: God Mode (F9 menu): TMario::decHP takes no health from the player's Mario, and thinkParams keeps it at mHPMax (not after game over), while port_cheat_god_mode is set (platform/misc/port_cheats.cpp); TEnemyMario is left alone through isMario()
+--- a/src/Player/MarioCollision.cpp
++++ b/src/Player/MarioCollision.cpp
+@@ -7,6 +7,11 @@
+ #include <MSound/MSoundSE.hpp>
+ #include <System/Particles.hpp>
+ #include <System/MarioGamePad.hpp>
++
++#ifdef TARGET_PC
++extern "C" int port_cheat_god_mode;
++#endif
++
+ #include <Player/WaterGun.hpp>
+ #include <Camera/CameraShake.hpp>
+ #include <System/Particles.hpp>
+@@ -55,6 +60,11 @@
+ 
+ void TMario::decHP(int hp)
+ {
++#ifdef TARGET_PC
++	// TEnemyMario shares this function: only the player's Mario is protected.
++	if (port_cheat_god_mode && isMario())
++		return;
++#endif
+ 	// volatile u32 padding[2];
+ 	if (isUnderWater() || checkFlag(MARIO_FLAG_HELMET_FLW_CAMERA)) {
+ 		mAir -= hp;
+--- a/src/Player/MarioMove.cpp
++++ b/src/Player/MarioMove.cpp
+@@ -2456,1 +2456,5 @@
+-void TMario::thinkParams()
++#ifdef TARGET_PC
++extern "C" int port_cheat_god_mode;
++#endif
++
++void TMario::thinkParams()
+@@ -2461,1 +2465,5 @@
+-	if (!checkFlag(MARIO_FLAG_GAME_OVER)) {
++	if (!checkFlag(MARIO_FLAG_GAME_OVER)) {
++#ifdef TARGET_PC
++		if (port_cheat_god_mode && isMario())
++			mHealth = mDeParams.mHPMax.get();
++#endif

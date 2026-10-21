@@ -1,0 +1,71 @@
+Reason: port: Movement Speed (F9 menu, factor 1/2/4): the real Mario's ground speed target and acceleration in doRunning, its swimming forward speed (doSwimming and the stroke boost in swimPaddleStart), and the forward speed the Hover nozzle adds each frame (TMario::rocketing) are multiplied by port_cheat_movement_speed (platform/misc/port_cheats.cpp); TEnemyMario is left alone through isMario()
+--- a/src/Player/MarioRun.cpp
++++ b/src/Player/MarioRun.cpp
+@@ -596,1 +596,5 @@
+-void TMario::doRunning()
++#ifdef TARGET_PC
++extern "C" int port_cheat_movement_speed;
++#endif
++
++void TMario::doRunning()
+@@ -599,1 +603,9 @@
+-	f32 sp    = mIntendedMag < maxSp ? mIntendedMag : maxSp;
++	f32 sp    = mIntendedMag < maxSp ? mIntendedMag : maxSp;
++	f32 addBase = MarioRunParam(mRunParams.mAddBase);
++#ifdef TARGET_PC
++	if (isMario()) {
++		const f32 factor = (f32)port_cheat_movement_speed;
++		sp *= factor;
++		addBase *= factor;
++	}
++#endif
+@@ -620,1 +632,1 @@
+-		mForwardVel += MarioRunParam(mRunParams.mAddBase)
++		mForwardVel += addBase
+--- a/src/Player/MarioSwim.cpp
++++ b/src/Player/MarioSwim.cpp
+@@ -25,1 +25,14 @@
+-void TMario::doSwimming()
++#ifdef TARGET_PC
++extern "C" int port_cheat_movement_speed;
++#endif
++
++static f32 swimMovementScale(TMario* mario)
++{
++#ifdef TARGET_PC
++	if (mario->isMario())
++		return (f32)port_cheat_movement_speed;
++#endif
++	return 1.0f;
++}
++
++void TMario::doSwimming()
+@@ -51,1 +64,1 @@
+-	mForwardVel += mIntendedMag * mSwimParams.mMoveSp.get() * 0.03125f;
++	mForwardVel += mIntendedMag * mSwimParams.mMoveSp.get() * 0.03125f * swimMovementScale(this);
+@@ -241,1 +254,1 @@
+-	mForwardVel += mSwimParams.mPaddleSpeedUp.get();
++	mForwardVel += mSwimParams.mPaddleSpeedUp.get() * swimMovementScale(this);
+--- a/src/Player/MarioJump.cpp
++++ b/src/Player/MarioJump.cpp
+@@ -1074,1 +1074,14 @@
+-BOOL TMario::rocketing()
++#ifdef TARGET_PC
++extern "C" int port_cheat_movement_speed;
++#endif
++
++static f32 hoverMovementScale(TMario* mario)
++{
++#ifdef TARGET_PC
++	if (mario->isMario())
++		return (f32)port_cheat_movement_speed;
++#endif
++	return 1.0f;
++}
++
++BOOL TMario::rocketing()
+@@ -1109,2 +1122,2 @@
+-				mForwardVel += mag * JMASCos(angleDiff)
+-				               * mDivingParams.mAccelControl.get();
++				mForwardVel += mag * JMASCos(angleDiff)
++				               * mDivingParams.mAccelControl.get() * hoverMovementScale(this);

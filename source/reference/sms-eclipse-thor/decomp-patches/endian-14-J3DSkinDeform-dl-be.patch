@@ -1,0 +1,29 @@
+Reason: endian: GX display lists stay big-endian; J3DSkinDeform::initMtxIndexArray parses them on the CPU, so read the vertex count and the position/normal indices big-endian (read natively they overflow useMtxIdxBuf: stack smash on the airstrip)
+--- a/libs/JSystem/src/J3D/J3DGraphAnimator/J3DCluster.cpp
++++ b/libs/JSystem/src/J3D/J3DGraphAnimator/J3DCluster.cpp
+@@ -391,7 +391,11 @@
+ 				if (cmd != GX_TRIANGLEFAN && cmd != GX_TRIANGLESTRIP)
+ 					break;
+ 
++#ifdef TARGET_PC
++				u16 vtxCount = port_be16(&dl[1]);
++#else
+ 				u16 vtxCount = *(u16*)&dl[1];
++#endif
+ 
+ 				u16 useMtxIdxBuf[10];
+ 				for (s32 k = 0; k < vtxCount; k++) {
+@@ -500,8 +504,13 @@
+ 					// `(dl + 3) + ...`/`3 + dl + ...` reorder is 248 instructions.
+ 					u8* vtx     = &dl[3 + vtxSize * k];
+ 					u8 pnmtxIdx = ((u32)(*(u8*)&vtx[pnmtxIdxOffs])) / 3;
++#ifdef TARGET_PC
++					u16 posIdx  = port_be16(&vtx[posOffs]);
++					u16 nrmIdx  = port_be16(&vtx[nrmOffs]);
++#else
+ 					u16 posIdx  = *(u16*)&vtx[posOffs];
+ 					u16 nrmIdx  = *(u16*)&vtx[nrmOffs];
++#endif
+ 
+ 					u16 useMtxIdx = shapeMtx->getUseMtxIndex(pnmtxIdx);
+ 					if (useMtxIdx == 0xFFFF) {

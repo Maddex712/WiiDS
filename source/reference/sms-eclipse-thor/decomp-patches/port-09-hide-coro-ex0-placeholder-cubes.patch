@@ -1,0 +1,36 @@
+Reason: coro_ex0's map model (the rail-board course in the void) carries a shape of small grey placeholder cubes (material _o17) scattered through the course; the port hides that shape when the map loads. Hiding it changes what the disc draws, so it cannot be a decomp change.
+--- a/src/Map/MapModel.cpp
++++ b/src/Map/MapModel.cpp
+@@ -89,10 +89,32 @@
+ 	zmode->setUpdateEnable(GX_FALSE);
+ }
+ 
++#ifdef TARGET_PC
++// port: coro_ex0's map (the blue and red rail boards in the void) has a shape
++// of small grey cubes scattered through the course, material "_o17" over
++// B_CoronaEX0_1, translucent from its vertex alphas: leftover placeholder
++// geometry, not scenery. J3DJoint::entryIn skips a shape with flag 1 set.
++// Matched by its names, which no other map has, so a mod's copy of the course
++// loses them too.
++static void MapModelHidePlaceholderCubes(J3DModelData* data)
++{
++	JUTNameTab* materials = data->getMaterialName();
++	JUTNameTab* textures  = data->getTextureName();
++	if (!materials || !textures || textures->getIndex("B_CoronaEX0_1") < 0)
++		return;
++	s32 i = materials->getIndex("_o17");
++	if (i >= 0 && i < data->getMaterialNum())
++		data->getMaterialNodePointer(i)->getShape()->onFlag(J3DShpFlag_Visible);
++}
++#endif
++
+ void TMapModel::initJointModel(TJointModelManager* param_1, const char* param_2,
+                                MActorAnmData* param_3)
+ {
+ 	TJointModel::initJointModel(param_1, param_2, param_3);
++#ifdef TARGET_PC
++	MapModelHidePlaceholderCubes(getModelData());
++#endif
+ 	if (mActor->checkAnmFileExist(param_2, ANM_TYPE_BTK))
+ 		mActor->setBtk(param_2);
+ 	if (mActor->checkAnmFileExist(param_2, ANM_TYPE_BRK))

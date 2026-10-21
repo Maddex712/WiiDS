@@ -1,0 +1,114 @@
+Reason: g++: TVec2/TVec3 operator+/- (and two TU-local scale helpers) return a reference to a local, which g++ turns into a NULL return; return by value on the port
+--- a/libs/JSystem/include/JSystem/JGeometry/JGVec3.hpp
++++ b/libs/JSystem/include/JSystem/JGeometry/JGVec3.hpp
+@@ -1,6 +1,17 @@
+ #ifndef JG_VEC3_HPP
+ #define JG_VEC3_HPP
+ 
++// These operators return a reference to a local (UB that MWCC tolerates and
++// the matching build relies on). g++ compiles such a return to NULL, so the
++// port returns by value.
++#ifndef SMS_PC_VALUE_RET
++#ifdef TARGET_PC
++#define SMS_PC_VALUE_RET(T) const T
++#else
++#define SMS_PC_VALUE_RET(T) const T&
++#endif
++#endif
++
+ #include <dolphin/types.h>
+ #include <dolphin/mtx.h>
+ #include <JSystem/JGeometry/JGUtil.hpp>
+@@ -78,14 +89,14 @@
+ 	// CLBRotatePosAndUp 83.84 -> 75.16, TSpineEnemy::doShortCut 94.72 ->
+ 	// 84.75, THamuKuri::isResignationAttack 99.71 -> 89.54 and some thirty
+ 	// others.
+-	friend const TVec3& operator-(TVec3 fst, const TVec3& snd)
++	friend SMS_PC_VALUE_RET(TVec3) operator-(TVec3 fst, const TVec3& snd)
+ 	{
+ 		fst -= snd;
+ 		return fst;
+ 	}
+ 
+ 	// fabricated and fake and UB but it makes things match??
+-	friend const TVec3& operator+(TVec3 fst, const TVec3& snd)
++	friend SMS_PC_VALUE_RET(TVec3) operator+(TVec3 fst, const TVec3& snd)
+ 	{
+ 		fst += snd;
+ 		return fst;
+@@ -439,14 +450,14 @@
+ 	// TNerveMameGessoJitabata::execute, TBaseNPC::execUTurn. The uncast `=`
+ 	// alone closes TEffectColumWater::generate and
+ 	// TMapCollisionBase::setCheckData but costs group (a).
+-	friend const TVec3& operator-(TVec3 fst, const TVec3& snd)
++	friend SMS_PC_VALUE_RET(TVec3) operator-(TVec3 fst, const TVec3& snd)
+ 	{
+ 		fst -= snd;
+ 		return fst;
+ 	}
+ 
+ 	// fabricated and fake and UB but it makes things match??
+-	friend const TVec3& operator+(TVec3 fst, const TVec3& snd)
++	friend SMS_PC_VALUE_RET(TVec3) operator+(TVec3 fst, const TVec3& snd)
+ 	{
+ 		fst += snd;
+ 		return fst;
+--- a/libs/JSystem/include/JSystem/JGeometry/JGVec2.hpp
++++ b/libs/JSystem/include/JSystem/JGeometry/JGVec2.hpp
+@@ -1,6 +1,17 @@
+ #ifndef JG_VEC2_HPP
+ #define JG_VEC2_HPP
+ 
++// These operators return a reference to a local (UB that MWCC tolerates and
++// the matching build relies on). g++ compiles such a return to NULL, so the
++// port returns by value.
++#ifndef SMS_PC_VALUE_RET
++#ifdef TARGET_PC
++#define SMS_PC_VALUE_RET(T) const T
++#else
++#define SMS_PC_VALUE_RET(T) const T&
++#endif
++#endif
++
+ #include <JSystem/JGeometry/JGUtil.hpp>
+ 
+ namespace JGeometry {
+@@ -162,14 +173,14 @@
+ 
+ 	TVec2 operator*(T scalar) const { return TVec2(x * scalar, y * scalar); }
+ 
+-	const TVec2& operator+(const TVec2& other) const
++	SMS_PC_VALUE_RET(TVec2) operator+(const TVec2& other) const
+ 	{
+ 		TVec2 result = *this;
+ 		result += other;
+ 		return result;
+ 	}
+ 
+-	const TVec2& operator-(const TVec2& other) const
++	SMS_PC_VALUE_RET(TVec2) operator-(const TVec2& other) const
+ 	{
+ 		TVec2 result = *this;
+ 		result -= other;
+--- a/src/Enemy/hamukuri.cpp
++++ b/src/Enemy/hamukuri.cpp
+@@ -1432,7 +1432,7 @@
+ // spelling its `operator-`/`operator+` siblings use is what retail emits here
+ // (header round 25 measured this body 90.23 -> 99.66 with it) but is a tree
+ // -wide net loss until the regressing units are respelled. Parked TU-local.
+-static inline const JGeometry::TVec3<f32>&
++static inline SMS_PC_VALUE_RET(JGeometry::TVec3<f32>)
+ HamukuriScaled(JGeometry::TVec3<f32> fst, f32 snd)
+ {
+ 	fst *= snd;
+--- a/src/Player/Tongue.cpp
++++ b/src/Player/Tongue.cpp
+@@ -83,7 +83,7 @@
+ // Local form of a reference-returning `operator*` for a destination copy
+ // (docs/catalog: "a destination copy wants the reference return"): retail
+ // copies the scaled parameter straight into mInitialVelocity.
+-static inline const JGeometry::TVec3<f32>&
++static inline SMS_PC_VALUE_RET(JGeometry::TVec3<f32>)
+ TongueScaled(JGeometry::TVec3<f32> v, f32 k)
+ {
+ 	v *= k;

@@ -1,0 +1,50 @@
+--- a/sqlite3.c
++++ b/sqlite3.c
+@@ -173,6 +173,13 @@
+ #define HAVE_FCHOWN 1
+ #define HAVE_READLINK 1
+ #define HAVE_LSTAT 1
++#if defined(__SWITCH__)
++/* Nintendo Switch homebrew (devkitA64/libnx): fchown/geteuid are declared nowhere in newlib's
++   headers (no multi-user ownership model on Horizon OS) - a real "undefined reference to fchown"
++   link error otherwise, since aSyscall[]'s HAVE_FCHOWN branch (further below) takes the real
++   syscall unconditionally whenever this macro is defined. */
++#undef HAVE_FCHOWN
++#endif
+ #endif /* defined(_WRS_KERNEL) */
+--- a/sqlite3.c
++++ b/sqlite3.c
+@@ -46226,6 +46226,15 @@
+   path.nSymlink = 0;
+   path.nOut = nOut;
+   path.zOut = zOut;
++#if defined(__SWITCH__)
++  /* libnx paths name their device ("sdmc:/dir/file"): already absolute, and rebuilding them
++  ** element-by-element below would prefix a '/' (or the cwd) and break the device lookup. */
++  if( strchr(zPath, ':')!=0 ){
++    if( (int)strlen(zPath)+1>nOut ) return SQLITE_CANTOPEN_BKPT;
++    memcpy(zOut, zPath, strlen(zPath)+1);
++    return SQLITE_OK;
++  }
++#endif
+   if( zPath[0]!='/' ){
+     char zPwd[SQLITE_MAX_PATHLEN+2];
+     if( osGetcwd(zPwd, sizeof(zPwd)-2)==0 ){
+--- a/sqlite3.c
++++ b/sqlite3.c
+@@ -42694,6 +42694,15 @@
+     got = osRead(id->h, pBuf, cnt);
+ #endif
+     if( got==cnt ) break;
++#if defined(__SWITCH__)
++    /* Horizon's filesystem fails a read that starts at or past end-of-file (EIO) instead of
++    ** returning 0 bytes like POSIX. SQLite reads the header of every new, empty database, so
++    ** that surfaced as SQLITE_IOERR_CORRUPTFS ("database disk image is malformed"). */
++    if( got<0 && errno!=EINTR ){
++      struct stat st;
++      if( osFstat(id->h, &st)==0 && offset>=st.st_size ){ got = 0; break; }
++    }
++#endif
+     if( got<0 ){
+       if( errno==EINTR ){ got = 1; continue; }
+       prior = 0;

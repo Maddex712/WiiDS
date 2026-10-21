@@ -1,0 +1,151 @@
+Reason: Language packs: PRESS START has as many letters as title_1.blo has (10 to 15), with a pause at each gap between words
+--- a/include/GC2D/CardLoad.hpp
++++ b/include/GC2D/CardLoad.hpp
+@@ -184,6 +184,16 @@
+ 	/* 0x74C */ J2DPicture* unk74C;
+ 	/* 0x750 */ J2DPicture* unk750;
+ 	/* 0x754 */ TOptionControl* unk754;
++#ifdef TARGET_PC
++	// Port: PRESS START's letters, as many as title_1.blo has (English 11;
++	// a language pack's 10 to 15), in place of unkF8/unk124/unk20C/unk222.
++	enum { cMaxTitleLetters = 16 };
++	TExPane* mTitleLetters[cMaxTitleLetters];
++	JUTRect mTitleLetterBounds[cMaxTitleLetters];
++	u16 mTitleLetterTime[cMaxTitleLetters];
++	u8 mTitleLetterState[cMaxTitleLetters];
++	int mTitleLetterCount;
++#endif
+ };
+ 
+ #endif
+--- a/src/GC2D/CardLoad.cpp
++++ b/src/GC2D/CardLoad.cpp
+@@ -212,12 +212,6 @@
+ 		unkC8[i] = new JUTTexture((const ResTIMG*)JKRGetResource(buffer));
+ 	}
+ 
+-	for (int i = 0; i < 11; ++i) {
+-		unk20C[i] = 25 * i + 150;
+-		if (i > 4)
+-			unk20C[i] += 20;
+-		unk222[i] = 4;
+-	}
+ 
+ 	for (int i = 0; i < TITLE_PANE_COUNT; ++i) {
+ 		unk22E[i] = 400 * i;
+@@ -229,16 +223,30 @@
+ 	unkF0 = new TExPane(unk34, 'titl');
+ 	unkF4 = new TExPane(unk34, 'nint');
+ 
+-	for (int i = 0; i < 11; ++i) {
++	// Port: as many letters as the layout has. Each starts 25 frames after
++	// the one before, and 20 more after a gap between words: English's is
++	// between PRESS and START (its two words are separate groups); a
++	// language pack's words are set closer together (letters overlap by
++	// about 25 pixels within a word and about 12 across a gap).
++	mTitleLetterCount = 0;
++	int wordGaps      = 0;
++	for (int i = 0; i < cMaxTitleLetters; ++i) {
+ 		int key;
+ 		if (i < 9)
+ 			key = 's_01' + i;
+ 		else
+ 			key = 's_00' + ((i + 1) / 10 << 8) + (i + 1) % 10;
++		if (!unk34->search(key))
++			break;
+ 
+-		unkF8[i] = new TExPane(unk34, key);
+-		unkF8[i]->getPane()->setAlpha(0);
+-		unk124[i] = unkF8[i]->getPane()->getBounds();
++		mTitleLetters[i] = new TExPane(unk34, key);
++		mTitleLetters[i]->getPane()->setAlpha(0);
++		mTitleLetterBounds[i] = mTitleLetters[i]->getPane()->getBounds();
++		if (i > 0 && mTitleLetterBounds[i].x1 - mTitleLetterBounds[i - 1].x2 > -18)
++			wordGaps++;
++		mTitleLetterTime[i]  = 25 * i + 150 + 20 * wordGaps;
++		mTitleLetterState[i] = 4;
++		mTitleLetterCount++;
+ 	}
+ 
+ 	for (int i = 0; i < TITLE_PANE_COUNT; ++i) {
+@@ -1054,55 +1062,55 @@
+ 	} break;
+ 
+ 	case 4: {
+-		for (int i = 0; i < 11; ++i) {
+-			switch (unk222[i]) {
++		for (int i = 0; i < mTitleLetterCount; ++i) {
++			switch (mTitleLetterState[i]) {
+ 			case 0:
+-				if (unkF8[i]->update()) {
+-					unk222[i] = 1;
+-					unk20C[i] = 0;
++				if (mTitleLetters[i]->update()) {
++					mTitleLetterState[i] = 1;
++					mTitleLetterTime[i] = 0;
+ 				}
+ 				break;
+ 
+ 			case 1:
+-				unk20C[i] += 1;
+-				if (unk20C[i] > 500) {
+-					JUTRect bounds = unkF8[i]->getPane()->getBounds();
+-					unkF8[i]->setPaneAlpha(25, 0, 255);
+-					unk222[i] = 2;
++				mTitleLetterTime[i] += 1;
++				if (mTitleLetterTime[i] > 500) {
++					JUTRect bounds = mTitleLetters[i]->getPane()->getBounds();
++					mTitleLetters[i]->setPaneAlpha(25, 0, 255);
++					mTitleLetterState[i] = 2;
+ 				}
+ 				break;
+ 
+ 			case 2:
+-				if (unkF8[i]->update()) {
+-					unk20C[i] = 0;
+-					unk222[i] = 3;
++				if (mTitleLetters[i]->update()) {
++					mTitleLetterTime[i] = 0;
++					mTitleLetterState[i] = 3;
+ 				}
+ 				break;
+ 
+ 			case 3:
+-				++unk20C[i];
+-				if (unk20C[i] > 300) {
+-					JUTRect local_124 = unkF8[i]->getPane()->getBounds();
++				++mTitleLetterTime[i];
++				if (mTitleLetterTime[i] > 300) {
++					JUTRect local_124 = mTitleLetters[i]->getPane()->getBounds();
+ 
+-					unkF8[i]->setCenteredSize(
++					mTitleLetters[i]->setCenteredSize(
+ 					    25, local_124.getWidth(), local_124.getHeight(),
+ 					    local_124.getWidth() * 2,
+ 					    local_124.getHeight() * 2);
+ 
+-					unkF8[i]->setPaneAlpha(25, 255, 0);
+-					unk222[i] = 0;
++					mTitleLetters[i]->setPaneAlpha(25, 255, 0);
++					mTitleLetterState[i] = 0;
+ 				}
+ 				break;
+ 
+ 			case 4:
+-				if (unk258 > unk20C[i]) {
+-					JUTRect local_124 = unk124[i];
+-					unkF8[i]->setCenteredSize(
++				if (unk258 > mTitleLetterTime[i]) {
++					JUTRect local_124 = mTitleLetterBounds[i];
++					mTitleLetters[i]->setCenteredSize(
+ 					    25, local_124.getWidth(), local_124.getHeight(),
+ 					    local_124.getWidth() * 2, local_124.getHeight() * 2);
+-					unkF8[i]->setPaneAlpha(25, 255, 0);
+-					unk222[i] = 0;
+-					unk20C[i] = 0;
++					mTitleLetters[i]->setPaneAlpha(25, 255, 0);
++					mTitleLetterState[i] = 0;
++					mTitleLetterTime[i] = 0;
+ 				}
+ 				break;
+ 			}

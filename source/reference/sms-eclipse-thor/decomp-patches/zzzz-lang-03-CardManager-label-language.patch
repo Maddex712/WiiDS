@@ -1,0 +1,27 @@
+Reason: Language packs: the memory card label is in the chosen language
+--- a/src/System/CardManager.cpp
++++ b/src/System/CardManager.cpp
+@@ -6,6 +6,9 @@
+ #include <JSystem/JSupport/JSUMemoryOutputStream.hpp>
+ #include <System/FlagManager.hpp>
+ #include <sms_modhook.h>
++#ifdef TARGET_PC
++#include <sms_language.h>
++#endif
+ 
+ static u8 sDetach[2];
+ const char CardFileName[0x20] = "super_mario_sunshine\0\0\0\0\0\0\0\0\0\0\0";
+@@ -567,7 +570,13 @@
+ {
+ 	// 0xA0001 is the live language option flag (0..4); language 0 (English)
+ 	// prints the date month-first, the European ones day-first.
++#ifdef TARGET_PC
++	// Port: the label follows the language setting (the US game never sets
++	// the flag, and a European save's value would follow the save instead).
++	u32 language = port_language_index();
++#else
+ 	u32 language = TFlagManager::getInstance()->getFlag(0xA0001);
++#endif
+ 
+ 	snprintf(header->mTitle, 0x20, titles[language]);
+ 	OSCalendarTime auStack_54;

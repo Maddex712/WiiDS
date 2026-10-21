@@ -1,0 +1,22 @@
+Reason: endian: convert the 0x20-byte .afc/stream header after it is copied into StreamHeader (read from disc or from the AAF stream list, which platform/endian leaves big-endian)
+--- a/libs/JSystem/src/JAudio/JAInterface/JAIGFrameStream.cpp
++++ b/libs/JSystem/src/JAudio/JAInterface/JAIGFrameStream.cpp
+@@ -668,6 +668,18 @@
+ 
+ 		adpcm_loadpoint = 0x20;
+ 		header          = *(StreamHeader*)adpcm_buffer;
++#ifdef TARGET_PC
++		header.unk0  = port_be32(&header.unk0);
++		header.unk4  = port_be32(&header.unk4);
++		header.unk8  = port_be16(&header.unk8);
++		header.unkA  = port_be16(&header.unkA);
++		header.unkC  = port_be16(&header.unkC);
++		header.unkE  = port_be16(&header.unkE);
++		header.unk10 = port_be32(&header.unk10);
++		header.unk14 = port_be32(&header.unk14);
++		header.unk18 = port_be32(&header.unk18);
++		header.unk1C = port_be32(&header.unk1C);
++#endif
+ 
+ 		adpcm_remain     = header.unk0;
+ 		playback_samples = header.unk4;

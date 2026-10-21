@@ -1,0 +1,33 @@
+Reason: host libc: MSL's printf prints a null %s as an empty string, glibc's and the Windows runtime's as "(null)"; the scenario name a code mod returns for an area without scenarios (BetterSunshineEngine, Delfino Plaza) is null, so the stage title card and pause menu showed "(null)" under the area's name
+--- a/src/GC2D/ConsoleStr.cpp
++++ b/src/GC2D/ConsoleStr.cpp
+@@ -151,6 +151,13 @@
+ 			    SMSGetMessageData(
+ 			    pvVar10, (u16)SMS_getNormalStage(uVar2));
+ 
++#ifdef TARGET_PC
++		// MSL's printf prints a null %s as nothing, the host's as "(null)";
++		// BetterSunshineEngine's scenario name (above) is null for an area
++		// it has no scenarios for, Delfino Plaza among them.
++		if (puVar15 == nullptr)
++			puVar15 = "";
++#endif
+ 		snprintf(unk29C[1]->getStringPtr(), 0x80, "%s", puVar15);
+ 	}
+ }
+--- a/src/GC2D/PauseMenu2.cpp
++++ b/src/GC2D/PauseMenu2.cpp
+@@ -213,6 +213,13 @@
+ 			    SMSGetMessageData(
+ 			    scenarioBmg, (u16)SMS_getNormalStage(shineID));
+ 		}
++#ifdef TARGET_PC
++		// MSL's printf prints a null %s as nothing, the host's as "(null)";
++		// BetterSunshineEngine's scenario name (above) is null for an area
++		// it has no scenarios for.
++		if (scenarioName == nullptr)
++			scenarioName = "";
++#endif
+ 		snprintf(mScenarioName->getStringPtr(), 0x80, "%s", scenarioName);
+ 	}
+ }

@@ -1,0 +1,361 @@
+#include <SMS/GC2D/SunGlass.hxx>
+#include <SMS/Manager/FlagManager.hxx>
+#include <SMS/Manager/ItemManager.hxx>
+
+#include <BetterSMS/libs/constmath.hxx>
+#include <BetterSMS/module.hxx>
+#include <BetterSMS/stage.hxx>
+
+#include "darkness.hxx"
+#include "globals.hxx"
+#include "settings.hxx"
+#include "stage.hxx"
+
+using namespace BetterSMS;
+
+static TLightContext sLightContext;
+static u8 sBrightLevel = 255;
+static u8 sMinDarkness = 0;
+
+#define MIN_DARKNESS                 132
+#define MIN_DARKNESS_ECLIPSED        110
+#define MIN_DARKNESS_CORONA          190
+#define MIN_DARKNESS_CORONA_ECLIPSED 170
+#define MAX_DARKNESS                 210
+#define MIN_SIZE                     0.0f
+#define MAX_SIZE                     500000.0f
+#define GROW_BASE                    4500.0f
+#define GROW_POWER                   1.5f
+
+extern DarknessSetting gDarknessSetting;
+
+void initializeParameters(TLightContext::ActiveType type, TVec3f pos, u8 layer_count,
+                          JUtility::TColor color, f32 scale, f32 layer_scale, u8 brightness) {
+    bool isCoronaMountainBeat  = TFlagManager::smInstance->getBool(0x10077);
+    sLightContext.mLightType   = type;
+    sLightContext.mTranslation = pos;
+    sLightContext.mColor       = color;
+    sLightContext.mBaseScale   = scale;
+    sBrightLevel               = brightness;
+
+    u8 minDarkness = 0;
+
+    if (type == TLightContext::ActiveType::STATIC) {
+        switch (gDarknessSetting.getInt()) {
+        case DarknessSetting::ECLIPSED: {
+            sMinDarkness              = isCoronaMountainBeat ? MIN_DARKNESS_CORONA_ECLIPSED
+                                                             : MIN_DARKNESS_ECLIPSED;
+            sLightContext.mLayerScale = layer_scale;
+            sLightContext.mLayerCount = layer_count;
+            break;
+        }
+        case DarknessSetting::REGULAR: {
+            sMinDarkness = isCoronaMountainBeat ? MIN_DARKNESS_CORONA : MIN_DARKNESS;
+            sLightContext.mLayerScale = 0.05f;
+            sLightContext.mLayerCount = 5;
+            break;
+        }
+        }
+    } else {
+        sMinDarkness              = isCoronaMountainBeat ? MIN_DARKNESS_CORONA : MIN_DARKNESS;
+        sLightContext.mLayerScale = layer_scale;
+        sLightContext.mLayerCount = layer_count;
+    }
+}
+
+void initToDefault(TMarDirector *director) {
+    initializeParameters(TLightContext::ActiveType::DISABLED, {0, 0, 0}, 5, {0, 0, 0, 0}, 10000,
+                         0.5, 255);
+}
+
+static TSunGlass *sSunGlassRef = nullptr;
+static const char *sSunGlassRefName =
+    "\x83\x54\x83\x93\x83\x4F\x83\x89\x83\x58\x83\x74\x83\x46\x81\x5B\x83\x5F";
+static bool (*sLightMutator)(TLightContext *context) = nullptr;
+
+static bool sStageSunGlassSet = false;
+
+void initSunGlassReference(TSunGlass *sunglass, JSUMemoryInputStream *in) {
+    sStageSunGlassSet = false;
+    sSunGlassRef      = sunglass;
+    load__Q26JDrama8TNameRefFR20JSUMemoryInputStream(sunglass, in);
+}
+SMS_PATCH_BL(0x8017d194, initSunGlassReference);
+
+void TLightContext::process(TModelWaterManager &manager) {
+    u32 shinesCollected       = TFlagManager::smInstance->getFlag(0x40000);
+    bool isCoronaMountainBeat = TFlagManager::smInstance->getBool(0x10077);
+
+    bool shouldAffectSunglass = []() {
+        // Disabling the light in stages where it makes no sense
+        switch (gpMarDirector->mAreaID) {
+        case TGameSequence::AREA_OPTION:
+        case TGameSequence::AREA_CASINO:
+        case TGameSequence::AREA_DELFINO:
+        case TGameSequence::AREA_DELFINOBOSS:
+        case SME::STAGE_LACRIMA_INSIDE:
+        case SME::STAGE_LACRIMA_BACKHOUSE:
+        case SME::STAGE_MARIO_DREAM:
+        case SME::STAGE_VAPORWAVE:
+        case SME::STAGE_SPETTRO_CASINO:
+        case SME::STAGE_TUTORIAL:
+            return false;
+        default:
+            if (SMS_isExMap__Fv(gpMarDirector->mAreaID)) {
+                return false;
+            }
+            break;
+        }
+        return true;
+    }();
+
+    if (gDarknessSetting.getInt() == DarknessSetting::ECLIPSED) {
+        if (!sStageSunGlassSet) {
+            sStageSunGlassSet = true;
+        }
+    } else {
+        shouldAffectSunglass = false;
+    }
+
+    if (gDarknessSetting.getInt() == DarknessSetting::VANILLA) {
+        if (mLightType == TLightContext::ActiveType::STATIC) {
+            return;
+        }
+    }
+
+    if (sLightMutator) {
+        if (sLightMutator(this)) {
+            sLightMutator = nullptr;
+        }
+    }
+
+    switch (mLightType) {
+    case TLightContext::ActiveType::STATIC: {
+        manager.mLayerCount = sLightContext.mLayerCount;
+
+        if (sBrightLevel != 255) {
+            manager.mDarkLevel            = sBrightLevel;
+            manager.LightType.mShowShadow = true;
+            break;
+        } else if (shinesCollected >= MaxShineCount) {
+            if (manager.mDarkLevel < 255)
+                manager.mDarkLevel += 1;
+            else
+                mLightType = TLightContext::ActiveType::DISABLED;
+        }
+
+        gShineShadowPos = mTranslation;
+
+        const f32 sigOfs      = 300.0f;
+        const f32 sigStrength = 0.04f;
+
+        if (!mSizeMorphing) {
+            if (shinesCollected != mPrevShineCount) {
+                mPrevSize = manager.mSize;
+                mNextSize =
+                    mBaseScale +
+                    powf(GROW_BASE * ((f32)shinesCollected / (f32)MaxShineCount), GROW_POWER);
+                mPrevDarkness = manager.mDarkLevel;
+                mNextDarkness =
+                    lerp<u8>(sMinDarkness, MAX_DARKNESS,
+                             static_cast<f32>(shinesCollected) / static_cast<f32>(MaxShineCount));
+
+                mPrevShineCount = shinesCollected;
+                mSizeMorphing   = true;
+                mStepContext    = 0.0f;
+            } else {
+                if (shouldAffectSunglass) {
+                    // sSunGlassRef->mToAlpha = Min(255 - manager.mDarkLevel, 100);
+                    sSunGlassRef->mToAlpha = lerp<u8>(0, 60, manager.mDarkLevel / 255.0f);
+                    sSunGlassRef->mColor.a = sSunGlassRef->mToAlpha;
+                }
+                manager.LightType.mShowShadow = manager.mDarkLevel < 255 && !isCoronaMountainBeat;
+                break;
+            }
+        }
+
+        const f32 cur = isCoronaMountainBeat
+                            ? MAX_SIZE
+                            : sigmoid(mStepContext, mPrevSize, mNextSize, sigOfs, sigStrength);
+
+        if (sBrightLevel == 255)
+            manager.mDarkLevel =
+                static_cast<u8>(sigmoid(mStepContext, static_cast<f32>(mPrevDarkness),
+                                        static_cast<f32>(mNextDarkness), sigOfs, sigStrength));
+
+        constexpr f32 deadZone = 1.0f;
+
+        const bool isFinished = manager.mDarkLevel == mNextDarkness;
+
+        if (manager.mSize > MAX_SIZE) {
+            manager.mSize      = MAX_SIZE;
+            manager.mDarkLevel = mNextDarkness;
+            mSizeMorphing      = false;
+        } else if (manager.mSize < MIN_SIZE) {
+            manager.mSize      = MIN_SIZE;
+            manager.mDarkLevel = mNextDarkness;
+            mSizeMorphing      = false;
+        } else if (!isFinished) {
+            manager.mSize       = cur;
+            manager.mSphereStep = cur * mLayerScale;
+            mStepContext += 1.0f;
+        } else {
+            manager.mSize       = cur;
+            manager.mSphereStep = cur * mLayerScale;
+            mSizeMorphing       = false;
+        }
+
+        if (shouldAffectSunglass) {
+            sSunGlassRef->mToAlpha = lerp<u8>(0, 60, manager.mDarkLevel / 255.0f);
+            sSunGlassRef->mColor.a = sSunGlassRef->mToAlpha;
+        }
+        manager.LightType.mShowShadow = manager.mDarkLevel < 255 && !isCoronaMountainBeat;
+        break;
+    }
+    case TLightContext::ActiveType::FOLLOWPLAYER: {
+        manager.mDarkLevel            = sBrightLevel;
+        manager.mSphereStep           = mBaseScale * mLayerScale;
+        manager.mSize                 = mBaseScale;
+        manager.mColor                = mColor;
+        manager.LightType.mShowShadow = manager.mDarkLevel < 255;
+        manager.mLayerCount           = sLightContext.mLayerCount;
+        gShineShadowPos               = gpMarioAddress->mTranslation;
+        break;
+    }
+    case TLightContext::ActiveType::FOLLOWCAMERA: {
+        manager.mDarkLevel = sBrightLevel;
+        if (*(f32 *)((u8 *)gpCamera + SMS_OFFSET(CPolarSubCamera, 0x134)) > 13000.0f) {
+            manager.mDarkLevel = lerp<f32>(
+                static_cast<f32>(sBrightLevel), 255.0f,
+                clamp(1.0f - ((21000.0f - *(f32 *)((u8 *)gpCamera + SMS_OFFSET(CPolarSubCamera, 0x134))) / 8000.0f), 0.0f, 1.0f));
+        }
+
+        manager.mSphereStep           = mBaseScale * mLayerScale;
+        manager.mSize                 = mBaseScale;
+        manager.mColor                = mColor;
+        manager.LightType.mShowShadow = manager.mDarkLevel < 255;
+        manager.mLayerCount           = sLightContext.mLayerCount;
+        gShineShadowPos               = gpCamera->mTranslation + mTranslation;
+        break;
+    }
+    default:
+        manager.LightType.mShowShadow = manager.mDarkLevel < 255;
+        manager.mLayerCount           = sLightContext.mLayerCount;
+        break;
+    }
+}
+
+static void initShineShadow() {
+    if (gDarknessSetting.getInt() == DarknessSetting::VANILLA) {
+        if (sLightContext.mLightType == TLightContext::ActiveType::STATIC) {
+            if (gpMarDirector->mAreaID != TGameSequence::AREA_DOLPIC) {
+                sLightContext.mLightType = TLightContext::ActiveType::DISABLED;
+            }
+        } else {
+            if (gpMarDirector->mAreaID < SME::STAGE_ERTO) {
+                sLightContext.mLightType = TLightContext::ActiveType::DISABLED;
+            }
+        }
+        return;
+    }
+
+    if (sLightContext.mLightType == TLightContext::ActiveType::DISABLED) {
+        return;
+    }
+
+    u32 shinesCollected = TFlagManager::smInstance->getFlag(0x40000);
+    // bool isCoronaMountainBeat = TFlagManager::smInstance->getBool(0x10077);
+
+    if (shinesCollected < MaxShineCount || sBrightLevel != 255 ||
+        sLightContext.mLightType == TLightContext::ActiveType::FOLLOWPLAYER ||
+        sLightContext.mLightType == TLightContext::ActiveType::FOLLOWCAMERA) {
+        sLightContext.mPrevShineCount = shinesCollected;
+
+        gpModelWaterManager->mColor      = sLightContext.mColor;
+        gpModelWaterManager->mDarkLevel  = sBrightLevel;
+        gpModelWaterManager->mSphereStep = sLightContext.mBaseScale * sLightContext.mLayerScale;
+        gpModelWaterManager->mSize       = sLightContext.mBaseScale;
+        gpModelWaterManager->LightType.mMaskObjects = true;
+        gpModelWaterManager->LightType.mShowShadow  = true;
+
+        if (sLightContext.mLightType == TLightContext::ActiveType::STATIC) {
+            sLightContext.mNextSize =
+                sLightContext.mBaseScale +
+                powf(GROW_BASE * ((f32)shinesCollected / (f32)MaxShineCount), GROW_POWER);
+
+            if (sBrightLevel == 255)
+                gpModelWaterManager->mDarkLevel =
+                    lerp<u8>(sMinDarkness, MAX_DARKNESS,
+                             static_cast<f32>(shinesCollected) / static_cast<f32>(MaxShineCount));
+            else
+                gpModelWaterManager->mDarkLevel = sBrightLevel;
+
+            gpModelWaterManager->mSize = sLightContext.mNextSize;
+            gpModelWaterManager->mSphereStep =
+                gpModelWaterManager->mSize * sLightContext.mLayerScale;
+        }
+    } else {
+        sLightContext.mLightType = TLightContext::ActiveType::DISABLED;
+    }
+}
+SMS_PATCH_B(SMS_PORT_REGION(0x80280180, 0x80277F0C, 0, 0), initShineShadow);
+
+BETTER_SMS_FOR_CALLBACK void manageShineDarkness(TMarDirector *director) {
+    sLightContext.process(*gpModelWaterManager);
+}
+
+static bool checkIfActive() {
+    return sLightContext.mLightType != TLightContext::ActiveType::DISABLED;
+}
+SMS_PATCH_BL(0x8027C6A4, checkIfActive);
+SMS_WRITE_32(0x8027C6A8, 0x28030001);
+
+static bool checkIfValidStateForSunGlassTint() {
+    if (gDarknessSetting.getInt() == DarknessSetting::VANILLA) {
+        return gpMarDirector->mAreaID == TGameSequence::AREA_DOLPIC;
+    }
+
+    switch (gpMarDirector->mAreaID) {
+    case TGameSequence::AREA_OPTION:
+    case TGameSequence::AREA_CASINO:
+    case TGameSequence::AREA_DELFINO:
+    case TGameSequence::AREA_DELFINOBOSS:
+    case SME::STAGE_LACRIMA_INSIDE:
+    case SME::STAGE_LACRIMA_BACKHOUSE:
+    case SME::STAGE_MARIO_DREAM:
+    case SME::STAGE_VAPORWAVE:
+    case SME::STAGE_SPETTRO_CASINO:
+    case SME::STAGE_TUTORIAL:
+        return false;
+    default:
+        if (SMS_isExMap__Fv(gpMarDirector->mAreaID)) {
+            return false;
+        }
+        break;
+    }
+
+    return true;
+}
+SMS_PATCH_BL(0x8017D1D0, checkIfValidStateForSunGlassTint);
+SMS_WRITE_32(0x8017D1D4, 0x28030001);
+SMS_WRITE_32(0x8017D1D8, 0x38600000);
+SMS_WRITE_32(0x8017D1DC, 0x40820070);
+SMS_WRITE_32(0x8017D1E0, 0x60000000);
+
+SMS_WRITE_32(0x8017D5C0, 0x60000000);
+SMS_WRITE_32(0x8017D654, 0x60000000);
+
+static bool casinoLightMutator(TLightContext *context) {
+    if (sBrightLevel++ == 255) {
+        context->mLightType = TLightContext::ActiveType::DISABLED;
+        return true;
+    }
+    return false;
+}
+
+static void casinoBossReviveLightWhenShineDemo(TItemManager *manager, const char *shine,
+                                               const char *demo, f32 x, f32 y, f32 z) {
+    sLightMutator = casinoLightMutator;
+    manager->makeShineAppearWithDemo(shine, demo, x, y, z);
+}
+SMS_PATCH_BL(0x800bf85c, casinoBossReviveLightWhenShineDemo);

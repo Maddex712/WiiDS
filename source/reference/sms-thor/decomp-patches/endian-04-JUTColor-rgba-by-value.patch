@@ -1,0 +1,33 @@
+Reason: endian: TColor(u32)/set(u32)/toUInt32 treat the u32 as 0xRRGGBBAA by value (typed stream reads and colour literals are host-order values); a raw store reversed the channels on little-endian hosts
+--- a/libs/JSystem/include/JSystem/JUtility/JUTColor.hpp
++++ b/libs/JSystem/include/JSystem/JUtility/JUTColor.hpp
+@@ -77,7 +77,11 @@
+ 	// temporary versus an inlined local (see the TODO above it in MarioMain.cpp).
+ 
+ 	operator u32() const { return toUInt32(); }
++#ifdef TARGET_PC
++	u32 toUInt32() const { return ((u32)r << 24) | ((u32)g << 16) | ((u32)b << 8) | a; }
++#else
+ 	u32 toUInt32() const { return *(u32*)&r; }
++#endif
+ 
+ 	void set(u8 cR, u8 cG, u8 cB, u8 cA)
+ 	{
+@@ -87,7 +91,17 @@
+ 		a = cA;
+ 	}
+ 
++#ifdef TARGET_PC
++	void set(u32 u32Color)
++	{
++		r = u32Color >> 24;
++		g = u32Color >> 16;
++		b = u32Color >> 8;
++		a = u32Color;
++	}
++#else
+ 	void set(u32 u32Color) { *(u32*)&r = u32Color; }
++#endif
+ 	void set(GXColor gxColor) { *(GXColor*)&r = gxColor; }
+ 	GXColor get() const { return *this; }
+ };

@@ -1,0 +1,37 @@
+Reason: port: Jump Height (F9 menu, factor 1/2/4/6): the normal, double and triple jumps launch at sqrt(factor) times their speed, so the apex is about factor times as high under constant gravity (port_cheat_jump_height in platform/misc/port_cheats.cpp); TEnemyMario is left alone through isMario()
+--- a/src/Player/MarioMove.cpp
++++ b/src/Player/MarioMove.cpp
+@@ -459,1 +459,5 @@
+-// TODO: the frame is exact (0x1d8) with getGroundPlane(), getActor() and
++#ifdef TARGET_PC
++extern "C" int port_cheat_jump_height;
++#endif
++
++// TODO: the frame is exact (0x1d8) with getGroundPlane(), getActor() and
+@@ -468,1 +472,8 @@
+-	u32 nextStatus = status;
++	u32 nextStatus = status;
++	f32 launchScale = 1.0f;
++#ifdef TARGET_PC
++	// height goes with the launch speed squared: the speed scale is sqrt(height factor)
++	if (isMario() && (status == MARIO_STATUS_JUMP || status == MARIO_STATUS_SECOND_JUMP
++	    || status == MARIO_STATUS_ULTRA_JUMP))
++		launchScale = std::sqrtf((f32)port_cheat_jump_height);
++#endif
+@@ -486,3 +497,3 @@
+-		} else
+-#endif
+-		setPlayerJumpSpeed(0.25f, 42.0f);
++		} else
++#endif
++		setPlayerJumpSpeed(0.25f * launchScale, 42.0f * launchScale);
+@@ -516,2 +527,2 @@
+-		setPlayerJumpSpeed(mJumpParams.mSecJumpSpeedMult.get(),
+-		                   mJumpParams.mSecJumpForce.get());
++		setPlayerJumpSpeed(mJumpParams.mSecJumpSpeedMult.get() * launchScale,
++		                   mJumpParams.mSecJumpForce.get() * launchScale);
+@@ -523,2 +534,2 @@
+-		setPlayerJumpSpeed(mJumpParams.mUltraJumpSpeedMult.get(),
+-		                   mJumpParams.mUltraJumpForce.get());
++		setPlayerJumpSpeed(mJumpParams.mUltraJumpSpeedMult.get() * launchScale,
++		                   mJumpParams.mUltraJumpForce.get() * launchScale);

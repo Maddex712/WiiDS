@@ -1,0 +1,50 @@
+Reason: port: SMS_WARP=stage,scenario[,shines] sends a file-select load to another area (debugging aid)
+--- a/src/GC2D/CardLoad.cpp
++++ b/src/GC2D/CardLoad.cpp
+@@ -2309,6 +2309,36 @@
+ 		setupScoreScreen();
+ 	}
+ }
++#ifdef TARGET_PC
++// port: SMS_WARP=stage,scenario[,shines] sends a file-select load to another
++// area (debugging; 1,0,1 is Delfino Plaza as it is after the airstrip).
++static void port_warp_after_file_select()
++{
++	static bool done;
++	// SMS_WARP_MOVIE=n plays streaming movie n (TMarDirector::fireStreamingMovie)
++	if (const char* m = getenv("SMS_WARP_MOVIE")) {
++		if (!done) {
++			done = true;
++			OSReport("SMS_WARP_MOVIE: %d\n", atoi(m));
++			gpMarDirector->fireStreamingMovie((u8)atoi(m));
++		}
++		return;
++	}
++	const char* warp = getenv("SMS_WARP");
++	int stage = -1, scenario = 0, shines = -1;
++	if (done || !warp || sscanf(warp, "%d,%d,%d", &stage, &scenario, &shines) < 1
++	    || stage < 0)
++		return;
++	if (shines >= 0)
++		TFlagManager::getInstance()->setFlag(0x40000, shines);
++	// setNextStage has already run and latched its flags: replace its area.
++	gpApplication.mNextArea.set(stage, scenario, 0);
++	done = true;
++	OSReport("SMS_WARP: stage %d scenario %d shines %d\n", stage, scenario,
++	         TFlagManager::getInstance()->getFlag(0x40000));
++}
++#endif
++
+ 
+ // TODO: every instruction matches; only the frame differs (0x178 vs retail's
+ // 0x1e0). The gap is not one block: measured against retail's slots it is
+@@ -2796,6 +2826,9 @@
+ #endif
+ 		else
+ 			gpMarDirector->setNextStage(1, nullptr);
++#ifdef TARGET_PC
++		port_warp_after_file_select();
++#endif
+ 		gpCardManager->unmount();
+ 	} break;
+ 

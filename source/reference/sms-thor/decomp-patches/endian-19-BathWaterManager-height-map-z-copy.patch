@@ -1,0 +1,20 @@
+Reason: endian: Bowser's bath water builds its height map from a Z24X8 EFB copy, whose texels the CPU reads as big-endian u16s; read them big-endian so the water surface sits in the tub
+--- a/src/Map/BathWaterManager.cpp
++++ b/src/Map/BathWaterManager.cpp
+@@ -1706,8 +1706,16 @@
+ 			u16* block = (u16*)unk800A4 + ((br + bc * n) << 5);
+ 			for (s16 sr = 0; sr < 4; ++sr) {
+ 				for (s16 sc = 0; sc < 4; ++sc) {
++#ifdef TARGET_PC
++					// The copy is stored in GX's layout, big-endian as on the
++					// console: read as host u16s, X lands in Z's top byte and
++					// every height comes out at the bottom of the bathtub.
++					s32 v = ((port_be16(block + sr + sc * 4) << 16) & 0xFF0000)
++					        | port_be16(block + sr + sc * 4 + 0x10);
++#else
+ 					s32 v = (((block + sr + sc * 4)[0] << 16) & 0xFF0000)
+ 					        | (block + sr + sc * 4)[0x10];
++#endif
+ 					unk20[sr + br * 4][sc + bc * 4].y
+ 					    = h * ((f32)v * (1.0f / 16777216.0f));
+ 				}

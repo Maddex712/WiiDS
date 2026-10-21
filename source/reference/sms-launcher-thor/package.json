@@ -1,0 +1,87 @@
+{
+  "name": "sms-launcher",
+  "version": "0.1.57",
+  "private": true,
+  "author": "sms-port contributors",
+  "license": "MIT",
+  "desktopName": "sms-launcher.desktop",
+  "engines": {
+    "node": ">=22.12.0"
+  },
+  "description": "Desktop setup, build, update, and play launcher for sms-pc-port",
+  "main": "src/main.js",
+  "scripts": {
+    "start": "node scripts/start.js",
+    "test": "node --test",
+    "dist": "electron-builder",
+    "android:build": "bash android/build.sh",
+    "release": "node scripts/release.js",
+    "update:game": "node scripts/update-game.js"
+  },
+  "build": {
+    "appId": "dev.chasem.smslauncher",
+    "productName": "SMS Launcher",
+    "files": [
+      "src/**/*",
+      "changelog.json",
+      "package.json"
+    ],
+    "extraResources": [
+      {
+        "from": "scripts",
+        "to": "scripts",
+        "filter": [
+          "build-eclipse.sh",
+          "texture-progress.py"
+        ]
+      }
+    ],
+    "directories": {
+      "output": "dist"
+    },
+    "toolsets": {
+      "appimage": "1.0.3"
+    },
+    "linux": {
+      "target": [
+        "AppImage"
+      ],
+      "category": "Game",
+      "artifactName": "SMS-Launcher.${ext}",
+      "syncDesktopName": true,
+      "executableArgs": [
+        "--no-sandbox"
+      ]
+    },
+    "mac": {
+      "artifactName": "SMS-Launcher-${version}-mac-${arch}.${ext}",
+      "target": [
+        "dmg",
+        "zip"
+      ],
+      "category": "public.app-category.games"
+    },
+    "win": {
+      "target": [
+        "nsis",
+        "portable"
+      ]
+    },
+    "portable": {
+      "artifactName": "SMS-Launcher-${version}-win-portable.${ext}"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true
+    }
+  },
+  "dependencies": {
+    "electron-updater": "^6.8.9",
+    "tar": "^7.5.22"
+  },
+  "devDependencies": {
+    "electron": "^44.4.5",
+    "electron-builder": "^26.17.0",
+    "yaml": "^2.9.1"
+  }
+}

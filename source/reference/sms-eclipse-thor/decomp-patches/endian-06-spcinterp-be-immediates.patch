@@ -1,0 +1,39 @@
+Reason: endian: SPC (.sb) byte code stays big-endian (platform/endian converts only the header, data table and symbols); assemble the 4-byte immediates big-endian
+--- a/include/Strategic/spcinterp.hpp
++++ b/include/Strategic/spcinterp.hpp
+@@ -402,7 +402,11 @@
+ 		f32 result;
+ 		u8* dst = (u8*)&result;
+ 		for (int i = 0; i < sizeof(f32); ++i)
++#ifdef TARGET_PC
++			dst[i] = src[sizeof(f32) - 1 - i]; // byte code immediates are big-endian
++#else
+ 			dst[i] = src[i];
++#endif
+ 		mProgramCounter += sizeof(f32);
+ 		return result;
+ 	}
+@@ -412,7 +416,11 @@
+ 		s32 result;
+ 		u8* dst = (u8*)&result;
+ 		for (int i = 0; i < sizeof(s32); ++i)
++#ifdef TARGET_PC
++			dst[i] = src[sizeof(s32) - 1 - i]; // byte code immediates are big-endian
++#else
+ 			dst[i] = src[i];
++#endif
+ 		mProgramCounter += sizeof(s32);
+ 		return result;
+ 	}
+@@ -423,7 +431,11 @@
+ 		u32 result;
+ 		u8* dst = (u8*)&result;
+ 		for (int i = 0; i < sizeof(u32); ++i)
++#ifdef TARGET_PC
++			dst[i] = src[sizeof(u32) - 1 - i]; // byte code immediates are big-endian
++#else
+ 			dst[i] = src[i];
++#endif
+ 		mProgramCounter += sizeof(u32);
+ 		return result;
+ 	}

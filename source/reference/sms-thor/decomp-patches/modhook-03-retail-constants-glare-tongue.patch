@@ -1,0 +1,70 @@
+Reason: port: retail constants code mods overwrite become variables with the retail values: the 120.0 shine count of TSunGlass's glare (BetterSunshineEngine sets its own shine count) and the Yoshi tongue's 300.0 attack radius and 10000.0 target distance (Eclipse's green Yoshi); unchanged, they behave as the constants
+--- a/src/GC2D/SunGlass.cpp
++++ b/src/GC2D/SunGlass.cpp
+@@ -115,6 +115,17 @@
+ // counts, and unlike the accessor forks below it does not saturate across the
+ // two expansions in startFade. Nothing in the body wants an 8-byte object, so
+ // it is left out; see docs/catalog/frame-gaps.md "The dead low region".
++#ifdef TARGET_PC
++// Port: the 120.0 shine count at which the sun's glare is gone is a constant
++// in retail's .sdata2 (@1863, 0x80412548) that code mods overwrite with their
++// own shine count (platform/mods/eclipse/rawdata.cpp): a variable here.
++extern "C" f32 sms_port_sunGlassShineMax;
++f32 sms_port_sunGlassShineMax = 120.0f;
++#define SUNGLASS_SHINE_MAX sms_port_sunGlassShineMax
++#else
++#define SUNGLASS_SHINE_MAX 120.0f
++#endif
++
+ u8 TSunGlass::getShineAlpha()
+ {
+ 	u8 alpha = 0;
+@@ -122,7 +133,7 @@
+ 		alpha = (u8)((f32)(unk1E - unk1F)
+ 		             * (1.0f
+ 		                - (f32)SMSGetFlagManager()->getFlag(0x40000)
+-		                      / 120.0f));
++		                      / SUNGLASS_SHINE_MAX));
+ 	return alpha;
+ }
+ 
+--- a/src/Player/Tongue.cpp
++++ b/src/Player/Tongue.cpp
+@@ -162,10 +162,25 @@
+ 	return true;
+ }
+ 
++#ifdef TARGET_PC
++// Port: the tongue's idle attack radius (300.0, @2833, 0x80415F4C) and
++// findTarget's starting distance (10000.0, @2942, 0x80415F68) are constants
++// in retail's .sdata2 that code mods overwrite to lengthen a Yoshi's tongue
++// (platform/mods/eclipse/rawdata.cpp): variables here.
++extern "C" f32 sms_port_yoshiTongueRadius;
++extern "C" f32 sms_port_yoshiTongueTargetDist;
++f32 sms_port_yoshiTongueRadius     = 300.0f;
++f32 sms_port_yoshiTongueTargetDist = 10000.0f;
++#endif
++
+ THitActor* TYoshiTongue::findTarget(bool allowExtra, bool checkForward)
+ {
+ 	THitActor* best = nullptr;
++#ifdef TARGET_PC
++	f32 bestDist    = sms_port_yoshiTongueTargetDist;
++#else
+ 	f32 bestDist    = 10000.0f;
++#endif
+ 
+ 	for (s32 i = 0; i < mColCount; ++i) {
+ 		THitActor* actor = mCollisions[i];
+@@ -291,7 +306,11 @@
+ 	case STATE_IDLE:
+ 	case STATE_GRABBED:
+ 	default:
++#ifdef TARGET_PC
++		mAttackRadius = sms_port_yoshiTongueRadius;
++#else
+ 		mAttackRadius = 300.0f;
++#endif
+ 		calcEntryRadius();
+ 		offHitFlag(HIT_FLAG_CANNOT_ATTACK);
+ 		break;

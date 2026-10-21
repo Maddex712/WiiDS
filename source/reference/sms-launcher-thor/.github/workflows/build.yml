@@ -1,0 +1,315 @@
+name: Build launcher
+# Pull requests are built for each platform as a check. Previews are only
+# built when a maintainer asks:
+#   - run by hand with a pull request number: published as the moving
+#     pre-release "pr-<number>", with a comment on the pull request;
+#   - with "beta" (usually from refresh-beta.yml): main, with the newest
+#     commit of the game's branch, published as the moving pre-release "beta".
+# Players opt into either under Settings > Manage game > Launcher updates.
+# Stable players never see a pre-release.
+on:
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      pr:
+        description: Pull request number to build and publish as a preview
+        type: string
+        default: ''
+      beta:
+        description: Publish this build of main as the Beta channel
+        type: boolean
+        default: false
+  workflow_call:
+    inputs:
+      pr:
+        type: string
+        default: ''
+      beta:
+        type: boolean
+        default: false
+permissions:
+  contents: read
+# A new push to a pull request cancels its older checks. Preview and Beta runs never share a group.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name == 'pull_request' && github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: true
+jobs:
+  plan:
+    runs-on: ubuntu-latest
+    outputs:
+      preview: ${{ steps.plan.outputs.preview }}
+      channel: ${{ steps.plan.outputs.channel }}
+      suffix: ${{ steps.plan.outputs.suffix }}
+      sha: ${{ steps.plan.outputs.sha }}
+      pr: ${{ steps.plan.outputs.pr }}
+      title: ${{ steps.plan.outputs.title }}
+      game: ${{ steps.plan.outputs.game }}
+      game_version: ${{ steps.plan.outputs.game_version }}
+      previous: ${{ steps.plan.outputs.previous }}
+      decomp: ${{ steps.plan.outputs.decomp }}
+    steps:
+      - id: plan
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          PR: ${{ inputs.pr }}
+          BETA: ${{ inputs.beta }}
+          REF: ${{ github.ref }}
+          SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          out() { printf '%s=%s\n' "$1" "$2" >> "$GITHUB_OUTPUT"; }
+          if [ -z "$PR" ] && [ "$BETA" != true ]; then
+            out preview false; out sha "$SHA"; exit 0
+          fi
+          if [ -n "$PR" ] && [ "$BETA" = true ]; then
+            echo "::error::Choose a pull request number or beta, not both."; exit 1
+          fi
+          if [ -n "$PR" ]; then
+            [[ "$PR" =~ ^[1-9][0-9]*$ ]] || { echo "::error::\"$PR\" is not a pull request number."; exit 1; }
+            info=$(gh pr view "$PR" --json state,headRefOid,title,isCrossRepository) || exit 1
+            [ "$(jq -r .state <<<"$info")" = OPEN ] || { echo "::error::Pull request #$PR is not open."; exit 1; }
+            if [ "$(jq -r .isCrossRepository <<<"$info")" = true ]; then
+              echo "::warning::#$PR comes from a fork: its code builds with this repository's signing secrets."
+            fi
+            out preview true; out channel "pr-$PR"; out suffix "pr$PR"; out pr "$PR"
+            out sha "$(jq -r .headRefOid <<<"$info")"
+            out title "$(jq -r .title <<<"$info" | tr -d '\r\n' | cut -c1-200)"
+          else
+            [ "$REF" = refs/heads/main ] || { echo "::error::Run Beta from main."; exit 1; }
+            out preview true; out channel beta; out suffix beta; out sha "$SHA"
+            # Beta plays the newest game, not the commit main pins for the next Stable release.
+            pinned=$(gh api "repos/$GH_REPO/contents/src/game-release.json?ref=$SHA" -H 'Accept: application/vnd.github.raw')
+            game_repo=$(jq -r '.repository | sub("^https://github.com/"; "") | sub("\\.git$"; "")' <<<"$pinned")
+            game=$(gh api "repos/$game_repo/commits/$(jq -r .branch <<<"$pinned")" --jq .sha)
+            decomp=$(gh api "repos/$game_repo/contents/decomp?ref=$game" --jq 'select(.type == "submodule") | .sha')
+            [[ "$game" =~ ^[0-9a-f]{40}$ && "$decomp" =~ ^[0-9a-f]{40}$ ]] \
+              || { echo "::error::Could not find the newest game commit and its decomp in $game_repo."; exit 1; }
+            out game "$game"; out decomp "$decomp"; out game_version "$(date -u +%Y.%m.%d)-beta.${game:0:7}"
+            echo "Beta game: $game_repo ${game:0:7} (decomp ${decomp:0:7})"
+            # The launcher commit of the Beta this replaces, so Discord hears only what is new since.
+            out previous "$(gh release view beta --json body --jq .body 2>/dev/null | sed -n 's/.*<!-- beta launcher=\([0-9a-f]*\) .*/\1/p')"
+          fi
+  package:
+    needs: plan
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            target: linux
+            args: --linux --x64
+          - os: macos-latest
+            target: mac
+            args: --mac --universal
+          - os: windows-latest
+            target: win
+            args: --win --x64
+    runs-on: ${{ matrix.os }}
+    env:
+      PREVIEW: ${{ needs.plan.outputs.preview }}
+      CHANNEL: ${{ needs.plan.outputs.channel }}
+      SUFFIX: ${{ needs.plan.outputs.suffix }}
+      GAME: ${{ needs.plan.outputs.game }}
+      GAME_VERSION: ${{ needs.plan.outputs.game_version }}
+      DECOMP: ${{ needs.plan.outputs.decomp }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.plan.outputs.sha }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm test
+      - name: Make this a preview build
+        if: env.PREVIEW == 'true'
+        shell: bash
+        # A pre-release version (<version>-pr<N>.<run> or <version>-beta.<run>)
+        # whose update feed is its own channel's pre-release, and the dashed
+        # file names GitHub keeps on upload. The AppImage keeps package.json's
+        # name without a version, like releases.
+        run: |
+          node -e '
+            const fs = require("fs");
+            const pkg = JSON.parse(fs.readFileSync("package.json", "utf8"));
+            const { SUFFIX, RUN, CHANNEL, REPO } = process.env;
+            pkg.version = `${pkg.version}-${SUFFIX}.${RUN}`;
+            pkg.build.publish = { provider: "generic", url: `https://github.com/${REPO}/releases/download/${CHANNEL}` };
+            pkg.build.detectUpdateChannel = false;
+            pkg.build.nsis.artifactName = "SMS-Launcher-Setup-${version}.${ext}";
+            fs.writeFileSync("package.json", JSON.stringify(pkg, null, 2) + "\n");
+            console.log(`Preview ${pkg.version} on channel ${CHANNEL}`);
+            const { GAME, GAME_VERSION, DECOMP } = process.env;
+            if (GAME) {
+              const file = "src/game-release.json";
+              const game = JSON.parse(fs.readFileSync(file, "utf8"));
+              Object.assign(game, { version: GAME_VERSION, commit: GAME, decomp: DECOMP });
+              fs.writeFileSync(file, JSON.stringify(game, null, 2) + "\n");
+              console.log(`Game ${game.version}: ${GAME} (decomp ${DECOMP})`);
+            }'
+        env:
+          RUN: ${{ github.run_number }}
+          REPO: ${{ github.repository }}
+      - name: Configure macOS signing
+        if: env.PREVIEW == 'true' && runner.os == 'macOS'
+        shell: bash
+        env:
+          MAC_CSC_LINK: ${{ secrets.MAC_CSC_LINK }}
+          MAC_CSC_KEY_PASSWORD: ${{ secrets.MAC_CSC_KEY_PASSWORD }}
+        # Installed Mac launchers only accept updates signed with the release
+        # certificate, so a preview must be signed exactly as release.js signs.
+        run: |
+          if [[ -z "$MAC_CSC_LINK" || -z "$MAC_CSC_KEY_PASSWORD" ]]; then
+            echo "::error::Mac previews need MAC_CSC_LINK and MAC_CSC_KEY_PASSWORD, or installed launchers reject the update."; exit 1
+          fi
+          printf 'CSC_LINK=%s\n' "$MAC_CSC_LINK" >> "$GITHUB_ENV"
+          printf 'CSC_KEY_PASSWORD=%s\n' "$MAC_CSC_KEY_PASSWORD" >> "$GITHUB_ENV"
+          printf 'MAC_SIGN_ARGS=%s\n' '--config.mac.identity=- --config.mac.sign=scripts/mac-sign.js' >> "$GITHUB_ENV"
+      - name: Configure optional Windows signing
+        if: env.PREVIEW == 'true' && runner.os == 'Windows'
+        shell: bash
+        env:
+          WINDOWS_CSC_LINK: ${{ secrets.WIN_CSC_LINK }}
+          WINDOWS_CSC_KEY_PASSWORD: ${{ secrets.WIN_CSC_KEY_PASSWORD }}
+        run: |
+          if [[ -n "$WINDOWS_CSC_LINK" && -n "$WINDOWS_CSC_KEY_PASSWORD" ]]; then
+            printf 'WIN_CSC_LINK=%s\n' "$WINDOWS_CSC_LINK" >> "$GITHUB_ENV"
+            printf 'WIN_CSC_KEY_PASSWORD=%s\n' "$WINDOWS_CSC_KEY_PASSWORD" >> "$GITHUB_ENV"
+          fi
+      - run: npm run dist -- ${{ matrix.args }} $MAC_SIGN_ARGS --publish never
+        shell: bash
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: "false"
+      - name: Check the Mac preview is signed with a certificate
+        if: env.PREVIEW == 'true' && runner.os == 'macOS'
+        shell: bash
+        run: |
+          app=$(ls -d dist/mac*/*.app | head -1)
+          codesign --verify --deep --strict "$app"
+          codesign -dvv "$app" 2>&1 | grep -q '^Authority=' \
+            || { codesign -dvv "$app"; echo "::error::$app is only ad-hoc signed; installed launchers would reject it."; exit 1; }
+      - uses: actions/upload-artifact@v4
+        with:
+          name: launcher-${{ matrix.target }}${{ env.PREVIEW == 'true' && format('-{0}', env.SUFFIX) || '' }}
+          path: |
+            dist/*.AppImage
+            dist/*.dmg
+            dist/*.zip
+            dist/*.exe
+            dist/*.blockmap
+            dist/latest*.yml
+          if-no-files-found: error
+  publish:
+    needs: [plan, package]
+    if: needs.plan.outputs.preview == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    outputs:
+      version: ${{ steps.release.outputs.version }}
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+      - name: Replace the channel's pre-release
+        id: release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          CHANNEL: ${{ needs.plan.outputs.channel }}
+          SHA: ${{ needs.plan.outputs.sha }}
+          PR: ${{ needs.plan.outputs.pr }}
+          PR_TITLE: ${{ needs.plan.outputs.title }}
+          GAME: ${{ needs.plan.outputs.game }}
+        run: |
+          version=$(sed -n 's/^version: //p' dist/latest.yml)
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          if [ -n "$PR" ]; then
+            title="Preview #$PR: $PR_TITLE"
+            notes="Preview build of #$PR at ${SHA:0:7} ($version). For testing only: choose \"Pull request #$PR\" under Settings > Manage game > Launcher updates. Replaced by the next preview of this pull request and deleted when it closes."
+          else
+            title="Beta $version · game ${GAME:0:7}"
+            # refresh-beta.yml reads the marker to skip a rebuild when nothing changed.
+            notes="Beta build of launcher main at ${SHA:0:7} with game ${GAME:0:7}. Choose \"Beta\" under Settings > Manage game > Launcher updates."$'\n\n'"<!-- beta launcher=$SHA game=$GAME -->"
+          fi
+          # A tag on a fork's commit cannot be created here; tag main instead and name the commit in the notes.
+          target="$SHA"
+          gh api "repos/$GH_REPO/commits/$SHA" --silent 2>/dev/null || target=$(gh api "repos/$GH_REPO/commits/main" --jq .sha)
+          gh release delete "$CHANNEL" --cleanup-tag --yes 2>/dev/null || true
+          gh release create "$CHANNEL" dist/* --prerelease --latest=false --target "$target" --title "$title" --notes "$notes"
+  # Tells a Discord channel about each new Beta through the webhook in the
+  # DISCORD_BETA_WEBHOOK secret (Discord: channel settings > Integrations >
+  # Webhooks). Without the secret this does nothing.
+  discord:
+    needs: [plan, publish]
+    if: needs.plan.outputs.channel == 'beta'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.plan.outputs.sha }}
+          sparse-checkout: |
+            scripts/discord-beta.js
+            src/game-release.json
+            changelog.json
+          sparse-checkout-cone-mode: false
+      - name: Find the notes the last Beta announced
+        if: needs.plan.outputs.previous != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PREVIOUS: ${{ needs.plan.outputs.previous }}
+        run: |
+          gh api "repos/$GITHUB_REPOSITORY/contents/changelog.json?ref=$PREVIOUS" -H 'Accept: application/vnd.github.raw' > "$RUNNER_TEMP/previous-changelog.json" \
+            || echo "::warning::Could not read changelog.json at ${PREVIOUS:0:7}, so Discord gets all of Beta's notes."
+      - name: Announce the Beta on Discord
+        env:
+          PREVIOUS_CHANGELOG: ${{ runner.temp }}/previous-changelog.json
+          DISCORD_BETA_WEBHOOK: ${{ secrets.DISCORD_BETA_WEBHOOK }}
+          LAUNCHER_VERSION: ${{ needs.publish.outputs.version }}
+          LAUNCHER_SHA: ${{ needs.plan.outputs.sha }}
+          GAME_VERSION: ${{ needs.plan.outputs.game_version }}
+          GAME_COMMIT: ${{ needs.plan.outputs.game }}
+        run: node scripts/discord-beta.js
+  comment:
+    needs: [plan, publish]
+    if: needs.plan.outputs.pr != ''
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+    steps:
+      - name: Post or update the preview comment
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          PR: ${{ needs.plan.outputs.pr }}
+          SHA: ${{ needs.plan.outputs.sha }}
+        run: |
+          marker='<!-- launcher-preview-builds -->'
+          release="https://github.com/$REPO/releases/tag/pr-$PR"
+          assets=$(gh release view "pr-$PR" --repo "$REPO" --json assets --jq '.assets[] | [.name, .url, .size] | @tsv' |
+            grep -E '\.(exe|dmg|AppImage)\s' | sort | while IFS=$'\t' read -r name url size; do
+              case "$name" in *.AppImage) os=Linux;; *.dmg) os=macOS;; *-win-portable.exe) os="Windows (portable)";; *) os=Windows;; esac
+              echo "| $os | [$name]($url) | $((size / 1048576)) MB |"
+            done)
+          {
+            echo "$marker"
+            echo "### Preview build of ${SHA:0:7}"
+            echo
+            echo "**In the launcher:** Settings → Manage game → Launcher updates → **Pull request #$PR**. It moves to each new preview of this pull request; switch back to Stable any time."
+            echo
+            echo "| Platform | Installer | Size |"
+            echo "| --- | --- | --- |"
+            echo "$assets"
+            echo
+            echo "For testing only, not a release ([pre-release]($release), [run]($RUN_URL)). Removed when this pull request closes."
+          } > body.md
+          existing=$(gh api "repos/$REPO/issues/$PR/comments" --paginate \
+            --jq ".[] | select(.user.login == \"github-actions[bot]\" and (.body | startswith(\"$marker\"))) | .id" | head -n 1)
+          if [ -n "$existing" ]; then
+            gh api -X PATCH "repos/$REPO/issues/comments/$existing" -F body=@body.md > /dev/null
+          else
+            gh pr comment "$PR" --repo "$REPO" --body-file body.md
+          fi

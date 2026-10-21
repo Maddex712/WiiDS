@@ -1,0 +1,42 @@
+{
+  "name": "Super Mario Sunshine language packs v1.1.0",
+  "page": "https://github.com/chasem-dev/sms-hd-texture-extras#language-packs",
+  "any_language": true,
+  "languages": {
+    "de": {
+      "name": "Deutsch",
+      "url": "https://github.com/chasem-dev/sms-hd-texture-extras/releases/download/languages-v1.1.0/sms-language-de-1.1.0.zip",
+      "file": "sms-language-de-1.1.0.zip",
+      "md5": "2340cce8a05bf69157fa64a9e55ef905",
+      "size": 953597
+    },
+    "es": {
+      "name": "Español",
+      "url": "https://github.com/chasem-dev/sms-hd-texture-extras/releases/download/languages-v1.1.0/sms-language-es-1.1.0.zip",
+      "file": "sms-language-es-1.1.0.zip",
+      "md5": "30beaa95f380f27a372e328d76c7d9fe",
+      "size": 977287
+    },
+    "fr": {
+      "name": "Français",
+      "url": "https://github.com/chasem-dev/sms-hd-texture-extras/releases/download/languages-v1.1.0/sms-language-fr-1.1.0.zip",
+      "file": "sms-language-fr-1.1.0.zip",
+      "md5": "0d245b00074d7778150e5537623327d4",
+      "size": 958617
+    },
+    "it": {
+      "name": "Italiano",
+      "url": "https://github.com/chasem-dev/sms-hd-texture-extras/releases/download/languages-v1.1.0/sms-language-it-1.1.0.zip",
+      "file": "sms-language-it-1.1.0.zip",
+      "md5": "0de4e06ef0732fa6e5b0b6edab2e6c3c",
+      "size": 962769
+    },
+    "pl": {
+      "name": "Polski",
+      "url": "https://github.com/chasem-dev/sms-hd-texture-extras/releases/download/languages-v1.1.0/sms-language-pl-1.1.0.zip",
+      "file": "sms-language-pl-1.1.0.zip",
+      "md5": "f2ae9adfed276f9fd9cc6da2ec6ef25e",
+      "size": 165187
+    }
+  }
+}

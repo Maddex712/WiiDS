@@ -1,0 +1,196 @@
+Reason: endian: scene .bin object data stays big-endian (typed reads convert, 0013); convert the raw 4-byte stream.read(&x, 4) sites in object load() functions with readBE
+--- a/src/Animal/BeeHive.cpp
++++ b/src/Animal/BeeHive.cpp
+@@ -282,8 +282,16 @@
+ {
+ 	u32 dropEventId;
+ 	u32 lastEventId;
++#ifdef TARGET_PC
++	stream.readBE(&dropEventId, 4);
++#else
+ 	stream.read(&dropEventId, 4);
++#endif
++#ifdef TARGET_PC
++	stream.readBE(&lastEventId, 4);
++#else
+ 	stream.read(&lastEventId, 4);
++#endif
+ 
+ 	mDropItem
+ 	    = TMapObjBaseManager::newAndRegisterObjByEventID(dropEventId, "");
+--- a/src/Animal/Bird.cpp
++++ b/src/Animal/Bird.cpp
+@@ -138,7 +138,11 @@
+ 	TSpineEnemy::load(stream);
+ 
+ 	s32 eventID;
++#ifdef TARGET_PC
++	stream.readBE(&eventID, 4);
++#else
+ 	stream.read(&eventID, 4);
++#endif
+ 
+ 	if (eventID >= 0)
+ 		mItem = TMapObjBaseManager::newAndRegisterObjByEventID(eventID, "鳥用");
+--- a/libs/JSystem/src/JDrama/JDRViewport.cpp
++++ b/libs/JSystem/src/JDrama/JDRViewport.cpp
+@@ -28,8 +28,24 @@
+ void TViewport::load(JSUMemoryInputStream& stream)
+ {
+ 	TNameRef::load(stream);
++#ifdef TARGET_PC
++	stream.readBE(&unk10.x1, sizeof(int));
++#else
+ 	stream.read(&unk10.x1, sizeof(int));
++#endif
++#ifdef TARGET_PC
++	stream.readBE(&unk10.y1, sizeof(int));
++#else
+ 	stream.read(&unk10.y1, sizeof(int));
++#endif
++#ifdef TARGET_PC
++	stream.readBE(&unk10.x2, sizeof(int));
++#else
+ 	stream.read(&unk10.x2, sizeof(int));
++#endif
++#ifdef TARGET_PC
++	stream.readBE(&unk10.y2, sizeof(int));
++#else
+ 	stream.read(&unk10.y2, sizeof(int));
++#endif
+ }
+--- a/src/Enemy/wireTrap.cpp
++++ b/src/Enemy/wireTrap.cpp
+@@ -87,11 +87,27 @@
+ 
+ 	int speed;
+ 	int mode;
++#ifdef TARGET_PC
++	stream.readBE(&speed, 4);
++#else
+ 	stream.read(&speed, 4);
++#endif
++#ifdef TARGET_PC
++	stream.readBE(&mode, 4);
++#else
+ 	stream.read(&mode, 4);
++#endif
++#ifdef TARGET_PC
++	stream.readBE(&mWaitTime, 4);
++#else
+ 	stream.read(&mWaitTime, 4);
++#endif
+ 	int color;
++#ifdef TARGET_PC
++	stream.readBE(&color, 4);
++#else
+ 	stream.read(&color, 4);
++#endif
+ 
+ 	mSpeed = speed / 10.0f;
+ 
+--- a/src/MoveBG/MapObjBianco.cpp
++++ b/src/MoveBG/MapObjBianco.cpp
+@@ -312,7 +312,11 @@
+ {
+ 	TMapObjBase::load(stream);
+ 
++#ifdef TARGET_PC
++	stream.readBE(&mRotSpeedTarget, 4);
++#else
+ 	stream.read(&mRotSpeedTarget, 4);
++#endif
+ 	mRotSpeedTarget /= 1000.0f;
+ 	mRotSpeed = mRotSpeedTarget;
+ }
+@@ -741,7 +745,11 @@
+ {
+ 	TMapObjBase::load(stream);
+ 
++#ifdef TARGET_PC
++	stream.readBE(&mRottenTime, 4);
++#else
+ 	stream.read(&mRottenTime, 4);
++#endif
+ 	mRottenTime *= 10;
+ 	SMS_InitPacket_OneTevColor(getModel(), 0, GX_TEVREG0, &mColor);
+ }
+@@ -773,9 +781,17 @@
+ 	TMapObjBase::load(stream);
+ 
+ 	f32 drop;
++#ifdef TARGET_PC
++	stream.readBE(&drop, 4);
++#else
+ 	stream.read(&drop, 4);
++#endif
+ 	LampSeesawSetLowerLimit(this, mInitialPosition.y - drop);
++#ifdef TARGET_PC
++	stream.readBE(&mPushSpeed, 4);
++#else
+ 	stream.read(&mPushSpeed, 4);
++#endif
+ 	mPushSpeed *= 0.0001f;
+ }
+ 
+--- a/src/MoveBG/MapObjMare.cpp
++++ b/src/MoveBG/MapObjMare.cpp
+@@ -837,7 +837,11 @@
+ 	TMapObjBase::load(stream);
+ 
+ 	int speed;
++#ifdef TARGET_PC
++	stream.readBE(&speed, 4);
++#else
+ 	stream.read(&speed, 4);
++#endif
+ 	mThrowSpeed = speed;
+ 
+ 	sleep();
+--- a/src/MoveBG/MapObjRicco.cpp
++++ b/src/MoveBG/MapObjRicco.cpp
+@@ -88,7 +88,11 @@
+ {
+ 	TMapObjBase::load(stream);
+ 
++#ifdef TARGET_PC
++	stream.readBE(&mRotYMax, 4);
++#else
+ 	stream.read(&mRotYMax, 4);
++#endif
+ 	mBaseRotY = mRotation.y;
+ 	mRotSpeed = 0.1f * MsRandF() + 0.05f;
+ 
+--- a/src/Enemy/tobiPuku.cpp
++++ b/src/Enemy/tobiPuku.cpp
+@@ -245,7 +245,11 @@
+ 	TSmallEnemy::load(stream);
+ 
+ 	int angle;
++#ifdef TARGET_PC
++	stream.readBE(&angle, 4);
++#else
+ 	stream.read(&angle, 4);
++#endif
+ 	unk19C = angle;
+ 
+ 	reset();
+--- a/src/Enemy/hanasambo.cpp
++++ b/src/Enemy/hanasambo.cpp
+@@ -422,8 +422,16 @@
+ void TSamboFlower::load(JSUMemoryInputStream& stream)
+ {
+ 	TSpineEnemy::load(stream);
++#ifdef TARGET_PC
++	stream.readBE(&mCoinIndex, 4);
++#else
+ 	stream.read(&mCoinIndex, 4);
++#endif
++#ifdef TARGET_PC
++	stream.readBE(&mCoinUnitIndex, 4);
++#else
+ 	stream.read(&mCoinUnitIndex, 4);
++#endif
+ 	mCanClose = true;
+ 	reset();
+ 	offLiveFlag(LIVE_FLAG_UNK800);

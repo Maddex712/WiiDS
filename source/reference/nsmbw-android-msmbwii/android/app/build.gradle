@@ -1,0 +1,134 @@
+plugins {
+    id 'com.android.application'
+}
+
+def thorBuild = providers.gradleProperty('thorBuild').orNull == 'true'
+def thorDiscRevision = providers.gradleProperty('thorDiscRevision').orElse('2').get().toInteger()
+if (!(thorDiscRevision in [1, 2])) throw new GradleException('thorDiscRevision must be 1 or 2.')
+def discRevision = thorBuild ? thorDiscRevision : 1
+// MSMBWii: the native code is translated from the patched DOL (prepare_msmbwii.py); the
+// player's disc stays the clean revision 1 (DOL_SHA256 below).
+def modDolHash = '321e005af6cefdc4500cc5f4013f4a8fec1d5ed0e505a97bb218b7d76e9fa1f8'
+def discDolHash = discRevision == 2
+        ? '0373b4dbffd7c9da9d27eb7257a7677877a3e33ceb81818bab1daa93560b9907'
+        : '166eb6b7cca21418e316a6cfbf1bfbf0a213eb8f6396d42126a1482bb764a955'
+
+// WiiDS release signing: a private key described outside every repository. Without it (any other
+// machine) release builds fall back to the debug key so they still build and install.
+def wiidsKeystoreFile = new File(System.getProperty('user.home'), '.wiids-release/keystore.properties')
+def wiidsKeystore = null
+if (wiidsKeystoreFile.isFile()) {
+    wiidsKeystore = new Properties()
+    wiidsKeystoreFile.withInputStream { wiidsKeystore.load(it) }
+}
+
+android {
+    namespace 'com.wither.nsmbw'
+    compileSdk 34
+
+    defaultConfig {
+        applicationId thorBuild ? 'com.wither.nsmbw.thor.msmbwii' : 'com.wither.nsmbw.msmbwii'
+        // MSMBWii build: the mod's levels load from files/mod (riivolution/ + msmbwiijala/).
+        buildConfigField 'String', 'MOD_ID', '"msmbwii"'
+        buildConfigField 'boolean', 'THOR_BUILD', thorBuild.toString()
+        buildConfigField 'int', 'DISC_REVISION', discRevision.toString()
+        buildConfigField 'String', 'DOL_SHA256', '"' + discDolHash + '"'
+        manifestPlaceholders = [thorExported: thorBuild.toString()]
+        // Guest RAM uses memfd_create, which bionic has from Android 11 (API 30).
+        minSdk 30
+        targetSdk 34
+        versionCode project.hasProperty('wiidsVersionCode') ? project.property('wiidsVersionCode') as int : 15
+        versionName project.hasProperty('wiidsVersionName') ? project.property('wiidsVersionName') : '0.1.1'
+        ndk {
+            abiFilters 'arm64-v8a'
+        }
+    }
+
+    buildFeatures { buildConfig true }
+
+    signingConfigs {
+        if (wiidsKeystore != null) {
+            wiids {
+                storeFile file(wiidsKeystore.getProperty('storeFile'))
+                storePassword wiidsKeystore.getProperty('storePassword')
+                keyAlias wiidsKeystore.getProperty('keyAlias')
+                keyPassword wiidsKeystore.getProperty('keyPassword')
+            }
+        }
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+            // Personal builds: sign with the local debug key so the APK installs directly.
+            signingConfig wiidsKeystore != null ? signingConfigs.wiids : signingConfigs.debug
+        }
+    }
+
+    lint {
+        // Release builds skip lint's vital checks: this machine builds offline, without lint's jars.
+        checkReleaseBuilds false
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+
+    sourceSets {
+        main {
+            // libmain.so and the runtime's data files are staged by tools/stage-android.ps1 from
+            // the native build (wiicompiled/android-build); they are not checked in.
+            jniLibs.srcDirs = ['../native/jniLibs']
+            // ../native/assets is staged from the native build; src/main/assets holds the WiiDS licences.
+            assets.srcDirs = ['../native/assets', 'src/main/assets']
+        }
+    }
+
+    packagingOptions {
+        jniLibs {
+            // Keep libmain.so uncompressed and page-aligned in the APK so it is mapped in place.
+            useLegacyPackaging false
+        }
+    }
+}
+
+// Compilation checks may run before the game exists. APK packaging must have a stamped native
+// build for the same disc revision, so a Java-only shell cannot become a purported playable APK.
+if (thorBuild) {
+    def verifyThorNative = tasks.register('verifyThorNative') {
+        doLast {
+            def nativeRoot = file('../native')
+            def receiptFile = new File(nativeRoot, 'thor-native.json')
+            def library = new File(nativeRoot, 'jniLibs/arm64-v8a/libmain.so')
+            if (!receiptFile.isFile() || !library.isFile()) {
+                throw new GradleException('Stage a verified Thor native build for this disc revision before packaging an APK.')
+            }
+            def receipt = new groovy.json.JsonSlurper().parse(receiptFile)
+            if (receipt.schema != 1 || receipt.disc_id != 'SMNE01' || receipt.disc_revision != discRevision
+                    || receipt.dol_sha256 != modDolHash) {
+                throw new GradleException('The staged native build does not match Thor USA revision ' + discRevision + '.')
+            }
+            def hash = java.security.MessageDigest.getInstance('SHA-256')
+            library.withInputStream { stream ->
+                byte[] buffer = new byte[65536]
+                int n
+                while ((n = stream.read(buffer)) != -1) hash.update(buffer, 0, n)
+            }
+            if (hash.digest().encodeHex().toString() != receipt.library_sha256) {
+                throw new GradleException('The staged native library differs from its build receipt.')
+            }
+            for (name in ['dsp_coef.bin', 'cacert.pem', 'initial_pipeline_cache.db']) {
+                if (!new File(nativeRoot, 'assets/runtime/' + name).isFile()) {
+                    throw new GradleException('Missing runtime asset: ' + name)
+                }
+            }
+            if (!new File(nativeRoot, 'assets/runtime/wii_bootstrap').isDirectory()) {
+                throw new GradleException('Missing runtime NAND bootstrap.')
+            }
+        }
+    }
+    tasks.configureEach {
+        if (name in ['packageDebug', 'packageRelease']) dependsOn verifyThorNative
+    }
+}

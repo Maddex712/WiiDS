@@ -1,0 +1,12 @@
+Reason: J3D vertex array base commands must encode MEM1-relative addresses when Android relocates the arena.
+--- a/libs/JSystem/src/J3D/J3DGraphBase/J3DTevs.cpp
++++ b/libs/JSystem/src/J3D/J3DGraphBase/J3DTevs.cpp
+@@ -58,0 +59,6 @@ void J3DLoadArrayBasePtr(GXAttr attr, void* ptr)
++#if defined(TARGET_PC) && defined(__ANDROID__)
++	// The command needs an arena offset, not a cached CPU pointer: the retail
++	// mask only yields one when MEM1 is at 0x80000000. On a relocated arena
++	// (0x40800000 on the AYN Thor) every J3D vertex array pointed 8 MiB high.
++	GXCmd1u32(ptr ? OSCachedToPhysical(ptr) : 0);
++#else
+@@ -59,0 +66 @@ void J3DLoadArrayBasePtr(GXAttr attr, void* ptr)
++#endif

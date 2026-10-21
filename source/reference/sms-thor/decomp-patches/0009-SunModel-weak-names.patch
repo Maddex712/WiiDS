@@ -1,0 +1,19 @@
+Reason: g++: header defines cSunVolumeName/cSunsetVolumeName in every includer (MWCC's linker kept one); make them weak
+--- a/include/Camera/SunModel.hpp
++++ b/include/Camera/SunModel.hpp
+@@ -12,8 +12,13 @@
+ // its own copy of both strings, while the map lists one global (the linker
+ // keeps lensflare's definition and drops the rest). A PC build must give
+ // these internal or weak linkage; the GameCube build keeps retail's form.
+-extern const char* cSunVolumeName    = "/scene/sun";
+-extern const char* cSunsetVolumeName = "/scene/sunset";
++#ifdef _WIN32
++__attribute__((selectany)) extern const char* cSunVolumeName    = "/scene/sun";
++__attribute__((selectany)) extern const char* cSunsetVolumeName = "/scene/sunset";
++#else
++__attribute__((weak)) extern const char* cSunVolumeName    = "/scene/sun";
++__attribute__((weak)) extern const char* cSunsetVolumeName = "/scene/sunset";
++#endif
+ 
+ class TSunModel : public JDrama::TActor {
+ public:

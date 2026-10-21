@@ -1,0 +1,73 @@
+Reason: port: with frame_rate = 60 map objects driven by move data (TurnLift, yTurnLift, zTurnDisk) turn at their 30 fps speed; TMapObjBase::control steps the move animation per 1/120 s tick at SMSGetAnmFrameRate(), a per-frame rate that halves at 60 while the tick rate does not, so they turned at half speed
+--- a/src/MoveBG/MapObjBase.cpp
++++ b/src/MoveBG/MapObjBase.cpp
+@@ -361,6 +361,19 @@ static inline MSound* MOBSound()
+ 	return sound;
+ }
+ 
++#ifdef TARGET_PC
++// At 120 fps the shared timing helpers use quarter-frame steps and
++// four frames per native count; the 60 fps case below uses half steps.
++// Port: see initBckMoveData (MapObjInit.cpp): control() steps this frame
++// control once per 1/120 s tick, so it wants the 30 fps per-frame rate.
++#include "port_framerate.h"
++static inline f32 MapObjBasePortTickAnmRate()
++{
++	f32 rate = SMSGetAnmFrameRate();
++	return port_native_frame_divisor() * rate;
++}
++#endif
++
+ void TMapObjBase::makeObjAppeared()
+ {
+ 	offLiveFlag(LIVE_FLAG_DEAD | LIVE_FLAG_UNK8);
+@@ -382,7 +393,11 @@ void TMapObjBase::makeObjAppeared()
+ 
+ 		// The data's accessor: its receiver binding and forced load are the
+ 		// 8 bytes of frame a binder used to stand in for (c-k15).
++#ifdef TARGET_PC
++		mMapObjData->getMoveFrameCtrl()->setRate(MapObjBasePortTickAnmRate());
++#else
+ 		mMapObjData->getMoveFrameCtrl()->setRate(SMSGetAnmFrameRate());
++#endif
+ 	}
+ 
+ 	startAnim(0);
+--- a/src/MoveBG/MapObjInit.cpp
++++ b/src/MoveBG/MapObjInit.cpp
+@@ -11024,6 +11024,23 @@ void TMapObjBase::initObjCollisionData()
+ 		onHitFlag(HIT_FLAG_CANNOT_GET_HIT);
+ }
+ 
++#ifdef TARGET_PC
++// At 120 fps the shared timing helpers use quarter-frame steps and
++// four frames per native count; the 60 fps case below uses half steps.
++// Port: a map object with move data (mMapObjData->mMove: the TurnLift,
++// yTurnLift and zTurnDisk platforms) follows that animation in
++// TMapObjBase::control, which steps move->unk8 on every 1/120 s movement
++// tick: four a frame at 30, two at 60. Its rate, SMSGetAnmFrameRate(), is a
++// per-frame rate; with frame_rate = 60 it halves while the tick rate does
++// not, so these platforms moved at half speed. Use the 30 fps value.
++#include "port_framerate.h"
++static inline f32 MapObjInitPortTickAnmRate()
++{
++	f32 rate = SMSGetAnmFrameRate();
++	return port_native_frame_divisor() * rate;
++}
++#endif
++
+ void TMapObjBase::initBckMoveData()
+ {
+ 	if (mMapObjData->mMove != nullptr) {
+@@ -11049,7 +11064,11 @@ void TMapObjBase::initBckMoveData()
+ 		data->getJointNodePointer(0)->setTransformInfo(info);
+ 		move->unk8 = new J3DFrameCtrl(move->unk4->getFrameMax());
+ 		move->unk8->setAttribute(J3DFrameCtrl::ATTR_LOOP);
++#ifdef TARGET_PC
++		move->unk8->setRate(MapObjInitPortTickAnmRate());
++#else
+ 		move->unk8->setRate(SMSGetAnmFrameRate());
++#endif
+ 	}
+ }
+ 

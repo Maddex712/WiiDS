@@ -1,0 +1,16 @@
+Reason: port: Clang requires an explicit bound on array alias definitions; keep the same ELF names and storage as the retail table exports
+--- a/src/MoveBG/MapObjInit.cpp
++++ b/src/MoveBG/MapObjInit.cpp
+@@ -10820,1 +10820,1 @@
+-extern TMapObjData* portExport_sObjDataTable[] __asm__("sObjDataTable") __attribute__((alias("_ZL13sObjDataTable")));
++extern TMapObjData* portExport_sObjDataTable[sizeof(sObjDataTable) / sizeof(sObjDataTable[0])] __asm__("sObjDataTable") __attribute__((alias("_ZL13sObjDataTable")));
+--- a/src/Player/MarioDraw.cpp
++++ b/src/Player/MarioDraw.cpp
+@@ -41,1 +41,1 @@
+-extern unkTMarioAnimeFilesStruct portExport_marioAnimeFiles[] __asm__("marioAnimeFiles") __attribute__((alias("_ZL15marioAnimeFiles")));
++extern unkTMarioAnimeFilesStruct portExport_marioAnimeFiles[sizeof(marioAnimeFiles) / sizeof(marioAnimeFiles[0])] __asm__("marioAnimeFiles") __attribute__((alias("_ZL15marioAnimeFiles")));
+--- a/src/Player/Yoshi.cpp
++++ b/src/Player/Yoshi.cpp
+@@ -65,1 +65,1 @@
+-extern GXColor portExport_bodyColor[] __asm__("bodyColor") __attribute__((alias("_ZL9bodyColor")));
++extern GXColor portExport_bodyColor[sizeof(bodyColor) / sizeof(bodyColor[0])] __asm__("bodyColor") __attribute__((alias("_ZL9bodyColor")));

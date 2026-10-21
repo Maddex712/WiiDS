@@ -1,0 +1,36 @@
+Reason: port: with SMS_WIDESCREEN the blue screen TMapDrawWall draws while the camera is inside a wall covers the whole wide frame: its full-screen quad is textured (wall.bti), which sms_gx keeps 4:3 in the middle as artwork, so it draws with sms_gx's 2D stretched across the frame, as the faders do
+--- a/src/Map/MapDraw.cpp
++++ b/src/Map/MapDraw.cpp
+@@ -32,6 +32,12 @@
+ }
+ #endif
+ 
++#ifdef TARGET_PC
++// sms_gx: with widescreen, stretch 2D across the whole frame, so the wall
++// screen covers all of it (its texture would otherwise stay 4:3 in the middle)
++extern "C" void GXPC_SetStretch2D(int on);
++#endif
++
+ void TMapDrawWall::perform(u32 cue, JDrama::TGraphics* graphics)
+ {
+ 	if (!(cue & CUE_DRAW))
+@@ -94,6 +100,9 @@
+ 	GXSetAlphaCompare(GX_ALWAYS, 0, GX_AOP_AND, GX_ALWAYS, 0);
+ 	GXSetZMode(0, GX_ALWAYS, 0);
+ 	GXSetCullMode(GX_CULL_NONE);
++#ifdef TARGET_PC
++	GXPC_SetStretch2D(1);
++#endif
+ 	GXBegin(GX_QUADS, GX_VTXFMT0, 4);
+ 	GXPosition2s16(-sVar1, -sVar1);
+ 	GXTexCoord2u16(0, 0);
+@@ -105,6 +114,9 @@
+ 	GXPosition2s16(-sVar1, sVar1 + SMSGetGameRenderHeight());
+ 	GXTexCoord2u16(0, 1);
+ 	GXEnd();
++#ifdef TARGET_PC
++	GXPC_SetStretch2D(0);
++#endif
+ }
+ 
+ void TMapDrawWall::load(JSUMemoryInputStream& stream)

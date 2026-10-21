@@ -1,0 +1,17 @@
+Reason: J3D texture and palette commands must encode MEM1-relative addresses when Android relocates the arena.
+--- a/libs/JSystem/src/JRenderer.cpp
++++ b/libs/JSystem/src/JRenderer.cpp
+@@ -282,0 +283,4 @@
++#if defined(TARGET_PC) && defined(__ANDROID__)
++		// The command needs an arena offset, not a cached CPU pointer.
++		(u32) (OSCachedToPhysical(image) >> 5) |
++#else
+@@ -283,0 +288 @@
++#endif
+@@ -318,0 +324,4 @@
++#if defined(TARGET_PC) && defined(__ANDROID__)
++		// The command needs an arena offset, not a cached CPU pointer.
++		(u32) (OSCachedToPhysical(tlut) >> 5) |
++#else
+@@ -319,0 +329 @@
++#endif

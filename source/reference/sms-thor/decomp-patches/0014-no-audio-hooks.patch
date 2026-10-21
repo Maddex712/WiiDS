@@ -1,0 +1,70 @@
+Reason: port: SMS_NO_AUDIO substitutes an empty sound configuration and makes JAudio's per-frame work and wave-load queries no-ops
+--- a/src/MSound/MSound.cpp
++++ b/src/MSound/MSound.cpp
+@@ -405,6 +405,10 @@
+ 
+ bool MSound::checkWaveOnAram(MS_SCENE_WAVE wave)
+ {
++#ifdef TARGET_PC
++	if (port_no_audio)
++		return true; // SMS_NO_AUDIO: no waves to wait for
++#endif
+ 	u8 hi = wave >> 8;
+ 	u8 lo = wave & 0xff;
+ 	if (wave == 0x210) {
+@@ -521,6 +525,11 @@
+ 	JAIGlobalParameter::setParamOutputGainUp(5.0);
+ 	setInitFileLoadSwitch(2);
+ 
++#ifdef TARGET_PC
++	// SMS_NO_AUDIO: substitute an empty sound configuration (platform/audio).
++	if (u8* noAudio = port_noaudio_init_data())
++		param_4 = noAudio;
++#endif
+ 	if (param_4 != nullptr)
+ 		JAIGlobalParameter::setParamInitDataPointer(param_4);
+ 	if (param_5 != nullptr)
+--- a/libs/JSystem/src/JAudio/JAInterface/JAIBasic.cpp
++++ b/libs/JSystem/src/JAudio/JAInterface/JAIBasic.cpp
+@@ -564,6 +564,10 @@
+ 
+ bool JAIBasic::checkSceneWaveOnMemory(s32 bank_id, s32 group_no)
+ {
++#ifdef TARGET_PC
++	if (port_no_audio)
++		return true; // SMS_NO_AUDIO
++#endif
+ 	if (group_no == mWaveGroupNumber[bank_id]
+ 	    && mWaveLoadStatus[bank_id] == WAVE_LOAD_STATUS_LOADED)
+ 		return true;
+@@ -579,11 +583,19 @@
+ 
+ s32 JAIBasic::getWaveGroupNumber(s32 bank_id)
+ {
++#ifdef TARGET_PC
++	if (port_no_audio)
++		return -1; // SMS_NO_AUDIO
++#endif
+ 	return mWaveGroupNumber[bank_id];
+ }
+ 
+ s32 JAIBasic::getWaveLoadStatus(s32 bank_id)
+ {
++#ifdef TARGET_PC
++	if (port_no_audio)
++		return WAVE_LOAD_STATUS_LOADED; // SMS_NO_AUDIO
++#endif
+ 	return mWaveLoadStatus[bank_id];
+ }
+ 
+@@ -653,6 +665,10 @@
+ 
+ void JAIBasic::processFrameWork()
+ {
++#ifdef TARGET_PC
++	if (port_no_audio)
++		return; // SMS_NO_AUDIO: nothing is loaded, nothing to update
++#endif
+ 	checkDummyPositionBuffer();
+ 
+ 	if (mSeSequence->mState == SOUNDSTATE_Started

@@ -1,0 +1,206 @@
+Reason: endian: keep retail's big-endian memory-card layout: TFlagManager writes and reads its save/option fields big-endian, and TCardSector stores its write count and checksum big-endian and sums big-endian halfwords, so real GameCube saves stay compatible
+--- a/src/System/FlagManager.cpp
++++ b/src/System/FlagManager.cpp
+@@ -3,6 +3,30 @@
+ #include <dolphin/os.h>
+ #include <string.h>
+ 
++#ifdef TARGET_PC
++// Memory-card data keeps retail's big-endian layout.
++static void port_write_be(JSUMemoryOutputStream& out, const void* p, int size, int width)
++{
++	for (int o = 0; o < size; o += width) {
++		u8 tmp[8];
++		for (int i = 0; i < width; i++)
++			tmp[i] = ((const u8*)p)[o + width - 1 - i];
++		out.write(tmp, width);
++	}
++}
++static void port_swap_in_place(void* p, int size, int width)
++{
++	u8* b = (u8*)p;
++	for (int o = 0; o < size; o += width)
++		for (int i = 0; i < width / 2; i++) {
++			u8 t                 = b[o + i];
++			b[o + i]             = b[o + width - 1 - i];
++			b[o + width - 1 - i] = t;
++		}
++}
++#define PORT_WRITE_BE(out, p, size, width) port_write_be(out, p, size, width)
++#endif
++
+ TFlagManager* TFlagManager::smInstance = 0;
+ 
+ TFlagManager* TFlagManager::start(JKRHeap* heap)
+@@ -390,9 +414,15 @@
+ 
+ 	u32 magic;
+ 	in.read(&magic, sizeof(magic));
++#ifdef TARGET_PC
++	port_swap_in_place(&magic, 4, 4);
++#endif
+ 
+ 	if (magic == 4) {
+ 		in.read(&mLastSaveTime, sizeof(mLastSaveTime));
++#ifdef TARGET_PC
++		port_swap_in_place(&mLastSaveTime, 8, 8);
++#endif
+ 
+ 		u64 padding1 = 0;
+ 		in.read(&padding1, sizeof(padding1));
+@@ -414,6 +444,9 @@
+ 		in.read(&mCardBools, sizeof(mCardBools));
+ 		in.skip(0x200 - sizeof(mCardBools));
+ 		in.read(&mCardInts, sizeof(mCardInts));
++#ifdef TARGET_PC
++		port_swap_in_place(mCardInts, sizeof(mCardInts), 4);
++#endif
+ 		in.skip(0x200 - sizeof(mCardInts));
+ 	}
+ 
+@@ -489,19 +522,35 @@
+ 	incFlag(0x20000, 1);
+ 
+ 	u32 magic = 4;
++#ifdef TARGET_PC
++	PORT_WRITE_BE(out, &magic, 4, 4);
++#else
+ 	out.write(&magic, sizeof(magic));
++#endif
+ 
+ 	s64 time = mLastSaveTime;
++#ifdef TARGET_PC
++	PORT_WRITE_BE(out, &time, 8, 8);
++#else
+ 	out.write(&time, sizeof(time));
++#endif
+ 
+ 	u64 padding = 0;
+ 	out.write(&padding, sizeof(padding));
+ 
+ 	s32 saveCount = getFlag(0x20000);
++#ifdef TARGET_PC
++	PORT_WRITE_BE(out, &saveCount, 4, 4);
++#else
+ 	out.write(&saveCount, sizeof(saveCount));
++#endif
+ 
+ 	u16 shineCount = getFlag(0x40000);
++#ifdef TARGET_PC
++	PORT_WRITE_BE(out, &shineCount, 2, 2);
++#else
+ 	out.write(&shineCount, sizeof(shineCount));
++#endif
+ 
+ 	u16 padding2 = 0;
+ 	out.write(&padding2, sizeof(padding2));
+@@ -513,7 +562,11 @@
+ 
+ 	out.write(mCardBools, sizeof(mCardBools));
+ 	out.skip(0x200 - sizeof(mCardBools), 0);
++#ifdef TARGET_PC
++	PORT_WRITE_BE(out, mCardInts, sizeof(mCardInts), 4);
++#else
+ 	out.write(mCardInts, sizeof(mCardInts));
++#endif
+ 	out.skip(0x200 - sizeof(mCardInts), 0);
+ }
+ 
+@@ -561,9 +614,15 @@
+ 
+ 	u32 magic;
+ 	in.read(&magic, sizeof(magic));
++#ifdef TARGET_PC
++	port_swap_in_place(&magic, 4, 4);
++#endif
+ 	if (magic == 2) {
+ 		in.read(mSavedOptionBools, sizeof(mSavedOptionBools));
+ 		in.read(mSavedOptionInts, sizeof(mSavedOptionInts));
++#ifdef TARGET_PC
++		port_swap_in_place(mSavedOptionInts, sizeof(mSavedOptionInts), 4);
++#endif
+ 	}
+ 
+ 	correctOptFlag();
+@@ -572,7 +631,11 @@
+ void TFlagManager::saveOption(JSUMemoryOutputStream& out)
+ {
+ 	u32 magic = 2;
++#ifdef TARGET_PC
++	PORT_WRITE_BE(out, &magic, 4, 4);
++#else
+ 	out.write(&magic, sizeof(magic));
++#endif
+ 	setBool(!getBool(0x90000), 0x70000);
+ 	switch (getFlag(0xA0000)) {
+ 	case 0:
+@@ -590,5 +653,9 @@
+ 	setFlag(0x80000, getFlag(0xA0001));
+ 	setBool(getBool(0x90001), 0x70002);
+ 	out.write(mSavedOptionBools, sizeof(mSavedOptionBools));
++#ifdef TARGET_PC
++	PORT_WRITE_BE(out, mSavedOptionInts, sizeof(mSavedOptionInts), 4);
++#else
+ 	out.write(mSavedOptionInts, sizeof(mSavedOptionInts));
++#endif
+ }
+--- a/src/System/CardManager.cpp
++++ b/src/System/CardManager.cpp
+@@ -31,8 +31,14 @@
+ 	u32 top, bottom;
+ 	top = bottom = 0;
+ 	for (u32 i = 0; i < size / 2; ++i, ++ptr) {
++#ifdef TARGET_PC
++		u16 v = port_be16(ptr); // sectors are kept in on-card (big-endian) order
++		top += v;
++		bottom += ~v;
++#else
+ 		top += ptr[0];
+ 		bottom += ~ptr[0];
++#endif
+ 	}
+ 	return (top << 16) | bottom & 0xffff;
+ }
+@@ -81,6 +87,18 @@
+ // costs getWriteStream/getOptionWriteStream ~7.
+ void TCardSector::setCheckSum(u32 write_count)
+ {
++#ifdef TARGET_PC
++	mWriteCount = port_bswap32(write_count);
++	u16* ptr    = (u16*)this;
++	u32 top, bottom;
++	top = bottom = 0;
++	for (u32 i = 0; i < 0x1FFC / 2; ++i, ++ptr) {
++		u16 v = port_be16(ptr);
++		top += v;
++		bottom += ~v;
++	}
++	mCheckSum = port_bswap32((top << 16) | bottom & 0xffff);
++#else
+ 	mWriteCount = write_count;
+ 	u16* ptr    = (u16*)this;
+ 	u32 top, bottom;
+@@ -90,6 +108,7 @@
+ 		bottom += ~ptr[0];
+ 	}
+ 	mCheckSum = (top << 16) | bottom & 0xffff;
++#endif
+ }
+ 
+ // TODO: incorrect
+@@ -104,9 +123,15 @@
+ 	s32 errc = CARDRead(file, this, sizeof(TCardSector),
+ 	                    index * sizeof(TCardSector));
+ 	if (errc == CARD_RESULT_READY) {
++#ifdef TARGET_PC
++		writeCount = port_be32(&mWriteCount);
++		data       = &mHeader;
++		bool eq          = !(CalcCheckSum(this, 0x1FFC) - port_be32(&mCheckSum));
++#else
+ 		writeCount = mWriteCount;
+ 		data       = &mHeader;
+ 		bool eq          = !(CalcCheckSum(this, 0x1FFC) - mCheckSum);
++#endif
+ 		criteria->set(eq ? TCardManager::TCriteria::STATE_VALID
+ 		                 : TCardManager::TCriteria::STATE_CHECKSUM_BAD,
+ 		              writeCount, data);

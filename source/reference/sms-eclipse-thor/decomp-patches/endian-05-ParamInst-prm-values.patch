@@ -1,0 +1,22 @@
+Reason: endian: .prm parameter files stay big-endian (the entry walk uses converting typed reads); TParamT<T>::load reads the value raw, so convert it (TVec3<f32> as three f32)
+--- a/src/System/ParamInst.cpp
++++ b/src/System/ParamInst.cpp
+@@ -8,6 +8,18 @@
+ 
+ 	stream.read(&discard[8], 4);
+ 	stream.read(&value, sizeof(T));
++#ifdef TARGET_PC
++	{
++		u8* v = (u8*)&value;
++		u32 w = sizeof(T) == 12 ? 4 : sizeof(T);
++		for (u32 o = 0; o + w <= sizeof(T); o += w)
++			for (u32 i = 0; i < w / 2; i++) {
++				u8 t            = v[o + i];
++				v[o + i]         = v[o + w - 1 - i];
++				v[o + w - 1 - i] = t;
++			}
++	}
++#endif
+ };
+ 
+ template class TParamT<u8>;

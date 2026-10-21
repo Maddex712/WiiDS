@@ -1,0 +1,14 @@
+# Build output: build/<os>-<arch>/ trees and downloaded dependencies (build/deps/).
+/build/
+# Your disc image. Never commit it.
+/rom/*
+!/rom/README.md
+# Output folders of earlier layouts.
+/build-*/
+/build32/
+/third_party/
+.DS_Store
+# Optional mods (texture packs and the like), see mods/README.md.
+/mods/*
+!/mods/README.md
+__pycache__/

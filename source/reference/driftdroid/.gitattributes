@@ -1,0 +1,5 @@
+# Auto detect text files and perform LF normalization
+* text=auto
+
+# Patch files must stay LF: git apply matches context bytes against LF upstream sources
+*.patch -text

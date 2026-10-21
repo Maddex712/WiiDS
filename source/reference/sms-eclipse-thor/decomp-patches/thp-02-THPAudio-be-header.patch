@@ -1,0 +1,30 @@
+Reason: port: THP audio decoder reads the big-endian THPAudioRecordHeader through a host-order copy
+--- a/libs/dolphin/src/thp/THPAudio.c
++++ b/libs/dolphin/src/thp/THPAudio.c
+@@ -16,7 +16,26 @@
+ 		return 0;
+ 	}
+ 
++#ifdef TARGET_PC
++	// The record header is big-endian on disc: decode from a host-order copy.
++	THPAudioRecordHeader hostHeader;
++	{
++		const u8* b = audioFrame;
++		s16* coef   = &hostHeader.lCoef[0][0];
++		int i;
++		hostHeader.offsetNextChannel = port_be32(b + 0);
++		hostHeader.sampleSize        = port_be32(b + 4);
++		for (i = 0; i < 32; i++)
++			coef[i] = (s16)port_be16(b + 8 + i * 2); // lCoef then rCoef
++		hostHeader.lYn1 = (s16)port_be16(b + 0x48);
++		hostHeader.lYn2 = (s16)port_be16(b + 0x4A);
++		hostHeader.rYn1 = (s16)port_be16(b + 0x4C);
++		hostHeader.rYn2 = (s16)port_be16(b + 0x4E);
++	}
++	header = &hostHeader;
++#else
+ 	header = (THPAudioRecordHeader*)audioFrame;
++#endif
+ 	left   = audioFrame + sizeof(THPAudioRecordHeader);
+ 	right  = left + header->offsetNextChannel;
+ 

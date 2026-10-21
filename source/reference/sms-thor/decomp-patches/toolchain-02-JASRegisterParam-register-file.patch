@@ -1,0 +1,48 @@
+TRegisterParam is indexed as a u16 register file (registers 0..13 span
+unk0..unk1A). Indexing unk0[] past its 6 elements is undefined, and Clang
+removes the paths that do it: writeRegParam then stores register 0x2E to
+unk0[46], over TTrack::mChildren (crash in TTrack::mainProc on macOS).
+
+--- a/libs/JSystem/include/JSystem/JAudio/JASystem/JASRegisterParam.hpp
++++ b/libs/JSystem/include/JSystem/JAudio/JASystem/JASRegisterParam.hpp
+@@ -27,6 +27,11 @@
+ 	u16 getFlag() const { return unk0[3]; }
+ 	void setFlag(u16 flag) { unk0[3] = flag; }
+ 
++	// Sequence registers 0..13 are the u16 fields from unk0 through unk1A.
++	// Indexing unk0[] past 5 is out of bounds, which Clang exploits (it drops
++	// the paths that store to unk0[6]/unk0[13]); index from the object.
++	u16& reg(int i) { return ((u16*)this)[i]; }
++
+ 	int getAddress(int i) const { return unk20[i]; }
+ 	void setAddress(int i, u32 value) { unk20[i] = value; }
+ 
+--- a/libs/JSystem/src/JAudio/JASystem/JASTrack.cpp
++++ b/libs/JSystem/src/JAudio/JASystem/JASTrack.cpp
+@@ -1091,7 +1091,7 @@
+ 		break;
+ 	}
+ 
+-	mRegisterParam.unk0[bVar1] = r24;
++	mRegisterParam.reg(bVar1) = r24;
+ 	mRegisterParam.setFlag(uVar6);
+ 
+ 	if (bVar1 == 6) {
+@@ -1434,7 +1434,7 @@
+ 		break;
+ 
+ 	default:
+-		result = mRegisterParam.unk0[reg];
++		result = mRegisterParam.reg(reg);
+ 		break;
+ 	}
+ 
+@@ -1478,7 +1478,7 @@
+ 		break;
+ 	}
+ 
+-	mRegisterParam.unk0[r30] = value;
++	mRegisterParam.reg(r30) = value;
+ 	mRegisterParam.setFlag(r4);
+ }
+ 

@@ -1,0 +1,158 @@
+#pragma once
+
+#include "types.h"
+#include <SMS/Enemy/BossPakkun.hxx>
+#include <SMS/Enemy/Kukku.hxx>
+#include <SMS/Enemy/SpineBase.hxx>
+
+#define NUM_GOOP_DROPS 12
+
+class TNerveFPTumbleOut : public TNerveBase<TLiveActor> {
+public:
+    TNerveFPTumbleOut(){};
+    virtual ~TNerveFPTumbleOut() = default;
+    virtual int execute(TSpineBase<TLiveActor> *mSpineBase) const;
+};
+
+class TNerveFPTumble : public TNerveBase<TLiveActor> {
+public:
+    TNerveFPTumble(){};
+    virtual ~TNerveFPTumble() = default;
+    virtual int execute(TSpineBase<TLiveActor> *mSpineBase) const;
+};
+
+class TNerveFPTumbleIn : public TNerveBase<TLiveActor> {
+public:
+    TNerveFPTumbleIn(){};
+    virtual ~TNerveFPTumbleIn() = default;
+    virtual int execute(TSpineBase<TLiveActor> *mSpineBase) const;
+};
+
+class TNerveFPSwallow : public TNerveBase<TLiveActor> {
+public:
+    TNerveFPSwallow(){};
+    virtual ~TNerveFPSwallow() = default;
+    virtual int execute(TSpineBase<TLiveActor> *mSpineBase) const;
+};
+
+class TNerveFPFall : public TNerveBase<TLiveActor> {
+public:
+    TNerveFPFall(){};
+    virtual ~TNerveFPFall() = default;
+    virtual int execute(TSpineBase<TLiveActor> *mSpineBase) const;
+};
+
+class TNerveFPSleep : public TNerveBase<TLiveActor> {
+public:
+    TNerveFPSleep(){};
+    virtual ~TNerveFPSleep() = default;
+    virtual int execute(TSpineBase<TLiveActor> *mSpineBase) const;
+};
+
+class TNerveFPBreakSleep : public TNerveBase<TLiveActor> {
+public:
+    TNerveFPBreakSleep(){};
+    virtual ~TNerveFPBreakSleep() = default;
+    virtual int execute(TSpineBase<TLiveActor> *mSpineBase) const;
+};
+
+class TNerveFPWait : public TNerveBase<TLiveActor> {
+
+public:
+    TNerveFPWait(){};
+    virtual ~TNerveFPWait() = default;
+    virtual int execute(TSpineBase<TLiveActor> *mSpineBase) const;
+};
+class TNerveFPTakeOff : public TNerveBPTakeOff {
+public:
+    TNerveFPTakeOff(){};
+    virtual ~TNerveFPTakeOff() = default;
+    virtual int execute(TSpineBase<TLiveActor> *mSpineBase) const;
+};
+
+class TNerveFPFly : public TNerveBPFly {
+public:
+    TNerveFPFly(){};
+    virtual ~TNerveFPFly() = default;
+    virtual int execute(TSpineBase<TLiveActor> *mSpineBase) const;
+};
+
+class TNerveFPHover : public TNerveBPHover {
+public:
+    TNerveFPHover(){};
+    virtual ~TNerveFPHover() = default;
+    virtual int execute(TSpineBase<TLiveActor> *mSpineBase) const;
+};
+
+class TNerveFPFireBreath : public TNerveBase<TLiveActor> {
+public:
+    TNerveFPFireBreath(){};
+    virtual ~TNerveFPFireBreath() = default;
+    virtual int execute(TSpineBase<TLiveActor> *mSpineBase) const;
+};
+
+class TFPTornado : public TBPTornado {
+public:
+    TFPTornado(TBossPakkun *parent, const char *);
+    virtual ~TFPTornado(){};
+    virtual void perform(u32, JDrama::TGraphics *) override;
+
+private:
+    f32 mMaxTornadoHeight;
+};
+
+class TFPHeadHit : public TBPHeadHit {
+public:
+    TFPHeadHit(TBossPakkun *parentPakkun, const char *name) : TBPHeadHit(parentPakkun, name) {}
+    virtual int receiveMessage(THitActor *sender, u32 msg) override;
+};
+
+class TFPNavel : public TBPNavel {
+public:
+    TFPNavel(TBossPakkun *parentPakkun, const char *name) : TBPNavel(parentPakkun, name) {}
+    virtual int receiveMessage(THitActor *sender, u32 msg) override;
+};
+
+class TFireyPetey;
+
+class TFPFireParticleCallback : public JPACallBackBase<> {
+public:
+    TFireyPetey *mFireyPetey = nullptr;
+
+    void execute(JPABaseEmitter *emitter);
+};
+
+class TFireyPetey : public TBossPakkun {
+public:
+    BETTER_SMS_FOR_CALLBACK static JDrama::TNameRef *instantiate() {
+        return new TFireyPetey("FireyPetey");
+    }
+
+    TFireyPetey(const char *);
+    virtual ~TFireyPetey() = default;
+    virtual void perform(u32, JDrama::TGraphics *) override;
+    virtual void init(TLiveManager *) override;
+    virtual int receiveMessage(THitActor *, u32) override;
+
+    void gotHipDropDamage();
+
+    s16 mNumTornados;
+    TMActorKeeper *mMActorKeeperSecondary;
+    TKukkuBall *mKukkuBall[NUM_GOOP_DROPS];
+    TFPFireParticleCallback *m_fire_particle_callback;
+};
+
+class TFireyPeteyManager : public TBossPakkunManager {
+public:
+    BETTER_SMS_FOR_CALLBACK static JDrama::TNameRef *instantiate() {
+        return new TFireyPeteyManager("FireyPeteyManager", 0);
+    }
+
+    TFireyPeteyManager(char const *, int);
+    virtual ~TFireyPeteyManager(){};
+
+    virtual void load(JSUMemoryInputStream &);
+};
+
+void dropLava(TSpineBase<TLiveActor> *spine, TFireyPetey *petey);
+void dropLavaBig(TSpineBase<TLiveActor> *spine, TFireyPetey *petey);

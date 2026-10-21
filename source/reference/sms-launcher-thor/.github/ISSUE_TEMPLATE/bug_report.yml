@@ -1,0 +1,114 @@
+name: Bug report
+description: Something in the launcher or game isn't working right
+title: "[Bug]: "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to report a problem! You don't need to be technical to fill this out — just answer what you can.
+
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: Describe the problem in your own words.
+      placeholder: e.g. "The launcher closes right after I press Play" or "The game crashes when I enter Delfino Plaza"
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected-steps
+    attributes:
+      label: What did you expect, and what steps lead to this?
+      description: Optional, but it helps a lot if you can list the steps you took before the problem happened.
+      placeholder: |
+        1. Opened the launcher
+        2. Turned on HD textures
+        3. Pressed Play
+        4. ...
+    validations:
+      required: false
+
+  - type: dropdown
+    id: os
+    attributes:
+      label: Operating system
+      options:
+        - Windows
+        - macOS
+        - Linux
+        - Other
+    validations:
+      required: true
+
+  - type: input
+    id: os-version
+    attributes:
+      label: Operating system version
+      description: e.g. "Windows 11", "macOS 14 Sonoma", "Ubuntu 22.04"
+    validations:
+      required: false
+
+  - type: input
+    id: cpu
+    attributes:
+      label: CPU
+      description: e.g. "Intel i5-10400" or "Apple M2" — check your computer's System Information / About page if unsure.
+    validations:
+      required: false
+
+  - type: input
+    id: ram
+    attributes:
+      label: RAM (memory)
+      description: e.g. "16 GB"
+    validations:
+      required: false
+
+  - type: input
+    id: gpu
+    attributes:
+      label: Graphics card (GPU)
+      description: Optional. e.g. "NVIDIA RTX 3060" or "Apple M2 integrated graphics"
+    validations:
+      required: false
+
+  - type: input
+    id: launcher-version
+    attributes:
+      label: Launcher version
+      description: Open the gear/Settings icon in the launcher — the version is shown under "Versions" next to "Launcher" (e.g. "v0.1.33").
+    validations:
+      required: false
+
+  - type: checkboxes
+    id: settings-used
+    attributes:
+      label: Settings you had turned on
+      description: Optional — check any that applied when the problem happened.
+      options:
+        - label: HD textures
+        - label: Super Mario Eclipse mod
+        - label: 32-bit game build
+    validations:
+      required: false
+
+  - type: textarea
+    id: activity-log
+    attributes:
+      label: Activity log
+      description: |
+        Please paste your Activity log — this helps us a lot!
+        To get it: click the gear icon (Settings) → "Manage game" → "View activity log". Click inside the log, select all the text, and copy it here.
+      render: shell
+    validations:
+      required: true
+
+  - type: textarea
+    id: extra-logs
+    attributes:
+      label: Anything else? (console logs, screenshots, etc.)
+      description: Optional. You can drag and drop images here, or paste any other error text.
+    validations:
+      required: false

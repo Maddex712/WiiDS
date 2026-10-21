@@ -1,0 +1,24 @@
+Reason: AYN Thor lower screen: the title's 3D sky is handed to the second screen before the logo is drawn.
+--- a/src/GC2D/CardLoad.cpp	2026-10-19 14:59:23.166018600 -0400
++++ b/src/GC2D/CardLoad.cpp	2026-10-19 14:59:32.845744500 -0400
+@@ -701,6 +701,10 @@
+ 	p->unk258 = 0;
+ }
+ 
++#if defined(TARGET_PC) && defined(__ANDROID__)
++// AYN Thor lower screen: receives the title's 3D frame before its 2D layer (logo) is drawn.
++extern "C" void port_thor_capture_sky(int screen);
++#endif
+ void TCardLoad::perform(u32 cue, JDrama::TGraphics* graphics)
+ {
+ 	if (cue & CUE_MOVE) {
+@@ -856,6 +860,9 @@
+ 	}
+ 
+ 	if (cue & CUE_DRAW) {
++#if defined(TARGET_PC) && defined(__ANDROID__)
++		port_thor_capture_sky(unk14);
++#endif
+ 		const JDrama::TRect& rect = graphics->getScissor();
+ 		J2DOrthoGraph graph(graphics->getViewport());
+ 		graph.setup2D();

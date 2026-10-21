@@ -1,0 +1,564 @@
+﻿#include "object/emario_portal.hxx"
+
+#include <BetterSMS/libs/constmath.hxx>
+#include <SMS/MSound/MSoundSESystem.hxx>
+
+#include <SMS/Camera/PolarSubCamera.hxx>
+
+#include <SMS/raw_fn.hxx>
+
+#include "player.hxx"
+
+// Exploits unused padding bytes in every actor
+// (the port: byte 0xE, after mPerformFlags, holds mPosition on 64-bit hosts;
+// the byte after mPlacementFlags, retail 0x1E, is padding in every layout)
+static bool &LiveActorFlag(JDrama::TActor *actor) { return ((bool *)&actor->mPlacementFlags)[2]; }
+static bool IsLiveActor(JDrama::TActor *actor) { return LiveActorFlag(actor); }
+
+// Patching constructors
+static JDrama::TFlagT<u16> *flagNotLiveActor(JDrama::TActor *actor) {
+    LiveActorFlag(actor) = false;
+    return (JDrama::TFlagT<u16> *)&actor->mPerformFlags;
+}
+SMS_PATCH_BL(0x80223EAC, flagNotLiveActor);
+
+static u32 flagLiveActor(THitActor *actor) {
+    LiveActorFlag(actor) = true;
+    return 0x803AB71C;
+}
+SMS_PATCH_BL(0x80218E94, flagLiveActor);
+SMS_WRITE_32(0x80218E90, 0x60000000);
+
+static TVec3f NormalToEulerAngles(const TVec3f &normal) {
+    TVec3f euler = TVec3f::zero();
+
+    // 1. Calculate the horizontal distance (projection onto the XZ plane)
+    f32 horizontal_dist = sqrtf(normal.x * normal.x + normal.z * normal.z);
+
+    // 2. Calculate Yaw (Rotation around the Y axis)
+    // atan2 safely handles z = 0
+    euler.y = atan2f(normal.x, normal.z);
+
+    // 3. Calculate Pitch (Rotation around the X axis)
+    // We use -normal.y because looking "up" requires a negative X rotation in SMS
+    euler.x = atan2f(-normal.y, horizontal_dist);
+
+    // 4. Calculate Roll (Rotation around the Z axis)
+    // Kept at 0 to prevent the particle from spinning on its local axis
+    euler.z = 0.0f;
+
+    euler.x = radiansToAngle(euler.x);
+    euler.y = radiansToAngle(euler.y);
+    euler.z = radiansToAngle(euler.z);
+
+    euler.x += 90.0f;  // Adjust pitch to align the portal correctly
+
+    return euler;
+}
+
+static TVec3f MapVectorThroughPortal(const TVec3f &v_in, const TVec3f &n1, const TVec3f &n2) {
+    // 1. Flip the vector along the entry normal (N1)
+    f32 dot_v_n1 = v_in.x * n1.x + v_in.y * n1.y + v_in.z * n1.z;
+    TVec3f v_flipped;
+    v_flipped.x = v_in.x - 2.0f * dot_v_n1 * n1.x;
+    v_flipped.y = v_in.y - 2.0f * dot_v_n1 * n1.y;
+    v_flipped.z = v_in.z - 2.0f * dot_v_n1 * n1.z;
+
+    // 2. Rotate the flipped vector from N1 to N2 using Rodrigues' formula
+    f32 c = n1.x * n2.x + n1.y * n2.y + n1.z * n2.z;
+
+    // Edge Case A: Normals are exactly opposite (e.g., floor to ceiling)
+    if (c < -0.999f) {
+        TVec3f axis = {1.0f, 0.0f, 0.0f};
+        if (fabs(n1.x) > 0.9f)
+            axis = {0.0f, 1.0f, 0.0f};
+
+        f32 dot_v_axis = v_flipped.x * axis.x + v_flipped.y * axis.y + v_flipped.z * axis.z;
+        TVec3f v_out;
+        v_out.x = 2.0f * dot_v_axis * axis.x - v_flipped.x;
+        v_out.y = 2.0f * dot_v_axis * axis.y - v_flipped.y;
+        v_out.z = 2.0f * dot_v_axis * axis.z - v_flipped.z;
+        return v_out;
+    }
+
+    // Edge Case B: Normals are exactly identical
+    if (c > 0.999f)
+        return v_flipped;
+
+    // Standard Case: Calculate rotation axis via cross product
+    TVec3f cross_n;
+    cross_n.x = n1.y * n2.z - n1.z * n2.y;
+    cross_n.y = n1.z * n2.x - n1.x * n2.z;
+    cross_n.z = n1.x * n2.y - n1.y * n2.x;
+
+    TVec3f cxv;
+    cxv.x = cross_n.y * v_flipped.z - cross_n.z * v_flipped.y;
+    cxv.y = cross_n.z * v_flipped.x - cross_n.x * v_flipped.z;
+    cxv.z = cross_n.x * v_flipped.y - cross_n.y * v_flipped.x;
+
+    TVec3f cxcxv;
+    cxcxv.x = cross_n.y * cxv.z - cross_n.z * cxv.y;
+    cxcxv.y = cross_n.z * cxv.x - cross_n.x * cxv.z;
+    cxcxv.z = cross_n.x * cxv.y - cross_n.y * cxv.x;
+
+    f32 factor = 1.0f / (1.0f + c);
+
+    TVec3f v_out;
+    v_out.x = v_flipped.x + cxv.x + cxcxv.x * factor;
+    v_out.y = v_flipped.y + cxv.y + cxcxv.y * factor;
+    v_out.z = v_flipped.z + cxv.z + cxcxv.z * factor;
+
+    return v_out;
+}
+
+TEMarioPortal::TEMarioPortal(const char *name) : TMapObjGeneral(name) {
+    m_is_closed  = true;
+    m_is_closing = false;
+    m_is_opening = false;
+
+    m_init_scale   = mScale;
+    m_target_scale = mScale;
+
+    m_interp = 0.0f;
+}
+
+void TEMarioPortal::openPortal(const TVec3f &at, const TVec3f &look_nrm) {
+    mTranslation = at;
+    mTranslation.y -= 145.0f;
+    mRotation    = NormalToEulerAngles(look_nrm);
+    m_look_nrm   = look_nrm;
+
+    // mActorData->setBck("emario_portal_open");
+    // auto *ctrl       = mActorData->getFrameCtrl(MActor::BCK);
+    // ctrl->mAnimState = J3DFrameCtrl::ONCE;
+    // ctrl->mFrameRate = 1.0f;
+    // mModelLoadFlags &= ~0x100;
+
+    mActorData->setBtk("emario_portal.btk");
+    mModelLoadFlags &= ~0x100;
+
+    makeObjAppeared();
+
+    if (gpMSound->gateCheck(MSD_SE_MA_WARP_EX)) {
+        JAISound *sound =
+            MSoundSE::startSoundActor(MSD_SE_MA_WARP_EX, mTranslation, 0, nullptr, 0, 4);
+        if (sound) {
+            // sound->setVolume(0.2f, 0, 0);
+            sound->setPitch(0.5f, 3, 0);
+            sound->setTempoProportion(1.5f, 0);
+        }
+    }
+
+    m_init_scale   = {0.0f, 0.0f, 0.0f};
+    m_target_scale = {1.0f, 1.0f, 1.0f};
+    m_interp       = 0.0f;
+
+    m_is_opening = true;
+    m_is_closed  = false;
+}
+
+void TEMarioPortal::closePortal() {
+    makeObjDead();
+
+    // mActorData->setBck("emario_portal_close");
+    // auto *ctrl       = mActorData->getFrameCtrl(MActor::BCK);
+    // ctrl->mAnimState = J3DFrameCtrl::ONCE;
+    // ctrl->mFrameRate = 1.0f;
+    // mModelLoadFlags &= ~0x100;
+
+    // mActorData->
+
+    m_init_scale   = mScale;
+    m_target_scale = {0.0f, 0.0f, 0.0f};
+    m_interp       = 0.0f;
+
+    m_is_closing = true;
+}
+
+void TEMarioPortal::control() {
+    if (!m_is_closed) {
+        if (gpMSound->gateCheck(MSD_SE_OBJ_QUAKE)) {
+            JAISound *sound = MSoundSE::startSoundActor(
+                MSD_SE_OBJ_QUAKE, reinterpret_cast<Vec *>(&mTranslation), 0, nullptr, 0, 4);
+            if (sound) {
+                f32 dist   = PSVECDistance(mTranslation, gpCamera->mTranslation);
+                f32 volume = lerp<f32>(0.25f, 0.0f, clamp(dist / 5000.0f, 0.0f, 1.0f));
+                sound->setVolume(volume, 0, 0);
+                sound->setPitch(1.5f, 3, 0);
+            }
+        }
+    }
+
+    if (m_is_closing) {
+        float in_out_t = m_interp * m_interp * (3.0f - 2.0f * m_interp);
+        mScale.x       = lerp<f32>(m_init_scale.x, m_target_scale.x, in_out_t);
+        mScale.y       = lerp<f32>(m_init_scale.y, m_target_scale.y, in_out_t);
+        mScale.z       = lerp<f32>(m_init_scale.z, m_target_scale.z, in_out_t);
+        m_interp += SMSGetAnmFrameRate() * 0.01f;
+        if (m_interp >= 1.0f) {
+            m_is_closing = false;
+            // m_is_closed  = true;
+            m_interp = 1.0f;
+        }
+    } else if (m_is_opening) {
+        float in_out_t = m_interp * m_interp * (3.0f - 2.0f * m_interp);
+        mScale.x       = lerp<f32>(m_init_scale.x, m_target_scale.x, in_out_t);
+        mScale.y       = lerp<f32>(m_init_scale.y, m_target_scale.y, in_out_t);
+        mScale.z       = lerp<f32>(m_init_scale.z, m_target_scale.z, in_out_t);
+        m_interp += SMSGetAnmFrameRate() * 0.01f;
+        if (m_interp >= 1.0f) {
+            m_is_opening = false;
+            m_is_closed  = false;
+            m_interp     = 1.0f;
+        }
+    }
+
+    if (m_linked_portal->m_is_closed) {
+        return;  // Don't check for collisions if the linked portal is closed
+    }
+
+    for (size_t i = 0; i < mNumObjs; ++i) {
+        if (mCollidingObjs[i]->mObjectID == OBJECT_ID_MARIO) {
+            transportPlayer(reinterpret_cast<TMario *>(mCollidingObjs[i]));
+        } else if (IsLiveActor(mCollidingObjs[i])) {
+            transportActor(reinterpret_cast<TLiveActor *>(mCollidingObjs[i]));
+        }
+    }
+}
+
+void TEMarioPortal::initMapObj() {
+    TMapObjGeneral::initMapObj();
+    closePortal();
+
+    mStateFlags.asU32 &= ~0x100;
+}
+
+int TEMarioPortal::receiveMessage(THitActor *sender, u32 message) {
+    if (TMapObjGeneral::receiveMessage(sender, message)) {
+        return true;
+    }
+
+    return false;
+}
+
+void TEMarioPortal::calcRootMatrix() { TMapObjGeneral::calcRootMatrix(); }
+
+void TEMarioPortal::transportActor(TLiveActor *actor) {
+    if (actor->mObjectID == mObjectID) {
+        return;  // Don't portal portals
+    }
+
+    // Get Mario's velocity
+    const TVec3f &actor_vel = actor->mSpeed;
+
+    TVec3f portal_point     = mTranslation;
+    portal_point.y += 145.0f;  // The portal's "center" is actually 145 units above its origin, so
+                               // we need to account for that in our calculations
+    
+    TVec3f warp_point = m_linked_portal->mTranslation;
+    warp_point.y += 145.0f;  // The portal's "center" is actually 145 units above its origin, so we
+                             // need to account for that in our calculations
+
+    // Check if Mario's movement is towards the portal
+    f32 approach_dot =
+        actor_vel.x * m_look_nrm.x + actor_vel.y * m_look_nrm.y + actor_vel.z * m_look_nrm.z;
+
+    TVec3f actor_pos = actor->mTranslation;
+    //actor_pos.y += 50.0f;  // Mario's position is technically at his feet, but we want to check
+    //                        // from his center
+
+    // 1. Vector from Portal Center to Mario
+    const TVec3f v = actor_pos - portal_point;
+
+    // 2. Thickness Check (Dot product with normal)
+    // How far is Mario "above" or "below" the face of the portal?
+    f32 dist_along_normal = v.x * m_look_nrm.x + v.y * m_look_nrm.y + v.z * m_look_nrm.z;
+
+    const f32 BASE_THICKNESS = 50.0f;  // Total base thickness
+    f32 front_threshold      = BASE_THICKNESS * 0.5f;
+    f32 back_threshold       = -(BASE_THICKNESS * 0.5f);
+
+    // 1. Forward Prediction (Scale thickness based on speed)
+    // If approach_dot is negative, Mario is moving INTO the portal.
+    // We stretch the front threshold outward to catch his previous frame's position.
+    if (approach_dot < 0.0f) {
+        front_threshold -= approach_dot * 4.0f;  // Subtracting a negative adds to the threshold
+    } else {
+        back_threshold +=
+            approach_dot * 4.0f;  // If Mario is moving out, stretch the back threshold
+    }
+
+    // 2. The Dynamic Thickness Check
+    if (dist_along_normal > front_threshold || dist_along_normal < back_threshold) {
+        return;
+    }
+
+    // 3. Radius Check (Pythagorean theorem)
+    // Total squared distance to Mario
+    f32 total_dist_sq = v.x * v.x + v.y * v.y + v.z * v.z;
+
+    // Horizontal distance squared = Total distance squared - Vertical distance squared
+    f32 radial_dist_sq = total_dist_sq - (dist_along_normal * dist_along_normal);
+
+    // Check if Mario is inside the circle
+    if (radial_dist_sq > mReceiveRadius * mReceiveRadius) {
+        return;
+    }
+
+    // 1. Map actor's FULL 3D velocity vector through the portal
+    TVec3f mapped_vel =
+        MapVectorThroughPortal(actor->mSpeed, m_look_nrm, m_linked_portal->m_look_nrm);
+
+    actor->mSpeed = mapped_vel;
+
+    // 3. Map actor's visual 3D rotation
+    f32 current_pitch_rad = angleToRadians(actor->mRotation.x);
+    f32 current_yaw_rad   = angleToRadians(actor->mRotation.y);
+
+    TVec3f forward_in;
+    f32 cos_pitch = cosf(current_pitch_rad);
+    forward_in.x  = sinf(current_yaw_rad) * cos_pitch;
+    forward_in.y  = -sinf(current_pitch_rad);  // Negative because looking UP is usually -X rotation
+    forward_in.z  = cosf(current_yaw_rad) * cos_pitch;
+
+    TVec3f forward_out =
+        MapVectorThroughPortal(forward_in, m_look_nrm, m_linked_portal->m_look_nrm);
+
+    // 4. Determine final facing trajectory
+    TVec3f final_forward;
+    f32 speed_sq =
+        mapped_vel.x * mapped_vel.x + mapped_vel.y * mapped_vel.y + mapped_vel.z * mapped_vel.z;
+
+    if (speed_sq > 0.01f) {
+        // If moving, force his rotation to perfectly match his new physical trajectory
+        final_forward = mapped_vel;
+    } else {
+        // If stationary, use the mapped visual forward vector
+        final_forward = forward_out;
+    }
+
+    // 5. Convert the final 3D vector back into Pitch and Yaw Euler angles
+    f32 horizontal_dist =
+        sqrtf(final_forward.x * final_forward.x + final_forward.z * final_forward.z);
+
+    f32 final_yaw_rad   = atan2f(final_forward.x, final_forward.z);
+    f32 final_pitch_rad = atan2f(-final_forward.y, horizontal_dist);
+
+    // Assign the new angles to the TVec3f
+    // actor->mRotation.x = radiansToAngle(final_pitch_rad);
+    actor->mRotation.y = radiansToAngle(final_yaw_rad);
+    // actor->mRotation.z remains untouched to prevent unwanted sideways barrel-rolling
+
+    // 6. Push out and teleport
+    TVec3f push_out = m_linked_portal->m_look_nrm;
+    push_out.scale(80.0f);
+
+    if (gpMSound->gateCheck(MSD_SE_MA_WARP_EX)) {
+        JAISound *sound = MSoundSE::startSoundActor(
+            MSD_SE_MA_WARP_EX, reinterpret_cast<Vec *>(&actor->mTranslation), 0, nullptr, 0, 4);
+        if (sound) {
+            sound->setTempoProportion(1.5f, 0);
+        }
+    }
+
+    actor->mTranslation = warp_point + push_out;
+
+    // Is this an OrangeSeal?
+    if (actor->mObjectID == 0x10000024) {
+        actor->mCollisionManager->mCurrentMapCollision->remove();
+    }
+}
+
+void TEMarioPortal::transportPlayer(TMario *player) {
+    if (player->mState == TMario::STATE_SHINE_C) {
+        return;  // Don't warp the player while they are collecting a shine
+    }
+
+    // Avoid portaling for so many frames
+    SME::Player::PlayerState *player_state =
+        (SME::Player::PlayerState *)Player::getRegisteredData(player, SME::Player::data_key);
+    if (player_state->mPortalTimer > 0) {
+        return;
+    }
+
+    // Get Mario's velocity
+    const TVec3f &player_vel = player->mSpeed;
+
+    TVec3f portal_point = mTranslation;
+    portal_point.y += 145.0f;  // The portal's "center" is actually 145 units above its origin, so we
+                             // need to account for that in our calculations
+
+    TVec3f warp_point = m_linked_portal->mTranslation;
+    warp_point.y += 145.0f;  // The portal's "center" is actually 145 units above its origin, so we
+                             // need to account for that in our calculations
+
+    // Check if Mario's movement is towards the portal
+    f32 approach_dot =
+        player_vel.x * m_look_nrm.x + player_vel.y * m_look_nrm.y + player_vel.z * m_look_nrm.z;
+    if (approach_dot >= 0) {
+        return;
+    }
+
+    TVec3f player_pos = player->mTranslation;
+    player_pos.y += 50.0f;  // Mario's position is technically at his feet, but we want to check
+                            // from his center
+
+    // 1. Vector from Portal Center to Mario
+    const TVec3f v = player_pos - portal_point;
+
+    // 2. Thickness Check (Dot product with normal)
+    // How far is Mario "above" or "below" the face of the portal?
+    f32 dist_along_normal = v.x * m_look_nrm.x + v.y * m_look_nrm.y + v.z * m_look_nrm.z;
+
+    const f32 BASE_THICKNESS = 50.0f;  // Total base thickness
+    f32 front_threshold      = BASE_THICKNESS * 0.5f;
+    f32 back_threshold       = -(BASE_THICKNESS * 0.5f);
+
+    // 1. Forward Prediction (Scale thickness based on speed)
+    // If approach_dot is negative, Mario is moving INTO the portal.
+    // We stretch the front threshold outward to catch his previous frame's position.
+    if (approach_dot < 0.0f) {
+        front_threshold -= approach_dot * 2.0f;  // Subtracting a negative adds to the threshold
+    } else {
+        back_threshold +=
+            approach_dot * 2.0f;  // If Mario is moving out, stretch the back threshold
+    }
+
+    // 2. The Dynamic Thickness Check
+    if (dist_along_normal > front_threshold || dist_along_normal < back_threshold) {
+        return;
+    }
+
+    // 3. Radius Check (Pythagorean theorem)
+    // Total squared distance to Mario
+    f32 total_dist_sq = v.x * v.x + v.y * v.y + v.z * v.z;
+
+    // Horizontal distance squared = Total distance squared - Vertical distance squared
+    f32 radial_dist_sq = total_dist_sq - (dist_along_normal * dist_along_normal);
+
+    // Check if Mario is inside the circle
+    if (radial_dist_sq > mReceiveRadius * mReceiveRadius) {
+        return;
+    }
+
+    // 1. Map Mario's FULL 3D velocity vector through the portal
+    // This handles gravity becoming forward momentum (and vice versa) automatically
+    TVec3f mapped_vel =
+        MapVectorThroughPortal(player->mSpeed, m_look_nrm, m_linked_portal->m_look_nrm);
+
+    // 2. Reconstruct SMS Physics variables from the mapped 3D velocity
+    // The new vertical speed goes directly back into mSpeed.y
+    player->mSpeed.y = mapped_vel.y;
+
+    // The new horizontal speed is the magnitude of the mapped X and Z components
+    player->mForwardSpeed = sqrtf(mapped_vel.x * mapped_vel.x + mapped_vel.z * mapped_vel.z);
+
+    // 3. Map Mario's visual rotation (Forward Vector)
+    // We do this to ensure he faces the right way even if he enters a portal while standing
+    // still
+    TVec3f forward_in;
+    // ** NOTE: Adjust this line to use whatever macro converts your mRotation.y into Radians **
+    f32 current_yaw_rad = angleToRadians(player->mRotation.y);
+
+    forward_in.x = sinf(current_yaw_rad);
+    forward_in.y = 0.0f;
+    forward_in.z = cosf(current_yaw_rad);
+
+    TVec3f forward_out =
+        MapVectorThroughPortal(forward_in, m_look_nrm, m_linked_portal->m_look_nrm);
+
+    // 4. Determine final facing angle
+    f32 final_yaw_rad;
+    if (player->mForwardSpeed > 0.1f) {
+        // If he is moving, his angle MUST match his trajectory to prevent sideways sliding
+        final_yaw_rad = atan2f(mapped_vel.x, mapped_vel.z);
+    } else {
+        // If stationary, use his mapped visual forward vector
+        final_yaw_rad = atan2f(forward_out.x, forward_out.z);
+    }
+
+    // Apply the ABSOLUTE new angle (no longer a delta!)
+    player->mRotation.y = radiansToAngle(final_yaw_rad);
+    player->mAngle.y    = convertAngleFloatToS16(radiansToAngle(final_yaw_rad));
+
+    // 5. Push out and teleport
+    TVec3f push_out = m_linked_portal->m_look_nrm;
+    push_out.scale(80.0f);
+
+    player->mTranslation = warp_point + push_out;
+
+    TVec3f camera_pos = gpCamera->mTranslation;
+    TVec3f look_at    = gpCamera->mTargetPos;
+
+    // 1. Get the offset pointing FROM the target TO the camera
+    TVec3f offset_vec = camera_pos - look_at;
+
+    // 2. Map the camera offset perfectly through 3D space using our new helper!
+    // This automatically handles Gimbal Lock, floor-to-wall transitions, etc.
+    TVec3f new_offset = MapVectorThroughPortal(offset_vec, m_look_nrm, m_linked_portal->m_look_nrm);
+
+    // 3. Set the new Target (Mario's new teleported position)
+    Vec new_look_at = {player->mTranslation.x, player->mTranslation.y, player->mTranslation.z};
+
+    // 4. Apply the fully mapped 3D offset to place the camera relative to Mario
+    Vec new_camera_pos = {new_look_at.x + new_offset.x,
+                          new_look_at.y -
+                              new_offset.y,  // We use the newly mapped Y, not the original!
+                          new_look_at.z + new_offset.z};
+
+    gpCamera->warpPosAndAt(new_camera_pos, new_look_at);
+
+    if (gpMSound->gateCheck(MSD_SE_MA_WARP_EX)) {
+        JAISound *sound = MSoundSE::startSoundActor(
+            MSD_SE_MA_WARP_EX, reinterpret_cast<Vec *>(&player->mTranslation), 0, nullptr, 0, 4);
+        if (sound) {
+            sound->setTempoProportion(1.5f, 0);
+        }
+    }
+
+    if (player->mState == TMario::STATE_SLAMSTART || player->mState == TMario::STATE_F_KNCK_H ||
+        player->mState == TMario::STATE_KNCK_LND || player->mState == TMario::STATE_KNCK_GND ||
+        player->mState == 0x208BA) {
+        player->changePlayerStatus(TMario::STATE_FALL, 0, false);
+    }
+
+    player_state->mPortalTimer = 60;
+}
+
+static hit_data emarioPortal_hit_data{.mAttackRadius  = 290.0f,
+                                      .mAttackHeight  = 290.0f,
+                                      .mReceiveRadius = 290.0f,
+                                      .mReceiveHeight = 290.0f};
+
+static obj_hit_info emarioPortal_collision_data{
+    ._00 = 1, .mType = 0xDC000000, .mVisualOfsY = -145.0f, .mHitData = &emarioPortal_hit_data};
+
+ObjData emarioPortalData{.mMdlName          = "emario_portal",
+                         .mObjectID         = 0x30000412 /*0x80000FFF*/,
+                         .mLiveManagerName  = gLiveManagerName,
+                         .mObjKey           = gUnkManagerName,
+                         .mAnimInfo         = nullptr,
+                         .mObjCollisionData = &emarioPortal_collision_data,
+                         .mMapCollisionInfo = nullptr,
+                         .mSoundInfo        = nullptr,
+                         .mPhysicalInfo     = nullptr,
+                         .mSinkData         = nullptr,
+                         ._28               = nullptr,
+                         .mBckMoveData      = nullptr,
+                         ._30               = 50.0f,
+                         .mUnkFlags         = 0x8000 /*0x02130100*/,
+                         .mKeyCode          = cexp_calcKeyCode("EMarioPortal")};
+
+// Work around to make indirect texturing on portal not crash the game
+SMS_WRITE_32(SMS_PORT_REGION(0x802281F4, 0, 0, 0), 0x60000000);
+
+// This allows portals to render through the water layer (thx Nintendo)
+static void dontSetLightTypeWhenIndirectPortal(MActor *actor) {
+    TLiveActor *obj;
+    SMS_FROM_GPR(31, obj);
+
+    if (obj->mObjectID != 0x30000412) {
+        actor->setLightType(3);
+    }
+}
+SMS_PATCH_BL(SMS_PORT_REGION(0x801B1A9C, 0, 0, 0), dontSetLightTypeWhenIndirectPortal);

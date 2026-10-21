@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <uses-feature android:glEsVersion="0x00030001" android:required="true" />
+    <uses-feature android:name="android.hardware.touchscreen" android:required="false" />
+    <uses-feature android:name="android.hardware.gamepad" android:required="false" />
+    <uses-permission android:name="android.permission.VIBRATE" />
+    <uses-permission android:name="android.permission.INTERNET" />
+    <queries><package android:name="com.driftdroid.android.thor" /></queries>
+    <application android:label="Super Mario Sunshine - Thor" android:theme="@android:style/Theme.Material.NoActionBar"
+        android:allowBackup="false" android:hardwareAccelerated="true" android:appCategory="game">
+        <activity android:name="com.wither.sms.ThorLaunchActivity" android:exported="true"
+            android:screenOrientation="userLandscape" android:excludeFromRecents="true" />
+        <activity android:name=".LauncherActivity" android:exported="true" android:screenOrientation="userLandscape"
+            android:configChanges="orientation|screenSize|screenLayout|density">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+        <activity android:name=".InputMonitorActivity" android:exported="false" android:screenOrientation="userLandscape"
+            android:configChanges="keyboard|keyboardHidden|orientation|screenSize|screenLayout|density|navigation" />
+        <activity android:name=".ControllerConfigActivity" android:exported="false" android:screenOrientation="userLandscape"
+            android:enableOnBackInvokedCallback="true"
+            android:configChanges="keyboard|keyboardHidden|orientation|screenSize|screenLayout|density|navigation" />
+        <activity android:name=".GameActivity" android:exported="false" android:process=":game"
+            android:enableOnBackInvokedCallback="true"
+            android:screenOrientation="userLandscape" android:configChanges="keyboard|keyboardHidden|orientation|screenSize|screenLayout|uiMode|navigation|density"
+            android:theme="@android:style/Theme.Material.NoActionBar.Fullscreen" />
+    </application>
+</manifest>

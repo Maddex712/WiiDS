@@ -1,0 +1,309 @@
+Reason: port: save states (port_savestate.h) are saved and loaded at the top of the frame loop, exactly or by warping and putting Mario back
+--- a/src/System/Application.cpp
++++ b/src/System/Application.cpp
+@@ -994,6 +994,284 @@
+ }
+ #endif
+ 
++#ifdef TARGET_PC
++#include "port_savestate.h"
++#include "port_savestate_menu.h"
++#include <Camera/Camera.hpp>
++#include <GC2D/GCConsole2.hpp>
++#include <Player/Mario.hpp>
++#include <Player/WaterGun.hpp>
++#include <string.h>
++
++// patch zzzz-savestate-02: closes the pause menu as Continue does.
++void PauseMenuCloseForStateLoad();
++
++// Port: save states (port_savestate.h), saved and loaded here, at the top of
++// the frame loop. Nothing of a frame is under way then, and this function's
++// callers hold only their loop state, so an exact load can replace the game's
++// memory wholesale and the loop carries on in the state's moment. A state
++// this build cannot load exactly loads its portable part instead: its flags,
++// a warp to its area (as ApplicationWarpFrame does), then Mario put back. The
++// warp happens even into the area already loaded: the level's objects (a
++// blue coin, a Shine) and the HUD's counters only follow the flags when the
++// stage loads.
++enum {
++	STATE_LOAD_IDLE,
++	STATE_LOAD_FADE_OUT, // the screen going black before an exact load
++	STATE_LOAD_UNPAUSE,  // the pause menu closing first
++	STATE_LOAD_ARRIVE,   // on the way to the state's area
++};
++// the fades around an exact load, as long as the game's own (TMovieDirector)
++static const f32 kStateFadeSeconds = 0.25f;
++static char sStateLoadPath[PORT_SAVESTATE_PATH_LEN];
++static PortSaveStatePortable sStateLoad;
++static u8 sStateLoadPhase;
++static u16 sStateLoadFrames;
++static bool sStateLoadLeft; // the old stage has stopped playing
++
++static void ApplicationStateCollect(TApplication* app, PortSaveStatePortable* p)
++{
++	memset(p, 0, sizeof *p);
++	p->area    = app->mCurrArea.getStage();
++	p->episode = app->mCurrArea.getScenario();
++	if (TMario* m = gpMarioOriginal) {
++		p->pos[0]       = m->mPosition.x;
++		p->pos[1]       = m->mPosition.y;
++		p->pos[2]       = m->mPosition.z;
++		p->vel[0]       = m->mVel.x;
++		p->vel[1]       = m->mVel.y;
++		p->vel[2]       = m->mVel.z;
++		p->forwardVel   = m->mForwardVel;
++		p->faceAngle[0] = m->mFaceAngle.x;
++		p->faceAngle[1] = m->mFaceAngle.y;
++		p->faceAngle[2] = m->mFaceAngle.z;
++		p->status       = m->mStatus;
++		p->statusArg    = m->mStatusArg;
++		p->health       = m->mHealth;
++		p->hasFludd     = m->checkFlag(MARIO_FLAG_HAS_FLUDD);
++		p->onYoshi      = m->onYoshi() != 0;
++		if (TWaterGun* gun = m->mWaterGun) {
++			p->water        = gun->mCurrentWater;
++			p->nozzle       = gun->mCurrentNozzle;
++			p->secondNozzle = gun->mSecondNozzle;
++		}
++	}
++	if (gpCamera) {
++		p->cameraPos[0] = gpCamera->unk124.x;
++		p->cameraPos[1] = gpCamera->unk124.y;
++		p->cameraPos[2] = gpCamera->unk124.z;
++		p->cameraAt[0]  = gpCamera->unk148.x;
++		p->cameraAt[1]  = gpCamera->unk148.y;
++		p->cameraAt[2]  = gpCamera->unk148.z;
++	}
++	TFlagManager* flags = TFlagManager::getInstance();
++	for (int i = 0; i < PORT_SAVESTATE_CARD_BOOLS; i++)
++		p->cardBools[i] = (u8)flags->getFlag(0x10000 + i);
++	for (int i = 0; i < PORT_SAVESTATE_CARD_INTS; i++)
++		p->cardInts[i] = flags->getFlag(0x20000 + i);
++	for (int i = 0; i < PORT_SAVESTATE_GAME_BOOLS; i++)
++		p->gameBools[i] = (u8)flags->getFlag(0x30000 + i);
++	for (int i = 0; i < PORT_SAVESTATE_GAME_INTS; i++)
++		p->gameInts[i] = flags->getFlag(0x40000 + i);
++	// the names the pause menu shows: the episode is the one the episode
++	// flag names, as there (TPauseMenu2::load)
++	const u8 world = ApplicationWarpWorld(p->area);
++	if (!ApplicationWarpMessage(p->stageName, sizeof p->stageName,
++	                            JKRFileLoader::getGlbResource("/common/2d/stagename.bmg"), world))
++		snprintf(p->stageName, sizeof p->stageName, "Area %d", (int)p->area);
++	ApplicationWarpMessage(p->episodeName, sizeof p->episodeName,
++	                       JKRFileLoader::getGlbResource("/common/2d/scenarioname.bmg"),
++	                       ApplicationWarpNameId(p->area, flags->getFlag(0x40003), world));
++}
++
++static void ApplicationStateApplyFlags(const PortSaveStatePortable& p)
++{
++	TFlagManager* flags = TFlagManager::getInstance();
++	for (int i = 0; i < PORT_SAVESTATE_CARD_BOOLS; i++)
++		flags->setFlag(0x10000 + i, p.cardBools[i]);
++	for (int i = 0; i < PORT_SAVESTATE_CARD_INTS; i++)
++		flags->setFlag(0x20000 + i, p.cardInts[i]);
++	for (int i = 0; i < PORT_SAVESTATE_GAME_BOOLS; i++)
++		flags->setFlag(0x30000 + i, p.gameBools[i]);
++	for (int i = 0; i < PORT_SAVESTATE_GAME_INTS; i++)
++		flags->setFlag(0x40000 + i, p.gameInts[i]);
++}
++
++// The HUD's counters as the flags now say, as a stage's HUD sets them when it
++// loads. The blue coin and Shine counters only ever count up to their flag, a
++// step a frame, so a flag below them would have them count on for good (to
++// 1000 blue coins, then a crash); the old stage's HUD still runs while it
++// fades out.
++static void ApplicationStateSyncConsole(TMarDirector* dir)
++{
++	TGCConsole2* console = dir ? dir->getConsole() : nullptr;
++	if (!console)
++		return;
++	// as TGCConsole2's own setup reads them: blue coins less those spent
++	// (Shine flags 0x46..0x55 and 0x6C..0x73, ten each), coins and Shines
++	// within 0..999, lives up to 99
++	TFlagManager* flags = TFlagManager::getInstance();
++	console->unk168 = flags->getFlag(0x40001);
++	int spent = 0;
++	for (int flag = 0x46; flag < 0x56; ++flag)
++		spent += flags->getFlag(0x10000 + flag) != 0;
++	for (int flag = 0x6C; flag <= 0x73; ++flag)
++		spent += flags->getFlag(0x10000 + flag) != 0;
++	const int blue   = (int)console->unk168 - spent * 10;
++	console->unk170  = blue < 0 ? 0 : blue;
++	int coins        = flags->getFlag(0x40002);
++	coins            = coins > 999 ? 999 : coins < 0 ? 0 : coins;
++	console->unk20   = coins;
++	console->unk6C   = coins;
++	int shines       = flags->getFlag(0x40000);
++	shines           = shines > 999 ? 999 : shines < 0 ? 0 : shines;
++	console->unk24   = shines;
++	console->unk64   = shines;
++	const int lives  = flags->getFlag(0x20001);
++	console->unk3AC  = (u8)(lives > 99 ? 99 : lives < 0 ? 0 : lives);
++}
++
++// Mario where the state had him, facing the same way (warpRequest also moves
++// the camera with him), with his health and FLUDD's nozzle and water.
++static void ApplicationStateFinish()
++{
++	sStateLoadPhase = STATE_LOAD_IDLE;
++	// the stage change reset the coins (the HUD takes a new count as it is)
++	TFlagManager::getInstance()->setFlag(0x40002, sStateLoad.gameInts[2]);
++	if (TMario* m = gpMarioOriginal) {
++		JGeometry::TVec3<f32> pos(sStateLoad.pos[0], sStateLoad.pos[1], sStateLoad.pos[2]);
++		m->warpRequest(pos, sStateLoad.faceAngle[1] * (360.0f / 65536.0f));
++		m->mHealth = sStateLoad.health;
++		TWaterGun* gun = m->mWaterGun;
++		if (gun && sStateLoad.hasFludd) {
++			if (gun->mCurrentNozzle != sStateLoad.nozzle)
++				gun->changeNozzle((TWaterGun::TNozzleType)sStateLoad.nozzle, true);
++			gun->mSecondNozzle = sStateLoad.secondNozzle;
++			gun->mCurrentWater = sStateLoad.water;
++		}
++	}
++	port_savestate_notify("State loaded (position only)");
++}
++
++static void ApplicationStateStartWarp(TApplication* app, TMarDirector* dir)
++{
++	sStateLoadPhase  = STATE_LOAD_ARRIVE;
++	sStateLoadFrames = 0;
++	sStateLoadLeft   = false;
++	ApplicationStateApplyFlags(sStateLoad);
++	ApplicationStateSyncConsole(dir);
++	OSReport("[savestate] warping to area %d episode %d\n", (int)sStateLoad.area, (int)sStateLoad.episode);
++	TFlagManager::getInstance()->setFlag(0x40003, sStateLoad.episode);
++	dir->setNextStage((u16)(((sStateLoad.area + 1) << 8) | sStateLoad.episode), nullptr);
++}
++
++// Loads `path`: exactly when this build can (the screen is black for it, and
++// fades back in), else its portable part.
++static void ApplicationStateLoad(TApplication* app, TMarDirector* dir, bool paused, const char* path)
++{
++	int hasPortable = 0;
++	const bool faded = app->mFader->isFullyFadedOut();
++	// an exact load is done once this returns: the game is at the state's
++	// moment, its fader too (as it was, not black)
++	if (port_savestate_load_exact(path, &sStateLoad, &hasPortable)) {
++		sStateLoadPhase = STATE_LOAD_IDLE;
++		if (faded) {
++			app->mFader->setColor(JUtility::TColor(0, 0, 0, 0));
++			app->mFader->setFadeStatus(TSMSFader::FADE_STATUS_FULLY_FADED_OUT);
++			app->mFader->startFadeinT(kStateFadeSeconds);
++		}
++		port_savestate_notify("State loaded");
++		return;
++	}
++	if (faded)
++		app->mFader->startFadeinT(kStateFadeSeconds);
++	if (!hasPortable)
++		return;
++	if (paused) {
++		sStateLoadPhase  = STATE_LOAD_UNPAUSE;
++		sStateLoadFrames = 0;
++		PauseMenuCloseForStateLoad();
++	} else {
++		ApplicationStateStartWarp(app, dir);
++	}
++}
++
++static void ApplicationSaveStateFrame(TApplication* app)
++{
++	TMarDirector* dir
++	    = app->mAppState == TApplication::APP_STATE_GAMEPLAY ? gpMarDirector : nullptr;
++	const bool playing = dir && gpMarioOriginal && dir->mState == TMarDirector::STATE_UNK4
++	                     && !dir->checkUnk4CFlag(TMarDirector::DIRECTOR_FLAG_STAGE_TRANSITION_PENDING);
++	const bool paused = dir && dir->mState == TMarDirector::STATE_PAUSE_MENU;
++	port_savestate_set_ready((playing || paused) && sStateLoadPhase == STATE_LOAD_IDLE);
++
++	if (sStateLoadPhase == STATE_LOAD_FADE_OUT) {
++		// black, or a second at most (a fade the game took over)
++		if (app->mFader->isFullyFadedOut() || ++sStateLoadFrames > 60) {
++			char path[PORT_SAVESTATE_PATH_LEN];
++			snprintf(path, sizeof path, "%s", sStateLoadPath);
++			sStateLoadPhase = STATE_LOAD_IDLE;
++			if (playing || paused) {
++				ApplicationStateLoad(app, dir, paused, path);
++			} else {
++				// the stage stopped meanwhile (Mario lost a life, a stage change)
++				app->mFader->startFadeinT(kStateFadeSeconds);
++				port_savestate_notify("Could not load the state");
++			}
++		}
++		return;
++	}
++	if (sStateLoadPhase != STATE_LOAD_IDLE) {
++		// about 20 seconds at 60 frames a second, in case the warp never happens
++		if (++sStateLoadFrames > 1200) {
++			sStateLoadPhase = STATE_LOAD_IDLE;
++			port_savestate_notify("Could not load the state");
++		} else if (playing && sStateLoadPhase == STATE_LOAD_UNPAUSE) {
++			ApplicationStateStartWarp(app, dir);
++		} else if (sStateLoadPhase == STATE_LOAD_ARRIVE && !playing) {
++			sStateLoadLeft = true;
++		} else if (playing && sStateLoadLeft && app->mCurrArea.getStage() == sStateLoad.area
++		           && app->mCurrArea.getScenario() == sStateLoad.episode) {
++			ApplicationStateFinish();
++		}
++		return;
++	}
++
++	char path[PORT_SAVESTATE_PATH_LEN];
++	switch (port_savestate_take(path, sizeof path)) {
++	case PORT_SAVESTATE_SAVE:
++		if (playing) {
++			PortSaveStatePortable state;
++			ApplicationStateCollect(app, &state);
++			port_savestate_save(&state);
++		} else if (paused) {
++			// the pause menu's hint: SAVE_STATE there opens the state menu
++			SaveStateMenuOpen();
++		} else {
++			port_savestate_notify("Save states work in a level, once it has loaded");
++		}
++		break;
++	case PORT_SAVESTATE_LOAD:
++		if (!playing && !paused)
++			break;
++		if (port_savestate_can_load_exact(path)) {
++			// the screen fades to black, the state loads behind it, and it
++			// fades back in (ApplicationStateLoad)
++			snprintf(sStateLoadPath, sizeof sStateLoadPath, "%s", path);
++			sStateLoadPhase  = STATE_LOAD_FADE_OUT;
++			sStateLoadFrames = 0;
++			app->mFader->setColor(JUtility::TColor(0, 0, 0, 0));
++			app->mFader->startFadeoutT(kStateFadeSeconds);
++		} else {
++			ApplicationStateLoad(app, dir, paused, path);
++		}
++		break;
++	default:
++		break;
++	}
++}
++#endif
++
+ // TODO: frame 0x50 short (0x70 before the display's video was read through
+ // getVideo()): retail's low region runs to 0xac (the TRect temp) where ours
+ // ended at 0x38, i.e. inline temporaries from an expansion this body lacks;
+@@ -1002,6 +1280,9 @@
+ {
+ 	u32 nextState = APP_STATE_DEFAULT;
+ 	while (nextState <= APP_STATE_DEFAULT) {
++#ifdef TARGET_PC
++		ApplicationSaveStateFrame(this);
++#endif
+ 		mDisplay->startRendering();
+ 
+ 		ApplicationStartTimerTwice(mDisplay->getVideo()->mLastRetraceTime, 0);
+@@ -1071,6 +1352,10 @@
+ 			mFader->update();
+ 			mFader->draw(
+ 			    JDrama::TRect(0, 0, mode.fbWidth, mode.efbHeight));
++#ifdef TARGET_PC
++			// the save state menu over everything (port_savestate_menu.h)
++			SaveStateMenuDraw(JDrama::TRect(0, 0, mode.fbWidth, mode.efbHeight));
++#endif
+ 			// TODO: the ROM loads gpMSound twice here (once for the test,
+ 			// once for the call); neither this spelling nor SMSGetMSound()
+ 			// per use reproduces the reload.

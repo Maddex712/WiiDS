@@ -1,0 +1,2373 @@
+diff --git a/android/app/build.gradle b/android/app/build.gradle
+--- a/android/app/build.gradle
++++ b/android/app/build.gradle
+@@ -1,13 +1,25 @@
+ plugins {
+     id 'com.android.application'
+ }
++
++def thorBuild = providers.gradleProperty('thorBuild').orNull == 'true'
++def thorDiscRevision = providers.gradleProperty('thorDiscRevision').orElse('2').get().toInteger()
++if (!(thorDiscRevision in [1, 2])) throw new GradleException('thorDiscRevision must be 1 or 2.')
++def discRevision = thorBuild ? thorDiscRevision : 1
++def discDolHash = discRevision == 2
++        ? '0373b4dbffd7c9da9d27eb7257a7677877a3e33ceb81818bab1daa93560b9907'
++        : '166eb6b7cca21418e316a6cfbf1bfbf0a213eb8f6396d42126a1482bb764a955'
+ 
+ android {
+     namespace 'com.wither.nsmbw'
+     compileSdk 34
+ 
+     defaultConfig {
+-        applicationId 'com.wither.nsmbw'
++        applicationId thorBuild ? 'com.wither.nsmbw.thor' : 'com.wither.nsmbw'
++        buildConfigField 'boolean', 'THOR_BUILD', thorBuild.toString()
++        buildConfigField 'int', 'DISC_REVISION', discRevision.toString()
++        buildConfigField 'String', 'DOL_SHA256', '"' + discDolHash + '"'
++        manifestPlaceholders = [thorExported: thorBuild.toString()]
+         // Guest RAM uses memfd_create, which bionic has from Android 11 (API 30).
+         minSdk 30
+         targetSdk 34
+@@ -17,6 +29,8 @@
+             abiFilters 'arm64-v8a'
+         }
+     }
++
++    buildFeatures { buildConfig true }
+ 
+     buildTypes {
+         release {
+@@ -52,3 +66,43 @@
+         }
+     }
+ }
++
++// Compilation checks may run before the game exists. APK packaging must have a stamped native
++// build for the same disc revision, so a Java-only shell cannot become a purported playable APK.
++if (thorBuild) {
++    def verifyThorNative = tasks.register('verifyThorNative') {
++        doLast {
++            def nativeRoot = file('../native')
++            def receiptFile = new File(nativeRoot, 'thor-native.json')
++            def library = new File(nativeRoot, 'jniLibs/arm64-v8a/libmain.so')
++            if (!receiptFile.isFile() || !library.isFile()) {
++                throw new GradleException('Stage a verified Thor native build for this disc revision before packaging an APK.')
++            }
++            def receipt = new groovy.json.JsonSlurper().parse(receiptFile)
++            if (receipt.schema != 1 || receipt.disc_id != 'SMNE01' || receipt.disc_revision != discRevision
++                    || receipt.dol_sha256 != discDolHash) {
++                throw new GradleException('The staged native build does not match Thor USA revision ' + discRevision + '.')
++            }
++            def hash = java.security.MessageDigest.getInstance('SHA-256')
++            library.withInputStream { stream ->
++                byte[] buffer = new byte[65536]
++                int n
++                while ((n = stream.read(buffer)) != -1) hash.update(buffer, 0, n)
++            }
++            if (hash.digest().encodeHex().toString() != receipt.library_sha256) {
++                throw new GradleException('The staged native library differs from its build receipt.')
++            }
++            for (name in ['dsp_coef.bin', 'cacert.pem', 'initial_pipeline_cache.db']) {
++                if (!new File(nativeRoot, 'assets/runtime/' + name).isFile()) {
++                    throw new GradleException('Missing runtime asset: ' + name)
++                }
++            }
++            if (!new File(nativeRoot, 'assets/runtime/wii_bootstrap').isDirectory()) {
++                throw new GradleException('Missing runtime NAND bootstrap.')
++            }
++        }
++    }
++    tasks.configureEach {
++        if (name in ['packageDebug', 'packageRelease']) dependsOn verifyThorNative
++    }
++}
+diff --git a/android/app/src/main/AndroidManifest.xml b/android/app/src/main/AndroidManifest.xml
+--- a/android/app/src/main/AndroidManifest.xml
++++ b/android/app/src/main/AndroidManifest.xml
+@@ -1,5 +1,9 @@
+ <?xml version="1.0" encoding="utf-8"?>
+ <manifest xmlns:android="http://schemas.android.com/apk/res/android">
++
++    <queries>
++        <package android:name="com.driftdroid.android.thor" />
++    </queries>
+ 
+     <!-- The renderer is Dawn on Vulkan. -->
+     <uses-feature android:name="android.hardware.vulkan.level" android:version="0" android:required="true" />
+@@ -25,6 +29,11 @@
+         android:theme="@style/AppTheme">
+ 
+         <activity
++            android:name=".ThorLaunchActivity"
++            android:exported="${thorExported}"
++            android:screenOrientation="sensorLandscape" />
++
++        <activity
+             android:name=".LauncherActivity"
+             android:exported="true">
+             <intent-filter>
+diff --git a/android/app/src/main/java/com/wither/nsmbw/AppFiles.java b/android/app/src/main/java/com/wither/nsmbw/AppFiles.java
+--- a/android/app/src/main/java/com/wither/nsmbw/AppFiles.java
++++ b/android/app/src/main/java/com/wither/nsmbw/AppFiles.java
+@@ -12,6 +12,8 @@
+ import java.io.InputStream;
+ import java.io.OutputStream;
+ import java.nio.charset.StandardCharsets;
++import java.security.MessageDigest;
++import java.security.NoSuchAlgorithmException;
+ import java.util.Locale;
+ 
+ /**
+@@ -67,23 +69,63 @@
+         } catch (IOException e) {
+             return "It has no sys/boot.bin, so the game can't be identified.";
+         }
+-        return headerProblem(header);
++        final String problem = headerProblem(header);
++        if (problem != null) return problem;
++        try {
++            if (!BuildConfig.DOL_SHA256.equals(sha256(new File(root, "sys/main.dol")))) {
++                return "The game executable does not match the disc revision compiled into this app.";
++            }
++            if (BuildConfig.THOR_BUILD) {
++                final String[][] modules = BuildConfig.DISC_REVISION == 1 ? new String[][] {
++                        {"d_profileNP", "f04ca9636e20feb5bdacdb8a1115a2b4a71e99f5091df56b4099ae8ea36c7eaf"},
++                        {"d_basesNP", "66b51efac566aead05e4b2351f64800ca54cd38aa93d8d1c9961a054f2854ebb"},
++                        {"d_enemiesNP", "9896eab47a57ee0d3e2644393dd4c35e81171662da020fdb6bebc9307a4a9283"},
++                        {"d_en_bossNP", "ca28f19ed9fa1a16d5bca7260e9e0127ecd0a964697531da16747d8edffac124"}
++                } : new String[][] {
++                        {"d_profileNP", "51bccc66ff299411f46adac5520e28d5b3e890bd93713acee697f89b673d4011"},
++                        {"d_basesNP", "eb58ce05b3664be786752f1ced1dd1e11b2aa86216e56719e46402d18338db95"},
++                        {"d_enemiesNP", "f7941b87baf0b6151f087bcc41323aa43877f1c9f1763b327bfd2869e8a28955"},
++                        {"d_en_bossNP", "a0946cd4f7a1d461ba4f316e3db63f619917246b2050e13660759e5e5a8d3875"}
++                };
++                for (String[] module : modules) {
++                    if (!module[1].equals(sha256(new File(root, "files/rels/" + module[0] + ".rel.LZ")))) {
++                        return "The game modules do not match the disc revision compiled into this app.";
++                    }
++                }
++            }
++        } catch (IOException | NoSuchAlgorithmException failure) {
++            return "Could not verify the game executable: " + failure.getMessage();
++        }
++        return null;
++    }
++
++    private static String sha256(File file) throws IOException, NoSuchAlgorithmException {
++        final MessageDigest hash = MessageDigest.getInstance("SHA-256");
++        try (InputStream in = new FileInputStream(file)) {
++            final byte[] chunk = new byte[65536];
++            int count;
++            while ((count = in.read(chunk)) != -1) hash.update(chunk, 0, count);
++        }
++        final StringBuilder hex = new StringBuilder(64);
++        for (byte value : hash.digest()) hex.append(String.format(Locale.ROOT, "%02x", value & 0xff));
++        return hex.toString();
+     }
+ 
+     /**
+      * The first 8 bytes of sys/boot.bin name the game (6 characters) and its revision (byte 7).
+-     * This port runs only the USA disc, revision 1: other revisions put the game's code elsewhere.
++     * The revision is tied to this build's translated code, not just an accepted header.
+      */
+     static String headerProblem(byte[] header) {
++        if (header == null || header.length < 8) return "The disc header is incomplete.";
+         final String id = new String(header, 0, 6, StandardCharsets.US_ASCII);
+         final int revision = header[7] & 0xFF;
+         if (!id.equals("SMNE01")) {
+             return "That is " + id.trim() + ", not New Super Mario Bros. Wii for the USA (SMNE01). "
+-                    + "This port runs only the USA disc, revision 1.";
+-        }
+-        if (revision != 1) {
++                    + "This build requires USA revision " + BuildConfig.DISC_REVISION + ".";
++        }
++        if (revision != BuildConfig.DISC_REVISION) {
+             return "That is New Super Mario Bros. Wii revision " + revision + ". This port runs only "
+-                    + "revision 1 (Dolphin shows it under Properties > Info).";
++                    + "revision " + BuildConfig.DISC_REVISION + " (Dolphin shows it under Properties > Info).";
+         }
+         return null;
+     }
+diff --git a/android/app/src/main/java/com/wither/nsmbw/AppSettings.java b/android/app/src/main/java/com/wither/nsmbw/AppSettings.java
+--- a/android/app/src/main/java/com/wither/nsmbw/AppSettings.java
++++ b/android/app/src/main/java/com/wither/nsmbw/AppSettings.java
+@@ -26,7 +26,7 @@
+         prefs = context.getSharedPreferences(FILE, Context.MODE_PRIVATE);
+     }
+ 
+-    int aspectMode() { return prefs.getInt("aspect_mode", ASPECT_FILL); }
++    int aspectMode() { return prefs.getInt("aspect_mode", BuildConfig.THOR_BUILD ? ASPECT_16_9 : ASPECT_FILL); }
+     void setAspectMode(int mode) { prefs.edit().putInt("aspect_mode", mode).commit(); }
+ 
+     float resolutionScale() { return prefs.getFloat("resolution_scale", 1f); }
+@@ -43,16 +43,16 @@
+     boolean frameGraph() { return prefs.getBoolean("frame_graph", false); }
+     void setFrameGraph(boolean on) { prefs.edit().putBoolean("frame_graph", on).commit(); }
+ 
+-    boolean touchControls() { return prefs.getBoolean("touch_controls", true); }
++    boolean touchControls() { return !BuildConfig.THOR_BUILD && prefs.getBoolean("touch_controls", true); }
+     void setTouchControls(boolean on) { prefs.edit().putBoolean("touch_controls", on).commit(); }
+ 
+     float touchOpacity() { return prefs.getFloat("touch_opacity", 0.6f); }
+     void setTouchOpacity(float opacity) { prefs.edit().putFloat("touch_opacity", opacity).commit(); }
+ 
+-    boolean motionTilt() { return prefs.getBoolean("motion_tilt", true); }
++    boolean motionTilt() { return prefs.getBoolean("motion_tilt", !BuildConfig.THOR_BUILD); }
+     void setMotionTilt(boolean on) { prefs.edit().putBoolean("motion_tilt", on).commit(); }
+ 
+-    boolean motionShake() { return prefs.getBoolean("motion_shake", true); }
++    boolean motionShake() { return prefs.getBoolean("motion_shake", !BuildConfig.THOR_BUILD); }
+     void setMotionShake(boolean on) { prefs.edit().putBoolean("motion_shake", on).commit(); }
+ 
+     boolean haptics() { return prefs.getBoolean("haptics", true); }
+diff --git a/android/app/src/main/java/com/wither/nsmbw/GameActivity.java b/android/app/src/main/java/com/wither/nsmbw/GameActivity.java
+--- a/android/app/src/main/java/com/wither/nsmbw/GameActivity.java
++++ b/android/app/src/main/java/com/wither/nsmbw/GameActivity.java
+@@ -29,6 +29,12 @@
+     /** Player 1's on-screen remote and motion (runtime/src/android/android_bridge.cpp). */
+     static native void nativeSetTouchState(int buttons, boolean shake, float tilt);
+ 
++    /** Immutable guest-thread snapshot for the lower display; no direct reads of guest RAM. */
++    static native int[] nativeReadThorState();
++    static native int[] nativeReadThorWorldMap();
++    static native int[] nativeReadThorReserve();
++    static native void nativeUseThorReserve();
++
+     /** The Display menu: aspect, render scale (480 lines per 1x), FPS counter (DisplaySettings). */
+     static native void nativeApplyDisplaySettings(int aspect, float renderScale, boolean showFps);
+ 
+@@ -55,6 +61,7 @@
+     private TouchControlsView touch;
+     private MotionInput motion;
+     private boolean nativeReady;
++    private ThorLowerScreen lowerScreen;
+     private int touchButtons;
+     private boolean touchShake, motionShake;
+     private float motionTilt;
+@@ -69,6 +76,7 @@
+             // Read by runtime/src/platform/host_platform.cpp before anything else starts.
+             Os.setenv("WIICOMPILED_RUNTIME_DIR", AppFiles.runtimeDir(this).getAbsolutePath(), true);
+             Os.setenv("WIICOMPILED_DATA_DIR", AppFiles.dataDir(this).getAbsolutePath(), true);
++            Os.setenv("NSMBW_THOR", BuildConfig.THOR_BUILD ? "1" : "0", true);
+         } catch (Exception e) {
+             Log.e(TAG, "could not prepare the game's files", e);
+             Toast.makeText(this, "Could not prepare the game's files: " + e.getMessage(), Toast.LENGTH_LONG).show();
+@@ -93,6 +101,7 @@
+         addContentView(touch, new ViewGroup.LayoutParams(
+                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
+         motion = new MotionInput(this, this);
++        if (BuildConfig.THOR_BUILD && nativeReady) lowerScreen = new ThorLowerScreen(this);
+     }
+ 
+     /** SDL is linked into libmain.so, so that one library is all there is to load. */
+@@ -144,10 +153,12 @@
+         if (motion != null) {
+             motion.start(settings.motionTilt(), settings.motionShake());
+         }
++        if (lowerScreen != null) lowerScreen.start();
+     }
+ 
+     @Override
+     protected void onPause() {
++        if (lowerScreen != null) lowerScreen.stop();
+         menuPoll.removeCallbacks(pollMenu);
+         if (motion != null) motion.stop();
+         if (touch != null) touch.release();
+@@ -172,6 +183,12 @@
+     /** SDL takes the Back key as keyboard input before onBackPressed: the Back menu gets it first. */
+     @Override
+     public boolean dispatchKeyEvent(android.view.KeyEvent event) {
++        if (BuildConfig.THOR_BUILD && nativeReady
++                && event.getKeyCode() == android.view.KeyEvent.KEYCODE_BUTTON_THUMBR) {
++            if (event.getAction() == android.view.KeyEvent.ACTION_DOWN && event.getRepeatCount() == 0)
++                nativeUseThorReserve();
++            return true;
++        }
+         if (event.getKeyCode() == android.view.KeyEvent.KEYCODE_BACK) {
+             if (event.getAction() == android.view.KeyEvent.ACTION_UP && !event.isCanceled()) {
+                 onMenu();
+@@ -186,8 +203,15 @@
+         if (inSession) {
+             nativePrepareToLeave();  // the host keeps the session's progress
+         }
++        if (BuildConfig.THOR_BUILD && getIntent().getBooleanExtra(ThorLaunchActivity.EXTRA_SESSION, false)
++                && ThorLaunchActivity.returnToLibrary(this)) {
++            finish();
++            return;
++        }
+         startActivity(new Intent(this, LauncherActivity.class)
+                 .putExtra(LauncherActivity.EXTRA_SHOW_START_MENU, true)
++                .putExtra(ThorLaunchActivity.EXTRA_SESSION,
++                        getIntent().getBooleanExtra(ThorLaunchActivity.EXTRA_SESSION, false))
+                 .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP));
+         finish();
+     }
+@@ -216,6 +240,8 @@
+         runOnUiThread(() -> {
+             final Intent intent = new Intent(this, LauncherActivity.class)
+                     .putExtra(LauncherActivity.EXTRA_RESTART_GAME, true)
++                    .putExtra(ThorLaunchActivity.EXTRA_SESSION,
++                            getIntent().getBooleanExtra(ThorLaunchActivity.EXTRA_SESSION, false))
+                     .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP);
+             startActivity(intent);
+             finish();
+@@ -224,6 +250,7 @@
+ 
+     @Override
+     protected void onDestroy() {
++        if (lowerScreen != null) lowerScreen.close();
+         if (multicastLock != null && multicastLock.isHeld()) {
+             multicastLock.release();
+         }
+@@ -287,14 +314,17 @@
+         touch.release();
+         final boolean inSession = nativeReady && nativeSessionActive();
+         final java.util.List<String> items = new java.util.ArrayList<>();
+-        items.add("Start Menu");
++        final String menuLabel = BuildConfig.THOR_BUILD
++                && getIntent().getBooleanExtra(ThorLaunchActivity.EXTRA_SESSION, false)
++                ? "Main Menu" : "Start Menu";
++        items.add(menuLabel);
+         if (inSession) items.add("Leave LAN Game");
+         items.add("Quit Game");
+         new AlertDialog.Builder(this)
+                 .setTitle("New Super Mario Bros. Wii")
+                 .setItems(items.toArray(new String[0]), (dialog, which) -> {
+                     final String item = items.get(which);
+-                    if (item.equals("Start Menu")) openStartMenu(inSession);
++                    if (item.equals(menuLabel)) openStartMenu(inSession);
+                     else if (item.equals("Leave LAN Game")) leaveSession();
+                     else finish();
+                 })
+diff --git a/android/app/src/main/java/com/wither/nsmbw/LauncherActivity.java b/android/app/src/main/java/com/wither/nsmbw/LauncherActivity.java
+--- a/android/app/src/main/java/com/wither/nsmbw/LauncherActivity.java
++++ b/android/app/src/main/java/com/wither/nsmbw/LauncherActivity.java
+@@ -53,7 +53,7 @@
+     static final String PROJECT_URL = "https://github.com/WitherBlitz/NSMB-Wii-Multiplayer-Recompilation";
+ 
+     private static final String DOLPHIN_STEPS =
+-            "Use your own USA New Super Mario Bros. Wii (SMNE01, revision 1). Easiest: in Dolphin on a "
++            "Use your own USA New Super Mario Bros. Wii (SMNE01, revision " + BuildConfig.DISC_REVISION + "). Easiest: in Dolphin on a "
+             + "computer, right-click the game, choose Properties, Filesystem, then right-click the disc and "
+             + "choose Extract Entire Disc. Copy that folder (or a zip of it) to this phone and tap Import. "
+             + "Dolphin shows the revision under Properties > Info.";
+@@ -65,6 +65,11 @@
+     private Button play;
+     private View steps;
+     private final Handler main = new Handler(Looper.getMainLooper());
++
++    private Intent gameIntent() {
++        return new Intent(this, GameActivity.class).putExtra(ThorLaunchActivity.EXTRA_SESSION,
++                getIntent() != null && getIntent().getBooleanExtra(ThorLaunchActivity.EXTRA_SESSION, false));
++    }
+ 
+     @Override
+     protected void onCreate(Bundle savedInstanceState) {
+@@ -76,7 +81,7 @@
+         final boolean asked = launch != null && (launch.getBooleanExtra(EXTRA_SHOW_START_MENU, false)
+                 || launch.getBooleanExtra(EXTRA_RESTART_GAME, false));
+         if (savedInstanceState == null && !asked && settings.skipStartMenu() && AppFiles.gameReady(this)) {
+-            startActivity(new Intent(this, GameActivity.class));
++            startActivity(gameIntent());
+             overridePendingTransition(0, 0);
+             finish();
+             return;
+@@ -107,7 +112,7 @@
+         column.addView(status);
+ 
+         play = button("Play");
+-        play.setOnClickListener(v -> startActivity(new Intent(this, GameActivity.class)));
++        play.setOnClickListener(v -> startActivity(gameIntent()));
+         column.addView(play);
+ 
+         skip = button("");
+@@ -144,7 +149,7 @@
+                 + "2. Open Filesystem, right-click the disc at the top and choose Extract Entire Disc.\n"
+                 + "3. Copy that folder (or a zip of it) to this phone.\n"
+                 + "4. Tap Import from Extracted Game Data Folder… or Import Game Data Zip… below and choose it.\n\n"
+-                + "Use the USA disc, revision 1 (SMNE01): Dolphin shows the revision under Properties > Info.", 15);
++                + "Use the USA disc, revision " + BuildConfig.DISC_REVISION + " (SMNE01): Dolphin shows the revision under Properties > Info.", 15);
+         stepsText.setGravity(Gravity.START);
+         stepsText.setPadding(0, dp(6), 0, 0);
+         stepsText.setLineSpacing(dp(3), 1f);
+@@ -192,7 +197,7 @@
+         }
+         intent.removeExtra(EXTRA_RESTART_GAME);
+         status.setText("Starting the LAN game...");
+-        main.postDelayed(() -> startActivity(new Intent(this, GameActivity.class)), 700);
++        main.postDelayed(() -> startActivity(gameIntent()), 700);
+     }
+ 
+     @Override
+diff --git a/android/app/src/main/java/com/wither/nsmbw/ThorGameState.java b/android/app/src/main/java/com/wither/nsmbw/ThorGameState.java
+new file mode 100644
+--- /dev/null
++++ b/android/app/src/main/java/com/wither/nsmbw/ThorGameState.java
+@@ -0,0 +1,26 @@
++package com.wither.nsmbw;
++
++/** Read-only lower-display data. Field validity is explicit; unavailable is never a fake zero. */
++public final class ThorGameState {
++    public static final int SCENE = 1, COURSE = 2, PLAYER_ONE = 4, TIMER = 8, STOP_FLAGS = 16,
++            PROGRESS = 32, STAR_COINS = 64, SCORE = 128, SAVED_STAR_COINS = 256;
++    public final long sequence;
++    public final int fields, scene, mode, world, stage, character, lives, coins, seconds;
++    public final boolean gameStopped;
++    public final int progress, starCoins, savedStarCoins, score, area, checkpoint, playerXQ4, areaWidthQ4;
++
++    private ThorGameState(int[] data) {
++        sequence = Integer.toUnsignedLong(data[1]);
++        fields = data[2]; scene = data[3]; mode = data[4]; world = data[5]; stage = data[6];
++        character = data[7]; lives = data[8]; coins = data[9]; seconds = data[10]; gameStopped = data[11] != 0;
++        progress = data[12]; starCoins = data[13]; savedStarCoins = data[14]; score = data[15];
++        area = data[16]; checkpoint = data[17]; playerXQ4 = data[18]; areaWidthQ4 = data[19];
++    }
++    public boolean has(int field) { return (fields & field) == field; }
++
++    /** Call after SDL loaded the native library. Data is copied under a short native mutex. */
++    public static ThorGameState read() {
++        final int[] data = GameActivity.nativeReadThorState();
++        return data != null && data.length == 20 && data[0] == 2 ? new ThorGameState(data) : null;
++    }
++}
+diff --git a/android/app/src/main/java/com/wither/nsmbw/ThorLaunchActivity.java b/android/app/src/main/java/com/wither/nsmbw/ThorLaunchActivity.java
+new file mode 100644
+--- /dev/null
++++ b/android/app/src/main/java/com/wither/nsmbw/ThorLaunchActivity.java
+@@ -0,0 +1,53 @@
++package com.wither.nsmbw;
++
++import android.app.Activity;
++import android.content.ActivityNotFoundException;
++import android.content.ComponentName;
++import android.content.Intent;
++import android.os.Bundle;
++import android.widget.Toast;
++
++/** Entry point for the existing Thor Wii launcher. No native library is loaded in this process. */
++public final class ThorLaunchActivity extends Activity {
++    static final String EXTRA_SESSION = "thor_launcher_session";
++    private static final String ACTION_PLAY = "dev.thor.launcher.action.PLAY_GAME";
++    private static final ComponentName HOME = new ComponentName(
++            "com.driftdroid.android.thor", "com.driftdroid.android.ModePickerActivity");
++
++    @Override protected void onCreate(Bundle state) {
++        super.onCreate(state);
++        final Intent request = getIntent();
++        if (!BuildConfig.THOR_BUILD || request == null
++                || !ACTION_PLAY.equals(request.getAction())
++                || request.getIntExtra("thor_protocol", 0) != 1
++                || !"nsmbw".equals(request.getStringExtra("thor_game"))) {
++            finish();
++            return;
++        }
++        // Validation includes hashing main.dol. Do file work before handing off to SDL's :game.
++        new Thread(() -> {
++            final boolean ready = AppFiles.gameReady(this);
++            runOnUiThread(() -> {
++                if (isFinishing() || isDestroyed()) return;
++                final Intent next = new Intent(this, ready ? GameActivity.class : LauncherActivity.class)
++                        .putExtra(EXTRA_SESSION, true);
++                if (!ready) next.putExtra(LauncherActivity.EXTRA_SHOW_START_MENU, true);
++                startActivity(next);
++                finish();
++            });
++        }, "ThorNsmbwLaunch").start();
++    }
++
++    /** The target is fixed: callers cannot request an arbitrary package or component. */
++    static boolean returnToLibrary(Activity activity) {
++        try {
++            activity.startActivity(new Intent(Intent.ACTION_MAIN).setComponent(HOME)
++                    .addCategory(Intent.CATEGORY_LAUNCHER)
++                    .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_REORDER_TO_FRONT | Intent.FLAG_ACTIVITY_SINGLE_TOP));
++            return true;
++        } catch (ActivityNotFoundException | SecurityException unavailable) {
++            Toast.makeText(activity, "The Thor Wii launcher is unavailable.", Toast.LENGTH_LONG).show();
++            return false;
++        }
++    }
++}
+diff --git a/runtime/include/nsmbw_disc_revision.h b/runtime/include/nsmbw_disc_revision.h
+new file mode 100644
+--- /dev/null
++++ b/runtime/include/nsmbw_disc_revision.h
+@@ -0,0 +1,13 @@
++#pragma once
++
++#include <cstdint>
++
++// E1 is the upstream default. Thor E2 must opt in at compile time and translate
++// the matching owner-supplied E2 DOL/REL inputs with recomp-e2.yml.
++#if defined(NSMBW_DISC_REVISION_E2) && NSMBW_DISC_REVISION_E2
++inline constexpr uint32_t kNsmbwDiscRevision = 2;
++inline constexpr uint32_t NsmbwRevisionAddress(uint32_t e1, uint32_t e2) { return e2; }
++#else
++inline constexpr uint32_t kNsmbwDiscRevision = 1;
++inline constexpr uint32_t NsmbwRevisionAddress(uint32_t e1, uint32_t e2) { return e1; }
++#endif
+diff --git a/runtime/include/thor_state.h b/runtime/include/thor_state.h
+new file mode 100644
+--- /dev/null
++++ b/runtime/include/thor_state.h
+@@ -0,0 +1,12 @@
++#pragma once
++#include <array>
++#include <cstddef>
++#include <cstdint>
++
++namespace ThorState {
++inline constexpr size_t kFieldCount = 20;
++using Snapshot = std::array<int32_t, kFieldCount>;
++// Capture on the guest thread only. Android receives a copy, never guest RAM.
++void Capture();
++Snapshot Read();
++}
+diff --git a/runtime/src/thor_state.cpp b/runtime/src/thor_state.cpp
+new file mode 100644
+--- /dev/null
++++ b/runtime/src/thor_state.cpp
+@@ -0,0 +1,183 @@
++#include "thor_state.h"
++#include "memory.h"
++#include <cstdlib>
++#include <algorithm>
++#include <bit>
++#include <cmath>
++#include <mutex>
++#include <string_view>
++
++namespace ThorState {
++namespace {
++std::mutex mutex;
++Snapshot published{};
++uint32_t sequence = 0;
++bool Word(uint32_t address, uint32_t& value) { return Memory::TryRead32(address, value); }
++bool Pointer(uint32_t p, size_t size) {
++    return p >= 0x80000000u && (p & 3u) == 0 &&
++        static_cast<uint64_t>(p) + size <= 0x81800000ull && Memory::Contains(p, size);
++}
++bool CourseDataPointer(uint32_t p, size_t size) {
++    // Stage archives are allocated in cached MEM2 on the real E1 runtime.
++    // Actor/manager pointers remain MEM1-only; only the course-data array may
++    // use either cached RAM bank, still checked against actual mapped memory.
++    const bool mem2 = p >= Memory::kMem2CachedBase && (p & 3u) == 0 &&
++        static_cast<uint64_t>(p) + size <= Memory::kMem2CachedEnd;
++    return Pointer(p, size) || (mem2 && Memory::Contains(p, size));
++}
++bool Byte(uint32_t a, uint32_t& value) {
++    uint32_t word = 0;
++    if (!Word(a & ~3u, word)) return false;
++    value = (word >> (24u - (a & 3u) * 8u)) & 255u;
++    return true;
++}
++bool Float(uint32_t a, float& value) {
++    uint32_t word = 0;
++    if (!Word(a, word)) return false;
++    value = std::bit_cast<float>(word);
++    return std::isfinite(value);
++}
++// daPyMng::getPlayer -> fBase registry, not a guessed direct object pointer.
++// Canonical E1 8005F900 / 80162D00 / 80162C30. Bound traversal rejects bad cycles.
++uint32_t PlayerOne() {
++    uint32_t id = 0, node = 0;
++    if (!Word(0x80354E10u, id) || id == 0 || id == 0xffffffffu ||
++        !Word(0x80377A70u + (id & 7u) * 8u, node)) return 0;
++    for (unsigned i = 0; node && i < 4096; ++i) {
++        uint32_t object = 0, actualId = 0, next = 0;
++        if (!Pointer(node, 12) || !Word(node + 8u, object) ||
++            !Pointer(object, 180) || !Word(object, actualId)) return 0;
++        if (actualId == id) return object;
++        if (!Word(node + 4u, next) || next == node) return 0;
++        node = next;
++    }
++    return 0;
++}
++void CourseExtras(Snapshot& next, uint32_t mode) {
++    // Scene 5 becomes current before stage actors and run globals are ready.
++    // BSS ownership zeroes are valid player indices, so never interpret them
++    // until both the active stage and actual player object have been resolved.
++    uint32_t stage = 0;
++    if (!Word(0x8042A1C8u, stage) || !Pointer(stage, 4624)) return;
++    const uint32_t player = PlayerOne();
++    if (!player) return;
++    uint32_t mask = 0;
++    bool starsValid = true;
++    // Original HUD setCollectCoin (80159AF0): 4 is uncollected; 0..3 own it.
++    for (unsigned i = 0; i < 3; ++i) {
++        uint32_t owner = 0;
++        if (!Word(0x803741B0u + i * 4u, owner) || owner > 4) starsValid = false;
++        else if (owner < 4) mask |= 1u << i;
++    }
++    if (starsValid) { next[2] |= 64; next[13] = static_cast<int32_t>(mask); }
++    uint32_t score = 0;
++    if (Word(0x80429CC0u, score) && score <= 999999999u) {
++        next[2] |= 128; next[15] = static_cast<int32_t>(score);
++    }
++    // Same loaded course pair and selected-save chain the original HUD reads.
++    uint32_t world = 0, course = 0, header = 0, slot = 0, flags = 0;
++    if (mode == 0 && Byte(stage + 4620u, world) && world < 10 &&
++        Byte(stage + 4621u, course) && course < 42 &&
++        Word(0x8042A040u, header) && Pointer(header, 40) &&
++        Byte(header + 38u, slot) && slot < 3) {
++        const uint32_t flagsAddress = header + slot * 2432u + 1728u + world * 168u + course * 4u + 108u;
++        if (Pointer(flagsAddress, 4) && Word(flagsAddress, flags)) {
++            next[2] |= 256; next[14] = static_cast<int32_t>(flags & 7u);
++        }
++    }
++    uint32_t file = 0, zoneId = 0, cd = 0, zones = 0, count = 0;
++    if (!Byte(stage + 4622u, file) || file >= 4 || !Byte(stage + 4623u, zoneId) ||
++        !Word(0x80429E98u, cd) || !Pointer(cd, 3776)) return;
++    const uint32_t cdFile = cd + file * 944u;
++    if (!Word(cdFile + 44u, zones) || !Word(cdFile + 156u, count) ||
++        count == 0 || count > 256 || !CourseDataPointer(zones, count * 24u)) return;
++    float x = 0, y = 0;
++    if (!Float(player + 172u, x) || !Float(player + 176u, y)) return;
++    // getAreaDataP 8008E410: real active-area x/y/width/height, 24-byte records.
++    for (uint32_t i = 0; i < count; ++i) {
++        const uint32_t record = zones + i * 24u;
++        uint32_t id = 0, xy = 0, wh = 0;
++        if (!Byte(record + 12u, id) || id != zoneId) continue;
++        if (!Word(record, xy) || !Word(record + 4u, wh)) return;
++        const float left = static_cast<float>(xy >> 16);
++        const float top = -static_cast<float>(xy & 65535u);
++        const float width = static_cast<float>(wh >> 16);
++        const float height = static_cast<float>(wh & 65535u);
++        // A horizontal strip cannot truthfully summarize a vertical/square area.
++        // Permit the small entry/goal margins used by the original stage actors.
++        if (width < 32 || height < 16 || width <= height ||
++            x < left - 64 || x > left + width + 64 || y > top + 128 || y < top - height - 128) return;
++        next[2] |= 32;
++        next[12] = static_cast<int32_t>(std::lround(std::clamp((x - left) / width, 0.0f, 1.0f) * 1000));
++        next[16] = static_cast<int32_t>(zoneId);
++        next[18] = static_cast<int32_t>(std::lround(x * 16));
++        next[19] = static_cast<int32_t>(std::lround(width * 16));
++        return;
++    }
++}
++}
++
++void Capture() {
++    static const bool enabled = [] {
++        const char* value = std::getenv("NSMBW_THOR");
++        return value && std::string_view(value) == "1";
++    }();
++    if (!enabled) return;
++    // [schema, sequence, fields, scene, mode, world, stage, character, lives, coins, time, paused]
++    // All optional values start unavailable. This does not change or hide the original Wii HUD.
++    Snapshot next{2, static_cast<int32_t>(++sequence), 0, -1, -1, -1, -1, -1, -1, -1, -1, 0,
++        -1, -1, -1, -1, -1, -1, -1, -1};
++    uint32_t scene = 0, mode = 0;
++    if (Word(0x80428730u, scene) && (scene & 0xffffu) < 0x300u) {
++        next[2] |= 1;
++        next[3] = static_cast<int32_t>(scene & 0xffffu);
++    }
++    // STAGE (5) is also the title screen. m_startGameInfo.mGameMode 2/3 are title/replay.
++    // Every global below is unchanged in the strict E1 -> E2 map's
++    // 800e0d20-807683f6 +0 range; see build/nsmbw-thor/address-map.txt [E2].
++    // See private owner-generated telemetry evidence for field semantics.
++    const bool modeRead = next[3] == 5 && Word(0x80315B98u, mode) && mode < 4;
++    if (modeRead) next[4] = static_cast<int32_t>(mode);
++    const bool stage = modeRead && mode < 2;
++    if (stage) {
++        CourseExtras(next, mode);
++        uint32_t course = 0;
++        if (Word(0x80315B9Cu, course) && ((course >> 24) & 0xffu) < 9) {
++            next[2] |= 2;
++            // StartGameInfo's shown pair is distinct from the internally loaded course.
++            next[5] = static_cast<int32_t>((course >> 24) & 0xffu); // shown world, +0xC
++            next[6] = static_cast<int32_t>((course >> 16) & 0xffu); // shown stage, +0xD
++        }
++        // getCoinAll (80060200), decRest (80060600): type[player] selects the character arrays.
++        uint32_t character = 0, lives = 0, coins = 0;
++        if (Word(0x80354E60u, character) && character < 4 &&
++            Word(0x80354E90u + character * 4u, lives) && lives <= 99 &&
++            Word(0x80354EA0u + character * 4u, coins) && coins <= 99) {
++            next[2] |= 4;
++            next[7] = static_cast<int32_t>(character);
++            next[8] = static_cast<int32_t>(lives);
++            next[9] = static_cast<int32_t>(coins);
++        }
++        // dTimer: createInstance 800E3870 -> global; execute 800E3930 rounds Q12 up for display.
++        uint32_t timer = 0, remaining = 0;
++        if (Word(0x8042A070u, timer) && timer >= 0x80000000u && timer < 0x817ffff0u &&
++            (timer & 3u) == 0 && Memory::Contains(timer, 12) && Word(timer + 4u, remaining) &&
++            remaining <= (999u << 12)) {
++            next[2] |= 8;
++            next[10] = static_cast<int32_t>((remaining + 4095u) >> 12);
++        }
++        uint32_t stop = 0;
++        if (Word(0x80429F48u, stop)) {
++            next[2] |= 16;
++            next[11] = (stop & 5u) != 0 ? 1 : 0;
++        }
++    }
++    std::lock_guard<std::mutex> lock(mutex);
++    published = next;
++}
++
++Snapshot Read() {
++    std::lock_guard<std::mutex> lock(mutex);
++    return published;
++}
++}
+diff --git a/runtime/src/android/android_bridge.cpp b/runtime/src/android/android_bridge.cpp
+--- a/runtime/src/android/android_bridge.cpp
++++ b/runtime/src/android/android_bridge.cpp
+@@ -6,6 +6,9 @@
+ #include "runtime_config.h"
+ #include "settings_overlay.h"
+ #include "virtual_remote.h"
++#include "thor_state.h"
++#include "thor_world_map.h"
++#include "thor_reserve.h"
+ 
+ #include "netplay/net_socket.h"
+ #include "netplay_session.h"
+@@ -46,6 +49,41 @@
+ } // namespace AndroidBridge
+ 
+ extern "C" {
++
++JNIEXPORT jintArray JNICALL Java_com_wither_nsmbw_GameActivity_nativeReadThorState(JNIEnv* env, jclass)
++{
++    const auto state = ThorState::Read();
++    if (state[0] != 2) return nullptr;
++    jintArray result = env->NewIntArray(static_cast<jsize>(state.size()));
++    if (result) env->SetIntArrayRegion(result, 0, static_cast<jsize>(state.size()), state.data());
++    return result;
++}
++
++JNIEXPORT jintArray JNICALL Java_com_wither_nsmbw_GameActivity_nativeReadThorWorldMap(JNIEnv* env, jclass)
++{
++    const auto words = ThorWorldMap::ReadWords();
++    jintArray result = env->NewIntArray(static_cast<jsize>(words.size()));
++    if (result) env->SetIntArrayRegion(result, 0, static_cast<jsize>(words.size()), words.data());
++    return result;
++}
++
++JNIEXPORT jintArray JNICALL Java_com_wither_nsmbw_GameActivity_nativeReadThorReserve(JNIEnv* env, jclass)
++{
++    const auto words = ThorReserve::ReadWords();
++    jintArray result = env->NewIntArray(static_cast<jsize>(words.size()));
++    if (result) env->SetIntArrayRegion(result, 0, static_cast<jsize>(words.size()), words.data());
++    return result;
++}
++
++JNIEXPORT void JNICALL Java_com_wither_nsmbw_GameActivity_nativeUseThorReserve(JNIEnv*, jclass)
++{
++    // The reserve's stage callback is not run on the world map. Gate this UI
++    // request with the continuously published scene so a stale canUse flag
++    // cannot queue a redemption for the next course.
++    const auto state = ThorState::Read();
++    if (state[0] == 2 && (state[2] & 2) != 0 && state[4] == 0)
++        ThorReserve::RequestUse();
++}
+ 
+ // GameActivity.nativeSetTouchState: the on-screen remote (VirtualRemote::TouchButton bits) and the
+ // phone's motion (shake, tilt -1..1) for player 1. Called from the UI thread on every change.
+diff --git a/runtime/src/guest_profiler.cpp b/runtime/src/guest_profiler.cpp
+--- a/runtime/src/guest_profiler.cpp
++++ b/runtime/src/guest_profiler.cpp
+@@ -1,3 +1,4 @@
++#include "nsmbw_disc_revision.h"
+ // NSMBW_PROFILE=<start s>:<length s> (Windows): a sampling profiler for the game thread. From
+ // <start> seconds after the first presented frame, for <length> seconds, the thread that presents
+ // frames is suspended about a thousand times a second and its instruction pointer recorded. At the
+@@ -51,7 +52,7 @@
+             uint32_t total) {
+     // Every translated function's host entry point, sorted, to find which one a sample falls in.
+     std::vector<Entry> entries;
+-    for (const auto& [lo, hi] : {std::pair{0x80004000u, 0x80340000u}, std::pair{0x807684C0u, 0x80B8E340u}}) {
++    for (const auto& [lo, hi] : {std::pair{0x80004000u, 0x80340000u}, std::pair{NsmbwRevisionAddress(0x807684C0u, 0x80768500u), NsmbwRevisionAddress(0x80B8E340u, 0x80B8E360u)}}) {
+         for (uint32_t address = lo; address < hi; address += 4) {
+             if (const TranslatedFunctionInfo* info = TranslatedFunctionRegistry::FindByAddressPtr(address);
+                 info != nullptr && info->entryPoint != nullptr && info->address == address) {
+diff --git a/runtime/src/hle/vi.cpp b/runtime/src/hle/vi.cpp
+--- a/runtime/src/hle/vi.cpp
++++ b/runtime/src/hle/vi.cpp
+@@ -1,3 +1,6 @@
++#include "nsmbw_disc_revision.h"
++#include "thor_state.h"
++#include "thor_world_map.h"
+ #include "frame_input.h"
+ #include "det_hash.h"
+ #include "timebase_contract.h"
+@@ -420,10 +423,10 @@
+ void LogGuestModulesOnce() {
+     struct ExpectedModule { uint32_t id; const char* name; uint32_t image; uint32_t bss; };
+     static constexpr ExpectedModule kExpected[] = {
+-        {1, "d_profileNP", 0x807684C0u, 0x8076D460u},
+-        {2, "d_basesNP", 0x8076D680u, 0x80990820u},
+-        {3, "d_enemiesNP", 0x809A2CC0u, 0x80B11440u},
+-        {4, "d_en_bossNP", 0x80B1C940u, 0x80B89AC0u},
++        {1, "d_profileNP", NsmbwRevisionAddress(0x807684C0u, 0x80768500u), NsmbwRevisionAddress(0x8076D460u, 0x8076D4A0u)},
++        {2, "d_basesNP", NsmbwRevisionAddress(0x8076D680u, 0x8076D6C0u), NsmbwRevisionAddress(0x80990820u, 0x80990840u)},
++        {3, "d_enemiesNP", NsmbwRevisionAddress(0x809A2CC0u, 0x809A2CE0u), NsmbwRevisionAddress(0x80B11440u, 0x80B11460u)},
++        {4, "d_en_bossNP", NsmbwRevisionAddress(0x80B1C940u, 0x80B1C960u), NsmbwRevisionAddress(0x80B89AC0u, 0x80B89AE0u)},
+     };
+     static uint32_t s_reported = 0;  // one bit per module id
+     if (s_reported == 0x1Eu) {
+@@ -505,6 +508,8 @@
+     StartStallWatchdogOnce();
+     LogGuestModulesOnce();
+     LogSceneChanges();
++    ThorState::Capture();
++    ThorWorldMap::Capture();
+ 
+     uint32_t preCb = 0;
+     uint32_t postCb = 0;
+diff --git a/runtime/src/netplay/game_menus.cpp b/runtime/src/netplay/game_menus.cpp
+--- a/runtime/src/netplay/game_menus.cpp
++++ b/runtime/src/netplay/game_menus.cpp
+@@ -1,3 +1,4 @@
++#include "nsmbw_disc_revision.h"
+ #include "netplay/game_menus.h"
+ 
+ #include "memory.h"
+@@ -27,18 +28,18 @@
+ constexpr uint32_t kFileSelectCursor = 0x2A4;
+ 
+ // dSelectPlayer_c::StateID_* (d_basesNP .bss, fixed by the pre-linked layout).
+-constexpr uint32_t kSpStartWait = 0x809953C0u;
+-constexpr uint32_t kSpOnStage = 0x80995400u;
+-constexpr uint32_t kSpInfoOnStage = 0x80995440u;
+-constexpr uint32_t kSpButtonChange = 0x80995480u;
+-constexpr uint32_t kSpSelect = 0x809954C0u;
+-constexpr uint32_t kSpMultiSelect = 0x80995500u;
+-constexpr uint32_t kSpButtonAnime = 0x80995540u;
+-constexpr uint32_t kSpExit = 0x80995580u;
++constexpr uint32_t kSpStartWait = NsmbwRevisionAddress(0x809953C0u, 0x809953E0u);
++constexpr uint32_t kSpOnStage = NsmbwRevisionAddress(0x80995400u, 0x80995420u);
++constexpr uint32_t kSpInfoOnStage = NsmbwRevisionAddress(0x80995440u, 0x80995460u);
++constexpr uint32_t kSpButtonChange = NsmbwRevisionAddress(0x80995480u, 0x809954A0u);
++constexpr uint32_t kSpSelect = NsmbwRevisionAddress(0x809954C0u, 0x809954E0u);
++constexpr uint32_t kSpMultiSelect = NsmbwRevisionAddress(0x80995500u, 0x80995520u);
++constexpr uint32_t kSpButtonAnime = NsmbwRevisionAddress(0x80995540u, 0x80995560u);
++constexpr uint32_t kSpExit = NsmbwRevisionAddress(0x80995580u, 0x809955A0u);
+ // dCourseSelectMenu_c's and Pausewindow_c's current StateID (it names itself at +4).
+ constexpr uint32_t kPauseMenuState = 0x234;
+ // dFileSelect_c::StateID_SelectWait.
+-constexpr uint32_t kFsSelectWait = 0x80992050u;
++constexpr uint32_t kFsSelectWait = NsmbwRevisionAddress(0x80992050u, 0x80992070u);
+ 
+ uint32_t Find(uint16_t profile) {
+     uint32_t node = 0;
+diff --git a/runtime/src/system_bridge.cpp b/runtime/src/system_bridge.cpp
+--- a/runtime/src/system_bridge.cpp
++++ b/runtime/src/system_bridge.cpp
+@@ -1,3 +1,4 @@
++#include "nsmbw_disc_revision.h"
+ #include "system_bridge.h"
+ 
+ #include <cctype>
+@@ -521,7 +522,7 @@
+     // Retro-WFC payload URL, and OSGetAppGamename reads the app code mirrors
+     // at 0x80003180/0x80003194 while building NAS auth fields.
+     entries.push_back({0x80000000u, 0x534D4E45u, "Disc game code"}); // SMNE
+-    entries.push_back({0x80000004u, 0x30310001u, "Disc maker/id"});  // "01", disc 0, version 1 (boot.bin)
++    entries.push_back({0x80000004u, 0x30310000u | kNsmbwDiscRevision, "Disc maker/id"});  // "01", disc 0, selected revision (boot.bin)
+     entries.push_back({0x80003180u, 0x534D4E45u, "OS app game code"}); // SMNE
+     entries.push_back({0x80003194u, 0x534D4E45u, "OS app gamename"});  // SMNE
+     // NSMBW's OSInit (newer SDK than Mario Kart's) compares the running IOS (0x80003140) with the
+diff --git a/runtime/include/fiber_manager.h b/runtime/include/fiber_manager.h
+--- a/runtime/include/fiber_manager.h
++++ b/runtime/include/fiber_manager.h
+@@ -82,6 +82,8 @@
+     
+     // Get the currently running guest thread address (0 if in scheduler)
+     static uint32_t GetCurrentGuestThread();
++    // True once any guest thread is registered; scheduler context alone is not bootstrap.
++    static bool HasRegisteredGuestThreads();
+     
+     // Get fiber info for a guest thread (may be null)
+     static GuestFiber* GetFiber(uint32_t guestThreadAddr);
+diff --git a/runtime/src/fiber_manager.cpp b/runtime/src/fiber_manager.cpp
+--- a/runtime/src/fiber_manager.cpp
++++ b/runtime/src/fiber_manager.cpp
+@@ -456,6 +456,12 @@
+ 
+ uint32_t GuestFiberManager::GetCurrentGuestThread() {
+     return s_currentGuestThread;
++}
++
++bool GuestFiberManager::HasRegisteredGuestThreads() {
++    std::unique_lock<std::mutex> lock(s_mutex, std::try_to_lock);
++    // Contention cannot establish bootstrap, so keep deferred callback timing.
++    return !lock.owns_lock() || !s_fibers.empty();
+ }
+ 
+ GuestFiber* GuestFiberManager::GetFiber(uint32_t guestThreadAddr) {
+diff --git a/runtime/src/hle/ios.cpp b/runtime/src/hle/ios.cpp
+--- a/runtime/src/hle/ios.cpp
++++ b/runtime/src/hle/ios.cpp
+@@ -5,6 +5,7 @@
+ #include "hle_stubs.h"
+ #include "memory.h"
+ #include "hle/net/network.h"
++#include "fiber_manager.h"
+ 
+ #include <cstdint>
+ #include <cstdio>
+@@ -38,6 +39,14 @@
+ {
+     NandQueueIosCallback(callback, result, callbackArg);
+     SetIosReturn(ctx, 0);
++    // Before the guest scheduler/VI exists, SDK callers may busy-poll completion.
++    // There is no alarm/interrupt pump yet. Deliver the backend's actual result
++    // on the existing scratch-context dispatcher instead of stranding the queue.
++    // Once a guest thread exists, retain the normal deferred completion timing.
++    if (Fiber::GuestFiberManager::GetCurrentGuestThread() == 0 &&
++        !Fiber::GuestFiberManager::HasRegisteredGuestThreads()) {
++        NandProcessPendingCallbacks(ctx, 64);
++    }
+ }
+ 
+ // Shared network-fd body of IOS_IoctlAsync / IOS_IoctlvAsync. Returns false when
+diff --git a/runtime/src/main.cpp b/runtime/src/main.cpp
+--- a/runtime/src/main.cpp
++++ b/runtime/src/main.cpp
+@@ -1625,6 +1625,20 @@
+         currentEntryLabel = label;
+         g_lastEntryLabel = currentEntryLabel;
+ 
++#if defined(__ANDROID__)
++        // Opt-in diagnostics for stalls before VI starts its own watchdog.
++        char bootWatch[PROP_VALUE_MAX] = {};
++        if (__system_property_get("debug.nsmbw.bootwatch", bootWatch) > 0 && std::string_view(bootWatch) == "1") {
++            std::thread([] {
++                std::this_thread::sleep_for(std::chrono::seconds(5));
++                RT_LOG(RT_TAG_RUNTIME) << "[bootwatch] persistent boot context (diagnostic sample)" << std::endl;
++                SystemBridge::DumpCpuState(&GetPersistentCpuContext());
++                SystemBridge::DumpGuestStack(std::cerr, &GetPersistentCpuContext());
++                Fiber::GuestFiberManager::DumpGuestThreads(std::cerr);
++            }).detach();
++        }
++#endif
++
+         InvokeIndirectCpu(entry->address, &cpu);
+         const uint32_t result = cpu.gpr[3];
+         RT_LOG(RT_TAG_RUNTIME) << label << " => 0x" << std::hex << result << std::dec << " (" << result << ")" << std::endl;
+diff --git a/projects/nsmbw/recomp.yml b/projects/nsmbw/recomp.yml
+--- a/projects/nsmbw/recomp.yml
++++ b/projects/nsmbw/recomp.yml
+@@ -1,7 +1,10 @@
+-﻿schema_version: 1
++schema_version: 1
+ workspace_root: ../..
+ 
+ # New Super Mario Bros. Wii, North America rev 1 (SMNE01 v1).
++# Thor clean-disc profile: Redump whole-disc SHA1 aa7b134a7606435ddcd735f2964ebdecde38c2ef.
++# Overrides the upstream input assumption 6d755ec24c395fee600a856a85785e0e99c0b7ecb680d573a6cdd1aa6f7beee7.
++# Translate this exact clean DOL again; upstream generated output is not reusable.
+ # The four boot RELs are pre-linked offline by E:\NSMBWPort\tools\prelink_rels.py into one
+ # synthetic REL whose image starts at d_profileNP's heap address (see nsmbw_rel_layout.json).
+ project:
+@@ -21,7 +24,7 @@
+ inputs:
+   dol:
+     path: ../game/main.dol
+-    sha256: 6d755ec24c395fee600a856a85785e0e99c0b7ecb680d573a6cdd1aa6f7beee7
++    sha256: 166eb6b7cca21418e316a6cfbf1bfbf0a213eb8f6396d42126a1482bb764a955
+   rel:
+     path: ../game/nsmbw_linked.rel
+     load_address: 0x807684C0
+diff --git a/projects/nsmbw/tools/unpack_game.py b/projects/nsmbw/tools/unpack_game.py
+--- a/projects/nsmbw/tools/unpack_game.py
++++ b/projects/nsmbw/tools/unpack_game.py
+@@ -14,7 +14,16 @@
+ from pathlib import Path
+ 
+ RELS = ("d_profileNP", "d_basesNP", "d_enemiesNP", "d_en_bossNP")
+-MAIN_DOL_SHA256 = "6d755ec24c395fee600a856a85785e0e99c0b7ecb680d573a6cdd1aa6f7beee7"
++# Thor clean E1 profile: independently DTK/NKit extracted from the owner's Redump-verified disc.
++# Upstream assumed 6d755ec24c395fee600a856a85785e0e99c0b7ecb680d573a6cdd1aa6f7beee7; its differing bytes are not established.
++# The corrected pin requires an entirely new translation; never reuse the upstream generated game code.
++MAIN_DOL_SHA256 = "166eb6b7cca21418e316a6cfbf1bfbf0a213eb8f6396d42126a1482bb764a955"
++REL_SHA256 = {
++    "d_profileNP": "f04ca9636e20feb5bdacdb8a1115a2b4a71e99f5091df56b4099ae8ea36c7eaf",
++    "d_basesNP": "66b51efac566aead05e4b2351f64800ca54cd38aa93d8d1c9961a054f2854ebb",
++    "d_enemiesNP": "9896eab47a57ee0d3e2644393dd4c35e81171662da020fdb6bebc9307a4a9283",
++    "d_en_bossNP": "ca28f19ed9fa1a16d5bca7260e9e0127ecd0a964697531da16747d8edffac124",
++}
+ DEFAULT_OUT = Path(__file__).resolve().parents[3].parent / "game"
+ 
+ 
+@@ -72,16 +81,22 @@
+     root = find_root(Path(sys.argv[1]))
+     out = Path(sys.argv[2]) if len(sys.argv) > 2 else DEFAULT_OUT
+     header = (root / "sys" / "boot.bin").read_bytes()[:8]
++    if len(header) != 8:
++        sys.exit("sys/boot.bin is incomplete; USA SMNE01 revision 1 is required")
+     if header[:6] != b"SMNE01" or header[7] != 1:
+         sys.exit(f"this is {header[:6].decode('ascii', 'replace')} revision {header[7]}; "
+                  "the port needs New Super Mario Bros. Wii SMNE01 revision 1")
+     dol = (root / "sys" / "main.dol").read_bytes()
+     if hashlib.sha256(dol).hexdigest() != MAIN_DOL_SHA256:
+-        sys.exit("sys/main.dol differs from the clean SMNE01 rev 1 executable (modified game?)")
++        sys.exit("sys/main.dol does not match the canonical clean E1 input profile; do not reuse stale generated code")
++    compressed_rels = {name: (root / "files" / "rels" / f"{name}.rel.LZ").read_bytes() for name in RELS}
++    for name, compressed in compressed_rels.items():
++        if hashlib.sha256(compressed).hexdigest() != REL_SHA256[name]:
++            sys.exit(f"{name}.rel.LZ does not match the canonical clean E1 input profile")
+     out.mkdir(parents=True, exist_ok=True)
+     shutil.copyfile(root / "sys" / "main.dol", out / "main.dol")
+     for name in RELS:
+-        rel = lz11((root / "files" / "rels" / f"{name}.rel.LZ").read_bytes())
++        rel = lz11(compressed_rels[name])
+         (out / f"{name}.rel").write_bytes(rel)
+         print(f"{name}.rel  {len(rel)} bytes")
+     print(f"main.dol and the RELs are in {out}; next: prelink_rels.py")
+diff --git a/runtime/include/hle/disc_interface.h b/runtime/include/hle/disc_interface.h
+new file mode 100644
+--- /dev/null
++++ b/runtime/include/hle/disc_interface.h
+@@ -0,0 +1,35 @@
++#pragma once
++
++#include <cstdint>
++
++// Read-only /dev/di metadata adapter over the owner's extracted disc directory.
++// No drive metadata is inferred from an executable or generated by this adapter.
++namespace DiscInterface {
++
++// Modes 0 (device default) and 1 (read) return the reserved device descriptor
++// 0x44490001. Other modes return IOS EINVAL (-4). Reopening is idempotent.
++int32_t Open(uint32_t mode);
++
++// Recognizes the reserved descriptor even after Close, so stale DI operations
++// cannot fall through to an unrelated NAND or network device implementation.
++bool OwnsFd(uint32_t fd);
++
++// Closes an open DI descriptor, returning 0; wrong/already-closed descriptors
++// return IOS EINVAL (-4). All adapter state and reads are serialized by a mutex.
++int32_t Close(uint32_t fd);
++
++// Only ioctl 0xDA (read the exact 64-byte disc/bca.bin sidecar) and 0x70 (read
++// the first 32 bytes of sys/boot.bin) are supported. Both paths resolve solely
++// beneath RuntimeConfigFile::ResolvedDvdRoot(). The input must contain a valid
++// exactly 32-byte DI command buffer. Output must be valid for its complete supplied
++// length and hold the requested payload; only the payload bytes are changed.
++// Payloads are copied byte-for-byte only after a complete successful file read.
++// No content/pattern is imposed on BCA data; the original guest performs its
++// own checks. Returns hardware DI completion 1 on success, IOS EINVAL (-4)
++// for bad arguments/unsupported requests/malformed sizes/closed fd, ENOENT
++// (-6) for missing metadata or an unset root, and EIO (-12) for read failures.
++// This is not a raw-sector drive, partition, authentication, or write backend.
++int32_t Ioctl(uint32_t fd, uint32_t cmd, uint32_t inPtr, uint32_t inLen,
++              uint32_t outPtr, uint32_t outLen);
++
++} // namespace DiscInterface
+diff --git a/runtime/src/hle/storage/disc_interface.cpp b/runtime/src/hle/storage/disc_interface.cpp
+new file mode 100644
+--- /dev/null
++++ b/runtime/src/hle/storage/disc_interface.cpp
+@@ -0,0 +1,129 @@
++#include "hle/disc_interface.h"
++
++#include "memory.h"
++#include "runtime_config.h"
++#include "runtime_log.h"
++
++#include <array>
++#include <cstring>
++#include <filesystem>
++#include <fstream>
++#include <mutex>
++
++namespace DiscInterface {
++namespace {
++
++constexpr uint32_t kDeviceFd = 0x44490001u;
++constexpr int32_t kInvalid = -4;
++constexpr int32_t kNotFound = -6;
++constexpr int32_t kIoError = -12;
++constexpr int32_t kDiComplete = 1;
++constexpr uint32_t kCommandBytes = 32;
++std::mutex g_mutex;
++bool g_open = false;
++
++// Hold the complete result outside guest memory until its size and read have
++// both succeeded. A failed read must leave the guest's destination unchanged.
++int32_t ReadMetadata(const std::filesystem::path& path, size_t count,
++                     bool exactSize, std::array<uint8_t, 64>& bytes)
++{
++    std::error_code ec;
++    const bool exists = std::filesystem::exists(path, ec);
++    if (ec) {
++        RT_LOG(RT_TAG_DVD) << "DI metadata status failed: " << path << std::endl;
++        return kIoError;
++    }
++    if (!exists) {
++        RT_LOG(RT_TAG_DVD) << "DI requires the owner's real disc metadata file: "
++                           << path << " (missing; no data generated)" << std::endl;
++        return kNotFound;
++    }
++    if (!std::filesystem::is_regular_file(path, ec) || ec) {
++        return kIoError;
++    }
++    std::ifstream input(path, std::ios::binary | std::ios::ate);
++    if (!input) {
++        return kIoError;
++    }
++    const std::streampos size = input.tellg();
++    if (size < 0) {
++        return kIoError;
++    }
++    if ((exactSize && size != static_cast<std::streamoff>(count)) ||
++        size < static_cast<std::streamoff>(count)) {
++        RT_LOG(RT_TAG_DVD) << "DI metadata has an invalid size: " << path << std::endl;
++        return kInvalid;
++    }
++    input.seekg(0, std::ios::beg);
++    input.read(reinterpret_cast<char*>(bytes.data()), static_cast<std::streamsize>(count));
++    if (!input || input.gcount() != static_cast<std::streamsize>(count)) {
++        return kIoError;
++    }
++    // Also reject growth during an exact-size sidecar read. Never silently
++    // truncate a larger input to something resembling a BCA dump.
++    if (exactSize && input.peek() != std::char_traits<char>::eof()) {
++        return kInvalid;
++    }
++    if (input.bad()) {
++        return kIoError;
++    }
++    return kDiComplete;
++}
++
++} // namespace
++
++int32_t Open(uint32_t mode)
++{
++    std::lock_guard<std::mutex> lock(g_mutex);
++    if (mode != 0 && mode != 1) {
++        return kInvalid;
++    }
++    g_open = true;
++    return static_cast<int32_t>(kDeviceFd);
++}
++
++bool OwnsFd(uint32_t fd)
++{
++    return fd == kDeviceFd;
++}
++
++int32_t Close(uint32_t fd)
++{
++    std::lock_guard<std::mutex> lock(g_mutex);
++    if (!OwnsFd(fd) || !g_open) {
++        return kInvalid;
++    }
++    g_open = false;
++    return 0;
++}
++
++int32_t Ioctl(uint32_t fd, uint32_t cmd, uint32_t inPtr, uint32_t inLen,
++              uint32_t outPtr, uint32_t outLen)
++{
++    std::lock_guard<std::mutex> lock(g_mutex);
++    if (!OwnsFd(fd) || !g_open) {
++        return kInvalid;
++    }
++    const uint32_t payloadBytes = cmd == 0xDAu ? 64u : cmd == 0x70u ? 32u : 0u;
++    if (payloadBytes == 0 || inPtr == 0 || inLen != kCommandBytes ||
++        !Memory::Contains(inPtr, inLen) || outPtr == 0 || outLen < payloadBytes ||
++        !Memory::Contains(outPtr, outLen)) {
++        return kInvalid;
++    }
++    const auto root = RuntimeConfigFile::ResolvedDvdRoot();
++    if (root.empty()) {
++        RT_LOG(RT_TAG_DVD) << "DI metadata read requires a configured extracted-disc root"
++                           << std::endl;
++        return kNotFound;
++    }
++    const auto path = cmd == 0xDAu ? root / "disc" / "bca.bin" : root / "sys" / "boot.bin";
++    std::array<uint8_t, 64> bytes;
++    const int32_t result = ReadMetadata(path, payloadBytes, cmd == 0xDAu, bytes);
++    if (result != kDiComplete) {
++        return result;
++    }
++    std::memcpy(Memory::GetPointer(outPtr, payloadBytes), bytes.data(), payloadBytes);
++    return kDiComplete;
++}
++
++} // namespace DiscInterface
+diff --git a/runtime/src/hle/storage/nand_isfs.cpp b/runtime/src/hle/storage/nand_isfs.cpp
+--- a/runtime/src/hle/storage/nand_isfs.cpp
++++ b/runtime/src/hle/storage/nand_isfs.cpp
+@@ -3,6 +3,7 @@
+ // Shared state and helpers live in nand_internal.h.
+ 
+ #include "nand_internal.h"
++#include "hle/disc_interface.h"
+ 
+ #include "discord_presence.h"
+ #include "runtime_log.h"
+@@ -369,6 +370,9 @@
+     
+     // Handle special device paths
+     if (std::strncmp(path, "/dev/", 5) == 0) {
++        if (std::strcmp(path, "/dev/di") == 0) {
++            return DiscInterface::Open(mode);
++        }
+         if (std::strcmp(path, "/dev/fs") == 0) {
+             return ISFS_DEV_FD;
+         }
+@@ -438,6 +442,9 @@
+ #endif
+ 
+ extern "C" int32_t NAND_IOS_Close_HLE(uint32_t fd) {
++    if (DiscInterface::OwnsFd(fd)) {
++        return DiscInterface::Close(fd);
++    }
+     if (fd == ISFS_DEV_FD) {
+         return ISFS_OK;
+     }
+@@ -560,6 +567,10 @@
+     uint32_t outBufPtr, uint32_t outLen)
+ {
+ 
++    if (DiscInterface::OwnsFd(fd)) {
++        return DiscInterface::Ioctl(fd, cmd, inBufPtr, inLen, outBufPtr, outLen);
++    }
++
+     if (Network_HLE_IsFd(fd)) {
+         return Network_HLE_Ioctl(fd, cmd, inBufPtr, inLen, outBufPtr, outLen);
+     }
+@@ -1031,6 +1042,12 @@
+     uint32_t vectorPtr)
+ {
+ 
++    // This metadata device only implements scalar read requests. Keep unknown
++    // vector operations out of the generic NAND success fallback.
++    if (DiscInterface::OwnsFd(fd)) {
++        return ISFS_EINVAL;
++    }
++
+     if (Network_HLE_IsFd(fd)) {
+         return Network_HLE_Ioctlv(fd, cmd, numIn, numOut, vectorPtr);
+     }
+diff --git a/runtime/src/hle/storage/dvd.cpp b/runtime/src/hle/storage/dvd.cpp
+--- a/runtime/src/hle/storage/dvd.cpp
++++ b/runtime/src/hle/storage/dvd.cpp
+@@ -1,6 +1,7 @@
+ ﻿#include "hle_stubs.h"
+ #include "isa/big_endian.h"
+ #include "hle/dvd_contract.h"
++#include "hle/disc_interface.h"
+ #include "hle/runtime_parse_helpers.h"
+ #include "memory.h"
+ 
+@@ -891,6 +892,12 @@
+     if (initializing) return;
+     initializing = true;
+ 
++    // DVDLowInit is replaced by HLE below, so the SDK no longer opens /dev/di
++    // itself. Publish the actual metadata-device descriptor before any original
++    // SDK request can use its SDA handle. The metadata read can still fail; no
++    // verification bytes or successful completion are supplied by initialization.
++    constexpr uint32_t kDiHandle = 0x80429648u; // E1/E2 SDK diFd (r13 - 24632)
++    Memory::Write32(kDiHandle, static_cast<uint32_t>(DiscInterface::Open(0)));
+ 
+     // 1. Initialize Global Flags (Emulate OS state)
+     // These addresses are standard OS globals for DVD context
+@@ -1121,9 +1128,10 @@
+ 
+ // 0x801D1230 -> DVDLowInit
+ extern "C" int32_t DVDLowInit_80164848() {
+-    // Just ensure init is done
+-    DVDInit_8015EA1C(); 
+-    return 1;
++    DVDInit_8015EA1C();
++    const int32_t fd = DiscInterface::Open(0);
++    Memory::Write32(0x80429648u, static_cast<uint32_t>(fd));
++    return fd >= 0 ? 1 : 0;
+ }
+ PPC_NATIVE_OVERRIDE(801D1230, DVDLowInit_80164848, int32_t, (), ());
+ 
+diff --git a/android/app/src/main/java/com/wither/nsmbw/ThorHudAssets.java b/android/app/src/main/java/com/wither/nsmbw/ThorHudAssets.java
+new file mode 100644
+--- /dev/null
++++ b/android/app/src/main/java/com/wither/nsmbw/ThorHudAssets.java
+@@ -0,0 +1,163 @@
++package com.wither.nsmbw;
++
++import android.graphics.Bitmap;
++import android.graphics.BitmapFactory;
++import android.graphics.Canvas;
++import android.graphics.Paint;
++import android.graphics.Rect;
++import android.graphics.RectF;
++import org.json.JSONObject;
++import java.io.File;
++import java.io.FileInputStream;
++import java.nio.charset.StandardCharsets;
++import java.nio.file.Files;
++import java.security.MessageDigest;
++import java.util.HashMap;
++import java.util.Map;
++
++/** Owner-extracted Nintendo pixels and font metrics; never packaged with the application. */
++final class ThorHudAssets {
++    private final Map<String, Bitmap> images = new HashMap<>();
++    private final Map<String, Font> fonts = new HashMap<>();
++    private final Rect source = new Rect();
++    private final RectF target = new RectF();
++    private final Paint paint = new Paint(Paint.FILTER_BITMAP_FLAG);
++
++    static final class Font {
++        final Bitmap bitmap;
++        final JSONObject glyphs;
++        final float height;
++        Font(Bitmap bitmap, JSONObject description) throws Exception {
++            this.bitmap = bitmap;
++            glyphs = description.getJSONObject("glyphs");
++            height = (float) description.getDouble("lineHeight");
++            if (!Float.isFinite(height) || height <= 0 || height > 512 || glyphs.length() > 4096)
++                throw new IllegalArgumentException("Invalid private font metrics");
++            for (java.util.Iterator<String> it = glyphs.keys(); it.hasNext();) {
++                JSONObject g = glyphs.getJSONObject(it.next());
++                int x = g.getInt("x"), y = g.getInt("y"), w = g.getInt("w"), h = g.getInt("h");
++                double advance = g.getDouble("advance"), left = g.getDouble("left");
++                if (x < 0 || y < 0 || w < 0 || h < 0 || x + (long)w > bitmap.getWidth()
++                        || y + (long)h > bitmap.getHeight() || !Double.isFinite(advance)
++                        || advance < 0 || advance > 512 || !Double.isFinite(left) || Math.abs(left) > 512)
++                    throw new IllegalArgumentException("Invalid private glyph");
++            }
++        }
++    }
++
++    ThorHudAssets(File folder) throws Exception {
++        File manifest = new File(folder, "manifest.json");
++        if (!manifest.isFile() || manifest.length() > 2_000_000) throw new IllegalArgumentException("Missing HUD manifest");
++        JSONObject root = new JSONObject(new String(Files.readAllBytes(manifest.toPath()), StandardCharsets.UTF_8));
++        if (root.getInt("schema") != 1) throw new IllegalArgumentException("Unsupported HUD manifest");
++        try {
++            JSONObject list = root.getJSONObject("images");
++            if (list.length() > 32) throw new IllegalArgumentException("Too many HUD images");
++            for (java.util.Iterator<String> it = list.keys(); it.hasNext();) {
++                String name = it.next(); images.put(name, load(folder, list.getJSONObject(name)));
++            }
++            list = root.getJSONObject("fonts");
++            for (String name : new String[]{"main", "number"}) {
++                JSONObject desc = list.getJSONObject(name);
++                Bitmap bitmap = load(folder, desc);
++                try { fonts.put(name, new Font(bitmap, desc)); }
++                catch (Exception failure) { bitmap.recycle(); throw failure; }
++            }
++        } catch (Exception failure) { close(); throw failure; }
++    }
++
++    private static Bitmap load(File folder, JSONObject entry) throws Exception {
++        String name = entry.getString("file");
++        if (!name.equals(new File(name).getName()) || name.contains("\\") || name.contains("/") || name.equals(".."))
++            throw new IllegalArgumentException("Invalid HUD filename");
++        File file = new File(folder, name);
++        if (!file.isFile() || file.length() > 32_000_000) throw new IllegalArgumentException("Missing HUD asset");
++        MessageDigest digest = MessageDigest.getInstance("SHA-256");
++        try (FileInputStream input = new FileInputStream(file)) {
++            byte[] bytes = new byte[65536]; int count;
++            while ((count = input.read(bytes)) != -1) digest.update(bytes, 0, count);
++        }
++        StringBuilder hash = new StringBuilder();
++        for (byte b : digest.digest()) hash.append(String.format(java.util.Locale.ROOT, "%02x", b & 255));
++        if (!hash.toString().equals(entry.getString("sha256"))) throw new IllegalArgumentException("HUD asset hash mismatch");
++        BitmapFactory.Options options = new BitmapFactory.Options(); options.inJustDecodeBounds = true;
++        BitmapFactory.decodeFile(file.getPath(), options);
++        if (options.outWidth <= 0 || options.outHeight <= 0 || options.outWidth > 4096 || options.outHeight > 4096
++                || (long) options.outWidth * options.outHeight > 12_000_000) throw new IllegalArgumentException("Invalid HUD image size");
++        Bitmap bitmap = BitmapFactory.decodeFile(file.getPath());
++        if (bitmap == null) throw new IllegalArgumentException("Invalid HUD image");
++        return bitmap;
++    }
++
++    float textWidth(String text, float height, boolean numbers) {
++        Font font = fonts.get(numbers ? "number" : "main");
++        float cursor = 0, min = 0, max = 0;
++        for (int i = 0; i < text.length(); i++) {
++            JSONObject glyph = font.glyphs.optJSONObject(text.substring(i, i + 1));
++            if (glyph == null) glyph = font.glyphs.optJSONObject("?");
++            if (glyph == null) continue;
++            float left = cursor + (float) glyph.optDouble("left");
++            min = Math.min(min, left); max = Math.max(max, left + glyph.optInt("w"));
++            cursor += (float)glyph.optDouble("advance");
++        }
++        return (Math.max(cursor, max) - min) * height / font.height;
++    }
++
++    void text(Canvas canvas, String text, float centerX, float y, float height, float maxWidth, boolean numbers) {
++        Font font = fonts.get(numbers ? "number" : "main");
++        float width = textWidth(text, height, numbers);
++        float scale = height / font.height * (width > maxWidth ? maxWidth / width : 1f);
++        float x = centerX - Math.min(width, maxWidth) / 2;
++        // Center complete original glyph extents, including negative bearings.
++        float cursor = 0, min = 0;
++        for (int i = 0; i < text.length(); i++) {
++            JSONObject glyph = font.glyphs.optJSONObject(text.substring(i, i + 1));
++            if (glyph == null) glyph = font.glyphs.optJSONObject("?");
++            if (glyph == null) continue;
++            min = Math.min(min, cursor + (float)glyph.optDouble("left"));
++            cursor += (float)glyph.optDouble("advance");
++        }
++        x -= min * scale;
++        for (int i = 0; i < text.length(); i++) {
++            JSONObject glyph = font.glyphs.optJSONObject(text.substring(i, i + 1));
++            if (glyph == null) glyph = font.glyphs.optJSONObject("?");
++            if (glyph == null) continue;
++            int gx = glyph.optInt("x"), gy = glyph.optInt("y"), w = glyph.optInt("w"), h = glyph.optInt("h");
++            source.set(gx, gy, gx + w, gy + h);
++            float left = x + (float)glyph.optDouble("left") * scale;
++            target.set(left, y, left + w * scale, y + h * scale);
++            canvas.drawBitmap(font.bitmap, source, target, paint);
++            x += (float)glyph.optDouble("advance") * scale;
++        }
++    }
++
++    void image(Canvas canvas, String name, float centerX, float top, float height) {
++        Bitmap bitmap = images.get(name);
++        if (bitmap == null) return;
++        float width = height * bitmap.getWidth() / bitmap.getHeight();
++        target.set(centerX - width / 2, top, centerX + width / 2, top + height);
++        canvas.drawBitmap(bitmap, null, target, paint);
++    }
++
++    /** Original authored Wii plate, with its corner pixels kept at their native proportions. */
++    void panel(Canvas canvas, float x, float y, float width, float height) {
++        Bitmap bitmap = images.get("panel");
++        if (bitmap == null) return;
++        int edge = 8;
++        float[] dx = {x, x + edge, x + width - edge, x + width};
++        float[] dy = {y, y + edge, y + height - edge, y + height};
++        int[] sx = {0, edge, bitmap.getWidth() - edge, bitmap.getWidth()};
++        int[] sy = {0, edge, bitmap.getHeight() - edge, bitmap.getHeight()};
++        for (int row = 0; row < 3; row++) for (int col = 0; col < 3; col++) {
++            source.set(sx[col], sy[row], sx[col + 1], sy[row + 1]);
++            target.set(dx[col], dy[row], dx[col + 1], dy[row + 1]);
++            canvas.drawBitmap(bitmap, source, target, paint);
++        }
++    }
++
++    void close() {
++        for (Bitmap bitmap : images.values()) bitmap.recycle();
++        for (Font font : fonts.values()) font.bitmap.recycle();
++        images.clear(); fonts.clear();
++    }
++}
+diff --git a/android/app/src/main/java/com/wither/nsmbw/ThorLowerScreen.java b/android/app/src/main/java/com/wither/nsmbw/ThorLowerScreen.java
+new file mode 100644
+--- /dev/null
++++ b/android/app/src/main/java/com/wither/nsmbw/ThorLowerScreen.java
+@@ -0,0 +1,307 @@
++package com.wither.nsmbw;
++
++import android.app.Activity;
++import android.app.Presentation;
++import android.content.Context;
++import android.graphics.Canvas;
++import android.graphics.Color;
++import android.graphics.Paint;
++import android.hardware.display.DisplayManager;
++import android.os.Bundle;
++import android.os.Handler;
++import android.os.Looper;
++import android.os.SystemClock;
++import android.util.Log;
++import android.view.Display;
++import android.view.View;
++import android.view.Window;
++import android.view.WindowManager;
++import java.io.File;
++
++/** Handheld-style course progress, Star Coins, world overview and physical reserve action. */
++final class ThorLowerScreen implements DisplayManager.DisplayListener {
++    private static final String TAG = "NSMBW-ThorHUD";
++    private final Activity activity;
++    private final DisplayManager displays;
++    private final Handler handler = new Handler(Looper.getMainLooper());
++    private HudPresentation presentation;
++    private ThorHudAssets assets;
++    private ThorGameState state;
++    private ThorWorldMap worldMap;
++    private ThorReserveState reserve;
++    private boolean running, closed;
++    private long lastSequence = -1, lastAdvance, lastLog;
++    private String lastIdentity = "";
++
++    ThorLowerScreen(Activity activity) {
++        this.activity = activity;
++        displays = activity.getSystemService(DisplayManager.class);
++        final File folder = new File(AppFiles.dataDir(activity), "ThorHud");
++        new Thread(() -> {
++            ThorHudAssets loaded = null;
++            try { loaded = new ThorHudAssets(folder); }
++            catch (Exception failure) { Log.w(TAG, "Original lower HUD assets unavailable", failure); }
++            final ThorHudAssets result = loaded;
++            handler.post(() -> {
++                if (closed) { if (result != null) result.close(); return; }
++                assets = result;
++                if (presentation != null) presentation.view.invalidate();
++                Log.i(TAG, "Original lower HUD assets " + (result == null ? "unavailable" : "verified"));
++            });
++        }, "ThorHudAssets").start();
++    }
++
++    void start() {
++        if (running || closed || displays == null) return;
++        running = true;
++        state = null; worldMap = null; reserve = null; lastSequence = -1; lastAdvance = SystemClock.uptimeMillis();
++        displays.registerDisplayListener(this, handler);
++        refresh(); handler.post(poll);
++    }
++
++    void stop() {
++        if (!running) return;
++        running = false;
++        displays.unregisterDisplayListener(this);
++        handler.removeCallbacks(poll);
++        state = null;
++        worldMap = null; reserve = null;
++        dismiss();
++        Log.i(TAG, "Lower screen released");
++    }
++
++    void close() {
++        stop(); closed = true;
++        if (assets != null) { assets.close(); assets = null; }
++    }
++
++    private final Runnable poll = new Runnable() {
++        @Override public void run() {
++            if (!running || closed) return;
++            long now = SystemClock.uptimeMillis();
++            ThorGameState next = null;
++            try { next = ThorGameState.read(); }
++            catch (UnsatisfiedLinkError unavailable) { Log.e(TAG, "Snapshot bridge unavailable", unavailable); stop(); return; }
++            if (next != null && next.sequence != lastSequence) {
++                lastSequence = next.sequence; lastAdvance = now;
++                state = next;
++            } else if (now - lastAdvance > 1500) state = null;
++            worldMap = state != null && state.scene == 3 ? ThorWorldMap.read() : null;
++            reserve = ThorReserveState.read();
++            if (presentation != null) { presentation.view.acceptMotion(); presentation.view.invalidate(); }
++            if (state != null) {
++                String identity = state.scene + ":" + state.mode + ":" + state.world + ":" + state.stage + ":" + state.fields
++                        + ":" + state.starCoins + ":" + state.savedStarCoins
++                        + ":" + (worldMap == null ? 0 : worldMap.points.length)
++                        + ":" + (reserve == null ? -1 : reserve.item)
++                        + ":" + (reserve == null ? 0 : reserve.uses) + ":" + (reserve == null ? 0 : reserve.stores);
++                if (!identity.equals(lastIdentity) || (state.has(ThorGameState.COURSE) && now - lastLog > 5000)) {
++                    Log.i(TAG, "state seq=" + state.sequence + " fields=" + state.fields + " scene=" + state.scene
++                            + " mode=" + state.mode + " world=" + state.world + " course=" + state.stage
++                            + " character=" + state.character + " lives=" + state.lives + " p1Coins=" + state.coins
++                            + " seconds=" + state.seconds + " progress=" + state.progress
++                            + " stars=" + state.starCoins + "/" + state.savedStarCoins + " score=" + state.score
++                            + " area=" + state.area + " nodes=" + (worldMap == null ? 0 : worldMap.points.length)
++                            + " reserve=" + (reserve == null ? -1 : reserve.item)
++                            + " reserveSeq=" + (reserve == null ? -1 : reserve.sequence)
++                            + " reserveSlot=" + (reserve == null ? -1 : reserve.context)
++                            + " reserveReady=" + (reserve != null && reserve.canUse)
++                            + " uses=" + (reserve == null ? 0 : reserve.uses)
++                            + " stores=" + (reserve == null ? 0 : reserve.stores));
++                    lastIdentity = identity; lastLog = now;
++                }
++            }
++            handler.postDelayed(this, 50);
++        }
++    };
++
++    private void dismiss() {
++        HudPresentation old = presentation;
++        presentation = null;
++        if (old != null) old.dismiss();
++    }
++
++    private void refresh() {
++        if (!running || closed) return;
++        int upper = activity.getWindowManager().getDefaultDisplay().getDisplayId();
++        Display target = null;
++        for (Display display : displays.getDisplays(DisplayManager.DISPLAY_CATEGORY_PRESENTATION)) {
++            // Thor's internal panel only: never put a HUD on a cast/virtual/HDMI display.
++            if (display.isValid() && display.getDisplayId() != upper && "Screen-2".equals(display.getName())) {
++                target = display; break;
++            }
++        }
++        if (target != null && presentation != null && presentation.isShowing()
++                && presentation.getDisplay().getDisplayId() == target.getDisplayId()) return;
++        dismiss();
++        if (target == null) return;
++        HudPresentation next = new HudPresentation(target);
++        presentation = next;
++        next.setOnDismissListener(dialog -> { if (presentation == next) presentation = null; });
++        try { next.show(); Log.i(TAG, "Lower screen attached display=" + target.getDisplayId()); }
++        catch (WindowManager.InvalidDisplayException | WindowManager.BadTokenException | SecurityException unavailable) {
++            Log.w(TAG, "Lower screen unavailable", unavailable); dismiss();
++        }
++    }
++
++    @Override public void onDisplayAdded(int id) { refresh(); }
++    @Override public void onDisplayRemoved(int id) { refresh(); }
++    @Override public void onDisplayChanged(int id) { refresh(); }
++
++    private final class HudPresentation extends Presentation {
++        final HudView view;
++        HudPresentation(Display display) { super(activity, display); view = new HudView(getContext()); }
++        @Override protected void onCreate(Bundle saved) {
++            super.onCreate(saved);
++            Window window = getWindow();
++            if (window != null) {
++                window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON
++                        | WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE | WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE);
++                window.getDecorView().setSystemUiVisibility(View.SYSTEM_UI_FLAG_FULLSCREEN
++                        | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION | View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY
++                        | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
++                        | View.SYSTEM_UI_FLAG_LAYOUT_STABLE);
++            }
++            setContentView(view);
++            if (window != null) window.setLayout(-1, -1);
++        }
++    }
++
++    private final class HudView extends View {
++        private final Paint fallback = new Paint(Paint.ANTI_ALIAS_FLAG);
++        private final Paint ink = new Paint(Paint.ANTI_ALIAS_FLAG);
++        private float progressFrom, progressTo, mapFromX, mapFromZ, mapToX, mapToZ;
++        private long motionAt;
++        private String motionIdentity = "";
++        HudView(Context context) { super(context); setFocusable(false); setClickable(false); }
++        private float blend() { return Math.min(1f, Math.max(0f, (SystemClock.uptimeMillis() - motionAt) / 50f)); }
++        private float mix(float from, float to) { return from + (to - from) * blend(); }
++        void acceptMotion() {
++            String identity = state == null ? "" : state.scene + ":" + state.world + ":" + state.stage + ":" + state.area;
++            if (state != null) identity += ":" + state.has(ThorGameState.PROGRESS);
++            if (worldMap != null) identity += ":" + worldMap.world + ":" + worldMap.submap + ":" + worldMap.hasPlayer();
++            boolean reset = !identity.equals(motionIdentity);
++            progressFrom = reset ? 0 : mix(progressFrom, progressTo);
++            mapFromX = reset ? 0 : mix(mapFromX, mapToX); mapFromZ = reset ? 0 : mix(mapFromZ, mapToZ);
++            progressTo = state != null && state.has(ThorGameState.PROGRESS) ? state.progress / 1000f : 0;
++            if (worldMap != null && worldMap.hasPlayer()) { mapToX = worldMap.playerX; mapToZ = worldMap.playerZ; }
++            if (reset) { progressFrom = progressTo; mapFromX = mapToX; mapFromZ = mapToZ; }
++            motionIdentity = identity; motionAt = SystemClock.uptimeMillis();
++        }
++        @Override protected void onDraw(Canvas canvas) {
++            super.onDraw(canvas);
++            canvas.drawColor(Color.rgb(231, 233, 228));
++            float scale = Math.min(getWidth() / 960f, getHeight() / 720f);
++            canvas.save();
++            canvas.translate((getWidth() - 960 * scale) / 2, (getHeight() - 720 * scale) / 2);
++            canvas.scale(scale, scale);
++            if (assets == null) {
++                // A readable missing-assets status; gameplay values never use substitute fonts.
++                fallback.setColor(Color.DKGRAY); fallback.setTextSize(28); fallback.setTextAlign(Paint.Align.CENTER);
++                canvas.drawText("New Super Mario Bros. Wii", 480, 325, fallback);
++                fallback.setTextSize(20);
++                canvas.drawText("Lower-screen artwork unavailable", 480, 373, fallback);
++                canvas.restore(); return;
++            }
++            ThorGameState current = state;
++            if (current != null && current.has(ThorGameState.COURSE)) {
++                String course = current.stage <= 8 ? (current.world + 1) + "-" + (current.stage + 1)
++                        : "World " + (current.world + 1);
++                assets.text(canvas, "WORLD " + course, 300, 48, 48, 470, false);
++                if (current.has(ThorGameState.PLAYER_ONE)) {
++                    assets.image(canvas, "character" + current.character, 700, 43, 48);
++                    assets.text(canvas, "x", 755, 52, 34, 35, false);
++                    assets.text(canvas, String.format(java.util.Locale.ROOT, "%02d", current.lives), 817, 46, 42, 90, true);
++                }
++                assets.panel(canvas, 60, 135, 840, 110);
++                if (current.has(ThorGameState.PROGRESS)) {
++                    ink.setColor(0xff777b73); ink.setStrokeWidth(7); ink.setStrokeCap(Paint.Cap.ROUND);
++                    canvas.drawLine(110, 195, 850, 195, ink);
++                    for (int i = 0; i <= 4; i++) canvas.drawCircle(110 + i * 185, 195, 7, ink);
++                    float marker = 110 + 740 * mix(progressFrom, progressTo);
++                    if (current.has(ThorGameState.PLAYER_ONE))
++                        assets.image(canvas, "character" + current.character, marker, 163, 58);
++                    else { ink.setColor(0xffd3291f); canvas.drawCircle(marker, 195, 13, ink); }
++                } else assets.text(canvas, "Course overview", 480, 167, 32, 740, false);
++                assets.panel(canvas, 60, 285, 510, 130);
++                boolean haveStars = current.has(ThorGameState.STAR_COINS)
++                        && (current.mode == 1 || current.has(ThorGameState.SAVED_STAR_COINS));
++                if (haveStars) {
++                    int collected = current.starCoins | (current.has(ThorGameState.SAVED_STAR_COINS) ? current.savedStarCoins : 0);
++                    for (int i = 0; i < 3; i++) assets.image(canvas,
++                            (collected & (1 << i)) != 0 ? "starCoin" : "starCoinOff", 155 + i * 160, 310, 80);
++                } else assets.text(canvas, "Star Coins", 315, 330, 32, 440, false);
++                assets.panel(canvas, 60, 450, 510, 115);
++                assets.text(canvas, "Score", 315, 460, 26, 440, false);
++                if (current.has(ThorGameState.SCORE)) assets.text(canvas,
++                        String.format(java.util.Locale.ROOT, "%08d", current.score), 315, 503, 44, 440, true);
++                drawReserve(canvas);
++                assets.panel(canvas, 60, 610, 840, 72);
++                if (current.has(ThorGameState.PLAYER_ONE)) {
++                    assets.image(canvas, "coin", 115, 624, 40);
++                    assets.text(canvas, Integer.toString(current.coins), 188, 625, 38, 100, true);
++                }
++                if (current.has(ThorGameState.TIMER)) {
++                    assets.image(canvas, "clock", 700, 624, 40);
++                    assets.text(canvas, Integer.toString(current.seconds), 795, 625, 38, 150, true);
++                }
++            } else if (current != null && current.scene == 3 && worldMap != null) {
++                drawWorldMap(canvas, worldMap);
++            } else {
++                assets.text(canvas, "New Super Mario Bros. Wii", 480, 66, 48, 860, false);
++                String title = "New adventure", message = "Play on the upper screen.";
++                if (current == null) { title = "Starting game"; message = ""; }
++                else if (current.scene == 3) { title = "World map"; message = "Choose a course on the upper screen."; }
++                else if (current.scene == 5 && current.mode == 3) { title = "Demo"; message = ""; }
++                else if (current.scene == 5 && current.mode == 2) { title = "Ready to play"; }
++                assets.text(canvas, title, 480, 294, 60, 800, false);
++                assets.text(canvas, message, 480, 424, 32, 820, false);
++            }
++            canvas.restore();
++            if (isAttachedToWindow() && current != null && (current.has(ThorGameState.PROGRESS) || worldMap != null))
++                postInvalidateOnAnimation();
++        }
++
++        private void drawReserve(Canvas canvas) {
++            ink.setStyle(Paint.Style.FILL); ink.setColor(0xffcacdc5); canvas.drawCircle(735, 420, 145, ink);
++            ink.setColor(Color.WHITE); canvas.drawCircle(735, 417, 135, ink);
++            assets.text(canvas, "Stored item", 735, 302, 26, 240, false);
++            if (reserve != null && reserve.item >= 0) {
++                assets.image(canvas, "reserve" + reserve.item, 735, 355, 126);
++                assets.text(canvas, reserve.queued ? "Dropping" : (reserve.canUse ? "R3" : "Stored"),
++                        735, 506, 28, 220, false);
++            } else assets.text(canvas, "No item", 735, 405, 30, 220, false);
++        }
++
++        private void drawWorldMap(Canvas canvas, ThorWorldMap map) {
++            assets.text(canvas, map.world >= 0 ? "World " + (map.world + 1) : "World map", 480, 55, 52, 840, false);
++            assets.panel(canvas, 60, 145, 840, 440);
++            canvas.save(); canvas.clipRect(78, 163, 882, 567);
++            float width = Math.max(1, map.maxX - map.minX), depth = Math.max(1, map.maxZ - map.minZ);
++            float zoom = Math.min(720 / width, 320 / depth);
++            float offsetX = 480 - (map.minX + map.maxX) * zoom / 2;
++            float offsetZ = 365 - (map.minZ + map.maxZ) * zoom / 2;
++            ink.setColor(0xff777b73); ink.setStrokeWidth(7); ink.setStrokeCap(Paint.Cap.ROUND);
++            for (ThorWorldMap.Point point : map.points) for (int id : point.links) {
++                if (id <= point.id || id >= map.byId.length) continue;
++                ThorWorldMap.Point other = map.byId[id];
++                if (other != null) canvas.drawLine(offsetX + point.x * zoom, offsetZ + point.z * zoom,
++                        offsetX + other.x * zoom, offsetZ + other.z * zoom, ink);
++            }
++            for (ThorWorldMap.Point point : map.points) {
++                if (point.kind != 1) continue;
++                float x = offsetX + point.x * zoom, y = offsetZ + point.z * zoom;
++                ink.setColor(0xff777b73); canvas.drawCircle(x, y, 12, ink);
++                ink.setColor(Color.WHITE); canvas.drawCircle(x, y, 8, ink);
++            }
++            if (map.hasPlayer()) {
++                float x = offsetX + mix(mapFromX, mapToX) * zoom;
++                float y = offsetZ + mix(mapFromZ, mapToZ) * zoom;
++                ink.setColor(0xffd3291f); canvas.drawCircle(x, y, 18, ink);
++                assets.text(canvas, "M", x, y - 14, 25, 30, false);
++            }
++            canvas.restore();
++            assets.text(canvas, "Choose a course on the upper screen.", 480, 623, 30, 840, false);
++        }
++    }
++}
+diff --git a/android/app/src/main/java/com/wither/nsmbw/ThorWorldMap.java b/android/app/src/main/java/com/wither/nsmbw/ThorWorldMap.java
+new file mode 100644
+--- /dev/null
++++ b/android/app/src/main/java/com/wither/nsmbw/ThorWorldMap.java
+@@ -0,0 +1,49 @@
++package com.wither.nsmbw;
++
++/** Actual guest-thread world graph. Links retain the game's sparse point IDs. */
++final class ThorWorldMap {
++    final int sequence, fields, world, submap;
++    final float playerX, playerZ, minX, maxX, minZ, maxZ;
++    final Point[] points;
++    final Point[] byId = new Point[192];
++    static final class Point {
++        final int id, kind;
++        final String name;
++        final float x, z;
++        final int[] links = new int[6];
++        Point(int[] words, int at) {
++            id = words[at]; kind = words[at + 1];
++            int n = words[at + 2];
++            name = new String(new char[]{(char)((n >>> 24) & 255), (char)((n >>> 16) & 255),
++                    (char)((n >>> 8) & 255), (char)(n & 255), (char)(words[at + 3] & 255)}).replace("\0", "");
++            x = Float.intBitsToFloat(words[at + 4]); z = Float.intBitsToFloat(words[at + 5]);
++            System.arraycopy(words, at + 6, links, 0, 6);
++        }
++    }
++    private ThorWorldMap(int[] words) {
++        sequence = words[1]; fields = words[2]; world = words[3]; submap = words[4];
++        playerX = Float.intBitsToFloat(words[6]); playerZ = Float.intBitsToFloat(words[7]);
++        minX = Float.intBitsToFloat(words[8]); maxX = Float.intBitsToFloat(words[9]);
++        minZ = Float.intBitsToFloat(words[10]); maxZ = Float.intBitsToFloat(words[11]);
++        points = new Point[words[5]];
++        for (int i = 0; i < points.length; i++) {
++            Point point = new Point(words, 12 + i * 12);
++            if (point.id < 0 || point.id >= 192 || byId[point.id] != null
++                    || !Float.isFinite(point.x) || !Float.isFinite(point.z)) throw new IllegalArgumentException("Invalid map point");
++            points[i] = point; byId[point.id] = point;
++        }
++    }
++    boolean hasPlayer() { return (fields & 2) != 0; }
++    static ThorWorldMap read() {
++        int[] words = GameActivity.nativeReadThorWorldMap();
++        if (words == null || words.length < 12 || words[0] != 1 || (words[2] & 1) == 0
++                || words[5] < 1 || words[5] > 192 || words.length != 12 + words[5] * 12) return null;
++        try {
++            ThorWorldMap map = new ThorWorldMap(words);
++            if (!Float.isFinite(map.minX) || !Float.isFinite(map.maxX) || !Float.isFinite(map.minZ)
++                    || !Float.isFinite(map.maxZ) || map.minX > map.maxX || map.minZ > map.maxZ
++                    || (map.hasPlayer() && (!Float.isFinite(map.playerX) || !Float.isFinite(map.playerZ)))) return null;
++            return map;
++        } catch (IllegalArgumentException invalid) { return null; }
++    }
++}
+diff --git a/android/app/src/main/java/com/wither/nsmbw/ThorReserveState.java b/android/app/src/main/java/com/wither/nsmbw/ThorReserveState.java
+new file mode 100644
+--- /dev/null
++++ b/android/app/src/main/java/com/wither/nsmbw/ThorReserveState.java
+@@ -0,0 +1,15 @@
++package com.wither.nsmbw;
++
++/** Read-only state of the extra stored-power-up mechanic; activation is a queued request. */
++final class ThorReserveState {
++    final int sequence, item, context, uses, stores;
++    final boolean canUse, queued;
++    private ThorReserveState(int[] words) {
++        sequence = words[1]; item = words[2]; canUse = words[3] != 0; queued = words[4] != 0;
++        context = words[5]; uses = words[6]; stores = words[7];
++    }
++    static ThorReserveState read() {
++        int[] words = GameActivity.nativeReadThorReserve();
++        return words != null && words.length == 8 && words[0] == 1 ? new ThorReserveState(words) : null;
++    }
++}
+diff --git a/runtime/include/thor_world_map.h b/runtime/include/thor_world_map.h
+new file mode 100644
+--- /dev/null
++++ b/runtime/include/thor_world_map.h
+@@ -0,0 +1,22 @@
++#pragma once
++
++#include <cstdint>
++#include <vector>
++
++namespace ThorWorldMap {
++// Capture only from the guest thread. JNI/UI consumers use the copied ReadWords
++// result and never inspect guest memory. This module never writes guest memory.
++void Capture();
++
++// Schema 1: header 12 words, followed by count * 12 point words.
++// Header: schema, sequence, flags, world, submap, count, playerX(float bits),
++// playerZ(float bits), minX, maxX, minZ, maxZ (also float bits).
++// Flags: 1 = graph available, 2 = player position available. World is zero based
++// or -1. An absent player's coordinate words must not be used as a marker.
++// Point: original ID, kind (0 path / 1 named W stop), first four name characters
++// packed big-endian, fifth character in low byte, x bits, z bits, six linked IDs.
++// Missing/invalid links are -1. IDs retain the original 0..191 graph indices.
++// Coordinates are top-down world X/Z, independent of the upper-screen camera.
++// Nodes deliberately carry no inferred unlocked/completed status.
++std::vector<int32_t> ReadWords();
++}
+diff --git a/runtime/src/thor_world_map.cpp b/runtime/src/thor_world_map.cpp
+new file mode 100644
+--- /dev/null
++++ b/runtime/src/thor_world_map.cpp
+@@ -0,0 +1,138 @@
++#include "thor_world_map.h"
++#include "memory.h"
++
++#include <array>
++#include <bit>
++#include <cmath>
++#include <cstdlib>
++#include <mutex>
++#include <string_view>
++
++namespace ThorWorldMap {
++namespace {
++constexpr uint32_t kScene = 0x80428730u;
++constexpr uint32_t kMapInstance = 0x8042A18Cu;
++constexpr uint32_t kPlayerInstance = 0x8042A1A0u;
++constexpr uint32_t kWorldWord = 0x8042A24Cu; // getWorldNo reads the byte at +1.
++constexpr uint32_t kSubIndex = 0x338Cu, kConnect = 0x5C7F4u;
++constexpr uint32_t kConnectSize = 0x3F08u, kPointSize = 0x54u;
++constexpr int kPointCount = 192;
++constexpr size_t kHeaderWords = 12, kPointWords = 12;
++std::mutex mutex;
++std::vector<int32_t> published{1, 0, 0, -1, -1, 0, 0, 0, 0, 0, 0, 0};
++uint32_t sequence = 0;
++
++bool Word(uint32_t address, uint32_t& value) { return Memory::TryRead32(address, value); }
++bool Pointer(uint32_t address, uint32_t length) {
++    return (address & 3u) == 0 && address >= 0x80000000u &&
++           address < 0x81800000u && length <= 0x81800000u - address &&
++           Memory::Contains(address, length);
++}
++bool Coordinate(uint32_t address, uint32_t& bits) {
++    if (!Word(address, bits)) return false;
++    const float value = std::bit_cast<float>(bits);
++    return std::isfinite(value) && std::fabs(value) < 1.0e7f;
++}
++bool NameCharacter(uint32_t value) {
++    return (value >= 'A' && value <= 'Z') || (value >= '0' && value <= '9');
++}
++struct Point {
++    bool used = false;
++    uint32_t name = 0, fifth = 0, x = 0, z = 0;
++    std::array<int32_t, 6> links{-1, -1, -1, -1, -1, -1};
++};
++
++void Publish(std::vector<int32_t>& next) {
++    std::lock_guard<std::mutex> lock(mutex);
++    published.swap(next);
++}
++}
++
++void Capture() {
++    static const bool enabled = [] {
++        const char* value = std::getenv("NSMBW_THOR");
++        return value && std::string_view(value) == "1";
++    }();
++    if (!enabled) return;
++    std::vector<int32_t> next{1, static_cast<int32_t>(++sequence), 0, -1, -1, 0, 0, 0, 0, 0, 0, 0};
++    uint32_t scene = 0, map = 0, sub = 0;
++    if (!Word(kScene, scene) || (scene & 0xffffu) != 3u ||
++        !Word(kMapInstance, map) || !Pointer(map, kSubIndex + 4u) ||
++        !Word(map + kSubIndex, sub) || sub > 3u) {
++        Publish(next);
++        return;
++    }
++    // Check the addition before forming a guest address. The complete active
++    // connect object, including every potential link target, must be mapped.
++    const uint32_t offset = kConnect + sub * kConnectSize;
++    if (offset > 0x81800000u - map || !Pointer(map + offset, kConnectSize)) {
++        Publish(next);
++        return;
++    }
++    const uint32_t first = map + offset + 4u;
++    std::array<Point, kPointCount> points;
++    bool haveBounds = false;
++    float minX = 0, maxX = 0, minZ = 0, maxZ = 0;
++    for (int index = 0; index < kPointCount; ++index) {
++        const uint32_t address = first + static_cast<uint32_t>(index) * kPointSize;
++        Point& point = points[index];
++        uint32_t suffix = 0;
++        if (!Word(address + 4u, point.name) || (point.name >> 24) == 0u ||
++            !Word(address + 8u, suffix)) continue;
++        bool validName = true, ended = false;
++        for (int c = 0; c < 5; ++c) {
++            const uint32_t character = c < 4 ? (point.name >> (24 - c * 8)) & 0xffu : suffix >> 24;
++            if (character == 0) ended = true;
++            else if (ended || !NameCharacter(character)) validName = false;
++        }
++        if (!validName || !Coordinate(address + 0xCu, point.x) || !Coordinate(address + 0x14u, point.z)) continue;
++        point.fifth = suffix >> 24;
++        point.used = true;
++        const float x = std::bit_cast<float>(point.x), z = std::bit_cast<float>(point.z);
++        if (!haveBounds) { minX = maxX = x; minZ = maxZ = z; haveBounds = true; }
++        else {
++            if (x < minX) minX = x;
++            if (x > maxX) maxX = x;
++            if (z < minZ) minZ = z;
++            if (z > maxZ) maxZ = z;
++        }
++        for (int direction = 0; direction < 6; ++direction) {
++            uint32_t link = 0;
++            if (Word(address + 0x18u + static_cast<uint32_t>(direction) * 4u, link) &&
++                link >= first && link < first + kPointCount * kPointSize &&
++                (link - first) % kPointSize == 0u) {
++                point.links[direction] = static_cast<int32_t>((link - first) / kPointSize);
++            }
++        }
++    }
++    if (!haveBounds) { Publish(next); return; }
++    next[2] = 1;
++    uint32_t world = 0;
++    if (Word(kWorldWord, world) && ((world >> 16) & 0xffu) < 9u) next[3] = (world >> 16) & 0xffu;
++    next[4] = static_cast<int32_t>(sub);
++    next[8] = std::bit_cast<int32_t>(minX); next[9] = std::bit_cast<int32_t>(maxX);
++    next[10] = std::bit_cast<int32_t>(minZ); next[11] = std::bit_cast<int32_t>(maxZ);
++    uint32_t player = 0, playerX = 0, playerZ = 0;
++    if (Word(kPlayerInstance, player) && Pointer(player, 0xB8u) &&
++        Coordinate(player + 0xACu, playerX) && Coordinate(player + 0xB4u, playerZ)) {
++        next[2] |= 2;
++        next[6] = static_cast<int32_t>(playerX); next[7] = static_cast<int32_t>(playerZ);
++    }
++    next.reserve(kHeaderWords + kPointCount * kPointWords);
++    for (int index = 0; index < kPointCount; ++index) {
++        const Point& point = points[index];
++        if (!point.used) continue;
++        ++next[5];
++        next.insert(next.end(), {index, (point.name >> 24) == 'W' ? 1 : 0,
++            static_cast<int32_t>(point.name), static_cast<int32_t>(point.fifth),
++            static_cast<int32_t>(point.x), static_cast<int32_t>(point.z)});
++        for (const int32_t link : point.links) next.push_back(link >= 0 && points[link].used ? link : -1);
++    }
++    Publish(next);
++}
++
++std::vector<int32_t> ReadWords() {
++    std::lock_guard<std::mutex> lock(mutex);
++    return published;
++}
++}
+diff --git a/runtime/include/thor_reserve.h b/runtime/include/thor_reserve.h
+new file mode 100644
+--- /dev/null
++++ b/runtime/include/thor_reserve.h
+@@ -0,0 +1,16 @@
++#pragma once
++#include <array>
++#include <cstdint>
++struct CpuContext;
++
++namespace ThorReserve {
++// Original EN_ITEM pickup kinds: 0 mushroom, 1 fire, 4 ice, 11 propeller,
++// 13 mini, 14 penguin; -1 means empty. Game/save data is never modified.
++// Independent slot per selected Wii save (0..2), persisted in a small sidecar
++// beside the resolved game NAND. No original save-file bytes are changed.
++void ObserveAcceptedPickup(CpuContext* context);
++void Tick(CpuContext* context);
++bool RequestUse(); // UI thread: queues one request, never calls guest code.
++// [schema, sequence, item, canUse, queued, saveSlot, uses, stores]
++std::array<int32_t, 8> ReadWords();
++}
+diff --git a/runtime/src/thor_reserve.cpp b/runtime/src/thor_reserve.cpp
+new file mode 100644
+--- /dev/null
++++ b/runtime/src/thor_reserve.cpp
+@@ -0,0 +1,314 @@
++#include "thor_reserve.h"
++#include "abi_bridge.h"
++#include "memory.h"
++#include "nsmbw_disc_revision.h"
++#include "nand_path.h"
++#include "netplay_session.h"
++#include <atomic>
++#include <bit>
++#include <cmath>
++#include <cstdlib>
++#include <mutex>
++#include <string_view>
++#include <condition_variable>
++#include <filesystem>
++#include <fstream>
++#include <thread>
++#include <unordered_set>
++
++namespace ThorReserve {
++namespace {
++std::mutex mutex;
++std::array<int32_t, 3> slots{-1, -1, -1};
++std::array<int32_t, 8> published{1, 0, -1, 0, 0, -1, 0, 0};
++std::atomic<int> requested{-1};
++bool dirty = false;
++std::unordered_set<uint32_t> droppedIds;
++uint32_t lastPickupId = 0;
++uint32_t lastPickupScene = 0;
++thread_local bool inGuestCall = false;
++
++// One bounded read on initialization; coalesced writes on a worker only after
++// slot changes. A failed/partial write retains the prior complete file. Invalid
++// input is preserved before any replacement, never parsed as an item.
++class Persistence {
++    std::filesystem::path path;
++    std::mutex workMutex;
++    std::condition_variable changed;
++    std::thread worker;
++    std::array<int32_t, 3> pending{};
++    bool queued = false, stopping = false, writable = true;
++    static std::array<unsigned char, 20> Encode(const std::array<int32_t, 3>& data) {
++        std::array<unsigned char, 20> bytes{'T','H','R','R','S','V','1',0};
++        for (unsigned i = 0; i < 3; ++i)
++            for (unsigned b = 0; b < 4; ++b) bytes[8 + i * 4 + b] = uint32_t(data[i]) >> (b * 8);
++        return bytes;
++    }
++    void Write(const std::array<int32_t, 3>& data) {
++        if (!writable) return;
++        const auto temporary = std::filesystem::path(path.string() + ".tmp");
++        const auto bytes = Encode(data);
++        { std::ofstream out(temporary, std::ios::binary | std::ios::trunc);
++          if (!out.write(reinterpret_cast<const char*>(bytes.data()), bytes.size()).flush()) return; }
++        std::error_code ec;
++        if (std::filesystem::exists(path, ec)) {
++            std::filesystem::copy_file(path, path.string() + ".bak",
++                std::filesystem::copy_options::overwrite_existing, ec);
++            if (ec) return;
++        }
++        std::filesystem::rename(temporary, path, ec);
++    }
++public:
++    Persistence() {
++        const auto nandRoot = RuntimeNandPath::DiscoverNandRootPath().lexically_normal();
++        // Configured NAND directories may be siblings. Key the complete resolved
++        // root, not only its parent, so NAND and NAND-alt never share a reserve.
++        uint64_t rootKey = 14695981039346656037ull;
++        for (char8_t byte : nandRoot.generic_u8string()) {
++            rootKey ^= static_cast<unsigned char>(byte);
++            rootKey *= 1099511628211ull;
++        }
++        char filename[48];
++        std::snprintf(filename, sizeof(filename), "ThorReserve-%016llx.bin",
++            static_cast<unsigned long long>(rootKey));
++        path = nandRoot.parent_path() / filename;
++        std::array<unsigned char, 21> bytes{};
++        std::error_code inspectError;
++        const bool exists = std::filesystem::exists(path, inspectError);
++        if (inspectError) writable = false;
++        std::ifstream in(path, std::ios::binary);
++        if (exists && !in) writable = false;
++        if (in) {
++            in.read(reinterpret_cast<char*>(bytes.data()), bytes.size());
++            bool valid = in.gcount() == 20;
++            const auto header = Encode({-1,-1,-1});
++            for (unsigned i = 0; i < 8; ++i) valid &= bytes[i] == header[i];
++            std::array<int32_t, 3> loaded{};
++            for (unsigned i = 0; i < 3; ++i) {
++                uint32_t value = 0;
++                for (unsigned b = 0; b < 4; ++b) value |= uint32_t(bytes[8 + i * 4 + b]) << (b * 8);
++                loaded[i] = static_cast<int32_t>(value);
++                valid &= value == 0xffffffffu || value == 0 || value == 1 || value == 4 ||
++                    value == 11 || value == 13 || value == 14;
++            }
++            in.close();
++            if (valid) slots = loaded;
++            else {
++                writable = false;
++                for (unsigned i = 0; i < 100; ++i) {
++                    std::error_code ec;
++                    const auto backup = path.string() + ".invalid-" + std::to_string(i);
++                    if (std::filesystem::exists(backup, ec)) continue;
++                    std::filesystem::rename(path, backup, ec);
++                    writable = !ec;
++                    break;
++                }
++            }
++        }
++        worker = std::thread([this] {
++            std::unique_lock lock(workMutex);
++            for (;;) {
++                changed.wait(lock, [this] { return stopping || queued; });
++                if (!queued && stopping) break;
++                const auto data = pending;
++                queued = false;
++                lock.unlock(); Write(data); lock.lock();
++            }
++        });
++    }
++    ~Persistence() {
++        { std::lock_guard lock(workMutex); stopping = true; }
++        changed.notify_one();
++        if (worker.joinable()) worker.join();
++    }
++    void Save(const std::array<int32_t, 3>& data) {
++        { std::lock_guard lock(workMutex); pending = data; queued = true; }
++        changed.notify_one();
++    }
++};
++Persistence& Storage() { static Persistence instance; return instance; }
++
++bool Enabled() {
++    static const bool enabled = [] {
++        const char* value = std::getenv("NSMBW_THOR");
++        return kNsmbwDiscRevision == 1 && value && std::string_view(value) == "1";
++    }();
++    return enabled;
++}
++bool Word(uint32_t address, uint32_t& value) { return Memory::TryRead32(address, value); }
++bool Byte(uint32_t address, uint32_t& value) {
++    uint32_t word;
++    if (!Word(address & ~3u, word)) return false;
++    value = (word >> ((3u - (address & 3u)) * 8u)) & 255u;
++    return true;
++}
++bool Half(uint32_t address, uint32_t& value) {
++    uint32_t high, low;
++    if (!Byte(address, high) || !Byte(address + 1u, low)) return false;
++    value = (high << 8) | low;
++    return true;
++}
++bool Pointer(uint32_t p, uint32_t length) {
++    return p >= 0x80000000u && p < 0x81800000u && (p & 3u) == 0 &&
++        length < 0x81800000u - p && Memory::Contains(p, length);
++}
++bool Supported(uint32_t kind) {
++    return kind == 0 || kind == 1 || kind == 4 || kind == 11 || kind == 13 || kind == 14;
++}
++int SuitItem(uint32_t suit) {
++    constexpr int kinds[]{-1, 0, 1, 13, 11, 14, 4};
++    return suit < 7 ? kinds[suit] : -1;
++}
++uint32_t RawKind(uint32_t kind) {
++    switch (kind) {
++    case 1: return 9;
++    case 4: return 14;
++    case 11: return 21;
++    case 13: return 25;
++    case 14: return 17;
++    default: return 0;
++    }
++}
++struct Context { uint32_t scene = 0, player = 0, index = 0, suit = 0, slot = 0; };
++
++// Preserve the caller's register file and reserve a private ABI stack frame. The
++// original lookup/constructor run only on the guest thread, never on Android UI.
++bool Call(uint32_t target, CpuContext& cpu) {
++    if (!Pointer(cpu.gpr[1], 16) || cpu.gpr[1] < 0x80002000u ||
++        !Memory::Contains(cpu.gpr[1] - 0x2000u, 0x2000u)) return false;
++    const uint32_t callerStack = cpu.gpr[1];
++    cpu.gpr[1] = (callerStack - 128u) & ~15u;
++    if (!Memory::TryWrite32(cpu.gpr[1], callerStack)) return false;
++    inGuestCall = true;
++    InvokeIndirectCpu(target, &cpu);
++    inGuestCall = false;
++    return true;
++}
++
++bool GetContext(CpuContext* cpu, Context& out, bool active) {
++    uint32_t mode, pause, manager, profile, status, demo, pending;
++    // R3 is host-side input and is deliberately not part of the original
++    // lockstep network protocol. Even a one-player LAN session must reject it.
++    if (!cpu || NetplaySession::Active() || !Word(0x80428730u, out.scene) || (out.scene & 0xffffu) != 5 ||
++        !Word(0x80315B98u, mode) || mode != 0 ||
++        !Pointer(cpu->gpr[13] - 22080u, 4) || !Word(cpu->gpr[13] - 22080u, manager) ||
++        !Pointer(manager, 40) || !Byte(manager + 38u, out.slot) || out.slot > 2) return false;
++    uint32_t entries = 0;
++    for (uint32_t i = 0; i < 4; ++i) {
++        uint32_t entry;
++        if (!Word(0x80354E50u + i * 4u, entry)) return false;
++        if (entry != 0) { ++entries; out.index = i; }
++    }
++    if (entries != 1) return false;
++    CpuContext lookup = *cpu;
++    lookup.gpr[3] = out.index;
++    if (!Call(0x8005F900u, lookup)) return false;
++    out.player = lookup.gpr[3];
++    if (!Pointer(out.player, 0x14e4) || !Half(out.player + 8u, profile) || profile != 13 ||
++        !Word(out.player + 0x1090u, out.suit) || out.suit > 6) return false;
++    if (!active) return true;
++    // Source: status bitset test 80056CF0, isDemoMode 8004DE30, and
++    // ChangePowerupWithAnimation 80145AC0. Out-of-play/stunned/transition
++    // and demonstration frames cannot consume the reserve.
++    return Word(0x80429F48u, pause) && pause == 0 &&
++        Word(out.player + 0x1014u, status) && (status & 0x78u) == 0 &&
++        Word(out.player + 0x1020u, status) && (status & 0x20000020u) == 0 &&
++        Byte(out.player + 0x1460u, demo) && demo == 0 &&
++        Word(out.player + 0x14e0u, pending) && pending == out.suit;
++}
++}
++
++void ObserveAcceptedPickup(CpuContext* cpu) {
++    if (!Enabled() || inGuestCall || !cpu || cpu->lr != 0x80A286A4u) return;
++    // The hook is at the final successful pickup notification, after all
++    // original collision eligibility decisions. Original execution continues.
++    const uint32_t item = cpu->gpr[31];
++    uint32_t kind, owner, id, profile;
++    Context game;
++    if ((cpu->gpr[29] != 1 && cpu->gpr[29] != 2) || !Pointer(item, 0xe00) ||
++        !Half(item + 8u, profile) || profile != 60 || !Half(item + 0xdcau, kind) ||
++        !Supported(kind) || !Byte(item + 0xdffu, owner) || !Word(item, id) ||
++        !GetContext(cpu, game, false) || owner != game.index) return;
++    Storage();
++    std::lock_guard<std::mutex> lock(mutex);
++    if (droppedIds.contains(id) || (id == lastPickupId && game.scene == lastPickupScene)) return;
++    lastPickupId = id;
++    lastPickupScene = game.scene;
++    // Duplicate/overflow pickups store the collected item. An actual upgrade
++    // stores the displaced form if one exists. Small Mario's first upgrade
++    // does not create an extra item. One slot: the latest qualifying item wins.
++    const int stored = cpu->gpr[29] == 2 ? static_cast<int>(kind) : SuitItem(game.suit);
++    if (stored < 0) return;
++    slots[game.slot] = stored;
++    dirty = true;
++    ++published[7];
++}
++
++void Tick(CpuContext* cpu) {
++    if (!Enabled() || inGuestCall) return;
++    auto& storage = Storage();
++    Context game, activeGame;
++    const bool valid = GetContext(cpu, game, false);
++    const bool usable = valid && GetContext(cpu, activeGame, true);
++    uint32_t scene = 0;
++    Word(0x80428730u, scene);
++    if ((scene & 0xffffu) != 5) { lastPickupId = 0; }
++    const int useSlot = requested.exchange(-1, std::memory_order_acq_rel);
++    int kind = -1;
++    {
++        std::lock_guard<std::mutex> lock(mutex);
++        if (usable) kind = slots[game.slot];
++    }
++    bool spawned = false;
++    if (useSlot >= 0 && usable && useSlot == static_cast<int>(game.slot) && kind >= 0 && droppedIds.size() < 4096) {
++        uint32_t x, y, z, layer;
++        if (Word(game.player + 0xacu, x) && Word(game.player + 0xb0u, y) &&
++            Word(game.player + 0xb4u, z) && Byte(game.player + 0x38fu, layer) && layer < 2) {
++            const float px = std::bit_cast<float>(x), py = std::bit_cast<float>(y), pz = std::bit_cast<float>(z);
++            CpuContext spawn = *cpu;
++            const uint32_t pos = (cpu->gpr[1] - 64u) & ~15u;
++            if (std::isfinite(px) && std::isfinite(py) && std::isfinite(pz) &&
++                Pointer(pos, 16) && Memory::TryWrite32(pos, x) &&
++                Memory::TryWrite32(pos + 4u, std::bit_cast<uint32_t>(py + 64.0f)) &&
++                Memory::TryWrite32(pos + 8u, z)) {
++                spawn.gpr[3] = 60;
++                // Raw kind conversion is the original 80A2C050 switch. Preserve
++                // original actor motion/collision/art rather than changing suit.
++                // create_type 8 selects original FreeDrop: constructor's
++                // table 80AF0E34[8] -> 80A270B4 -> state 80B168F8.
++                spawn.gpr[4] = 0x08000000u | RawKind(static_cast<uint32_t>(kind));
++                spawn.gpr[5] = pos;
++                spawn.gpr[6] = 0;
++                spawn.gpr[7] = layer;
++                uint32_t issuedId;
++                if (Call(0x80064610u, spawn) && Pointer(spawn.gpr[3], 12) &&
++                    Word(spawn.gpr[3], issuedId)) {
++                    droppedIds.insert(issuedId);
++                    spawned = true;
++                }
++            }
++        }
++    }
++    std::lock_guard<std::mutex> lock(mutex);
++    if (spawned) { slots[game.slot] = -1; ++published[6]; dirty = true; }
++    ++published[1];
++    published[2] = valid ? slots[game.slot] : -1;
++    published[3] = usable && published[2] >= 0 && droppedIds.size() < 4096;
++    published[4] = 0;
++    published[5] = valid ? static_cast<int32_t>(game.slot) : -1;
++    if (dirty) { storage.Save(slots); dirty = false; }
++}
++
++bool RequestUse() {
++    std::lock_guard<std::mutex> lock(mutex);
++    if (!Enabled() || published[3] == 0) return false;
++    int expected = -1;
++    if (!requested.compare_exchange_strong(expected, published[5], std::memory_order_acq_rel)) return false;
++    published[4] = 1;
++    return true;
++}
++std::array<int32_t, 8> ReadWords() {
++    std::lock_guard<std::mutex> lock(mutex);
++    return published;
++}
++}
+diff --git a/runtime/include/abi_bridge.h b/runtime/include/abi_bridge.h
+--- a/runtime/include/abi_bridge.h
++++ b/runtime/include/abi_bridge.h
+@@ -4,6 +4,7 @@
+ #include "system_bridge.h"
+ #include "game_graphics_options.h"
+ #include "runtime_log.h"
++#include "thor_reserve.h"
+ 
+ #include <array>
+ #include <atomic>
+@@ -26,6 +27,10 @@
+ // (used for the path mask filtering in ScnRenderer::createPath: depth of
+ // field is always removed, bloom when the user disabled it)
+ inline void ApplyRuntimeCallOptions(uint32_t target, CpuContext* ctx) {
++    if (target == 0x800E24B0u && ctx && ctx->lr == 0x80A286A4u)
++        ThorReserve::ObserveAcceptedPickup(ctx);
++    if (target == 0x800E3930u && ctx && ctx->lr == 0x808307ECu)
++        ThorReserve::Tick(ctx);
+ #if 0  // NSMBW: MKW-only. 0x8023BD38 was Mario Kart's ScnRenderer::createPath; in NSMBW that
+        // address is an unrelated function, so rewriting its r4 would corrupt it.
+     if (target == 0x8023BD38u) {

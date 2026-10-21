@@ -1,0 +1,1094 @@
+--- a/bse/include/BetterSMS/music.hxx
++++ b/bse/include/BetterSMS/music.hxx
+@@ -125,6 +125,10 @@
+             bool isPlaying() const;
+             bool isPaused() const;
++            // The port: the stop and clear of leaving a stage are still to run
++            // (stopMusicOnExitStage); the next stage can be ready before they
++            // are, while the old song fades out.
++            bool isLeavingStage() const { return mRequestedClear; }
+ 
+             bool isLooping() const;
+--- a/bse/src/area.cpp
++++ b/bse/src/area.cpp
+@@ -9,6 +9,9 @@
+ #define MESSAGE_NO_DATA "NO DATA"
+ 
+ static void moveStage_override(TMarDirector *director);
++// port: an episode's name for the port's warp menu (src/port_include/port_warp.h)
++extern "C" int (*port_warp_scenario_name_id)(int area, int episode);
++static int portWarpScenarioNameID(int area, int episode);
+ 
+ namespace BetterSMS {
+ 
+@@ -101,8 +104,36 @@
+ 
+         oldHeap->becomeCurrentHeap();
+     }
++
++    port_warp_scenario_name_id = portWarpScenarioNameID;
+ }
+ 
++// The episode's message in scenarioname.bmg, as the level select and the
++// pause menu name it: an area's by its scenario, a secret course's by its
++// Shine (an episode's or one of the stage's others); -1 for none.
++static int portWarpScenarioNameID(int area, int episode) {
++    if (area < 0 || area >= BETTER_SMS_AREA_MAX)
++        return -1;
++    const s32 shineStageID = sNormalAreaInfos[area].mShineStageID;
++    if (shineStageID < 0 || !sShineAreaInfos[shineStageID])
++        return -1;
++    const ShineAreaInfo &info = *sShineAreaInfos[shineStageID];
++    if (area < BETTER_SMS_EXAREA_MAX && sExAreaInfos[area].mShineStageID != -1) {
++        const s32 shineID = sExAreaInfos[area].mShineID;
++        for (int ex = 0; shineID != -1 && ex < 2; ++ex) {
++            const TGlobalVector<s32> &ids   = ex ? info.getExScenarioIDs() : info.getScenarioIDs();
++            const TGlobalVector<s32> &names = ex ? info.getExScenarioNameIDs() : info.getScenarioNameIDs();
++            for (size_t i = 0; i < ids.size() && i < names.size(); ++i) {
++                if (ids[i] == shineID)
++                    return names[i];
++            }
++        }
++        return -1;
++    }
++    const TGlobalVector<s32> &names = info.getScenarioNameIDs();
++    return episode >= 0 && size_t(episode) < names.size() ? names[episode] : -1;
++}
++
+ bool BetterSMS::Stage::registerShineStage(ShineAreaInfo *info) {
+     if (sShineAreaInfos[info->getShineStageID()]) {
+         OSReport("[WARN] Overwriting stage info for stage %d\n", info->getShineStageID());
+@@ -359,8 +359,8 @@
+ SMS_NO_INLINE static const char *loadScenarioNameFromBMGAfterStub(u8 *pause_menu, void* global_bmg) {
+     const char *name = loadScenarioNameFromBMGAfter(global_bmg);
+     if (!name || strcmp(name, "") == 0) {
+-        (*(J2DPane **)(pause_menu + 0x1C))->add(0, 30);
+-        (*(J2DPane **)(pause_menu + 0xD4))->add(0, 15);
++        (*(J2DPane **)(pause_menu + SMS_OFFSET(TPauseMenu2, 0x1C)))->add(0, 30);
++        (*(J2DPane **)(pause_menu + SMS_OFFSET(TPauseMenu2, 0xD4)))->add(0, 15);
+     }
+ 
+     return name;
+@@ -410,6 +410,6 @@
+         TFlagManager::smInstance->setFlag(0x40002, 0);
+     }
+ 
+-    *(u32 *)((u8 *)director + 0xE4) = 8;
++    *(u32 *)((u8 *)director + SMS_OFFSET(TMarDirector, 0xE4)) = 8;
+     director->mNextState            = 8;
+ }
+--- a/bse/src/graphics.cpp
++++ b/bse/src/graphics.cpp
+@@ -43,16 +43,16 @@
+     if (sGammaTHPFlag) {
+         return ret;
+     }
+-    *((u8 *)gpApplication.mDisplay + 0x42) = 0;
+-    *((u8 *)gpApplication.mDisplay + 0x43) = 0;
++    *((u8 *)gpApplication.mDisplay + SMS_OFFSET(JDrama::TDisplay, 0x42)) = 0;
++    *((u8 *)gpApplication.mDisplay + SMS_OFFSET(JDrama::TDisplay, 0x43)) = 0;
+     return ret;
+ }
+ SMS_PATCH_B(0x8001F050, flagGammaTHPStart);
+ 
+ static u32 flagGammaTHPEnd() {
+     const f32 gamma             = gGammaSetting.getFloat();
+-    *((u8 *)gpApplication.mDisplay + 0x42) = static_cast<u8>(8.0001f * gamma);
+-    *((u8 *)gpApplication.mDisplay + 0x43) = static_cast<u8>(8.0001f * gamma);
++    *((u8 *)gpApplication.mDisplay + SMS_OFFSET(JDrama::TDisplay, 0x42)) = static_cast<u8>(8.0001f * gamma);
++    *((u8 *)gpApplication.mDisplay + SMS_OFFSET(JDrama::TDisplay, 0x43)) = static_cast<u8>(8.0001f * gamma);
+     return 0x803F0000;
+ }
+ SMS_WRITE_32(0x8001EF2C, 0x90010004);
+@@ -61,15 +61,15 @@
+ BETTER_SMS_FOR_CALLBACK void resetGammaSetting(TApplication *director) {
+     sGammaTHPFlag                          = false;
+     const f32 gamma                        = gGammaSetting.getFloat();
+-    *((u8 *)gpApplication.mDisplay + 0x42) = static_cast<u8>(8.0001f * gamma);
+-    *((u8 *)gpApplication.mDisplay + 0x43) = static_cast<u8>(8.0001f * gamma);
++    *((u8 *)gpApplication.mDisplay + SMS_OFFSET(JDrama::TDisplay, 0x42)) = static_cast<u8>(8.0001f * gamma);
++    *((u8 *)gpApplication.mDisplay + SMS_OFFSET(JDrama::TDisplay, 0x43)) = static_cast<u8>(8.0001f * gamma);
+ }
+ 
+ BETTER_SMS_FOR_CALLBACK void updateGammaSetting(TMarDirector *director) {
+     const f32 gamma = gGammaSetting.getFloat();
+     if (director->mCurState != TMarDirector::STATE_INTRO_INIT) {
+         sGammaTHPFlag                          = true;
+-        *((u8 *)gpApplication.mDisplay + 0x42) = static_cast<u8>(8.0001f * gamma);
+-        *((u8 *)gpApplication.mDisplay + 0x43) = static_cast<u8>(8.0001f * gamma);
++        *((u8 *)gpApplication.mDisplay + SMS_OFFSET(JDrama::TDisplay, 0x42)) = static_cast<u8>(8.0001f * gamma);
++        *((u8 *)gpApplication.mDisplay + SMS_OFFSET(JDrama::TDisplay, 0x43)) = static_cast<u8>(8.0001f * gamma);
+     }
+ }
+--- a/bse/src/music.cpp
++++ b/bse/src/music.cpp
+@@ -241,9 +241,50 @@
+ void AudioStreamer::setVolumeFadeTo(u8 to, f32 seconds) {
++    // The port: a song being stopped fades out to silence before the stop
++    // (and the next song) runs. Eclipse's Shadow Mario episodes set the
++    // stream's volume from his distance every frame; a console's slow stage
++    // load let the character select's stop finish first, but here the stage
++    // was running while it faded and held it at that volume, so the stop
++    // never ran and the character select's song played on.
++    if (mRequestedStop)
++        return;
+     _mTargetVolume = to;
+     _mFadeTime     = seconds;
+ }
+ 
+ bool AudioStreamer::queueAudio(const AudioPacket &packet) {
++    // The port: leaving a stage stops the song with a 0.8 s fade and clears the
++    // queue once the fade ends. A console spends seconds reading the next stage
++    // from the disc, so the clear has run before that stage queues its song.
++    // Here the stage is ready long before, and the late clear dropped the new
++    // song too (silent secret course intros, silent stages without an intro,
++    // and nothing for Pizza Time's skipStream to play). Finish the old song now.
++    if (mRequestedClear) {
++        if (_mIsPlaying || _mIsPaused || mRequestedStop)
++            stopLowStream();
++        _mIsPlaying         = false;
++        _mIsPaused          = false;
++        mRequestedStop      = false;
++        mRequestedPause     = false;
++        mRequestedNext      = false;
++        mRequestedPlay      = false;
++        _mDelayedTime       = 0.0f;
++        _mFadeTime          = 0.0f;
++        _mTargetVolume      = 0;
++        _mVolLeft           = 0;
++        _mVolRight          = 0;
++        _mPreservedVolLeft  = 0;
++        _mPreservedVolRight = 0;
++
++        TAtomicGuard guard;
++
++        _mAudioIndex = 0;
++        for (size_t i = 0; i < AudioQueueSize; ++i) {
++            _mAudioQueue[i] = AudioPacket();
++        }
++        mStreamPos      = 0;
++        mRequestedClear = false;
++    }
++
+     for (u32 i = 0; i < AudioQueueSize; ++i) {
+         AudioPacket &slot = _mAudioQueue[(i + _mAudioIndex) % AudioQueueSize];
+         if (slot.getID() == 0xFFFFFFFF) {
+@@ -340,8 +381,9 @@
+ }
+ 
+ void AudioStreamer::clear() {
+-    sAudioCommand = AudioCommand::CLEAR;
+-    OSSendMessage(&mMessageQueue, static_cast<u32>(sAudioCommand), OS_MESSAGE_NOBLOCK);
++    // The port: flagged here, not by the audio thread, so queueAudio above
++    // sees a clear that is still to run whichever thread ran first.
++    clear_();
+ }
+ 
+ SMS_NO_INLINE bool AudioStreamer::play_() {
+@@ -487,12 +529,12 @@
+ 
+ static JAISound *GetJAISoundForMusic(u32 id) {
+     JAISound **unk = (JAISound **)search__19JALListS_5(id & 0x3FF); 
+-    return unk ? unk[0x14 / 4] : nullptr;
++    return unk ? *(JAISound **)((u8 *)unk + SMS_OFFSET(MSBgm, 0x14)) : nullptr;
+ }
+ 
+ static JAISound *GetJAISoundForBGMHandle(u32 handle) {
+     u32 *bgm = (u32 *)MSBgm::getHandle(handle);
+-    return bgm ? GetJAISoundForMusic(bgm[2]) : nullptr;
++    return bgm ? GetJAISoundForMusic(*(u32 *)((u8 *)bgm + SMS_OFFSET(JAISound, 0x8))) : nullptr;
+ }
+ 
+ static f32 GetJAISoundSeInterVolume(JAISound *sound, u8 channel) {
+@@ -959,8 +993,14 @@
+     if (!config->mMusicEnabled.get())
+         return;
+ 
+     if (config->mIsExStage.get()) {
+-        if (MSBgm::getHandle(0) || streamer->isPlaying()) {
++        // The port: a secret course leaves its music to the entrance demo
++        // (initExMusic) when a song is already playing. A console reads the
++        // course from the disc while the last stage's song fades out, so that
++        // song has stopped by now; here it can still be fading, and courses
++        // with sequenced music (Daisy Cruiser's) stayed silent until Mario
++        // died and the stage started again.
++        if (MSBgm::getHandle(0) || (streamer->isPlaying() && !streamer->isLeavingStage())) {
+             return;
+         }
+     }
+--- a/bse/src/p_settings.hxx
++++ b/bse/src/p_settings.hxx
+@@ -1246,8 +1246,8 @@
+ 
+     static void valueChangedCB(void *old, void *cur, ValueKind kind) {
+         OSReport("GammaSetting::valueChangedCB\n");
+-        *((u8 *)gpApplication.mDisplay + 0x42) = static_cast<u8>(8.0001f * *(float *)cur);
+-        *((u8 *)gpApplication.mDisplay + 0x43) = static_cast<u8>(8.0001f * *(float *)cur);
++        *((u8 *)gpApplication.mDisplay + SMS_OFFSET(JDrama::TDisplay, 0x42)) = static_cast<u8>(8.0001f * *(float *)cur);
++        *((u8 *)gpApplication.mDisplay + SMS_OFFSET(JDrama::TDisplay, 0x43)) = static_cast<u8>(8.0001f * *(float *)cur);
+     }
+ 
+     void getValueName(char *dst) const override { snprintf(dst, 100, "%.1f", mGammaValue); }
+--- a/bse/src/patches/emario.cpp
++++ b/bse/src/patches/emario.cpp
+@@ -20,7 +20,7 @@
+ 
+ static JUtility::TColor getEMarioHealthBarRGBA(TEnemyMario *eMario) {
+     JUtility::TColor color;
+-    const s16 maxHealth = ((s16 *)eMario->mEnemyManager)[0x40 / 2];
++    const s16 maxHealth = *(s16 *)((u8 *)eMario->mEnemyManager + SMS_OFFSET(TEnemyMario::TSettingParams, 0x40));
+ 
+     color.set(0xFF, 0x00, 0x00, 0xFF);
+     color.g =
+--- a/bse/src/patches/fludd.cpp
++++ b/bse/src/patches/fludd.cpp
+@@ -209,7 +209,7 @@
+     TGCConsole2 *console;
+     SMS_FROM_GPR(28, console);
+ 
+-    u16 unk = *(u16 *)((u8 *)console + 0x3F4);
++    u16 unk = *(u16 *)((u8 *)console + SMS_OFFSET(TGCConsole2, 0x3F4));
+     u16 unk2 = messageEntry[2];
+     if (unk2 <= unk) {
+         return false;
+--- a/bse/src/patches/ui.cpp
++++ b/bse/src/patches/ui.cpp
+@@ -47,7 +47,8 @@
+     size_t shines = TFlagManager::smInstance->getFlag(0x40000);
+ 
+     ResTIMG *timg =
+-        (ResTIMG *)((((u32 **)((u8 *)card_save + 0x1C))[(shines % 100) / 10])[0x20 / 4]);
++        *(ResTIMG **)(((u8 **)((u8 *)card_save + SMS_OFFSET(TCardSave, 0x1C)))[(shines % 100) / 10] +
++                      SMS_OFFSET(JUTTexture, 0x20));
+ 
+     picture->changeTexture(timg, 0);
+ }
+--- a/bse/src/patches/yoshi.cpp
++++ b/bse/src/patches/yoshi.cpp
+@@ -87,8 +87,9 @@
+         if (!actor->checkCurBckFromIndex(25))
+             actor->setBckFromIndex(25);
+         thinkBtp__6TYoshiFi(yoshi, 25);
+-        initAnmSound__9MAnmSoundFPvUlf(((u32 *)yoshi)[0x118 / 4],
+-                                       ((u32 **)yoshi)[0x11C / 4][0x64 / 4], 1, 0.0f);
++        initAnmSound__9MAnmSoundFPvUlf(
++            *(MAnmSound **)((u8 *)yoshi + SMS_OFFSET(TYoshi, 0x118)),
++            (*(void ***)((u8 *)yoshi + SMS_OFFSET(TYoshi, 0x11C)))[0x64 / 4], 1, 0.0f);
+     }
+ 
+     yoshi->mType     = 0;
+@@ -194,9 +195,11 @@
+     SMS_FROM_GPR(30, yoshi);
+ 
+     if (BetterSMS::areExploitsPatched())
+-        ((u16 **)(yoshi))[0x38 / 4][0x7C / 2] = 3;
++        *(u16 *)(*(u8 **)((u8 *)yoshi + SMS_OFFSET(TYoshi, 0x38)) +
++                 SMS_OFFSET(TYoshiTongue, 0x7C)) = 3;
+     else
+-        ((u16 **)(yoshi))[0x38 / 4][0x7C / 2] = 0;
++        *(u16 *)(*(u8 **)((u8 *)yoshi + SMS_OFFSET(TYoshi, 0x38)) +
++                 SMS_OFFSET(TYoshiTongue, 0x7C)) = 0;
+ }
+ SMS_PATCH_BL(SMS_PORT_REGION(0x802703CC, 0, 0, 0), checkYoshiFruitFix);  // Fix fruit storage
+ 
+--- a/bse/src/shine/bootout.cpp
++++ b/bse/src/shine/bootout.cpp
+@@ -107,7 +107,7 @@
+     if (streamer->isPaused())
+         streamer->play();
+ 
+-    ((u16 *)director->mGCConsole)[0x8A / 2] = 0;
++    *(u16 *)((u8 *)director->mGCConsole + SMS_OFFSET(TGCConsole2, 0x8A)) = 0;
+ }
+ 
+ extern SavePromptsSetting gSavePromptSetting;
+@@ -127,14 +127,14 @@
+         if (!director->mpNextState)
+             return;
+ 
+-        u8 *curSaveCard = reinterpret_cast<u8 *>(director->mpNextState[0x118 / 4]);
++        u8 *curSaveCard = *(u8 **)((u8 *)director->mpNextState + SMS_OFFSET(TPauseMenu2, 0x118));
+ 
+         if (nextState != TMarDirector::Status::STATE_NORMAL ||
+             director->mCurState != TMarDirector::Status::STATE_SAVE_CARD ||
+             gpMarioAddress->mState != static_cast<u32>(TMario::STATE_SHINE_C))
+             return;
+ 
+-        if (curSaveCard[0x2E9] != 1) {
++        if (curSaveCard[SMS_OFFSET(TCardSave, 0x2E9)] != 1) {
+             exitShineDemo(director, gpMarioAddress, gpCamera);
+         } else
+             director->mGameState |= TMarDirector::State::WARP_OUT;
+--- a/bse/src/shine/extendcount.cpp
++++ b/bse/src/shine/extendcount.cpp
+@@ -36,7 +36,7 @@
+             flag -= 0x40;
+ 
+             const u32 mask = (flag & 7);
+-            u8 *flagField  = &((u8 *)(&flagManager->Type6Flag) + 0x100)[flag >> 3];
++            u8 *flagField  = &((u8 *)flagManager + SMS_OFFSET(TFlagManager, 0x1F4))[flag >> 3];
+ 
+             *flagField &= ~(1 << mask);
+             *flagField |= (val & 1) << mask;
+@@ -54,7 +54,7 @@
+             flag -= 0x40;
+ 
+             const u32 mask = (flag & 7);
+-            u8 *flagField  = &((u8 *)(&flagManager->Type6Flag) + 0x100)[flag >> 3];
++            u8 *flagField  = &((u8 *)flagManager + SMS_OFFSET(TFlagManager, 0x1F4))[flag >> 3];
+ 
+             return (*flagField >> mask) & 1;
+         }
+@@ -91,14 +91,14 @@
+ 
+ // 0x80294334
+ static void extendFlagManagerLoad(JSUMemoryInputStream &stream) {
+-    stream.read(((u8 *)TFlagManager::smInstance + 0x1F4), 0x90);
++    stream.read(((u8 *)TFlagManager::smInstance + SMS_OFFSET(TFlagManager, 0x1F4)), 0x90);
+     stream.skip(0x11C);
+ }
+ SMS_PATCH_BL(SMS_PORT_REGION(0x80294334, 0x8028C14C, 0, 0), extendFlagManagerLoad);
+ 
+ // 0x802939B8
+ static void extendFlagManagerSave(JSUMemoryOutputStream &stream) {
+-    stream.write(((u8 *)TFlagManager::smInstance + 0x1F4), 0x90);
++    stream.write(((u8 *)TFlagManager::smInstance + SMS_OFFSET(TFlagManager, 0x1F4)), 0x90);
+     stream.skip(0x11C, 0);
+ }
+ SMS_PATCH_BL(SMS_PORT_REGION(0x802939B8, 0x8028B7D0, 0, 0), extendFlagManagerSave);
+--- a/bse/src/shine/savefile.cpp
++++ b/bse/src/shine/savefile.cpp
+@@ -11,31 +11,31 @@
+ // extern -> SMS.cpp
+ static void resetGame(TFlagManager *flagManager) {
+     constexpr size_t mainResetSize = 0x100;
+-    memset(((u8 *)flagManager) + 0xD0, 0, 0x21);
+-    memset(((u8 *)flagManager) + 0xF4, 0, mainResetSize);  // OG =
++    memset(((u8 *)flagManager) + SMS_OFFSET(TFlagManager, 0xD0), 0, 0x21);
++    memset(((u8 *)flagManager) + SMS_OFFSET(TFlagManager, 0xF4), 0, mainResetSize);  // OG =
+                                                                        // 0x18C
+-    memset(((u8 *)flagManager) + 0x11F, 0, 1);
++    memset(((u8 *)flagManager) + SMS_OFFSET(TFlagManager, 0x11F), 0, 1);
+ }
+ SMS_PATCH_B(SMS_PORT_REGION(0x802950a0, 0, 0, 0), resetGame);
+ 
+ static void resetStage(TFlagManager *flagManager) {
+     constexpr size_t mainResetSize = 0x100;
+ 
+-    memset(((u8 *)flagManager) + 0xE4, 0, 0xD);
+-    memset(((u8 *)flagManager) + 0xF4, 0, mainResetSize);  // OG =
++    memset(((u8 *)flagManager) + SMS_OFFSET(TFlagManager, 0xE4), 0, 0xD);
++    memset(((u8 *)flagManager) + SMS_OFFSET(TFlagManager, 0xF4), 0, mainResetSize);  // OG =
+                                                            // 0x18C
+-    memset(((u8 *)flagManager) + 0x11F, 0, 1);
++    memset(((u8 *)flagManager) + SMS_OFFSET(TFlagManager, 0x11F), 0, 1);
+ }
+ SMS_PATCH_B(SMS_PORT_REGION(0x80294EF4, 0x8028CD0C, 0, 0), resetStage);
+ 
+ static void resetFirstStartExt(TFlagManager *flagManager) {
+-    memset(((u8 *)flagManager) + 0x1F4, 0, 0x8C);
++    memset(((u8 *)flagManager) + SMS_OFFSET(TFlagManager, 0x1F4), 0, 0x8C);
+     flagManager->correctFlag();
+ }
+ SMS_PATCH_BL(SMS_PORT_REGION(0x80293DE4, 0, 0, 0), resetFirstStartExt);
+ 
+ static void extendResetCard(TFlagManager *flagManager) {
+     flagManager->resetStage();
+-    memset(((u8 *)flagManager) + 0x1F4, 0, 0x8C);
++    memset(((u8 *)flagManager) + SMS_OFFSET(TFlagManager, 0x1F4), 0, 0x8C);
+ }
+ SMS_PATCH_BL(SMS_PORT_REGION(0x80295470, 0, 0, 0), extendResetCard);
+\ No newline at end of file
+--- a/eclipse/src/camera/2d_camera.cpp
++++ b/eclipse/src/camera/2d_camera.cpp
+@@ -50,15 +50,15 @@
+     camera->mTargetPos.z      = gpMarioPos->z;
+     camera->mWorldTranslation = camera->mTranslation;
+ 
+-    *(f32 *)((u8 *)camera + 0x130) = camera->mTranslation.x;
+-    *(f32 *)((u8 *)camera + 0x134) = camera->mTranslation.y;
+-    *(f32 *)((u8 *)camera + 0x138) = camera->mTranslation.z;
++    *(f32 *)((u8 *)camera + SMS_OFFSET(CPolarSubCamera, 0x130)) = camera->mTranslation.x;
++    *(f32 *)((u8 *)camera + SMS_OFFSET(CPolarSubCamera, 0x134)) = camera->mTranslation.y;
++    *(f32 *)((u8 *)camera + SMS_OFFSET(CPolarSubCamera, 0x138)) = camera->mTranslation.z;
+ 
+-    *(f32 *)((u8 *)camera + 0x148) = camera->mTranslation.x;
+-    *(f32 *)((u8 *)camera + 0x14C) = camera->mTranslation.y;
+-    *(f32 *)((u8 *)camera + 0x150) = gpMarioPos->z;
++    *(f32 *)((u8 *)camera + SMS_OFFSET(CPolarSubCamera, 0x148)) = camera->mTranslation.x;
++    *(f32 *)((u8 *)camera + SMS_OFFSET(CPolarSubCamera, 0x14C)) = camera->mTranslation.y;
++    *(f32 *)((u8 *)camera + SMS_OFFSET(CPolarSubCamera, 0x150)) = gpMarioPos->z;
+ 
+-    *(f32 *)((u8 *)camera + 0x154) = camera->mTranslation.x;
+-    *(f32 *)((u8 *)camera + 0x158) = camera->mTranslation.y;
+-    *(f32 *)((u8 *)camera + 0x15C) = gpMarioPos->z;
++    *(f32 *)((u8 *)camera + SMS_OFFSET(CPolarSubCamera, 0x154)) = camera->mTranslation.x;
++    *(f32 *)((u8 *)camera + SMS_OFFSET(CPolarSubCamera, 0x158)) = camera->mTranslation.y;
++    *(f32 *)((u8 *)camera + SMS_OFFSET(CPolarSubCamera, 0x15C)) = gpMarioPos->z;
+ }
+--- a/eclipse/src/camera/bowser_camera.cpp
++++ b/eclipse/src/camera/bowser_camera.cpp
+@@ -81,7 +81,7 @@
+         sFixedCameraPos  = {0.0f, 2000.0f, -3000.0f};
+         sFixedCameraFovy = 60.0f;
+ 
+-        *((u8 *)gpMarDirector->mGCConsole + 0x50) = 0;
++        *((u8 *)gpMarDirector->mGCConsole + SMS_OFFSET(TGCConsole2, 0x50)) = 0;
+ 
+         BetterSMS::Music::setVolumeFade(20, 1.0f);
+     }
+@@ -278,19 +278,19 @@
+ 
+     camera->mWorldTranslation = camera->mTranslation;
+ 
+-    *(f32 *)((u8 *)camera + 0x130) = camera->mTranslation.x;
+-    *(f32 *)((u8 *)camera + 0x134) = camera->mTranslation.y;
+-    *(f32 *)((u8 *)camera + 0x138) = camera->mTranslation.z;
+-
+-    *(f32 *)((u8 *)camera + 0x148) = camera->mTargetPos.x;
+-    *(f32 *)((u8 *)camera + 0x14C) = camera->mTargetPos.y;
+-    *(f32 *)((u8 *)camera + 0x150) = camera->mTargetPos.z;
+-
+-    *(f32 *)((u8 *)camera + 0x154) = camera->mTargetPos.x;
+-    *(f32 *)((u8 *)camera + 0x158) = camera->mTargetPos.y;
+-    *(f32 *)((u8 *)camera + 0x15C) = camera->mTargetPos.z;
+-
+-    gpCameraShake->execShake(camera->mTranslation, (TVec3f *)((u8 *)camera + 0x148),
++    *(f32 *)((u8 *)camera + SMS_OFFSET(CPolarSubCamera, 0x130)) = camera->mTranslation.x;
++    *(f32 *)((u8 *)camera + SMS_OFFSET(CPolarSubCamera, 0x134)) = camera->mTranslation.y;
++    *(f32 *)((u8 *)camera + SMS_OFFSET(CPolarSubCamera, 0x138)) = camera->mTranslation.z;
++
++    *(f32 *)((u8 *)camera + SMS_OFFSET(CPolarSubCamera, 0x148)) = camera->mTargetPos.x;
++    *(f32 *)((u8 *)camera + SMS_OFFSET(CPolarSubCamera, 0x14C)) = camera->mTargetPos.y;
++    *(f32 *)((u8 *)camera + SMS_OFFSET(CPolarSubCamera, 0x150)) = camera->mTargetPos.z;
++
++    *(f32 *)((u8 *)camera + SMS_OFFSET(CPolarSubCamera, 0x154)) = camera->mTargetPos.x;
++    *(f32 *)((u8 *)camera + SMS_OFFSET(CPolarSubCamera, 0x158)) = camera->mTargetPos.y;
++    *(f32 *)((u8 *)camera + SMS_OFFSET(CPolarSubCamera, 0x15C)) = camera->mTargetPos.z;
++
++    gpCameraShake->execShake(camera->mTranslation, (TVec3f *)((u8 *)camera + SMS_OFFSET(CPolarSubCamera, 0x148)),
+                              &camera->mUpVector);
+ 
+     sCanSwitchMode = true;
+--- a/eclipse/src/camera/camera.cpp
++++ b/eclipse/src/camera/camera.cpp
+@@ -48,7 +48,7 @@
+     }
+ 
+     if (SME::isCameraFixedMode()) {
+-        *(s32 *)((u8 *)camera->mInbetween + 0x4) = 0;
++        *(s32 *)((u8 *)camera->mInbetween + SMS_OFFSET(TCameraInbetween, 0x4)) = 0;
+ 
+         TVec3f followPos = sFixedCameraPos;
+         if (sFixedCameraActor != nullptr) {
+@@ -98,17 +98,17 @@
+ 
+         camera->mWorldTranslation = camera->mTranslation;
+ 
+-        *(f32 *)((u8 *)camera + 0x130) = camera->mTranslation.x;
+-        *(f32 *)((u8 *)camera + 0x134) = camera->mTranslation.y;
+-        *(f32 *)((u8 *)camera + 0x138) = camera->mTranslation.z;
++        *(f32 *)((u8 *)camera + SMS_OFFSET(CPolarSubCamera, 0x130)) = camera->mTranslation.x;
++        *(f32 *)((u8 *)camera + SMS_OFFSET(CPolarSubCamera, 0x134)) = camera->mTranslation.y;
++        *(f32 *)((u8 *)camera + SMS_OFFSET(CPolarSubCamera, 0x138)) = camera->mTranslation.z;
+ 
+-        *(f32 *)((u8 *)camera + 0x148) = camera->mTargetPos.x;
+-        *(f32 *)((u8 *)camera + 0x14C) = camera->mTargetPos.y;
+-        *(f32 *)((u8 *)camera + 0x150) = camera->mTargetPos.z;
++        *(f32 *)((u8 *)camera + SMS_OFFSET(CPolarSubCamera, 0x148)) = camera->mTargetPos.x;
++        *(f32 *)((u8 *)camera + SMS_OFFSET(CPolarSubCamera, 0x14C)) = camera->mTargetPos.y;
++        *(f32 *)((u8 *)camera + SMS_OFFSET(CPolarSubCamera, 0x150)) = camera->mTargetPos.z;
+ 
+-        *(f32 *)((u8 *)camera + 0x154) = camera->mTargetPos.x;
+-        *(f32 *)((u8 *)camera + 0x158) = camera->mTargetPos.y;
+-        *(f32 *)((u8 *)camera + 0x15C) = camera->mTargetPos.z;
++        *(f32 *)((u8 *)camera + SMS_OFFSET(CPolarSubCamera, 0x154)) = camera->mTargetPos.x;
++        *(f32 *)((u8 *)camera + SMS_OFFSET(CPolarSubCamera, 0x158)) = camera->mTargetPos.y;
++        *(f32 *)((u8 *)camera + SMS_OFFSET(CPolarSubCamera, 0x15C)) = camera->mTargetPos.z;
+ 
+         return;
+     }
+--- a/eclipse/src/darkness.cpp
++++ b/eclipse/src/darkness.cpp
+@@ -224,10 +224,10 @@
+     }
+     case TLightContext::ActiveType::FOLLOWCAMERA: {
+         manager.mDarkLevel = sBrightLevel;
+-        if (((f32 *)gpCamera)[0x134 / 4] > 13000.0f) {
++        if (*(f32 *)((u8 *)gpCamera + SMS_OFFSET(CPolarSubCamera, 0x134)) > 13000.0f) {
+             manager.mDarkLevel = lerp<f32>(
+                 static_cast<f32>(sBrightLevel), 255.0f,
+-                clamp(1.0f - ((21000.0f - ((f32 *)gpCamera)[0x134 / 4]) / 8000.0f), 0.0f, 1.0f));
++                clamp(1.0f - ((21000.0f - *(f32 *)((u8 *)gpCamera + SMS_OFFSET(CPolarSubCamera, 0x134))) / 8000.0f), 0.0f, 1.0f));
+         }
+ 
+         manager.mSphereStep           = mBaseScale * mLayerScale;
+--- a/eclipse/src/enemy/bowser_car.cpp
++++ b/eclipse/src/enemy/bowser_car.cpp
+@@ -822,7 +822,7 @@
+ 
+     if (mActorData->mBckInfo) {
+         mActorData->mBckInfo->setOldMotionBlendAnmPtr(
+-            *(J3DAnmTransform **)((u8 *)mActorData->mBckInfo + 0x24));
++            *(J3DAnmTransform **)((u8 *)mActorData->mBckInfo + SMS_OFFSET(MActorAnmBck, 0x24)));
+     }
+ 
+     mActorData->setBck(anm_name);
+@@ -1423,7 +1423,7 @@
+ 
+             if (JPABaseEmitter *emitterFire =
+                     gpMarioParticleManager->emitAndBindToMtxPtr(0x1a6, *fire_mtx, 1, bowser)) {
+-                *(JPACallBackBase<> **)((u8 *)emitterFire + 0x110) = &s_fire_particle_callback;
++                *(JPACallBackBase<> **)((u8 *)emitterFire + SMS_OFFSET(JPABaseEmitter, 0x110)) = &s_fire_particle_callback;
+             }
+ 
+             gpMarioParticleManager->emitAndBindToMtxPtr(0x1a5, *fire_mtx, 1, bowser);
+--- a/eclipse/src/enemy/dark_zhine.cpp
++++ b/eclipse/src/enemy/dark_zhine.cpp
+@@ -740,7 +740,7 @@
+ 
+     if (spine->mNerveTimer == 0) {
+         MSBgm::startBGM(BGM_BOSSHANA_2ND3RD);
+-        (*(MSModBgm **)((u8 *)gpMSound + 0x9C))->changeTempo(0, 1);
++        (*(MSModBgm **)((u8 *)gpMSound + SMS_OFFSET(MSound, 0x9C)))->changeTempo(0, 1);
+         actor->setBck("zhine_angry");
+         // actor->setFrameRate(0.2f, MActor::BCK);
+     }
+@@ -844,7 +844,7 @@
+             SMS_ResetDamageFogEffect(mActorData->mModel->mModelData);
+         }
+         J3DTevStage *tev_stage = mActorData->mModel->mModelData->mStages[0];
+-        J3DTevBlock *tev_block = *(J3DTevBlock **)((u8 *)tev_stage + 0x28);
++        J3DTevBlock *tev_block = *(J3DTevBlock **)((u8 *)tev_stage + SMS_OFFSET(J3DMaterial, 0x28));
+         tev_block->setTevKColor(0, {0, 0, 0, m_pol_alpha});
+     }
+ }
+--- a/eclipse/src/enemy/firey_petey.cpp
++++ b/eclipse/src/enemy/firey_petey.cpp
+@@ -119,11 +119,16 @@
+                 ((static_cast<float>(rand()) / static_cast<float>(0x7fff)) - 0.5f) * 10000.0f;
+ 
+             if (target->_118 < target->_114) {
+-                u32 *unk = ((target->_11C) + (target->_118) * 0x10);
+-                unk[0]   = (u32)target->mTarget;
+-                unk[1]   = target->_F8;
+-                unk[2]   = target->_FC;
+-                unk[3]   = target->_100;
++                // The retail step of 0x10 u32s is four TPathNodes (the port's size below).
++                struct PathNodeLayout {
++                    void *mTarget;
++                    f32 mPoint[3];
++                };
++                u8 *unk = (u8 *)target->_11C + target->_118 * 4 * sizeof(PathNodeLayout);
++                *(THitActor **)(unk + SMS_OFFSET(TPathNode, 0x0)) = target->mTarget;
++                *(u32 *)(unk + SMS_OFFSET(TPathNode, 0x4))        = target->_F8;
++                *(u32 *)(unk + SMS_OFFSET(TPathNode, 0x8))        = target->_FC;
++                *(u32 *)(unk + SMS_OFFSET(TPathNode, 0xC))        = target->_100;
+                 target->_118++;
+             }
+             target->mTarget = 0;
+@@ -333,7 +338,10 @@
+ 
+                     JPABaseEmitter *emitterFireCb =
+                         gpMarioParticleManager->emitAndBindToMtxPtr(0x1a6, *fire_mtx, 1, target);
+-                    *(JPACallBackBase<> **)((u8 *)emitterFireCb + 0x110) =
+-                        target->m_fire_particle_callback;
++                    // The port: there is no emitter when the particle pool is
++                    // full; bowser_car.cpp's fire breath checks for that too.
++                    if (emitterFireCb)
++                        *(JPACallBackBase<> **)((u8 *)emitterFireCb + SMS_OFFSET(JPABaseEmitter, 0x110)) =
++                            target->m_fire_particle_callback;
+ 
+                     gpMarioParticleManager->emitAndBindToMtxPtr(0x1a5, *fire_mtx, 1, target);
+--- a/eclipse/src/menu/character_select.cpp
++++ b/eclipse/src/menu/character_select.cpp
+@@ -548,7 +548,7 @@
+ static int flagCharacterSelectMenu(u8 state) {
+     // Only here for time sake
+     if (gpApplication.mContext == TApplication::CONTEXT_DIRECT_STAGE) {
+-        *(*(u8 **)0x8040D05C + 0x98) = 0;
++        *((u8 *)gpMSound + SMS_OFFSET(MSound, 0x98)) = 0;
+         setWaterCameraFir__12MSSeCallBackFb(false);
+     }
+ 
+--- a/eclipse/src/message.cpp
++++ b/eclipse/src/message.cpp
+@@ -41,7 +41,7 @@
+ }
+ 
+ BETTER_SMS_FOR_CALLBACK void checkBalloonMessagePool(TMarDirector *director) {
+-    bool is_console_ready = *(u16 *)((u8 *)director->mGCConsole + 0x3F4) == 0;
++    bool is_console_ready = *(u16 *)((u8 *)director->mGCConsole + SMS_OFFSET(TGCConsole2, 0x3F4)) == 0;
+     bool is_water_card    = director->mGCConsole->mIsWaterCard;
+ 
+     AtomBalloonMessageViewer *message = AtomBalloonMessageViewer::peekMessage();
+--- a/eclipse/src/object/emario_portal.cpp
++++ b/eclipse/src/object/emario_portal.cpp
+@@ -10,17 +10,20 @@
+ #include "player.hxx"
+ 
+ // Exploits unused padding bytes in every actor
+-static bool IsLiveActor(JDrama::TActor *actor) { return ((bool *)actor)[0xE]; }
++// (the port: byte 0xE, after mPerformFlags, holds mPosition on 64-bit hosts;
++// the byte after mPlacementFlags, retail 0x1E, is padding in every layout)
++static bool &LiveActorFlag(JDrama::TActor *actor) { return ((bool *)&actor->mPlacementFlags)[2]; }
++static bool IsLiveActor(JDrama::TActor *actor) { return LiveActorFlag(actor); }
+ 
+ // Patching constructors
+ static JDrama::TFlagT<u16> *flagNotLiveActor(JDrama::TActor *actor) {
+-    ((bool *)actor)[0xE] = false;
++    LiveActorFlag(actor) = false;
+     return (JDrama::TFlagT<u16> *)&actor->mPerformFlags;
+ }
+ SMS_PATCH_BL(0x80223EAC, flagNotLiveActor);
+ 
+ static u32 flagLiveActor(THitActor *actor) {
+-    ((bool *)actor)[0xE] = true;
++    LiveActorFlag(actor) = true;
+     return 0x803AB71C;
+ }
+ SMS_PATCH_BL(0x80218E94, flagLiveActor);
+--- a/eclipse/src/object/star_bit.cpp
++++ b/eclipse/src/object/star_bit.cpp
+@@ -85,7 +85,7 @@
+ 
+     OSReport("Trying to set the TEV color!\n");
+ 
+-    J3DTevBlock *tevBlock = *(J3DTevBlock **)((u8 *)tevStage + 0x28);
++    J3DTevBlock *tevBlock = *(J3DTevBlock **)((u8 *)tevStage + SMS_OFFSET(J3DMaterial, 0x28));
+     tevBlock->setTevKColor(0, color);
+ 
+     gpItemManager->_70 = 5.0f;  // 2.0f rotation -> 5.0f rotation
+--- a/eclipse/src/player/init.cpp
++++ b/eclipse/src/player/init.cpp
+@@ -30,7 +30,7 @@
+     if (gSunglassSetting.getBool()) {
+         if (TFlagManager::smInstance->getFlag(0x3001B) != 0) {
+             /*player->wearGlass();*/
+-            ((u16 *)player->mCap)[2] |= 4;
++            *(u16 *)((u8 *)player->mCap + SMS_OFFSET(TMarioCap, 0x4)) |= 4;
+ 
+             if (TFlagManager::smInstance->getShineFlag(119)) {
+                 player->mAttributes.mIsShineShirt = true;
+--- a/eclipse/src/player/voice.cpp
++++ b/eclipse/src/player/voice.cpp
+@@ -105,8 +105,8 @@
+             }
+         } else if (player_id == SME::CharacterID::LUIGI) {
+             // u32 soundInf     = (u32)((u8 *)gpMSound + 0xB0 + (0xC * ((status & 2) != 0)));
+-            u32 soundInf     = *(u32 *)((u8 *)sound + 0xB0);
+-            u32 jai_actor[4] = {
++            void *soundInf   = *(void **)((u8 *)sound + SMS_OFFSET(MSound, 0xB0));
++            void *jai_actor[4] = {
+                 soundInf,
+                 soundInf,
+                 soundInf,
+@@ -117,40 +117,40 @@
+             case MSD_SE_MV24_JUMP_SPECIAL_01:
+             case MSD_SE_MV25A_JUMP_HUGE_01: {
+                 if (sound->gateCheck(MSD_SE_MV41_JUMP_T_01)) {
+-                    JAISound **sounds = (JAISound **)((u8 *)sound + 0x8C);
++                    JAISound **sounds = (JAISound **)((u8 *)sound + SMS_OFFSET(MSound, 0x8C));
+                     JAISound *sound = MSoundSE::startSoundActorInner(MSD_SE_MV41_JUMP_T_01, sounds,
+                                                                      (JAIActor *)jai_actor, 1, 4);
+                     if (sound) {
+                         sound->setPortData(11, 0);
+                     }
+                 }
+-                *(u32 *)((u8 *)sound + 0x94) = MSD_SE_MV41_JUMP_T_01;
++                *(u32 *)((u8 *)sound + SMS_OFFSET(MSound, 0x94)) = MSD_SE_MV41_JUMP_T_01;
+                 return MSD_SE_MV41_JUMP_T_01;
+             }
+             case MSD_SE_MV13_ACTION_SMALL_01:
+             case MSD_SE_MV22_JUMP_MID_01: {
+                 if (sound->gateCheck(MSD_SE_MV34_ACTION_T_01)) {
+-                    JAISound **sounds = (JAISound **)((u8 *)sound + 0x8C);
++                    JAISound **sounds = (JAISound **)((u8 *)sound + SMS_OFFSET(MSound, 0x8C));
+                     JAISound *sound   = MSoundSE::startSoundActorInner(
+                         MSD_SE_MV34_ACTION_T_01, sounds, (JAIActor *)jai_actor, 1, 4);
+                     if (sound) {
+                         sound->setPortData(11, 0);
+                     }
+                 }
+-                *(u32 *)((u8 *)sound + 0x94) = MSD_SE_MV34_ACTION_T_01;
++                *(u32 *)((u8 *)sound + SMS_OFFSET(MSound, 0x94)) = MSD_SE_MV34_ACTION_T_01;
+                 return MSD_SE_MV34_ACTION_T_01;
+             }
+             case MSD_SE_MV15_EXERT_INST_01:
+             case MSD_SE_MV23_JUMP_LARGE_01: {
+                 if (sound->gateCheck(MSD_SE_MV38_EXERT_INST_T_01)) {
+-                    JAISound **sounds = (JAISound **)((u8 *)sound + 0x8C);
++                    JAISound **sounds = (JAISound **)((u8 *)sound + SMS_OFFSET(MSound, 0x8C));
+                     JAISound *sound   = MSoundSE::startSoundActorInner(
+                         MSD_SE_MV38_EXERT_INST_T_01, sounds, (JAIActor *)jai_actor, 1, 4);
+                     if (sound) {
+                         sound->setPortData(11, 0);
+                     }
+                 }
+-                *(u32 *)((u8 *)sound + 0x94) = MSD_SE_MV38_EXERT_INST_T_01;
++                *(u32 *)((u8 *)sound + SMS_OFFSET(MSound, 0x94)) = MSD_SE_MV38_EXERT_INST_T_01;
+                 return MSD_SE_MV38_EXERT_INST_T_01;
+             }
+             default:
+@@ -164,7 +164,7 @@
+             case MSD_SE_MV24_JUMP_SPECIAL_01:
+             case MSD_SE_MV25A_JUMP_HUGE_01: {
+                 if (sound->gateCheck(MSD_SE_NPC_VA_MTMAN_JUMP1)) {
+-                    JAISound **sounds = (JAISound **)((u8 *)sound + 0x8C + (0x4 * 1));
++                    JAISound **sounds = (JAISound **)((u8 *)sound + SMS_OFFSET(MSound, 0x8C)) + 1;
+                     MSoundSE::startSoundActor(MSD_SE_NPC_VA_MTMAN_JUMP1, player->mTranslation, 0,
+                                               sounds, 1, 4);
+                 }
+@@ -178,7 +178,7 @@
+ 
+     // Shadow Mario
+     if (isShadowMario) {
+-        *(TVec3f **)((u8 *)gpMSound + 0xB0 + (0xC * 1)) = &player->mTranslation;
++        *(TVec3f **)((u8 *)gpMSound + SMS_OFFSET(MSound, 0xBC)) = &player->mTranslation;
+ 
+         health = 8;
+         switch (soundID) {
+--- a/eclipse/src/stage.cpp
++++ b/eclipse/src/stage.cpp
+@@ -752,7 +752,7 @@
+ 
+ static void SME_extendedCorrectFlagsWithBetterSMSPatch(TFlagManager *manager) {
+     // Replicate the BetterSMS patch since we are clobbering it
+-    memset(((u8 *)manager) + 0x1F4, 0, 0x8C);
++    memset(((u8 *)manager) + SMS_OFFSET(TFlagManager, 0x1F4), 0, 0x8C);
+     // ==================
+ 
+     manager->correctFlag();
+--- a/eclipse/src/stage/behavior.cpp
++++ b/eclipse/src/stage/behavior.cpp
+@@ -189,7 +189,7 @@
+         if (JDrama::TNameRef *p = name_ref->searchF(key_code, "LanciaLight")) {
+             TGenericRailObj *light_obj = reinterpret_cast<TGenericRailObj *>(p);
+             J3DTevStage *tev_stage     = light_obj->mActorData->mModel->mModelData->mStages[0];
+-            J3DTevBlock *tev_block     = *(J3DTevBlock **)((u8 *)tev_stage + 0x28);
++            J3DTevBlock *tev_block     = *(J3DTevBlock **)((u8 *)tev_stage + SMS_OFFSET(J3DMaterial, 0x28));
+             tev_block->setTevKColor(0, is_enabled ? enabled_color : disabled_color);
+ 
+             if (is_enabled &&
+@@ -205,7 +205,7 @@
+         if (JDrama::TNameRef *p = name_ref->searchF(key_code, "VaporLight")) {
+             TGenericRailObj *light_obj = reinterpret_cast<TGenericRailObj *>(p);
+             J3DTevStage *tev_stage     = light_obj->mActorData->mModel->mModelData->mStages[0];
+-            J3DTevBlock *tev_block     = *(J3DTevBlock **)((u8 *)tev_stage + 0x28);
++            J3DTevBlock *tev_block     = *(J3DTevBlock **)((u8 *)tev_stage + SMS_OFFSET(J3DMaterial, 0x28));
+             tev_block->setTevKColor(0, is_enabled ? on_color : off_color);
+ 
+             if (is_enabled &&
+@@ -222,7 +222,7 @@
+         if (JDrama::TNameRef *p = name_ref->searchF(key_code, "CityLight")) {
+             TGenericRailObj *light_obj = reinterpret_cast<TGenericRailObj *>(p);
+             J3DTevStage *tev_stage     = light_obj->mActorData->mModel->mModelData->mStages[0];
+-            J3DTevBlock *tev_block     = *(J3DTevBlock **)((u8 *)tev_stage + 0x28);
++            J3DTevBlock *tev_block     = *(J3DTevBlock **)((u8 *)tev_stage + SMS_OFFSET(J3DMaterial, 0x28));
+             tev_block->setTevKColor(0, is_enabled ? enabled_color : disabled_color);
+ 
+             if (is_enabled &&
+@@ -239,7 +239,7 @@
+         if (JDrama::TNameRef *p = name_ref->searchF(key_code, "YoshiLight")) {
+             TGenericRailObj *light_obj = reinterpret_cast<TGenericRailObj *>(p);
+             J3DTevStage *tev_stage     = light_obj->mActorData->mModel->mModelData->mStages[0];
+-            J3DTevBlock *tev_block     = *(J3DTevBlock **)((u8 *)tev_stage + 0x28);
++            J3DTevBlock *tev_block     = *(J3DTevBlock **)((u8 *)tev_stage + SMS_OFFSET(J3DMaterial, 0x28));
+             tev_block->setTevKColor(0, is_enabled ? enabled_color : disabled_color);
+ 
+             if (is_enabled &&
+@@ -256,7 +256,7 @@
+         if (JDrama::TNameRef *p = name_ref->searchF(key_code, "PeachLight")) {
+             TGenericRailObj *light_obj = reinterpret_cast<TGenericRailObj *>(p);
+             J3DTevStage *tev_stage     = light_obj->mActorData->mModel->mModelData->mStages[0];
+-            J3DTevBlock *tev_block     = *(J3DTevBlock **)((u8 *)tev_stage + 0x28);
++            J3DTevBlock *tev_block     = *(J3DTevBlock **)((u8 *)tev_stage + SMS_OFFSET(J3DMaterial, 0x28));
+             tev_block->setTevKColor(0, is_enabled ? enabled_color : disabled_color);
+ 
+             if (is_enabled &&
+@@ -395,7 +395,7 @@
+         SME::TGlobals::sCharacterIDList[2] = SME::CharacterID::PIANTISSIMO;
+         SME::TGlobals::sCharacterIDList[3] = SME::CharacterID::SHADOW_MARIO;
+         TFlagManager::smInstance->resetCard();
+-        memset(((u8 *)TFlagManager::smInstance) + 0xF4, 0, 0x18C);
++        memset(((u8 *)TFlagManager::smInstance) + SMS_OFFSET(TFlagManager, 0xF4), 0, 0x18C);
+         return;
+     }
+ 
+@@ -421,9 +421,9 @@
+     // Force unlock all gates, yoshi, and nozzles post-corona mountain
+     if (TFlagManager::smInstance->getBool(0x10077)) {
+         // Set the nozzle flags
+-        *((u8 *)TFlagManager::smInstance + 0x6C) |= 0xC0;
+-        *((u8 *)TFlagManager::smInstance + 0x6D) |= 0xFF;
+-        *((u8 *)TFlagManager::smInstance + 0x6E) |= 0x7F;
++        *((u8 *)TFlagManager::smInstance + SMS_OFFSET(TFlagManager, 0x6C)) |= 0xC0;
++        *((u8 *)TFlagManager::smInstance + SMS_OFFSET(TFlagManager, 0x6D)) |= 0xFF;
++        *((u8 *)TFlagManager::smInstance + SMS_OFFSET(TFlagManager, 0x6E)) |= 0x7F;
+ 
+         TFlagManager::smInstance->setBool(true, 0x10384);  // Bianco gate
+         TFlagManager::smInstance->setBool(true, 0x10385);  // M on statue
+@@ -482,12 +482,12 @@
+ s32 s_final_boss_debs_list[] = {20, 21, -1};
+ 
+ static void setDolpic11DEBSList(TGCConsole2 *console2) {
+-    *(s32 **)((u8 *)console2 + 0x574) = s_dolpic_11_debs_list;
++    *(s32 **)((u8 *)console2 + SMS_OFFSET(TGCConsole2, 0x574)) = s_dolpic_11_debs_list;
+ }
+ SMS_WRITE_32(0x803C0360, setDolpic11DEBSList);
+ 
+ static void setFinalBossDEBSList(TGCConsole2 *console2) {
+-    *(s32 **)((u8 *)console2 + 0x574) = s_final_boss_debs_list;
++    *(s32 **)((u8 *)console2 + SMS_OFFSET(TGCConsole2, 0x574)) = s_final_boss_debs_list;
+ }
+ SMS_WRITE_32(0x803C0364, setFinalBossDEBSList);
+ 
+--- a/eclipse/src/stage/intro.cpp
++++ b/eclipse/src/stage/intro.cpp
+@@ -52,7 +52,7 @@
+     }
+ 
+     director->mGamePads[0]->mState._09 = 1;
+-    *(u32 *)((u8 *)director + 0x68)    = 0;
++    *(u32 *)((u8 *)director + SMS_OFFSET(TMarDirector, 0x68)) = 0;
+ 
+     char camera_name[32] = {};
+     sprintf(camera_name, "startcamera%d", director->mEpisodeID);
+@@ -68,14 +68,14 @@
+ 
+     bool isExStage = SMS_isExMap__Fv();
+     if (!isExStage && director->mAreaID > 60) {
+-        *(u16 *)((u8 *)director + 0x50) |= 6;
++        *(u16 *)((u8 *)director + SMS_OFFSET(TMarDirector, 0x50)) |= 6;
+     }
+ 
+-    u16 unk_state = *(u16 *)((u8 *)director + 0x50);
++    u16 unk_state = *(u16 *)((u8 *)director + SMS_OFFSET(TMarDirector, 0x50));
+ 
+     if ((unk_state & 0x4) != 0) {
+         director->mGCConsole->mConsoleStr->startAppearScenario();
+-        *(u16 *)((u8 *)director + 0x50) &= ~0x4;
++        *(u16 *)((u8 *)director + SMS_OFFSET(TMarDirector, 0x50)) &= ~0x4;
+     }
+ 
+     startStageEntranceDemo__10MSMainProcFUcUc(director->mAreaID, director->mEpisodeID);
+--- a/eclipse/src/stage/music.cpp
++++ b/eclipse/src/stage/music.cpp
+@@ -49,11 +49,21 @@
+     ~MSStageDistFadeStream(){};
+ 
+     void proc() override {
+-        if (!Music::isPlaying() || Music::isPaused()) {
++        if (Music::isPaused()) {
+             return;
+         }
+ 
+         MSBgm *handle = (MSBgm *)MSBgm::getHandle(1);
++        if (!Music::isPlaying()) {
++            // The Shadow Mario theme starts with the stage at full volume, but the
++            // stage song only streams from GO!. Hold the theme at its distance
++            // blend until then so it doesn't blare before the crossfade takes over.
++            if (handle != nullptr) {
++                MSBgm::setTrackVolume(1, distanceBlend(), 0, 0);
++            }
++            return;
++        }
++
+         if (handle == nullptr) {
+             if (mFrameCounter++ >= 150 && !mFadedPermanently) {
+                 Music::setVolumeFade(Music::getMaxVolume(), 0.4f);
+@@ -62,14 +72,7 @@
+             return;
+         }
+ 
+-        f32 distance = PSVECDistance(*gpMarioPos, mPosPtr);
+-
+-        f32 blend = 0.0f;
+-        if (distance <= mBlendRadiusEnd && distance > mBlendRadiusStart) {
+-            blend = (mBlendRadiusEnd - distance) / (mBlendRadiusEnd - mBlendRadiusStart);
+-        } else if (distance <= mBlendRadiusStart) {
+-            blend = 1.0f;
+-        }
++        f32 blend = distanceBlend();
+ 
+         f32 *timingTable = (f32 *)sms_mod_rawdata(0x803ACA68);
+         f32 *expTable    = (f32 *)sms_mod_rawdata(0x803ACAB0);
+@@ -90,19 +93,42 @@
+     }
+ 
+ private:
++    f32 distanceBlend() const {
++        f32 distance = PSVECDistance(*gpMarioPos, mPosPtr);
++        if (distance <= mBlendRadiusStart) {
++            return 1.0f;
++        }
++        if (distance <= mBlendRadiusEnd) {
++            return (mBlendRadiusEnd - distance) / (mBlendRadiusEnd - mBlendRadiusStart);
++        }
++        return 0.0f;
++    }
++
+     bool mFadedPermanently;
+ };
+ 
++// The statics these retail addresses hold (0x8040E1EC..0x8040E204), by name.
++namespace MSMainProc {
++    namespace MSStageInfo {
++        extern u32 demoBgm;
++        extern u8 flags;
++        extern u16 volOffCategory;
++        extern u8 fadeEvent;
++        extern u32 switchBgm;
++        extern u32 switchBgm2;
++    }  // namespace MSStageInfo
++}  // namespace MSMainProc
++
+ static bool setMSoundEnterStageExtended(TFlagManager *manager, u32 flag) {
+     if (gpMarDirector->mAreaID >= SME::STAGE_ERTO &&
+         gpMarDirector->mAreaID <= SME::STAGE_LACRIMA_BACKHOUSE) {
+         if (gpMarDirector->mEpisodeID == 6) {
+-            *(u32 *)0x8040E200 = -16;
+-            *(u32 *)0x8040E204 = -16;
+-            *(u16 *)0x8040E1FA += -0x83;
+-            *(u32 *)0x8040E1EC = BGM_KAGEMARIO;
+-            *(u8 *)0x8040E1F9  = 6;
+-            *(u8 *)0x8040E1FC  = 1;
++            MSMainProc::MSStageInfo::switchBgm = -16;       // 0x8040E200
++            MSMainProc::MSStageInfo::switchBgm2 = -16;      // 0x8040E204
++            MSMainProc::MSStageInfo::volOffCategory += -0x83;  // 0x8040E1FA
++            MSMainProc::MSStageInfo::demoBgm = BGM_KAGEMARIO;  // 0x8040E1EC
++            MSMainProc::MSStageInfo::flags  = 6;            // 0x8040E1F9
++            MSMainProc::MSStageInfo::fadeEvent  = 1;        // 0x8040E1FC
+             OSReport("MSoundEnterStageExtended: Episode 6\n");
+         }
+     }
+@@ -114,7 +140,7 @@
+     bool excluded = area == SME::STAGE_LACRIMA || area == SME::STAGE_LACRIMA_INSIDE;
+     if (!excluded && area >= SME::STAGE_ERTO && area <= SME::STAGE_LACRIMA_BACKHOUSE) {
+         if (episode == 6) {
+-            Vec *posptr   = *(Vec **)((u8 *)gpMSound + 0xBC);
++            Vec *posptr   = *(Vec **)((u8 *)gpMSound + SMS_OFFSET(MSound, 0xBC));
+             auto *msstage = new MSStageDistFadeStream(posptr, 6000.0f, 1600.0f, 0x5A, true);
+             return (void *)msstage;
+         }
+--- a/eclipse/src/stage/record.cpp
++++ b/eclipse/src/stage/record.cpp
+@@ -48,13 +48,13 @@
+ static void flagManager2XSetter(TFlagManager *manager, u32 flags, s32 val) {
+     flags &= 0xFFFF;
+     if (flags < 0xE || flags == 0x12 || flags == 0x13 || flags == 0x14) {
+-        *(u32 *)((u8 *)manager + 0x78 + (flags << 2)) = val;
++        *(u32 *)((u8 *)manager + SMS_OFFSET(TFlagManager, 0x78) + (flags << 2)) = val;
+     } else {
+         if (flags > 0x14) {
+             flags -= 3;
+         }
+         flags -= 0xE;
+-        return set_10bit_flag((u32 *)((u8 *)manager + 0x78) + 0xE, flags, val);
++        return set_10bit_flag((u32 *)((u8 *)manager + SMS_OFFSET(TFlagManager, 0x78)) + 0xE, flags, val);
+     }
+ }
+ SMS_WRITE_32(SMS_PORT_REGION(0x803DEE40, 0x803D6620, 0, 0), flagManager2XSetter);
+@@ -62,13 +62,13 @@
+ static u32 flagManager2XGetter(TFlagManager *manager, u32 flags) {
+     flags &= 0xFFFF;
+     if (flags < 0xE || flags == 0x12 || flags == 0x13 || flags == 0x14) {
+-        return *(u32 *)((u8 *)manager + 0x78 + (flags << 2));
++        return *(u32 *)((u8 *)manager + SMS_OFFSET(TFlagManager, 0x78) + (flags << 2));
+     } else {
+         if (flags > 0x14) {
+             flags -= 3;
+         }
+         flags -= 0xE;
+-        return get_10bit_flag((u32 *)((u8 *)manager + 0x78) + 0xE, flags);
++        return get_10bit_flag((u32 *)((u8 *)manager + SMS_OFFSET(TFlagManager, 0x78)) + 0xE, flags);
+     }
+     return 0;
+ }
+--- a/eclipse/src/stage/tutorial.cpp
++++ b/eclipse/src/stage/tutorial.cpp
+@@ -188,7 +188,7 @@
+ static int processCheckpoints(const BoundingBox *boxes, const int *dialogues, int checkpointCount,
+                               int currentCheckpoint, bool includeWater, bool playSound,
+                               TMario *player, bool isMario) {
+-    bool is_console_ready = *(u16 *)((u8 *)gpMarDirector->mGCConsole + 0x3F4) == 0;
++    bool is_console_ready = *(u16 *)((u8 *)gpMarDirector->mGCConsole + SMS_OFFSET(TGCConsole2, 0x3F4)) == 0;
+ 
+     if (sShouldFluddDialogue && gpMarDirector->mGCConsole->mIsWaterCard && is_console_ready) {
+         startAppearBalloon__11TGCConsole2FUlb(gpMarDirector->mGCConsole, *sShouldFluddDialogue,
+--- a/eclipse/src/stage/warp.cpp
++++ b/eclipse/src/stage/warp.cpp
+@@ -21,7 +21,7 @@
+     u32 *tpausemenu;
+     SMS_FROM_GPR(29, tpausemenu);
+ 
+-    bool needs_exit_area = tpausemenu[0x104 / 4] == 3;
++    bool needs_exit_area = *(u32 *)((u8 *)tpausemenu + SMS_OFFSET(TPauseMenu2, 0x104)) == 3;
+ 
+     for (u32 i = 0; i < sizeof(s_no_exit_areas); i++) {
+         if (app->mCurrentScene.mAreaID == s_no_exit_areas[i]) {
+@@ -36,7 +36,7 @@
+         }
+     }
+ 
+-    tpausemenu[0x104 / 4] = needs_exit_area ? 3 : 2;
++    *(u32 *)((u8 *)tpausemenu + SMS_OFFSET(TPauseMenu2, 0x104)) = needs_exit_area ? 3 : 2;
+ }
+ SMS_PATCH_BL(SMS_PORT_REGION(0x80156B70, 0, 0, 0), assignExitAreaStages);
+ SMS_WRITE_32(SMS_PORT_REGION(0x80156B80, 0, 0, 0), 0x60000000);
+--- a/moveset/src/moveset/fastturbo.cpp
++++ b/moveset/src/moveset/fastturbo.cpp
+@@ -41,11 +41,11 @@
+ 
+     u32 state = 1;
+ 
+-    TMario *player = reinterpret_cast<TMario *>(marioEffect[0x68 / 4]);
++    TMario *player = *(TMario **)((u8 *)marioEffect + SMS_OFFSET(TMarioEffect, 0x68));
+     if (player->mFludd->mCurrentNozzle == TWaterGun::Spray && gFastTurboSetting.getBool())
+         state = 0;
+ 
+-    marioEffect[0x7C / 4] = state;
++    *(u32 *)((u8 *)marioEffect + SMS_OFFSET(TMarioEffect, 0x7C)) = state;
+ }
+ SMS_PATCH_BL(SMS_PORT_REGION(0x80271ACC, 0, 0, 0), turboNozzleConeCondition);
+ 
+@@ -57,7 +57,7 @@
+     if (!player->mAttributes.mIsFluddEmitting)
+         return nullptr;
+ 
+-    MActor *coneActor = reinterpret_cast<MActor *>(marioEffect[0x80 / 4]);
++    MActor *coneActor = *(MActor **)((u8 *)marioEffect + SMS_OFFSET(TMarioEffect, 0x80));
+     if (player->mFludd->mNozzleTurbo.mSprayState == TNozzleTrigger::ACTIVE &&
+         gFastTurboSetting.getBool()) {
+         coneActor->mModel->mBaseScale.set(player->mController->mButtons.mAnalogR,
+--- a/moveset/src/moveset/hoverburst.cpp
++++ b/moveset/src/moveset/hoverburst.cpp
+@@ -18,11 +18,11 @@
+     SMS_FROM_GPR(30, fludd);
+ 
+     if (fludd->mCurrentNozzle == TWaterGun::TNozzleType::Hover) {
+-        ((float *)(fludd))[0x1CEC / 4] = 0.0f;
++        *(float *)((u8 *)fludd + SMS_OFFSET(TWaterGun, 0x1CEC)) = 0.0f;
+     } else {
+-        ((float *)(fludd))[0x1CEC / 4] -= 0.1f;
+-        if (((float *)(fludd))[0x1CEC / 4] < 0.0f)
+-            ((float *)(fludd))[0x1CEC / 4] = 0.0f;
++        *(float *)((u8 *)fludd + SMS_OFFSET(TWaterGun, 0x1CEC)) -= 0.1f;
++        if (*(float *)((u8 *)fludd + SMS_OFFSET(TWaterGun, 0x1CEC)) < 0.0f)
++            *(float *)((u8 *)fludd + SMS_OFFSET(TWaterGun, 0x1CEC)) = 0.0f;
+     }
+ }
+ SMS_PATCH_BL(SMS_PORT_REGION(0x802699CC, 0, 0, 0), snapNozzleToReady);
+--- a/moveset/src/moveset/waterpound.cpp
++++ b/moveset/src/moveset/waterpound.cpp
+@@ -115,8 +115,8 @@
+         yoshi->mActor->setBckFromIndex(bckId);
+         yoshi->thinkBtp(bckId);
+ 
+-        u32 *anmSound = *(u32 **)(((u8 *)yoshi) + 0x11C);
+-        initAnmSound__9MAnmSoundFPvUlf(*(MAnmSound **)(((u8 *)yoshi) + 0x118),
++        void **anmSound = *(void ***)(((u8 *)yoshi) + SMS_OFFSET(TYoshi, 0x11C));
++        initAnmSound__9MAnmSoundFPvUlf(*(MAnmSound **)(((u8 *)yoshi) + SMS_OFFSET(TYoshi, 0x118)),
+                                        *(u32 **)(anmSound + bckId), 1, 0.0f);
+         if (yoshi->mActor->mBckInfo) {
+             yoshi->mActor->mBckInfo->setMotionBlendRatio(0.0f);

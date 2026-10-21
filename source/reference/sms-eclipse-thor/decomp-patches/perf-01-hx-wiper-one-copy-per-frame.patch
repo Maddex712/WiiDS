@@ -1,0 +1,98 @@
+Reason: port: Hx_Test5 (the map's wipe, among others) makes about 80 64x64 EFB copies a frame, and each one is a render-pass switch and a write-back on the PC, which dropped the frame rate during the wipe; it copies all its cells at once and draws each fan from its cell of that copy, the same picture
+--- a/src/GC2D/hx_wiper.c
++++ b/src/GC2D/hx_wiper.c
+@@ -2121,6 +2121,23 @@
+ // are single-use, so copy propagation removes them but each keeps the 4-byte
+ // slot retail has above obj. mag_out/mag_in declared first put their spill
+ // slots above the first-vertex block, as in retail.
++#ifdef TARGET_PC
++/* port: Hx_Test5 copies the frame in 64x64 cells, drawing each cell's fan
++ * before copying the next, about 80 EFB copies a frame into one buffer. Each
++ * fan stays inside its own cell, which the copy has cleared, so one copy of all
++ * the cells draws the same picture; the fans then take their cell of it. On the
++ * PC every EFB copy is a render-pass switch and a write-back, which made the
++ * map's wipe drop the frame rate. */
++static u8 hx_pc_cell_buffer[640 * 528 * 2] __attribute__((aligned(32)));
++static int hx_pc_cells;
++static f32 hx_pc_cell_w, hx_pc_cell_h, hx_pc_cell_u, hx_pc_cell_v;
++#define HX_PC_CELL_TEXCOORD(u, v)                                              \
++	GXTexCoord2f32(hx_pc_cells ? hx_pc_cell_u + (u) * (64.0f / hx_pc_cell_w) : (u), \
++	               hx_pc_cells ? hx_pc_cell_v + (v) * (64.0f / hx_pc_cell_h) : (v))
++#else
++#define HX_PC_CELL_TEXCOORD(u, v) GXTexCoord2f32(u, v)
++#endif
++
+ static void Hx_Test5(void)
+ {
+ 	u32 timer;
+@@ -2174,6 +2191,25 @@
+ 		mag_out = 1.41f - t;
+ 		mag_in  = 0.1f + t;
+ 
++#ifdef TARGET_PC
++		{
++			u32 cw = (hx.width + 0x3F) & ~0x3F;
++			u32 ch = (hx.height + 0x3F) & ~0x3F;
++
++			hx_pc_cells = cw * ch * 2 <= sizeof(hx_pc_cell_buffer) && ch <= 528;
++			if (hx_pc_cells) {
++				hx_pc_cell_w = cw;
++				hx_pc_cell_h = ch;
++				Hx_GetFrBuffer(hx_pc_cell_buffer, 0, 0, cw, ch);
++				GXInvalidateTexAll();
++				GXInitTexObj(&obj, hx_pc_cell_buffer, cw, ch, GX_TF_RGB565,
++				             GX_CLAMP, GX_CLAMP, GX_FALSE);
++				GXInitTexObjLOD(&obj, GX_LINEAR, GX_LINEAR, 0.0f, 10.0f, 0.0f,
++				                GX_FALSE, GX_TRUE, GX_ANISO_1);
++				GXLoadTexObj(&obj, GX_TEXMAP0);
++			}
++		}
++#endif
+ 		for (y = 0; y < hx.height; y += 0x40) {
+ 			for (x = 0; x < hx.width; x += 0x40) {
+ 				f32 cx;
+@@ -2183,9 +2219,20 @@
+ 
+ 				cx = x;
+ 				cy = y;
++#ifdef TARGET_PC
++				if (hx_pc_cells) {
++					hx_pc_cell_u = x / hx_pc_cell_w;
++					hx_pc_cell_v = y / hx_pc_cell_h;
++				} else {
++					Hx_GetFrBuffer(buffer, x, y, 0x40, 0x40);
++					GXInvalidateTexAll();
++					GXLoadTexObj(&obj, GX_TEXMAP0);
++				}
++#else
+ 				Hx_GetFrBuffer(buffer, x, y, 0x40, 0x40);
+ 				GXInvalidateTexAll();
+ 				GXLoadTexObj(&obj, GX_TEXMAP0);
++#endif
+ 
+ 				if (hx.dir != 0)
+ 					mag_use = mag_out;
+@@ -2203,7 +2250,7 @@
+ 				GXBegin(GX_TRIANGLEFAN, GX_VTXFMT0, 18);
+ 				GXPosition3f32(cx, cy, 0.0f);
+ 				GXColor1u32(0);
+-				GXTexCoord2f32(0.5f, 0.5f);
++				HX_PC_CELL_TEXCOORD(0.5f, 0.5f);
+ 
+ 				for (i = 0; i < 16; i++) {
+ 					f32 a = 3.1415927f * (2.0f * (f32)i) / 16.0f;
+@@ -2253,12 +2300,12 @@
+ 
+ 					GXPosition3f32(px + cx, py + cy, 0.0f);
+ 					GXColor1u32(0);
+-					GXTexCoord2f32(u, v);
++					HX_PC_CELL_TEXCOORD(u, v);
+ 				}
+ 
+ 				GXPosition3f32(firstX + cx, firstY + cy, 0.0f);
+ 				GXColor1u32(0);
+-				GXTexCoord2f32(firstU, firstV);
++				HX_PC_CELL_TEXCOORD(firstU, firstV);
+ 			}
+ 		}
+ 

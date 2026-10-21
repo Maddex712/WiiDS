@@ -1,0 +1,110 @@
+Reason: port: Infinite FLUDD (F9 menu, port_cheat_infinite_fludd in platform/misc/port_cheats.cpp): the player's FLUDD uses no water in the nozzle emit() functions or in TWaterGun::damage(), and thinkParams refills its tank; Hover, Rocket and Turbo stay active while R is held instead of ending by their timer, and the normal Spray keeps its starting pressure while R is held. The Spray and Yoshi bombs keep their timers; TEnemyMario is left alone through isMario()
+--- a/src/Player/MarioMove.cpp
++++ b/src/Player/MarioMove.cpp
+@@ -2468,1 +2468,2 @@
+-extern "C" int port_cheat_god_mode;
++extern "C" int port_cheat_god_mode;
++extern "C" int port_cheat_infinite_fludd;
+@@ -2479,2 +2480,5 @@
+-			mHealth = mDeParams.mHPMax.get();
+-#endif
++			mHealth = mDeParams.mHPMax.get();
++		if (port_cheat_infinite_fludd && isMario() && mWaterGun != nullptr
++		    && mWaterGun->getCurrentWater() < mWaterGun->getMaxWater())
++			mWaterGun->resetWaterToFull();
++#endif
+--- a/src/Player/WaterGun.cpp
++++ b/src/Player/WaterGun.cpp
+@@ -316,1 +316,29 @@
+-void TNozzleBase::movement(const TMarioControllerWork& controllerWork)
++#ifdef TARGET_PC
++extern "C" int port_cheat_infinite_fludd;
++#endif
++
++static bool infiniteFludd(TWaterGun* fludd)
++{
++#ifdef TARGET_PC
++	return port_cheat_infinite_fludd && fludd->getMario()->isMario();
++#else
++	return false;
++#endif
++}
++
++// the bombs keep their timers: while one is ACTIVE, TNozzleDeform::emit() stops its normal stream
++static bool infiniteTriggerDuration(TNozzleTrigger* trigger)
++{
++	return infiniteFludd(trigger->mFludd) && trigger != &trigger->mFludd->mNozzleDeform.mBomb
++	    && trigger != &trigger->mFludd->mNozzleYoshiDeform.mBomb;
++}
++
++#ifdef TARGET_PC
++static bool infiniteSprayPressure(TNozzleBase* nozzle, TWaterGun* fludd)
++{
++	return infiniteFludd(fludd) && nozzle == &fludd->mNozzleDeform
++	    && fludd->mNozzleDeform.mBomb.getSprayState() == TNozzleTrigger::INACTIVE;
++}
++#endif
++
++void TNozzleBase::movement(const TMarioControllerWork& controllerWork)
+@@ -330,6 +358,13 @@
+-	} else {
+-		unk378 = 0.0f;
+-		unk372 = var1;
+-	}
+-	calcGunAngle(controllerWork);
+-}
++	} else {
++		unk378 = 0.0f;
++		unk372 = var1;
++	}
++#ifdef TARGET_PC
++	// the ramp's pressure falls to 0 as unk372 reaches var1: hold its starting value
++	if (var1 > 0 && infiniteSprayPressure(this, mFludd)) {
++		unk378 = (f32)var1 * 0.000015258789f;
++		unk374 = unk378;
++	}
++#endif
++	calcGunAngle(controllerWork);
++}
+@@ -411,4 +446,5 @@
+-		if (emittedWater != 0) {
+-			mFludd->depleteWater(emittedWater * mEmitParams.mDecRate.get());
+-
+-			JGeometry::TVec3<f32> const& dirVec = emitInfo->mDir.get();
++		if (emittedWater != 0) {
++			if (!infiniteFludd(mFludd))
++				mFludd->depleteWater(emittedWater * mEmitParams.mDecRate.get());
++
++			JGeometry::TVec3<f32> const& dirVec = emitInfo->mDir.get();
+@@ -602,1 +638,3 @@
+-		unk386 -= 1;
++		const bool infinite = infiniteTriggerDuration(this);
++		if (!infinite || unk386 > 0)
++			unk386 -= 1;
+@@ -611,1 +649,1 @@
+-		if (!check || unk386 <= 0) {
++		if (!check || (unk386 <= 0 && !infinite)) {
+@@ -766,4 +804,5 @@
+-		if (emittedWater != 0) {
+-			mFludd->depleteWater(emittedWater * mEmitParams.mDecRate.get());
+-
+-			if ((mFludd->getCurrentNozzleIndex() == TWaterGun::Hover)
++		if (emittedWater != 0) {
++			if (!infiniteFludd(mFludd))
++				mFludd->depleteWater(emittedWater * mEmitParams.mDecRate.get());
++
++			if ((mFludd->getCurrentNozzleIndex() == TWaterGun::Hover)
+@@ -1047,4 +1086,5 @@
+-		if (emittedWater != 0) {
+-			mFludd->depleteWater(emittedWater * mEmitParams.mDecRate.get());
+-
+-			if ((gpMarDirector->unk58 & 0x7u) == 0u) {
++		if (emittedWater != 0) {
++			if (!infiniteFludd(mFludd))
++				mFludd->depleteWater(emittedWater * mEmitParams.mDecRate.get());
++
++			if ((gpMarDirector->unk58 & 0x7u) == 0u) {
+@@ -2114,1 +2154,2 @@
+-		mCurrentWater -= nozzle->mEmitParams.mDamageLoss.value;
++		if (!infiniteFludd(this))
++			mCurrentWater -= nozzle->mEmitParams.mDamageLoss.value;

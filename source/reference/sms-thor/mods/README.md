@@ -1,0 +1,54 @@
+# mods/
+
+Optional additions to the game, each switched on by putting it here.
+Nothing in this folder is needed to play, and git ignores everything in it but this file.
+
+## Installing with get.py
+
+`tools/mods/get.py` downloads a mod from where its authors publish it and installs it here, removing that mod's previous install first:
+
+```sh
+python3 tools/mods/get.py textures    # the UHD texture pack, into mods/textures/GMS, and the extras
+python3 tools/mods/get.py extras      # only the extras, into mods/textures/sms-hd-texture-extras
+python3 tools/mods/get.py eclipse     # Super Mario Eclipse, patched from your disc, into mods/eclipse
+python3 tools/mods/get.py all
+```
+
+It needs 7-Zip (`7z`, `7zz` or `7za`) to unpack the downloads, and checks each against the release it expects.
+The texture pack is about 1 GB to download and 3 GB installed.
+The extras are [HD textures the UHD pack lacks](https://github.com/chasem-dev/sms-hd-texture-extras), such as the boot logo, GAME OVER, the pause guide's pictures, HUD icons, Peach and some stage textures; they are about 65 MB, need no 7-Zip, and `get.py extras` adds or updates them without downloading the UHD pack again.
+Their release is pinned in `tools/mods/texture-extras.json` and the install records it in `mods/textures/sms-hd-texture-extras/.release`; `get.py extras --if-outdated` downloads only when the two differ, which is how SMS Launcher brings existing installs up to a new release.
+Eclipse is about 850 MB to download; it is an xdelta patch that turns your own North American ISO (found as `--iso PATH`, `SMS_DISC_IMAGE`, `disc_image` in `settings.txt`, or the image in `rom/`) into a Super Mario Eclipse ISO, which the installer checks against the expected result.
+`--keep-download` keeps the downloaded archives in `mods/.downloads/`.
+
+## textures/: HD texture packs
+
+Texture packs made for Dolphin's "Load Custom Textures" work unchanged.
+Unpack one into `mods/textures/` (or let `get.py textures` install the UHD pack), for example the [Super Mario Sunshine UHD Texture Pack](https://github.com/qashto/Super_Mario_Sunshine_UHD_Texture_Pack) (from its `GMS.7z` release, `GMS/Textures/GMS` goes to `mods/textures/GMS`).
+Every `tex1_*.png` and `tex1_*.dds` below `mods/textures/` is used, in any sub-folder; several packs can sit side by side.
+DDS files can hold BC1–BC3 or BC7 blocks or plain RGBA. Supported blocks stay compressed, including files with only one or a few mipmap levels: the missing levels are made from the last one in the background after the level loads and compressed in the same format, so far-away surfaces do not shimmer (until they arrive, about a second of four cores for an 8192×8192 image, sampling stops at the file's last level). A GPU that cannot sample BC7 (macOS) gets them decoded instead.
+The missing levels are made at the lowest processor and disk priority, so they use idle time rather than slowing the game, and are kept in the cache folder (`texture-mips/` in `~/.cache/sms-port`, `~/Library/Caches/sms-port` on macOS, `%LOCALAPPDATA%\sms-port` on Windows; the UHD pack's come to about 1 GB once every level has been seen), so each is made once. A cached file is used only while its source keeps the size and date it was made from. `SMS_TEXTURE_PACK_CACHE=dir` keeps them elsewhere; `=0` makes them every session instead.
+
+A pack names each image after the texture it replaces (its size, format and a hash of its data), so it matches the game's own textures wherever they are loaded.
+Replacements in loaded BTI files, models and particle resources prepare in the background, including textures on offscreen objects. Before the first gameplay frame, the render thread finishes uploading the queued replacements. This adds some loading time and avoids doing those uploads when the camera first sees an object.
+Textures created or fetched later show their original until the replacement is ready. Normal draws only request or bind replacements; uploads run at frame boundaries, at most `SMS_TEXTURE_PACK_UPLOAD_MB` (8 by default; `0` for no limit) or 2 ms a frame, and a large image is sent in pieces of 4 MiB over several frames, each small enough for the GL thread to take without the game waiting for it. A replacement is drawn once all its levels are in.
+
+`SMS_TEXTURE_PACK_PRELOAD` (`texture_pack_preload` in `settings.txt`) sets when replacements load: `1`, the default, as above; `all` also reads the rest of the pack in the background from the start and sends it to the GPU during loading screens only (up to 1.5 s of each, after the level's own), keeping all of it, so after the first few loads nothing loads at all (like Dolphin's "Prefetch Custom Textures"; the UHD pack then takes about 4 GB of video memory, past `SMS_TEXTURE_PACK_MB`); `0` loads each replacement when it is first drawn.
+They look best with a larger internal resolution, for example `SMS_GX_SCALE=2`.
+
+Switches: `SMS_TEXTURE_PACKS=dir;dir` uses those folders instead of `mods/textures/`, `SMS_TEXTURE_PACKS=0` turns packs off, and `SMS_TEXTURE_PACK_LOG=1` logs the pack name of every texture the game loads and whether it was replaced (for checking a pack or making one).
+
+To make a pack, run with `SMS_TEXTURE_DUMP=dir`: every texture the game loads is written there once as a PNG under its pack name.
+Edit or upscale the images, keep the names, and put them under `mods/textures/`.
+Replacements take more video memory than the original textures; their cost depends on resolution and GPU compression support.
+Past `SMS_TEXTURE_PACK_MB` (1536 by default), the replacements unused for longest are freed, and read again when needed.
+The decoder pauses when images awaiting upload reach `SMS_TEXTURE_PACK_PENDING_MB` (256 by default), allowing at most one additional decoded result. This budget excludes decode scratch space and GPU memory. `SMS_TEXTURE_PACK_SYNC=1` restores synchronous first-use loading for repeatable captures and bypasses preloading and upload limits. The matching settings are `texture_pack_preload`, `texture_pack_pending_mb` and `texture_pack_upload_mb` in `settings.txt`.
+
+## <name>/files/: game file mods
+
+A mod that changes the game's files (models, stages, textures inside archives, text) goes in `mods/<name>/files/`, laid out like the disc's own `files/` folder, and is switched on with `mod = <name>` in `settings.txt` (or `SMS_MOD=<name>`; several as `a;b`, a later one winning).
+Each file there takes the place of the disc's file at the same path, or is added to the disc if it has none; everything else still comes from your disc image.
+The log names each mod and how many files it replaced and added.
+
+This covers mods that only change data.
+Mods that also change the game's code, such as Super Mario Eclipse, need that code ported too; see [docs/ECLIPSE.md](../docs/ECLIPSE.md).

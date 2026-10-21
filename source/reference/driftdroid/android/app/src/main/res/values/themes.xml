@@ -1,0 +1,17 @@
+<resources>
+    <style name="Theme.DriftDroid" parent="Theme.Material3.DayNight.NoActionBar">
+        <!-- Overrides Material3's default purple accent (colorPrimary ~#6750A4), which is what
+             was tinting the status bar and every popup's buttons/switches purple - everything
+             system-themed now follows the same Wii-blue/orange palette as the picker screen
+             itself instead of the Material baseline. -->
+        <item name="colorPrimary">@color/wii_blue</item>
+        <item name="colorOnPrimary">@android:color/white</item>
+        <item name="colorSecondary">@color/wii_orange</item>
+        <item name="colorOnSecondary">@android:color/white</item>
+        <!-- Was wii_sky_top (bright blue) to match the launcher's old sky-gradient background -
+             now that the launcher is a gray checkerboard, a bright blue bar clashed badly with it. -->
+        <item name="android:statusBarColor">@color/driftdroid_gray_dark</item>
+        <item name="android:navigationBarColor">@color/driftdroid_gray_dark</item>
+        <item name="android:windowLightStatusBar">false</item>
+    </style>
+</resources>

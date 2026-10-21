@@ -1,0 +1,66 @@
+Reason: port: with frame_rate = 60 or 120 the birds (TAnimalBird) flew, took off, turned and landed at half or a quarter speed; their steps run on every 1/120 s movement tick but scale by SMSGetAnmFrameRate(), a per-frame rate; use its 30 fps value
+--- a/src/Animal/Bird.cpp
++++ b/src/Animal/Bird.cpp
+@@ -496,6 +496,23 @@
+ 
+ // TODO: 95.4%. Instruction-identical except the quaternion temporary's
+ // register numbering inside the inlined rotate and toGoal 4 bytes low.
++#ifdef TARGET_PC
++// Port: a bird's flight, take-off and landing steps run on every 1/120 s
++// movement tick (four a frame at 30 fps, two at 60, one at 120) and scale
++// their speeds and turns by SMSGetAnmFrameRate(), a per-frame rate that
++// halves at 60 fps and quarters at 120 while the tick rate does not, so the
++// birds flew and turned at half speed at 60 and a quarter at 120. Use the
++// 30 fps value.
++#include "port_framerate.h"
++static inline f32 BirdPortTickAnmRate()
++{
++	return port_native_frame_divisor() * SMSGetAnmFrameRate();
++}
++#define BIRD_TICK_ANM_RATE() BirdPortTickAnmRate()
++#else
++#define BIRD_TICK_ANM_RATE() SMSGetAnmFrameRate()
++#endif
++
+ void TAnimalBird::doFlyToCurPathNode()
+ {
+ 	JGeometry::TVec3<f32> toGoal = getUnkF4().getPoint();
+@@ -505,9 +522,9 @@
+ 	if (distance < 100.0f)
+ 		return;
+ 
+-	f32 marchSpeed = getMyMarchSpeed() * SMSGetAnmFrameRate();
++	f32 marchSpeed = getMyMarchSpeed() * BIRD_TICK_ANM_RATE();
+ 	f32 turnRate  = getSaveParams()->mTurnSpeed.get();
+-	f32 turnSpeed = turnRate * SMSGetAnmFrameRate();
++	f32 turnSpeed = turnRate * BIRD_TICK_ANM_RATE();
+ 
+ 	if (distance <= 2.0f * calcMinimumTurnRadius(marchSpeed, turnSpeed))
+ 		turnSpeed = calcTurnSpeedToReach(marchSpeed, 0.5f * distance);
+@@ -528,7 +545,7 @@
+ 	mGravity = 0.15f;
+ 
+ 	f32 torque  = getSaveParams()->mWalkingTorqueY.get();
+-	mRotation.y = MsWrap(mTurnDir * (torque * SMSGetAnmFrameRate())
++	mRotation.y = MsWrap(mTurnDir * (torque * BIRD_TICK_ANM_RATE())
+ 	                         + mRotation.y,
+ 	                     0.0f, 360.0f);
+ 
+@@ -549,7 +566,7 @@
+ bool TAnimalBird::doLanding(bool takeoff)
+ {
+ 	if (takeoff) {
+-		f32 marchSpeed = getMyMarchSpeed() * SMSGetAnmFrameRate();
++		f32 marchSpeed = getMyMarchSpeed() * BIRD_TICK_ANM_RATE();
+ 		JGeometry::TQuat4<f32> quat = SMS_Eular2Quat(mRotation);
+ 		JGeometry::TVec3<f32> dir(0.0f, 0.0f, marchSpeed);
+ 		quat.rotate(dir, dir);
+@@ -573,7 +590,7 @@
+ 	mRotation.z = mHomeRotation.z;
+ 
+ 	f32 torqueRate = getSaveParams()->mLandingTorqueY.get();
+-	f32 torque     = torqueRate * SMSGetAnmFrameRate();
++	f32 torque     = torqueRate * BIRD_TICK_ANM_RATE();
+ 	f32 turn       = JGeometry::TUtil<f32>::clamp(
+ 	    MsAngleDiff(mHomeRotation.y, mRotation.y), -torque, torque);
+ 	mRotation.y = MsWrap(mRotation.y + turn, 0.0f, 360.0f);

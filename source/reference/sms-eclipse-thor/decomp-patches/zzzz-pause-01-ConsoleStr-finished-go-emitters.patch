@@ -1,0 +1,16 @@
+Reason: a pause ends with every GO! emitter TConsoleStr holds restarted, including the ones the finished GO! stopped, which then sparkle on for the rest of the stage where their letters flew off (on screen at 60 fps)
+--- a/src/GC2D/ConsoleStr.cpp
++++ b/src/GC2D/ConsoleStr.cpp
+@@ -615,6 +615,12 @@
+ 				mGoPanes[i]->getPane()->hide();
+ 				if (mGoEmitters[i])
+ 					mGoEmitters[i]->stopCreateParticle();
++#ifdef TARGET_PC
++				// Port: perform restarts every GO! emitter it holds when a
++				// pause ends, so a finished one would sparkle on where its
++				// letter flew off for the rest of the stage.
++				mGoEmitters[i] = nullptr;
++#endif
+ 			}
+ 
+ 			result = true;

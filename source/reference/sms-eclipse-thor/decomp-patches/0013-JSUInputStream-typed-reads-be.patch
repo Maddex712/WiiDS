@@ -1,0 +1,149 @@
+Reason: endian: JSU stream typed reads (16/32/64-bit ints, f32) convert from big-endian
+--- a/libs/JSystem/include/JSystem/JSupport/JSUInputStream.hpp
++++ b/libs/JSystem/include/JSystem/JSupport/JSUInputStream.hpp
+@@ -12,6 +12,22 @@
+ 	virtual int readData(void* buf, s32 size) = 0;
+ 
+ 	u32 read(void* buf, s32 size);
++#ifdef TARGET_PC
++	// Streams carry big-endian data: typed reads convert to host order.
++	u32 readBE(void* buf, s32 size)
++	{
++		u32 r = read(buf, size);
++		u8* b = (u8*)buf;
++		for (s32 i = 0; i < size / 2; i++) {
++			u8 t = b[i];
++			b[i] = b[size - 1 - i];
++			b[size - 1 - i] = t;
++		}
++		return r;
++	}
++#else
++	u32 readBE(void* buf, s32 size) { return read(buf, size); }
++#endif
+ 	char* read(char* buf);
+ 	char* readString();
+ 	char* readString(char* buf, u16 len);
+@@ -19,12 +35,12 @@
+ 	u32 read(s8& p) { return read(&p, sizeof(s8)); }
+ 	u32 read(u8& p) { return read(&p, sizeof(u8)); }
+ 	u32 read(bool& p) { return read(&p, sizeof(bool)); }
+-	u32 read(s16& p) { return read(&p, sizeof(s16)); }
+-	u32 read(u16& p) { return read(&p, sizeof(u16)); }
+-	u32 read(s32& p) { return read(&p, sizeof(s32)); }
+-	u32 read(u32& p) { return read(&p, sizeof(u32)); }
+-	u32 read(s64& p) { return read(&p, sizeof(s64)); }
+-	u32 read(u64& p) { return read(&p, sizeof(u64)); }
++	u32 read(s16& p) { return readBE(&p, sizeof(s16)); }
++	u32 read(u16& p) { return readBE(&p, sizeof(u16)); }
++	u32 read(s32& p) { return readBE(&p, sizeof(s32)); }
++	u32 read(u32& p) { return readBE(&p, sizeof(u32)); }
++	u32 read(s64& p) { return readBE(&p, sizeof(s64)); }
++	u32 read(u64& p) { return readBE(&p, sizeof(u64)); }
+ 
+ 	u8 read8b()
+ 	{
+@@ -36,14 +52,14 @@
+ 	u16 read16b()
+ 	{
+ 		u16 s;
+-		read(&s, sizeof(u16));
++		readBE(&s, sizeof(u16));
+ 		return s;
+ 	}
+ 
+ 	u32 read32b()
+ 	{
+ 		u32 i;
+-		read(&i, sizeof(u32));
++		readBE(&i, sizeof(u32));
+ 		return i;
+ 	}
+ 
+@@ -65,35 +81,35 @@
+ 	s16 readS16()
+ 	{
+ 		s16 s;
+-		read(&s, sizeof(s16));
++		readBE(&s, sizeof(s16));
+ 		return s;
+ 	}
+ 
+ 	u16 readU16()
+ 	{
+ 		u16 s;
+-		read(&s, sizeof(u16));
++		readBE(&s, sizeof(u16));
+ 		return s;
+ 	}
+ 
+ 	s32 readS32()
+ 	{
+ 		s32 i;
+-		read(&i, sizeof(s32));
++		readBE(&i, sizeof(s32));
+ 		return i;
+ 	}
+ 
+ 	u32 readU32()
+ 	{
+ 		u32 i;
+-		read(&i, sizeof(u32));
++		readBE(&i, sizeof(u32));
+ 		return i;
+ 	}
+ 
+ 	u64 readU64()
+ 	{
+ 		u64 i;
+-		read(&i, sizeof(u64));
++		readBE(&i, sizeof(u64));
+ 		return i;
+ 	}
+ 
+@@ -101,7 +117,7 @@
+ 	f32 readF32()
+ 	{
+ 		f32 f;
+-		read(&f, sizeof(f32));
++		readBE(&f, sizeof(f32));
+ 		return f;
+ 	}
+ 
+@@ -125,31 +141,31 @@
+ 
+ 	JSUInputStream& operator>>(s16& p)
+ 	{
+-		read(&p, sizeof(s16));
++		readBE(&p, sizeof(s16));
+ 		return *this;
+ 	}
+ 
+ 	JSUInputStream& operator>>(u16& p)
+ 	{
+-		read(&p, sizeof(u16));
++		readBE(&p, sizeof(u16));
+ 		return *this;
+ 	}
+ 
+ 	JSUInputStream& operator>>(s32& p)
+ 	{
+-		read(&p, sizeof(s32));
++		readBE(&p, sizeof(s32));
+ 		return *this;
+ 	}
+ 
+ 	JSUInputStream& operator>>(u32& p)
+ 	{
+-		read(&p, sizeof(u32));
++		readBE(&p, sizeof(u32));
+ 		return *this;
+ 	}
+ 
+ 	JSUInputStream& operator>>(f32& p)
+ 	{
+-		read(&p, sizeof(f32));
++		readBE(&p, sizeof(f32));
+ 		return *this;
+ 	}
+ };

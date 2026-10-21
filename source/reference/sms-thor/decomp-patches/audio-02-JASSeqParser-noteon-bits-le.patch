@@ -1,0 +1,23 @@
+Reason: Audio: TSeqParser::cmdNoteOn splits the BMS note-on flag byte with a bitfield struct laid out for MWCC's big-endian bit order; under GCC on little-endian hosts voice/length/connect/regKey read the wrong bits, so note slots overran TNoteMgr's 8-entry table (crash in getChannel) and gate lengths were misread (notes never released). Declare the fields in reverse there.
+--- a/libs/JSystem/src/JAudio/JASystem/JASSeqParser.cpp
++++ b/libs/JSystem/src/JAudio/JASystem/JASSeqParser.cpp
+@@ -773,10 +773,19 @@
+ 	union {
+ 		u8 b;
+ 		struct {
++#if defined(TARGET_PC) && __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
++			// GCC fills bitfields from the low bit on little-endian hosts;
++			// MWCC from the high bit. Same bits of the command byte either way.
++			u8 voice : 3;
++			u8 length : 2;
++			u8 connect : 2;
++			u8 regKey : 1;
++#else
+ 			u8 regKey : 1;
+ 			u8 connect : 2;
+ 			u8 length : 2;
+ 			u8 voice : 3;
++#endif
+ 		} bits;
+ 	} cmd;
+ 

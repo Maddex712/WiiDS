@@ -1,0 +1,82 @@
+Reason: endian: THP movies are streamed; convert the header, component info and video/audio info after each copy, the frame-offset words, and each frame's size and component-size words right after the disc read (component payloads stay big-endian for the decoders)
+--- a/libs/THPPlayer/src/THPPlayer.c
++++ b/libs/THPPlayer/src/THPPlayer.c
+@@ -141,6 +141,14 @@
+ 	}
+ 
+ 	memcpy(&ActivePlayer.header.magic, WorkBuffer, sizeof(THPHeader));
++#ifdef TARGET_PC
++	{
++		u32* w = &ActivePlayer.header.version;
++		u32 k;
++		for (k = 0; k < (sizeof(THPHeader) - 4) / 4; k++)
++			w[k] = port_be32(&w[k]);
++	}
++#endif
+ 
+ 	if (strcmp(ActivePlayer.header.magic, "THP") != 0) {
+ 		DVDClose(&ActivePlayer.fileInfo);
+@@ -160,6 +168,9 @@
+ 	}
+ 
+ 	memcpy(&ActivePlayer.compInfo, WorkBuffer, sizeof(THPFrameCompInfo));
++#ifdef TARGET_PC
++	ActivePlayer.compInfo.numComponents = port_be32(&ActivePlayer.compInfo.numComponents);
++#endif
+ 	offset += sizeof(THPFrameCompInfo);
+ 	ActivePlayer.audioExist = 0;
+ 
+@@ -173,6 +184,11 @@
+ 			}
+ 
+ 			memcpy(&ActivePlayer.videoInfo, WorkBuffer, sizeof(THPVideoInfo));
++#ifdef TARGET_PC
++			ActivePlayer.videoInfo.xSize     = port_be32(&ActivePlayer.videoInfo.xSize);
++			ActivePlayer.videoInfo.ySize     = port_be32(&ActivePlayer.videoInfo.ySize);
++			ActivePlayer.videoInfo.videoType = port_be32(&ActivePlayer.videoInfo.videoType);
++#endif
+ 
+ 			offset += sizeof(THPVideoInfo);
+ 			break;
+@@ -184,6 +200,12 @@
+ 				return FALSE;
+ 			}
+ 			memcpy(&ActivePlayer.audioInfo, WorkBuffer, sizeof(THPAudioInfo));
++#ifdef TARGET_PC
++			ActivePlayer.audioInfo.sndChannels   = port_be32(&ActivePlayer.audioInfo.sndChannels);
++			ActivePlayer.audioInfo.sndFrequency  = port_be32(&ActivePlayer.audioInfo.sndFrequency);
++			ActivePlayer.audioInfo.sndNumSamples = port_be32(&ActivePlayer.audioInfo.sndNumSamples);
++			ActivePlayer.audioInfo.sndNumTracks  = port_be32(&ActivePlayer.audioInfo.sndNumTracks);
++#endif
+ 			offset += sizeof(THPAudioInfo);
+ 			ActivePlayer.audioExist = 1;
+ 			break;
+@@ -364,6 +386,10 @@
+ 				    < 0)
+ 					return FALSE;
+ 
++#ifdef TARGET_PC
++				WorkBuffer[0] = port_be32(&WorkBuffer[0]);
++				WorkBuffer[1] = port_be32(&WorkBuffer[1]);
++#endif
+ 				ActivePlayer.initOffset
+ 				    = ActivePlayer.header.movieDataOffsets + WorkBuffer[0];
+ 				ActivePlayer.initReadFrame = frame;
+--- a/libs/THPPlayer/src/THPRead.c
++++ b/libs/THPPlayer/src/THPRead.c
+@@ -72,6 +72,15 @@
+ 			OSSuspendThread(&ReadThread);
+ 		}
+ 
++#ifdef TARGET_PC
++		{
++			// frame header: next size, previous size, component sizes
++			u32* w = (u32*)buf->ptr;
++			u32 k;
++			for (k = 0; k < 2 + ActivePlayer.compInfo.numComponents; k++)
++				w[k] = port_be32(&w[k]);
++		}
++#endif
+ 		buf->frameNumber = frame;
+ 		PushReadedBuffer(buf);
+ 		offset += initReadSize;

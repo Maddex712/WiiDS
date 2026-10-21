@@ -1,0 +1,17 @@
+Reason: Android MEM1 relocation must keep SDK physical/cached aliases consistent with the arena and renderer, without truncating high heap pointers.
+--- a/libs/dolphin/include/dolphin/os.h
++++ b/libs/dolphin/include/dolphin/os.h
+@@ -174 +174,12 @@
+-#if !DEBUG
++#if defined(TARGET_PC) && defined(__ANDROID__)
++// Android can occupy the usual GameCube address range. The port reserves
++// another arena that fits raw u32 pointer slots; CPU cached/uncached aliases
++// share that mapping, and physical addresses are relative to its base.
++extern u8* port_mem1_base;
++#define OSPhysicalToCached(paddr) ((void*)((u64)port_mem1_base + (u32)(paddr)))
++#define OSPhysicalToUncached(paddr) OSPhysicalToCached(paddr)
++#define OSCachedToPhysical(caddr) ((u32)((u64)(caddr) - (u64)port_mem1_base))
++#define OSUncachedToPhysical(ucaddr) OSCachedToPhysical(ucaddr)
++#define OSCachedToUncached(caddr) ((void*)(caddr))
++#define OSUncachedToCached(ucaddr) ((void*)(ucaddr))
++#elif !DEBUG

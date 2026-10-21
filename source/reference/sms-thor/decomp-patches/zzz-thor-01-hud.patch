@@ -1,0 +1,67 @@
+Reason: AYN Thor lower screen: while it shows the Shine, blue-coin and coin counters, the top screen leaves them out and lives move to the wide frame's top-left corner (draw-time only; pane state and animations unchanged); the area photo is taken before the HUD draws.
+--- a/src/GC2D/GCConsole2.cpp
++++ b/src/GC2D/GCConsole2.cpp
+@@ -4790,11 +4790,25 @@
+ 	}
+ }
+ 
++#if defined(TARGET_PC) && defined(__ANDROID__)
++// AYN Thor lower screen (android/thor_snapshot.cpp): while it shows the Shine, blue-coin
++// and coin counters, the top screen leaves them out, and lives sit at the wide frame's
++// top-left corner. Only this draw changes; the panes' own state and animations do not.
++extern "C" int port_thor_hud_split(void);
++extern "C" int port_thor_lives_shift(int left);
++extern "C" void port_thor_hud_swoosh(u32 white, u32 black);
++extern "C" void port_thor_capture_photo(void);
++#endif
++
+ // fabricated: the flags&8 draw pass. Retail's `graph` sits below the
+ // setScissor TRect temporary, i.e. both are locals of one inlined callee.
+ static inline void drawConsole(TGCConsole2* console,
+                                JDrama::TGraphics* graphics)
+ {
++#if defined(TARGET_PC) && defined(__ANDROID__)
++	// Before any HUD: the frame so far is the 3D picture (the area photo, when one is wanted).
++	port_thor_capture_photo();
++#endif
+ #ifdef TARGET_PC
+ 	GXPC_SetHud(1);
+ #endif
+@@ -4814,7 +4828,37 @@
+ 
+ 	graph.setup2D();
+ 
++#if defined(TARGET_PC) && defined(__ANDROID__)
++	const bool thorSplit = port_thor_hud_split() != 0;
++	J2DPane* thorCounters[3] = {console->unk140->getPane(), console->unk160->getPane(),
++	                            console->unk108->getPane()};
++	bool thorShown[3] = {false, false, false};
++	J2DPane* thorLives = console->unk3A8->getPane();
++	int thorLivesDx = 0;
++	if (thorSplit) {
++		for (int i = 0; i < 3; ++i) {
++			thorShown[i] = thorCounters[i]->isVisible();
++			thorCounters[i]->hide();
++		}
++		thorLivesDx = port_thor_lives_shift(thorLives->getBounds().x1);
++		if (thorLivesDx)
++			thorLives->add(thorLivesDx, 0);
++		const JUtility::TColor white = ((J2DPicture*)console->unkC8->getPane())->getWhite();
++		const JUtility::TColor black = ((J2DPicture*)console->unkC8->getPane())->mBlack;
++		port_thor_hud_swoosh((u32)white.r << 24 | (u32)white.g << 16 | (u32)white.b << 8 | white.a,
++		                     (u32)black.r << 24 | (u32)black.g << 16 | (u32)black.b << 8 | black.a);
++	}
++#endif
+ 	console->unkB0->draw(0, 0, &graph);
++#if defined(TARGET_PC) && defined(__ANDROID__)
++	if (thorSplit) {
++		for (int i = 0; i < 3; ++i)
++			if (thorShown[i])
++				thorCounters[i]->show();
++		if (thorLivesDx)
++			thorLives->add(-thorLivesDx, 0);
++	}
++#endif
+ 
+ 	if (console->unk44 && !console->unk43 && !console->unk42
+ 	    && console->unk520->getPane()->isVisible()) {

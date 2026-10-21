@@ -1,0 +1,396 @@
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -3315,6 +3315,52 @@
+     "${SDL3_SOURCE_DIR}/src/io/n3ds/*.h"
+   )
+ 
++elseif(CMAKE_SYSTEM_NAME STREQUAL "NintendoSwitch")
++  # Nintendo Switch homebrew, via devkitA64/libnx. No official SDL upstream backend exists for
++  # this target (unlike Vita/PSP/PS2/N3DS/NGAGE above, which SDL mainline does support) -
++  # see DriftDroid's Switch port notes. Unlike those bare-metal targets,
++  # devkitA64 ships a real, usable pthreads implementation over libnx's own thread primitives
++  # (confirmed: real pthread_create/pthread_mutex*/pthread_cond* all present, not stubs), and a
++  # reasonably POSIX-complete newlib (clock_gettime, nanosleep present) - so unlike N3DS/PSP/Vita,
++  # which all need bespoke thread/timer backends, Switch can reuse SDL's existing, mature
++  # src/thread/pthread and src/timer|time/unix backends unmodified. This is deliberately a minimal
++  # first slice: only what's needed to get SDL3 past configure/build (Threads and Timers are the
++  # only two SDL_INIT-independent subsystems CMakeLists.txt hard-requires - see the
++  # HAVE_SDL_THREADS/HAVE_SDL_TIMERS FATAL_ERROR checks near the end of this file). Video, Audio,
++  # and Joystick fall back to their automatic dummy backends for now (same fallback every other
++  # platform gets when a real backend isn't configured) - real Switch-specific backends for those
++  # are separate, later work (Phase 3c windowing via deko3d/nwindow, Phase 4 input via libnx hid,
++  # Phase 6 audio via audren), not something to fake here.
++  # CMake's UNIX variable is only set for recognized OS names, not custom CMAKE_SYSTEM_NAME
++  # values like "NintendoSwitch" - so SDL_PTHREADS_DEFAULT (line ~151, gated on UNIX_OR_MAC_SYS)
++  # silently defaults OFF here, and CheckPTHREAD()'s entire body is itself gated behind
++  # `if(SDL_PTHREADS)` - meaning the check would silently no-op rather than fail loudly. Force it
++  # on explicitly; devkitA64's pthreads are real and confirmed working (see the comment above).
++  set(SDL_PTHREADS ON CACHE BOOL "" FORCE)
++  CheckPTHREAD()
++
++  set(SDL_TIME_UNIX 1)
++  sdl_glob_sources("${SDL3_SOURCE_DIR}/src/time/unix/*.c")
++  set(HAVE_SDL_TIME TRUE)
++
++  set(SDL_TIMER_UNIX 1)
++  sdl_glob_sources("${SDL3_SOURCE_DIR}/src/timer/unix/*.c")
++  set(HAVE_SDL_TIMERS TRUE)
++
++  set(SDL_FSOPS_POSIX 1)
++  sdl_sources("${SDL3_SOURCE_DIR}/src/filesystem/posix/SDL_sysfsops.c")
++  set(HAVE_SDL_FSOPS TRUE)
++
++  # GetBasePath/GetPrefPath stay on the dummy backend for now (no real Switch romfs/sdmc path
++  # logic yet - later work, not blocking first-playable). Explicitly adding just the dummy
++  # SDL_sysfilesystem.c (not the whole dummy/*.c glob CMakeLists.txt falls back to further down
++  # when HAVE_SDL_FILESYSTEM is unset) avoids also pulling in dummy/SDL_sysfsops.c alongside the
++  # real posix one just set above - that combination was a real "multiple definition of
++  # SDL_SYS_GetCurrentDirectory" link error, caught building guest_flat_memory.cpp's Switch port.
++  set(SDL_FILESYSTEM_DUMMY 1)
++  sdl_sources("${SDL3_SOURCE_DIR}/src/filesystem/dummy/SDL_sysfilesystem.c")
++  set(HAVE_SDL_FILESYSTEM TRUE)
++
+ elseif(NGAGE)
+ 
+   enable_language(CXX)
+--- a/include/SDL3/SDL_platform_defines.h
++++ b/include/SDL3/SDL_platform_defines.h
+@@ -484,6 +484,17 @@
+ #define SDL_PLATFORM_NGAGE 1
+ #endif
+ 
++#ifdef __SWITCH__
++
++/**
++ * A preprocessor macro that is only defined if compiling for Nintendo
++ * Switch homebrew (devkitA64/libnx). Not an upstream SDL platform - added
++ * locally, see aurora-main/cmake/patches/sdl3-nintendo-switch-platform.patch
++ * and DriftDroid's Switch port notes.
++ */
++#define SDL_PLATFORM_SWITCH 1
++#endif
++
+ #ifdef __GNU__
+ 
+ /**
+--- a/src/dynapi/SDL_dynapi.h
++++ b/src/dynapi/SDL_dynapi.h
+@@ -65,6 +65,8 @@
+ #define SDL_DYNAMIC_API 0 // devkitARM doesn't support dynamic linking
+ #elif defined(SDL_PLATFORM_NGAGE)
+ #define SDL_DYNAMIC_API 0
++#elif defined(SDL_PLATFORM_SWITCH)
++#define SDL_DYNAMIC_API 0 // devkitA64/libnx homebrew doesn't support dynamic linking
+ #elif defined(DYNAPI_NEEDS_DLOPEN) && !defined(HAVE_DLOPEN)
+ #define SDL_DYNAMIC_API 0 // we need dlopen(), but don't have it....
+ #endif
+--- a/src/thread/pthread/SDL_systhread.c
++++ b/src/thread/pthread/SDL_systhread.c
+@@ -185,8 +185,12 @@
+ 
+ bool SDL_SYS_SetThreadPriority(SDL_ThreadPriority priority)
+ {
+-#ifdef SDL_PLATFORM_RISCOS
++#if defined(SDL_PLATFORM_RISCOS) || defined(SDL_PLATFORM_SWITCH)
+     // FIXME: Setting thread priority does not seem to be supported
++    // (Switch: devkitA64's pthread_getschedparam/pthread_setschedparam/sched_get_priority_* are
++    // declared only behind #if defined(_POSIX_THREAD_PRIORITY_SCHEDULING) in pthread.h/sched.h,
++    // which this target's newlib never defines - Horizon OS has its own priority model instead
++    // of POSIX SCHED_FIFO/RR/OTHER classes. Same no-op treatment as RISC OS above.)
+     return true;
+ #else
+     struct sched_param sched;
+--- a/src/time/unix/SDL_systime.c
++++ b/src/time/unix/SDL_systime.c
+@@ -194,7 +194,19 @@
+          * The notable exception is Solaris, where the timezone offset must still be retrieved in the strictly POSIX.1-2008
+          * compliant way.
+          */
+-#if (_POSIX_VERSION >= 202405L) || (!defined(sun) && !defined(__sun))
++#if defined(SDL_PLATFORM_SWITCH)
++        // devkitA64's newlib never defines __TM_GMTOFF (see time.h), so struct tm has no
++        // tm_gmtoff member at all here - not just a POSIX-version gate like Solaris below.
++        // Route through the same tzset()-based fallback, but via newlib's actual symbol name
++        // (_timezone, not the glibc/BSD-style unprefixed "timezone" the Solaris branch uses -
++        // devkitA64's time.h declares no plain "timezone" alias for it).
++        if (localTime) {
++            tzset();
++            dt->utc_offset = (int)_timezone;
++        } else {
++            dt->utc_offset = 0;
++        }
++#elif (_POSIX_VERSION >= 202405L) || (!defined(sun) && !defined(__sun))
+         dt->utc_offset = (int)tm->tm_gmtoff;
+ #else
+         if (localTime) {
+--- a/src/thread/pthread/SDL_systhread.c
++++ b/src/thread/pthread/SDL_systhread.c
+@@ -161,10 +161,15 @@
+     }
+ 
+-#ifdef HAVE_SIGNAL_H
++#if defined(HAVE_SIGNAL_H) && !defined(SDL_PLATFORM_SWITCH)
++    // devkitA64's newlib provides basic ANSI signal()/raise() (see <signal.h>) but not the POSIX
++    // signal-SET API (sigemptyset/sigaddset/pthread_sigmask) this block needs - Horizon OS has no
++    // real POSIX signal delivery at all (see runtime/src/main.cpp's own __SWITCH__ comment on
++    // this exact point). A real "undefined reference to pthread_sigmask" link error, not a
++    // hypothetical one.
+     // Mask asynchronous signals for this thread
+     sigemptyset(&mask);
+     for (i = 0; sig_list[i]; ++i) {
+         sigaddset(&mask, sig_list[i]);
+     }
+     pthread_sigmask(SIG_BLOCK, &mask, NULL);
+ #endif
+--- a/src/filesystem/dummy/SDL_sysfilesystem.c
++++ b/src/filesystem/dummy/SDL_sysfilesystem.c
+@@ -45,12 +45,20 @@
+ 
++#if !defined(SDL_FSOPS_POSIX)
++// posix/SDL_sysfsops.c already defines a real SDL_SYS_GetCurrentDirectory (via getcwd()) whenever
++// SDL_FSOPS_POSIX is active - a platform that pairs the dummy filesystem backend (for
++// GetBasePath/GetPrefPath, unsupported) with the real posix fsops backend (Nintendo Switch: a
++// real filesystem exists via libnx's devoptab layer, but no meaningful "base path"/"pref path"
++// concept) would otherwise get this function defined twice, a real "multiple definition" link
++// error.
+ char *SDL_SYS_GetCurrentDirectory(void)
+ {
+     const char *base = SDL_GetBasePath();
+     if (!base) {
+         return NULL;
+     }
+ 
+     return SDL_strdup(base);
+ }
++#endif // !SDL_FSOPS_POSIX
+ 
+ #endif // SDL_FILESYSTEM_DUMMY || SDL_FILESYSTEM_DISABLED
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -3355,6 +3355,12 @@
+   sdl_sources("${SDL3_SOURCE_DIR}/src/filesystem/dummy/SDL_sysfilesystem.c")
+   set(HAVE_SDL_FILESYSTEM TRUE)
+ 
++  if(SDL_AUDIO)
++    set(SDL_AUDIO_DRIVER_SWITCH 1)
++    sdl_sources("${SDL3_SOURCE_DIR}/src/audio/switch/SDL_switchaudio.c")
++    set(HAVE_SDL_AUDIO TRUE)
++  endif()
++
+ elseif(NGAGE)
+ 
+   enable_language(CXX)
+--- a/src/audio/SDL_audio.c
++++ b/src/audio/SDL_audio.c
+@@ -71,6 +71,9 @@
+ #ifdef SDL_AUDIO_DRIVER_PSP
+     &PSPAUDIO_bootstrap,
+ #endif
++#ifdef SDL_AUDIO_DRIVER_SWITCH
++    &SWITCHAUDIO_bootstrap,
++#endif
+ #ifdef SDL_AUDIO_DRIVER_VITA
+     &VITAAUD_bootstrap,
+ #endif
+--- a/src/audio/SDL_sysaudio.h
++++ b/src/audio/SDL_sysaudio.h
+@@ -385,6 +385,7 @@
+ extern AudioBootStrap OPENSLES_bootstrap;
+ extern AudioBootStrap PS2AUDIO_bootstrap;
+ extern AudioBootStrap PSPAUDIO_bootstrap;
++extern AudioBootStrap SWITCHAUDIO_bootstrap;
+ extern AudioBootStrap VITAAUD_bootstrap;
+ extern AudioBootStrap N3DSAUDIO_bootstrap;
+ extern AudioBootStrap NGAGEAUDIO_bootstrap;
+--- a/include/build_config/SDL_build_config.h.cmake
++++ b/include/build_config/SDL_build_config.h.cmake
+@@ -288,6 +288,7 @@
+ #cmakedefine SDL_AUDIO_DRIVER_WASAPI 1
+ #cmakedefine SDL_AUDIO_DRIVER_VITA 1
+ #cmakedefine SDL_AUDIO_DRIVER_PSP 1
++#cmakedefine SDL_AUDIO_DRIVER_SWITCH 1
+ #cmakedefine SDL_AUDIO_DRIVER_PS2 1
+ #cmakedefine SDL_AUDIO_DRIVER_N3DS 1
+ #cmakedefine SDL_AUDIO_DRIVER_NGAGE 1
+--- /dev/null
++++ b/src/audio/switch/SDL_switchaudio.c
+@@ -0,0 +1,179 @@
++/*
++  Simple DirectMedia Layer
++  Copyright (C) 1997-2026 Sam Lantinga <slouken@libsdl.org>
++
++  This software is provided 'as-is', without any express or implied
++  warranty.  In no event will the authors be held liable for any damages
++  arising from the use of this software.
++
++  Permission is granted to anyone to use this software for any purpose,
++  including commercial applications, and to alter it and redistribute it
++  freely, subject to the following restrictions:
++
++  1. The origin of this software must not be misrepresented; you must not
++     claim that you wrote the original software. If you use this software
++     in a product, an acknowledgment in the product documentation would be
++     appreciated but is not required.
++  2. Altered source versions must be plainly marked as such, and must not be
++     misrepresented as being the original software.
++  3. This notice may not be removed or altered from any source distribution.
++*/
++#include "SDL_internal.h"
++
++#ifdef SDL_AUDIO_DRIVER_SWITCH
++
++// Nintendo Switch homebrew audio output through libnx's audout service. The device is fixed at
++// 48 kHz stereo S16; SDL's audio stream converts whatever the application requests.
++
++#include <malloc.h>
++#include <switch.h>
++
++#include "../SDL_sysaudio.h"
++
++// Four buffers, all kept queued in audout. See SWITCHAUDIO_PlayDevice for why more than one
++// buffer has to be in flight at a time.
++#define SWITCHAUDIO_NUM_BUFFERS 4
++
++struct SDL_PrivateAudioData
++{
++    AudioOutBuffer buffers[SWITCHAUDIO_NUM_BUFFERS];
++    Uint8 *data[SWITCHAUDIO_NUM_BUFFERS];
++    int next_buffer;
++    int queued;  // buffers handed to audout that have not been released back yet
++    bool started;
++};
++
++// Collects finished buffers without blocking.
++static void SWITCHAUDIO_ReapReleased(struct SDL_PrivateAudioData *hidden)
++{
++    AudioOutBuffer *released = NULL;
++    u32 count = 0;
++    while (hidden->queued > 0 && R_SUCCEEDED(audoutGetReleasedAudioOutBuffer(&released, &count)) && count > 0) {
++        hidden->queued -= (int)count;
++        if (hidden->queued < 0) {
++            hidden->queued = 0;
++        }
++        count = 0;
++    }
++}
++
++static bool SWITCHAUDIO_OpenDevice(SDL_AudioDevice *device)
++{
++    Result rc = audoutInitialize();
++    if (R_FAILED(rc)) {
++        return SDL_SetError("audoutInitialize failed (rc=0x%x)", rc);
++    }
++    rc = audoutStartAudioOut();
++    if (R_FAILED(rc)) {
++        audoutExit();
++        return SDL_SetError("audoutStartAudioOut failed (rc=0x%x)", rc);
++    }
++
++    device->hidden = (struct SDL_PrivateAudioData *)SDL_calloc(1, sizeof(*device->hidden));
++    if (!device->hidden) {
++        audoutStopAudioOut();
++        audoutExit();
++        return false;
++    }
++    device->hidden->started = true;
++
++    device->spec.format = SDL_AUDIO_S16LE;
++    device->spec.freq = (int)audoutGetSampleRate();
++    device->spec.channels = (int)audoutGetChannelCount();
++    SDL_UpdatedAudioDeviceFormat(device);
++
++    // audout requires page-aligned sample memory; capacity is rounded up, data_size is exact.
++    const u64 capacity = ((u64)device->buffer_size + 0xFFF) & ~(u64)0xFFF;
++    for (int i = 0; i < SWITCHAUDIO_NUM_BUFFERS; i++) {
++        device->hidden->data[i] = (Uint8 *)memalign(0x1000, capacity);
++        if (!device->hidden->data[i]) {
++            return SDL_SetError("Couldn't allocate audout buffer");
++        }
++        SDL_memset(device->hidden->data[i], device->silence_value, capacity);
++        device->hidden->buffers[i].buffer = device->hidden->data[i];
++        device->hidden->buffers[i].buffer_size = capacity;
++        device->hidden->buffers[i].data_size = (u64)device->buffer_size;
++        device->hidden->buffers[i].data_offset = 0;
++        device->hidden->buffers[i].next = NULL;
++    }
++    return true;
++}
++
++static Uint8 *SWITCHAUDIO_GetDeviceBuf(SDL_AudioDevice *device, int *buffer_size)
++{
++    return device->hidden->data[device->hidden->next_buffer];
++}
++
++static bool SWITCHAUDIO_PlayDevice(SDL_AudioDevice *device, const Uint8 *buffer, int buflen)
++{
++    struct SDL_PrivateAudioData *hidden = device->hidden;
++    AudioOutBuffer *source = &hidden->buffers[hidden->next_buffer];
++    source->data_size = (u64)buflen;
++    // audoutPlayBuffer() appends *and waits for that buffer to finish playing*, so it can never
++    // keep more than one buffer in flight: audout ran dry for the whole time SDL spent mixing the
++    // next chunk, and the gap between every pair of buffers was audible as a constant stutter,
++    // at any frame rate. Append without blocking instead and let SWITCHAUDIO_WaitDevice do the
++    // pacing, so the hardware always has the next buffer ready before the current one ends.
++    const Result rc = audoutAppendAudioOutBuffer(source);
++    if (R_FAILED(rc)) {
++        return false;
++    }
++    hidden->queued++;
++    hidden->next_buffer = (hidden->next_buffer + 1) % SWITCHAUDIO_NUM_BUFFERS;
++    return true;
++}
++
++static bool SWITCHAUDIO_WaitDevice(SDL_AudioDevice *device)
++{
++    struct SDL_PrivateAudioData *hidden = device->hidden;
++    SWITCHAUDIO_ReapReleased(hidden);
++    // Only block when every buffer is still with audout - that is the one point where waiting
++    // cannot starve the device, because it already holds SWITCHAUDIO_NUM_BUFFERS of audio.
++    while (hidden->queued >= SWITCHAUDIO_NUM_BUFFERS) {
++        AudioOutBuffer *released = NULL;
++        u32 count = 0;
++        if (R_FAILED(audoutWaitPlayFinish(&released, &count, UINT64_MAX))) {
++            return false;
++        }
++        hidden->queued -= (int)count;
++        if (hidden->queued < 0) {
++            hidden->queued = 0;
++        }
++        SWITCHAUDIO_ReapReleased(hidden);
++    }
++    return true;
++}
++
++static void SWITCHAUDIO_CloseDevice(SDL_AudioDevice *device)
++{
++    if (!device->hidden) {
++        return;
++    }
++    if (device->hidden->started) {
++        audoutStopAudioOut();
++        audoutExit();
++        device->hidden->queued = 0;
++    }
++    for (int i = 0; i < SWITCHAUDIO_NUM_BUFFERS; i++) {
++        free(device->hidden->data[i]);
++    }
++    SDL_free(device->hidden);
++    device->hidden = NULL;
++}
++
++static bool SWITCHAUDIO_Init(SDL_AudioDriverImpl *impl)
++{
++    impl->OpenDevice = SWITCHAUDIO_OpenDevice;
++    impl->PlayDevice = SWITCHAUDIO_PlayDevice;
++    impl->WaitDevice = SWITCHAUDIO_WaitDevice;
++    impl->GetDeviceBuf = SWITCHAUDIO_GetDeviceBuf;
++    impl->CloseDevice = SWITCHAUDIO_CloseDevice;
++    impl->OnlyHasDefaultPlaybackDevice = true;
++    return true;
++}
++
++AudioBootStrap SWITCHAUDIO_bootstrap = {
++    "switch", "Nintendo Switch audout", SWITCHAUDIO_Init, false, false
++};
++
++#endif // SDL_AUDIO_DRIVER_SWITCH

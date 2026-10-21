@@ -1,0 +1,18 @@
+Reason: g++: case label jumps over initialised local landed; brace the case body
+--- a/src/Player/MarioAutodemo.cpp
++++ b/src/Player/MarioAutodemo.cpp
+@@ -27,12 +27,14 @@
+ 			mHeldObject = nullptr;
+ 		}
+ 		gpConductor->killEnemiesWithin(mPosition, 2000.0f);
++		{
+ 		BOOL landed = jumpProcess(0);
+ 		if (landed == TRUE) {
+ 			gpMarDirector->fireGetStar((TShine*)unk384);
+ 			unk384->receiveMessage(this, HIT_MESSAGE_TAKE);
+ 			mStatusState = 1;
+ 		}
++		}
+ 		break;
+ 	case 1:
+ 		setAnimation(ANIM_DEMO_SHINE_GET, 1.0f);

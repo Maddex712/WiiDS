@@ -1,0 +1,15 @@
+Reason: TBossMantaManager::spawn gives each new Phantamanta its heading with mtx.setEularY(angle) and mtx.mult(dir, dir) but never sets the matrix's translation column, which mult adds to the heading. In retail those three adds read f26, a callee-saved FPR that spawn saves and never sets. No game code on the call path writes f26: not the main loop, TMarDirector, the JDrama perform lists, TLiveActor::control, TSpineBase::update or TNerveMantaSpawn::execute. So it keeps whatever value the boot code left. Natively the column is stack garbage. On macOS (x86-64 under Rosetta) it was NaN when the Phantamanta first split in Sirena Beach. The children's heading, velocity and position became NaN. TMapCollisionData::checkGround's bounds test passed, because every NaN comparison is false. The grid indices converted to INT_MIN, and the read of the grid cell faulted (with 32-bit addresses the offset wraps back to cell 0). Zero the translation column before the mult. The heading is then the rotation the code intends, spread evenly around the parent, and every build gets the same one.
+--- a/src/Enemy/bossManta.cpp
++++ b/src/Enemy/bossManta.cpp
+@@ -1528,6 +1528,11 @@
+ 		// Inert: dir declared before mtx, dir.set(), a non-const counts,
+ 		// count as a pointer, a top `int i`.
+ 		mtx.setEularY(angle);
++		// Retail's stale FPR is f26, which no game code on the call path
++		// writes. Natively the column is stack garbage, and a NaN there sent
++		// the new mantas to NaN positions: give mult a zero translation, so
++		// the heading is the rotation alone (see the patch).
++		mtx.setTrans(0.0f, 0.0f, 0.0f);
+ 		mtx.mult(dir, dir);
+ 
+ 		manta->unk170 = dir;

@@ -1,0 +1,182 @@
+Reason: port: the hx wipes are drawn and advanced one call a frame, counted in frames, so at frame_rate 60 or 120 they ran two or four times as fast and a warp's closing wipe ended before its pipe sound (cut short by the next stage); they advance once per native 30 Hz frame and are drawn on the others from state saved and put back
+--- a/src/GC2D/hx_wiper.c
++++ b/src/GC2D/hx_wiper.c
+@@ -145,6 +145,39 @@
+ static u8 vtable[7];
+ 
+ static HxWork hx;
++#ifdef TARGET_PC
++#include <string.h>
++/* port: the game draws and advances a wipe in one call a frame, counted in
++ * frames: at frame_rate 60 or 120 every wipe ran two or four times as fast
++ * (a warp's closing wipe ended before its pipe sound, which the next stage
++ * then cut short). Hx_UpdateWipe advances a wipe on one frame in each native
++ * 30 Hz one; on the others it still draws it, from state it saves and then
++ * puts back: hx, the file's other state, and each handler's own statics,
++ * which the handler registers (HX_PC_KEEP) the first time it runs, always on
++ * an advancing frame. */
++extern int port_active_frame_rate;
++static struct {
++	void* p;
++	u32 n;
++} hx_pc_keep_list[48];
++static int hx_pc_keep_count;
++static int hxs_logo_resetflag;
++static int hxs_logodraw_resetflag;
++static u32 hx_pc_frame;
++static void hx_pc_keep(void* p, u32 n)
++{
++	int i;
++	for (i = 0; i < hx_pc_keep_count; i++)
++		if (hx_pc_keep_list[i].p == p)
++			return;
++	if (hx_pc_keep_count < (int)(sizeof(hx_pc_keep_list) / sizeof(hx_pc_keep_list[0]))) {
++		hx_pc_keep_list[hx_pc_keep_count].p = p;
++		hx_pc_keep_list[hx_pc_keep_count].n = n;
++		hx_pc_keep_count++;
++	}
++}
++#define HX_PC_KEEP(v) hx_pc_keep(&(v), sizeof(v))
++#endif
+ static u8 hx_buffer[0x3300] __attribute__((aligned(32)));
+ 
+ static void* fbuf        = hx_buffer;
+@@ -502,6 +535,9 @@
+ 	hx.wipeNo = wipe_no;
+ 	hx.time   = 0.0f;
+ 	hx.param  = param;
++#ifdef TARGET_PC
++	hx_pc_frame = 0;
++#endif
+ }
+ 
+ static void dummy_handler(void) { }
+@@ -544,6 +580,39 @@
+ 		/* fall through */
+ 
+ 	case 2:
++#ifdef TARGET_PC
++		if (port_active_frame_rate > 30 && hx_pc_frame++ % (u32)(port_active_frame_rate / 30) != 0) {
++			/* draw without advancing (see hx_pc_keep) */
++			static u8 saved[512];
++			HxWork savedHx = hx;
++			u16 savedWx = img_wx, savedWy = img_wy;
++			u8 savedVtable[sizeof(vtable)];
++			int savedLogo = hxs_logo_resetflag, savedLogoDraw = hxs_logodraw_resetflag;
++			u32 at = 0;
++			int i;
++			memcpy(savedVtable, vtable, sizeof(vtable));
++			for (i = 0; i < hx_pc_keep_count && at + hx_pc_keep_list[i].n <= sizeof(saved); i++) {
++				memcpy(saved + at, hx_pc_keep_list[i].p, hx_pc_keep_list[i].n);
++				at += hx_pc_keep_list[i].n;
++			}
++			hx.rate = rate;
++			GXDrawDone();
++			hx.handler();
++			GXDrawDone();
++			at = 0;
++			for (i = 0; i < hx_pc_keep_count && at + hx_pc_keep_list[i].n <= sizeof(saved); i++) {
++				memcpy(hx_pc_keep_list[i].p, saved + at, hx_pc_keep_list[i].n);
++				at += hx_pc_keep_list[i].n;
++			}
++			hx = savedHx;
++			img_wx = savedWx;
++			img_wy = savedWy;
++			memcpy(vtable, savedVtable, sizeof(vtable));
++			hxs_logo_resetflag = savedLogo;
++			hxs_logodraw_resetflag = savedLogoDraw;
++			break;
++		}
++#endif
+ 		hx.rate = rate;
+ 		GXDrawDone();
+ 		hx.handler();
+@@ -614,6 +683,16 @@
+ 	static u16 a3;
+ 	static f32 boke;
+ 
++#ifdef TARGET_PC
++	HX_PC_KEEP(r);
++	HX_PC_KEEP(p1);
++	HX_PC_KEEP(p2);
++	HX_PC_KEEP(p3);
++	HX_PC_KEEP(a1);
++	HX_PC_KEEP(a2);
++	HX_PC_KEEP(a3);
++	HX_PC_KEEP(boke);
++#endif
+ 	switch (hx.step) {
+ 	case 0:
+ 		p3   = 0.0f;
+@@ -1083,6 +1162,15 @@
+ 	static f32 bounddelta;
+ 	static u8 alpha;
+ 
++#ifdef TARGET_PC
++	HX_PC_KEEP(mag);
++	HX_PC_KEEP(rot);
++	HX_PC_KEEP(fade);
++	HX_PC_KEEP(boundstate);
++	HX_PC_KEEP(boundtimer);
++	HX_PC_KEEP(bounddelta);
++	HX_PC_KEEP(alpha);
++#endif
+ 	switch (hx.step) {
+ 	case 0:
+ 		Hgx_ReadTexture("/data/wipe_gameover.bti", gmover_tex_buffer);
+@@ -1468,6 +1556,12 @@
+ 	static f32 bx;
+ 	static f32 by;
+ 	static s32 count;
++#ifdef TARGET_PC
++	HX_PC_KEEP(dp);
++	HX_PC_KEEP(bx);
++	HX_PC_KEEP(by);
++	HX_PC_KEEP(count);
++#endif
+ 
+ 	void* buffer;
+ 	const ResTIMG* timg = hx.resource;
+@@ -1627,6 +1721,9 @@
+ {
+ 	static f32 r;
+ 
++#ifdef TARGET_PC
++	HX_PC_KEEP(r);
++#endif
+ 	switch (hx.step) {
+ 	case 0:
+ 		if (hx.dir == 1) {
+@@ -1707,6 +1804,9 @@
+ {
+ 	static f32 r;
+ 
++#ifdef TARGET_PC
++	HX_PC_KEEP(r);
++#endif
+ 	switch (hx.step) {
+ 	case 0:
+ 		r = 1.0f;
+@@ -1771,6 +1871,9 @@
+ {
+ 	static f32 r;
+ 
++#ifdef TARGET_PC
++	HX_PC_KEEP(r);
++#endif
+ 	switch (hx.step) {
+ 	case 0:
+ 		r = 1.0f;
+@@ -1910,6 +2013,12 @@
+ 	static u32 rstep;
+ 	static f32 thin_d;
+ 	static f32 rstep_d;
++#ifdef TARGET_PC
++	HX_PC_KEEP(thin);
++	HX_PC_KEEP(rstep);
++	HX_PC_KEEP(thin_d);
++	HX_PC_KEEP(rstep_d);
++#endif
+ 
+ 	f32 a;
+ 	f32 x1;

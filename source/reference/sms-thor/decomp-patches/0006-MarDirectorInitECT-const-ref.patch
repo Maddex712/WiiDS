@@ -1,0 +1,12 @@
+Reason: g++: non-const GXTexObj& bound to const object; const_cast
+--- a/src/System/MarDirectorInitECT.cpp
++++ b/src/System/MarDirectorInitECT.cpp
+@@ -118,7 +118,7 @@
+ 
+ 	TMirrorCamera* mirrorCam = (TMirrorCamera*)ECTSearch("鏡カメラ");
+ 
+-	GXTexObj& obj = *MarDirectorInitECTUnk60(mirrorCam);
++	GXTexObj& obj = *const_cast<GXTexObj*>(MarDirectorInitECTUnk60(mirrorCam));
+ 	mirrorTex->setTexAttb(obj);
+ 	// TODO: 99.8%, frame 0x80 against the ROM's 0x88. Passing the rectangle
+ 	// as an unnamed temporary instead

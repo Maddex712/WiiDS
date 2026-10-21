@@ -1,0 +1,10 @@
+Reason: The retail cleaned() ring has ten positions (0x78 bytes in the DOL map), but resets its index only after 10. The eleventh write can overwrite adjacent globals in the native link layout, including gpPollution. Wrap at 10 in the port while keeping the matching decomp untouched.
+--- a/src/Map/PollutionLayer.cpp
++++ b/src/Map/PollutionLayer.cpp
+@@ -273,5 +273,5 @@
+ 				now_pos_no += 1;
+-				if (now_pos_no > 10)
++				if (now_pos_no >= 10)
+ 					now_pos_no = 0;
+ 			}
+ 		}

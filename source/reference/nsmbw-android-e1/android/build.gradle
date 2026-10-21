@@ -1,0 +1,4 @@
+// Same Android Gradle Plugin as the other Android projects on this PC (with Gradle 8.7).
+plugins {
+    id 'com.android.application' version '8.5.2' apply false
+}

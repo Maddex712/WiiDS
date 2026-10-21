@@ -1,0 +1,324 @@
+Reason: Returns: functions with no return statement whose value is never used: stubs that are UNUSED (stripped) in the retail map, plus JKRDvdFile::close, TYoshi::getEmitPosDir and a JGadget template whose callers ignore the result. Return a neutral value on TARGET_PC (falling off is undefined behaviour at -O1 and above).
+--- a/libs/JSystem/include/JSystem/JGadget/std-vector.hpp
++++ b/libs/JSystem/include/JSystem/JGadget/std-vector.hpp
+@@ -350,6 +350,9 @@
+ 			ResizeNotLarger(new_size);
+ 			return end();
+ 		}
++#ifdef TARGET_PC
++		return end(); // size unchanged (UNUSED in retail)
++#endif
+ 	}
+ 	// fabricated but present in TP as Resize_notLarger_
+ 	void ResizeNotLarger(size_t u)
+--- a/src/Camera/CameraMarioData.cpp
++++ b/src/Camera/CameraMarioData.cpp
+@@ -110,11 +110,26 @@
+ 	return result;
+ }
+ 
+-bool TCameraMarioData::isMarioBathtub() const { }
++bool TCameraMarioData::isMarioBathtub() const
++{
++#ifdef TARGET_PC
++	return false; // UNUSED in retail (stripped): never called
++#endif
++}
+ 
+-bool TCameraMarioData::isMarioDoorDemoStart() const { }
++bool TCameraMarioData::isMarioDoorDemoStart() const
++{
++#ifdef TARGET_PC
++	return false; // UNUSED in retail (stripped): never called
++#endif
++}
+ 
+-bool TCameraMarioData::isMarioDoorDemoEnd() const { }
++bool TCameraMarioData::isMarioDoorDemoEnd() const
++{
++#ifdef TARGET_PC
++	return false; // UNUSED in retail (stripped): never called
++#endif
++}
+ 
+ bool TCameraMarioData::isMarioClimb(u32 status) const
+ {
+--- a/src/Enemy/Kumokun.cpp
++++ b/src/Enemy/Kumokun.cpp
+@@ -939,7 +939,12 @@
+ 	return mSpine->getLatestNerve() == &TNerveKumokunFly::theNerve();
+ }
+ 
+-bool TKumokun::isCrashing() const { }
++bool TKumokun::isCrashing() const
++{
++#ifdef TARGET_PC
++	return false; // UNUSED in retail (stripped): never called
++#endif
++}
+ 
+ bool TKumokun::isHitPlane() const { return mHitPlaneCounter > 0; }
+ 
+--- a/src/Enemy/bosseel.cpp
++++ b/src/Enemy/bosseel.cpp
+@@ -1862,7 +1862,12 @@
+ 	return false;
+ }
+ 
+-BOOL TBossEel::isEyeBlurOn() { }
++BOOL TBossEel::isEyeBlurOn()
++{
++#ifdef TARGET_PC
++	return FALSE; // UNUSED in retail (stripped): never called
++#endif
++}
+ 
+ void TBossEel::shedTears(MtxPtr spawnMtx)
+ {
+--- a/src/Enemy/graph.cpp
++++ b/src/Enemy/graph.cpp
+@@ -681,6 +681,9 @@
+ int TGraphWeb::findNearestNodeIndexCheckY(const JGeometry::TVec3<f32>&, f32,
+                                           u32) const
+ {
++#ifdef TARGET_PC
++	return 0; // UNUSED in retail (stripped): never called
++#endif
+ }
+ 
+ void TGraphWeb::getNodeIndexInXZRange(const JGeometry::TVec3<f32>&, f32,
+--- a/src/Enemy/hamukuri.cpp
++++ b/src/Enemy/hamukuri.cpp
+@@ -3027,7 +3027,12 @@
+ // so the body is very likely that shape with a different animation setter --
+ // but setWaitAnm, setRunAnm and setRollAnm all compile to the same size, so
+ // nothing here discriminates.
+-DEFINE_NERVE(TNerveDangoHamuKuriAttack, TLiveActor) { }
++DEFINE_NERVE(TNerveDangoHamuKuriAttack, TLiveActor)
++{
++#ifdef TARGET_PC
++	return false; // UNUSED in retail (stripped): never called
++#endif
++}
+ 
+ DEFINE_NERVE(TNerveHaneHamuKuriUpWait, TLiveActor)
+ {
+--- a/src/Enemy/namekuri.cpp
++++ b/src/Enemy/namekuri.cpp
+@@ -765,7 +765,12 @@
+ 		return false;
+ }
+ 
+-bool TNameKuri::canJumpAttack() const { }
++bool TNameKuri::canJumpAttack() const
++{
++#ifdef TARGET_PC
++	return false; // UNUSED in retail (stripped): never called
++#endif
++}
+ 
+ bool TNameKuri::isHitValid(u32 param_1)
+ {
+--- a/src/Enemy/telesa.cpp
++++ b/src/Enemy/telesa.cpp
+@@ -694,7 +694,12 @@
+ 
+ // is this an actual predicate or some kind of a "trans Y with isReset flag
+ // accounted for"???
+-bool TTelesa::isResetTransY() { }
++bool TTelesa::isResetTransY()
++{
++#ifdef TARGET_PC
++	return false; // UNUSED in retail (stripped): never called
++#endif
++}
+ 
+ void TTelesa::forceKill()
+ {
+--- a/libs/JSystem/src/JAudio/JAInterface/JAIBasic.cpp
++++ b/libs/JSystem/src/JAudio/JAInterface/JAIBasic.cpp
+@@ -717,7 +717,12 @@
+ 
+ void JAIBasic::startSoundVec(u32, JAISoundHandle*, Vec*, u32, u32, u8) { }
+ 
+-JAISoundHandle JAIBasic::startSoundVecReturnHandle(u32, Vec*, u32, u32, u8) { }
++JAISoundHandle JAIBasic::startSoundVecReturnHandle(u32, Vec*, u32, u32, u8)
++{
++#ifdef TARGET_PC
++	return nullptr; // UNUSED in retail (stripped): never called
++#endif
++}
+ 
+ void JAIBasic::startSoundActor(u32 id, JAISoundHandle* out_handle,
+                                JAIActor* actor, u32 fade, u8 camera_idx)
+--- a/libs/JSystem/src/JAudio/JAInterface/JAIEntry.cpp
++++ b/libs/JSystem/src/JAudio/JAInterface/JAIEntry.cpp
+@@ -59,6 +59,11 @@
+ 	*out_handle = sound;
+ }
+ 
+-BOOL JAIEntry::checkSoundHandle(JAISoundHandle*, JAISound*) { }
++BOOL JAIEntry::checkSoundHandle(JAISoundHandle*, JAISound*)
++{
++#ifdef TARGET_PC
++	return FALSE; // UNUSED in retail (stripped): never called
++#endif
++}
+ 
+ void JAIEntry::checkAllSoundHandle(JAISoundHandle*) { }
+--- a/libs/JSystem/src/JKernel/JKRDvdFile.cpp
++++ b/libs/JSystem/src/JKernel/JKRDvdFile.cpp
+@@ -86,6 +86,9 @@
+ 			    212, "cannot close DVD file\n"); /* JKRDvdFile.cpp line 212 */
+ 		}
+ 	}
++#ifdef TARGET_PC
++	return true; // retail: low byte of `this` (not open); only ~JKRDvdFile calls it
++#endif
+ }
+ 
+ int JKRDvdFile::readData(void* data, s32 length, s32 ofs)
+--- a/libs/JSystem/src/JUtility/JUTConsole.cpp
++++ b/libs/JSystem/src/JUtility/JUTConsole.cpp
+@@ -12,6 +12,9 @@
+ JUTConsole* JUTConsole::create(unsigned param_0, unsigned param_1,
+                                JKRHeap* pHeap)
+ {
++#ifdef TARGET_PC
++	return nullptr; // UNUSED in retail (stripped): never called
++#endif
+ }
+ 
+ JUTConsole* JUTConsole::create(unsigned param_0, void* buffer, u32 bufferSize)
+@@ -62,6 +65,9 @@
+ size_t JUTConsole::getObjectSizeFromBufferSize(unsigned param_0,
+                                                unsigned param_1)
+ {
++#ifdef TARGET_PC
++	return 0; // UNUSED in retail (stripped): never called
++#endif
+ }
+ 
+ size_t JUTConsole::getLineFromObjectSize(u32 bufferSize, unsigned param_1)
+--- a/src/M3DUtil/MActor.cpp
++++ b/src/M3DUtil/MActor.cpp
+@@ -315,7 +315,12 @@
+ 		mModel->getMatPacket(i)->unlock();
+ }
+ 
+-const char* MActor::getCurAnmName(int) const { }
++const char* MActor::getCurAnmName(int) const
++{
++#ifdef TARGET_PC
++	return nullptr; // UNUSED in retail (stripped): never called
++#endif
++}
+ 
+ void MActor::setJointCallback(int param_1, J3DNodeCallBack param_2)
+ {
+--- a/src/MSound/MSoundSE.cpp
++++ b/src/MSound/MSoundSE.cpp
+@@ -52,7 +52,12 @@
+ 	mAmplitudes[3] = 1.0f;
+ }
+ 
+-u32 MSRandVol::getRandomVolume(u32 param_1, u32 param_2) { }
++u32 MSRandVol::getRandomVolume(u32 param_1, u32 param_2)
++{
++#ifdef TARGET_PC
++	return 0; // UNUSED in retail (stripped): never called
++#endif
++}
+ 
+ // TODO: instructions exact but for scheduling; retail computes the CSlope
+ // index before the PSlope one (and swaps their registers). Named u32 indices,
+--- a/src/MarioUtil/DLUtil.cpp
++++ b/src/MarioUtil/DLUtil.cpp
+@@ -118,7 +118,12 @@
+ 
+ void TDLTexQuadMulti::createDLBuffer(u16) { }
+ 
+-bool TDLTexQuadMulti::request(const JGeometry::TVec3<f32>*) { }
++bool TDLTexQuadMulti::request(const JGeometry::TVec3<f32>*)
++{
++#ifdef TARGET_PC
++	return false; // UNUSED in retail (stripped): never called
++#endif
++}
+ 
+ void TDLTexQuadMulti::setEnd() { }
+ 
+--- a/src/NPC/NpcChange.cpp
++++ b/src/NPC/NpcChange.cpp
+@@ -146,7 +146,12 @@
+ 	return result;
+ }
+ 
+-bool TBaseNPC::isNerveCanGoToThrow() const { }
++bool TBaseNPC::isNerveCanGoToThrow() const
++{
++#ifdef TARGET_PC
++	return false; // UNUSED in retail (stripped): never called
++#endif
++}
+ 
+ bool TBaseNPC::isNerveCanGoToMad() const
+ {
+--- a/src/Player/MarioAccess.cpp
++++ b/src/Player/MarioAccess.cpp
+@@ -87,7 +87,12 @@
+ // compares a status against 0x8008AA (the value next to HIP_DROP's 0x8008A9),
+ // and no other unexplained `subis rX, rY, 0x80` constant exists. Left empty
+ // rather than guessed.
+-bool SMS_IsMarioStatusHipDropEnd() { }
++bool SMS_IsMarioStatusHipDropEnd()
++{
++#ifdef TARGET_PC
++	return false; // UNUSED in retail (stripped): never called
++#endif
++}
+ 
+ bool SMS_IsMarioStatusThrownDown()
+ {
+@@ -111,7 +116,12 @@
+ // MARIO_STATUS_HIP_DROP_END has no recoverable value. The map's 0x28 is one
+ // instruction more than SMS_IsMarioOpeningDoor's two-status compare, which
+ // this would otherwise be with the global load replaced by the argument.
+-bool SMS_IsStatusHipDropOrHipDropEnd(THitActor* actor) { }
++bool SMS_IsStatusHipDropOrHipDropEnd(THitActor* actor)
++{
++#ifdef TARGET_PC
++	return false; // UNUSED in retail (stripped): never called
++#endif
++}
+ 
+ // TODO: incorrect size (map 0x38, ours 0x30). isWearingCap() lives in
+ // MarioDraw.cpp so it stays a `bl`, and 0x38 is 14 instructions: 7 of frame
+--- a/src/Player/Yoshi.cpp
++++ b/src/Player/Yoshi.cpp
+@@ -428,6 +428,9 @@
+ 	pos->x = mtx[0][3];
+ 	pos->y = mtx[1][3];
+ 	pos->z = mtx[2][3];
++#ifdef TARGET_PC
++	return 0; // retail returns `this` in r3; the only caller ignores it
++#endif
+ }
+ 
+ void TYoshi::setEggYoshiPtr(TEggYoshi* egg) { mEgg = egg; }
+--- a/src/System/CardManager.cpp
++++ b/src/System/CardManager.cpp
+@@ -195,7 +195,12 @@
+ }
+ 
+ // TODO: what is this?
+-s32 TCardManager::getLoadIndex(TCardManager::TCriteria* criteria) { }
++s32 TCardManager::getLoadIndex(TCardManager::TCriteria* criteria)
++{
++#ifdef TARGET_PC
++	return 0; // UNUSED in retail (stripped): never called
++#endif
++}
+ 
+ s32 TCardManager::getWriteCount(TCardManager::TCriteria* criteria)
+ {

@@ -1,0 +1,178 @@
+Reason: port: the warp menu (F8 / controller Select with the debug overlay open, platform/gx) lists every stage and episode on the disc and warps to the one picked
+--- a/src/System/Application.cpp
++++ b/src/System/Application.cpp
+@@ -834,6 +834,166 @@
+ }
+ #endif
+ 
++#ifdef TARGET_PC
++#include "port_warp.h"
++#include <GC2D/MessageUtil.hpp>
++#include <GC2D/ShineTable.hpp>
++#include <JSystem/JKernel/JKRFileLoader.hpp>
++#include <dolphin/dvd.h>
++
++// Port: the warp menu (platform/gx, port_warp.h). A message as the overlay's
++// font can draw it: the bank's escape sequences (0x1A, then their length)
++// left out, accented letters without their accents, one line.
++static void ApplicationWarpText(char* out, size_t n, const char* msg)
++{
++	static const char kFold[] = "AAAAAAACEEEEIIIIDNOOOOO OUUUUY saaaaaaaceeeeiiiidnooooo ouuuuy y";
++	size_t len = 0;
++	const u8* p = (const u8*)msg;
++	while (p && *p && len + 1 < n) {
++		u8 c = *p;
++		if (c == 0x1A) {
++			const u8 size = p[1];
++			if (size < 2)
++				break;
++			for (u8 i = 0; i < size && *p; i++)
++				p++;
++			continue;
++		}
++		p++;
++		if (c == '\n' || c == '\r' || c == '\t')
++			c = ' ';
++		else if (c >= 0xC0)
++			c = kFold[c - 0xC0];
++		if (c < 0x20 || c >= 0x7F || (c == ' ' && (len == 0 || out[len - 1] == ' ')))
++			continue;
++		out[len++] = c;
++	}
++	while (len && out[len - 1] == ' ')
++		len--;
++	out[len] = 0;
++}
++
++static bool ApplicationWarpMessage(char* out, size_t n, void* bmg, int index)
++{
++	out[0] = 0;
++	if (bmg && index >= 0)
++		ApplicationWarpText(out, n, SMSGetMessageData(bmg, index));
++	return out[0] != 0;
++}
++
++// Whether the scene an episode loads (mountStageArchive) is on the disc, and
++// its name without the extension.
++static bool ApplicationWarpScene(const char* arcName, char* base, size_t n)
++{
++	if (!arcName || !*arcName)
++		return false;
++	snprintf(base, n, "%s", arcName);
++	if (char* dot = strrchr(base, '.'))
++		*dot = 0;
++	char path[128];
++	snprintf(path, sizeof path, "/data/scene/%s", arcName);
++	if (DVDConvertPathToEntrynum(path) >= 0)
++		return true;
++	char* ext = strstr(path, ".arc");
++	if (!ext)
++		return false;
++	strcpy(ext, ".szs");
++	return DVDConvertPathToEntrynum(path) >= 0;
++}
++
++// The area's world: the game's shine stage. Retail's table has an entry for
++// each of its areas only; a code mod that adds areas replaces the function.
++static u8 ApplicationWarpWorld(int area)
++{
++	if (area >= 0x3D && !SMS_MOD_SITE(0x802A8AC8))
++		return 0xFF;
++	return SMS_getShineStage(area);
++}
++
++// A secret course: one of retail's (dolpic_ex0 to coro_ex6) or a code mod's
++// with a Shine of its own.
++static bool ApplicationWarpIsEx(int area)
++{
++	return (area >= 0x14 && area <= 0x34) || SMS_getShineIDofExStage(area) != 0xFF;
++}
++
++// The episode's name in scenarioname.bmg, as the pause menu finds it.
++static int ApplicationWarpNameId(int area, int episode, u8 world)
++{
++	if (port_warp_scenario_name_id)
++		return port_warp_scenario_name_id(area, episode);
++	s16 shine = -1;
++	if (ApplicationWarpIsEx(area)) {
++		const u8 ex = SMS_getShineIDofExStage(area);
++		shine       = ex == 0xFF ? -1 : ex;
++	} else if (world <= 9 && episode < (world == 0 ? 1 : 8)) {
++		shine = SMS_getShineID(world, episode, false);
++	}
++	if (shine < 0 || shine >= (s16)(sizeof scScenarioNameTable / sizeof scScenarioNameTable[0]))
++		return -1;
++	return SMS_getNormalStage(shine);
++}
++
++// Every episode whose scene is on the disc, world by world (in the order of
++// their shine stages), each world's areas first, then its secret courses.
++static void ApplicationWarpBuildList(TApplication* app)
++{
++	TNameRefPtrAryT<TNameRefAryT<TScenarioArchiveName> >* stages = app->unk30;
++	void* stageBmg    = JKRFileLoader::getGlbResource("/common/2d/stagename.bmg");
++	void* scenarioBmg = JKRFileLoader::getGlbResource("/common/2d/scenarioname.bmg");
++	if (!stages || !stageBmg || !scenarioBmg)
++		return; // not loaded yet: asked again next frame
++	const int areas = (int)stages->getChildren().size();
++	port_warp_list_begin();
++	for (int world = 0; world < 0x100; world++) {
++		char worldName[PORT_WARP_WORLD_LEN];
++		if (world == 0xFF)
++			snprintf(worldName, sizeof worldName, "Other");
++		else if (!ApplicationWarpMessage(worldName, sizeof worldName, stageBmg, world))
++			snprintf(worldName, sizeof worldName, "Stage %d", world);
++		for (int pass = 0; pass < 2; pass++) {
++			for (int area = 0; area < areas && area < 0xFF; area++) {
++				if (ApplicationWarpWorld(area) != world || ApplicationWarpIsEx(area) != (pass == 1))
++					continue;
++				TNameRefAryT<TScenarioArchiveName>* episodes = stages->getChildren()[area];
++				const int count = episodes ? (int)episodes->size() : 0;
++				for (int episode = 0; episode < count && episode < 0xFF; episode++) {
++					char scene[PORT_WARP_SCENE_LEN];
++					if (!ApplicationWarpScene(episodes->getChildren()[episode].mArcName, scene, sizeof scene))
++						continue;
++					char name[PORT_WARP_NAME_LEN];
++					if (!ApplicationWarpMessage(name, sizeof name, scenarioBmg,
++					                            ApplicationWarpNameId(area, episode, world)))
++						snprintf(name, sizeof name, pass ? "Secret course" : "Episode %d", episode + 1);
++					port_warp_list_add(worldName, name, scene, area, episode);
++				}
++			}
++		}
++	}
++	port_warp_list_end();
++}
++
++// Once a frame: the list when the menu asks for it, and the warp picked, which
++// goes as the game's own stage changes do (TMarDirector::setNextStage, then
++// moveStage), straight to the episode.
++static void ApplicationWarpFrame(TApplication* app)
++{
++	if (port_warp_list_wanted())
++		ApplicationWarpBuildList(app);
++	TMarDirector* dir
++	    = app->mAppState == TApplication::APP_STATE_GAMEPLAY ? gpMarDirector : nullptr;
++	const bool ready = dir && dir->mState == TMarDirector::STATE_UNK4
++	                   && !dir->checkUnk4CFlag(TMarDirector::DIRECTOR_FLAG_STAGE_TRANSITION_PENDING);
++	port_warp_set_ready(ready);
++	int area, episode;
++	if (!port_warp_take(&area, &episode) || !ready)
++		return;
++	OSReport("[warp] area %d episode %d\n", area, episode);
++	TFlagManager::getInstance()->setFlag(0x40003, episode);
++	dir->setNextStage((u16)(((area + 1) << 8) | episode), nullptr);
++}
++#endif
++
+ // TODO: frame 0x50 short (0x70 before the display's video was read through
+ // getVideo()): retail's low region runs to 0xac (the TRect temp) where ours
+ // ended at 0x38, i.e. inline temporaries from an expansion this body lacks;
+@@ -920,6 +1080,7 @@
+ 
+ #ifdef TARGET_PC
+ 		ApplicationPresenceFrame(this);
++		ApplicationWarpFrame(this);
+ #endif
+ 		TTimeRec::endTimer();
+ 

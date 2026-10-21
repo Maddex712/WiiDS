@@ -1,0 +1,15 @@
+Reason: endian: GX display lists stay big-endian; read the primitive vertex count as big-endian when counting polygons
+--- a/src/MarioUtil/DrawUtil.cpp
++++ b/src/MarioUtil/DrawUtil.cpp
+@@ -741,7 +741,11 @@
+ 		while (p - dl < shape->getShapeDraw(i)->getDisplayListSize()) {
+ 			u8 op = *p;
+ 			if (op == GX_TRIANGLEFAN || op == GX_TRIANGLESTRIP) {
++#ifdef TARGET_PC
++				u16 n   = port_be16(p + 1);
++#else
+ 				u16 n   = *(u16*)(p + 1);
++#endif
+ 				polyNum = n + polyNum;
+ 				p += vtxSize * n;
+ 				polyNum -= 2;

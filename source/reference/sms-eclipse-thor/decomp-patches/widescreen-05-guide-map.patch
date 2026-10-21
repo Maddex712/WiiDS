@@ -1,0 +1,169 @@
+Reason: port: with SMS_WIDESCREEN the map screen (TGuide) fills the wide frame, as the 16:9 map of later releases does, instead of a 4:3 sheet over the live game: its layout is widened as it loads (paper, bands and grid run to the screen edges, extra vertical grid lines are copied from the layout's own, the drawings beside the island move outward), it draws through sms_gx's GXPC_SetWide2D (4:3 scale, centred, past the 4:3 edges), and the cursor reaches the wider edges
+--- a/src/GC2D/Guide.cpp
++++ b/src/GC2D/Guide.cpp
+@@ -44,6 +44,118 @@
+ }
+ #endif
+ 
++#ifdef TARGET_PC
++// SMS_WIDESCREEN (platform): the displayed width over the GameCube's 4:3, 1
++// when off.
++extern "C" float port_widescreen;
++// sms_gx: draw the following 2D at the 4:3 frame's scale, centred, and past
++// its edges (0 goes back).
++extern "C" void GXPC_SetWide2D(int on);
++
++/// Widescreen: how far the map reaches past each 4:3 edge (layout units).
++static int guide_wide_extra;
++
++static inline bool GuideIsAt(const JUTRect& b, int x, int y)
++{
++	return b.x1 == x && b.y1 == y;
++}
++
++// Widescreen: the map fills the wide frame, as the 16:9 map of later releases
++// does. The paper, the top and bottom bands and the grid run on to the
++// screen's edges (the vertical grid lines past the 4:3 frame are copies of
++// one in the layout), and the drawings beside the island move out by half
++// the extra width on their side; the island, its places and the panels stay
++// where they are. Run on the fresh layout, before anything reads its bounds.
++static void GuideWiden(J2DScreen* screen, const u8* blo, u32 bloSize)
++{
++	guide_wide_extra = 0;
++	J2DPane* root    = screen->search('ROOT');
++	if (port_widescreen <= 1.0f || root == nullptr)
++		return;
++	const int w     = screen->getWidth(); // the 4:3 frame (600 x 480)
++	const int h     = screen->getHeight();
++	const int extra = (int)(w * (port_widescreen - 1.0f) / 2.0f + 0.999f);
++	const int shift = extra / 2;
++	guide_wide_extra = extra;
++
++	J2DPane* paper = nullptr;
++	for (JSUTreeIterator<J2DPane> it = root->getFirstChild();
++	     it != root->getEndChild(); ++it) {
++		J2DPane* pane = it.getObject();
++		JUTRect& b    = pane->mBounds;
++		if (b.x1 <= 0 && b.x2 >= w) { // the paper, the bands, full grid rows
++			if (paper == nullptr && b.getHeight() == h)
++				paper = pane;
++			b.x1 -= extra;
++			b.x2 += extra;
++			continue;
++		}
++		if (b.getHeight() == 1) { // a grid row broken by the island
++			if (b.x1 <= 0)
++				b.x1 -= extra;
++			if (b.x2 >= w)
++				b.x2 += extra;
++			continue;
++		}
++		int dx = 0;
++		switch (pane->mUserInfoTag) {
++		case '14': // sunflowers
++		case '15':
++		case '16': // palm tree
++		case '18': // fish
++			dx = -shift;
++			break;
++		case '10': // sun
++		case '13': // ship
++		case '17': // palm tree
++		case '20': // the totals' shine
++		case 'clic':
++			dx = shift;
++			break;
++		case 0:
++			if (GuideIsAt(b, 18, 68) || GuideIsAt(b, 22, 338)) // welcome, compass
++				dx = -shift;
++			else if (GuideIsAt(b, 390, 71) || GuideIsAt(b, 491, 146)
++			         || GuideIsAt(b, 335, 339)) // title, "totals", tours
++				dx = shift;
++			break;
++		}
++		if (dx != 0)
++			pane->move(b.x1 + dx, b.y1);
++	}
++
++	// The vertical grid lines, every 50 from the 4:3 frame's, copied from
++	// its first full-height line and drawn just over the paper.
++	if (paper == nullptr || blo == nullptr)
++		return;
++	JSUTree<J2DPane>* over = paper->getPaneTree()->getNextChild();
++	for (u32 at = 0x20; at + 0x18 <= bloSize;) {
++		const u8* blk = blo + at;
++		u32 magic     = (blk[0] << 24) | (blk[1] << 16) | (blk[2] << 8) | blk[3];
++		u32 size      = (blk[4] << 24) | (blk[5] << 16) | (blk[6] << 8) | blk[7];
++		if (size < 8 || magic == 'EXT1')
++			break;
++		s16 x  = (s16)((blk[16] << 8) | blk[17]);
++		s16 y  = (s16)((blk[18] << 8) | blk[19]);
++		s16 lw = (s16)((blk[20] << 8) | blk[21]);
++		s16 lh = (s16)((blk[22] << 8) | blk[23]);
++		if (magic == 'PIC1' && lw == 1 && y == 0 && lh == h && x > 0) {
++			for (int px = -extra / x * x; px <= w + extra; px += x) {
++				if (px > 0 && px < w)
++					continue; // the layout's own
++				JSUMemoryInputStream stream(blo, bloSize);
++				stream.seek(at, JSUStreamSeekFrom_SET);
++				J2DPicture* line = new J2DPicture(root, &stream, true);
++				line->move(px, 0);
++				root->getPaneTree()->insertChild(over, line->getPaneTree());
++			}
++			break;
++		}
++		at += size;
++	}
++}
++#endif
++
+ // rogue includes needed for matching sinit & bss
+ #include <MSound/MSSetSound.hpp>
+ #include <MSound/MSoundBGM.hpp>
+@@ -80,6 +192,13 @@
+ 	JKRMemArchive* archive = setup(gpMarDirector->unkD8);
+ 
+ 	mScreen = new J2DSetScreen("guide_1.blo", archive);
++#ifdef TARGET_PC
++	{
++		u8* blo = (u8*)JKRGetNameResource("guide_1.blo", archive);
++		GuideWiden(mScreen, blo,
++		           blo ? JKRFileLoader::getResSize(blo, nullptr) : 0);
++	}
++#endif
+ 
+ 	((J2DTextBox*)mScreen->search('a_ic'))->setFont((JUTFont*)gpSystemFont);
+ 	((J2DTextBox*)mScreen->search('a_tx'))->setFont((JUTFont*)gpSystemFont);
+@@ -514,10 +633,18 @@
+ 	int y = cursor->mBounds.y1;
+ 	x += (s16)(3.2f * mGamePad->mCompSPos[8]);
+ 	y += (s16)(-3.2f * mGamePad->mCompSPos[9]);
++#ifdef TARGET_PC
++	// widescreen: the cursor reaches the map's wider edges
++	if (x > 568 + guide_wide_extra)
++		x = 568 + guide_wide_extra;
++	if (x < -guide_wide_extra)
++		x = -guide_wide_extra;
++#else
+ 	if (x > 568)
+ 		x = 568;
+ 	if (x < 0)
+ 		x = 0;
++#endif
+ 	if (y > 360)
+ 		y = 360;
+ 	if (y < 56)
+@@ -1035,7 +1162,13 @@
+ 		if (mState != STATE_MOVE_CURSOR && mState != STATE_CLOSED) {
+ 			J2DOrthoGraph graph(graphics->getViewport());
+ 			graph.setup2D();
++#ifdef TARGET_PC
++			GXPC_SetWide2D(1);
+ 			mScreen->draw(0, 0, &graph);
++			GXPC_SetWide2D(0);
++#else
++			mScreen->draw(0, 0, &graph);
++#endif
+ 		}
+ 	}
+ 

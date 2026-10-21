@@ -1,0 +1,161 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!-- Explicit visibility for the separate game runtimes used by the shared Thor library. -->
+    <queries>
+        <package android:name="com.wither.sms.eclipse.thor" />
+    </queries>
+
+    <!-- Needed for local (LAN) multiplayer and Retro-WFC: the game's own guest-side network
+         code (in the recompiled binary) opens real UDP/TCP sockets via runtime/src/hle/net/,
+         which silently fails on Android without these. CHANGE_WIFI_MULTICAST_STATE backs the
+         MulticastLock acquired in MainActivity, required for the app to actually receive
+         broadcast/multicast UDP packets (LAN host discovery) on Wi-Fi. -->
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
+    <uses-permission android:name="android.permission.CHANGE_WIFI_MULTICAST_STATE" />
+    <!-- Real Bluetooth controller rumble goes through Vibrator/VibratorManager (SDL's own
+         SDLControllerManager.java) - without this permission that call silently no-ops on most
+         OEM builds instead of throwing, which is why rumble looked like a code bug at first. -->
+    <uses-permission android:name="android.permission.VIBRATE" />
+    <!-- RetroRewindInstallService runs the ~2GB Retro Rewind copy/extract as a foreground
+         service so Android doesn't reclaim the process mid-install when the app is backgrounded
+         (see the service's own doc comment). POST_NOTIFICATIONS is best-effort - if denied, the
+         install still runs, it just won't show live progress in the notification shade. -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <!-- DriftDroid installs its own updates after the player confirms (see AppUpdate). -->
+    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
+    <!-- The launcher finds the player's own disc image on device storage (RomScanner) instead
+         of asking for a file. Android 11+ grants this only from the "All files access" page the
+         player opens themselves; older versions use the read permission. -->
+    <uses-permission android:name="android.permission.MANAGE_EXTERNAL_STORAGE" />
+    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" android:maxSdkVersion="29" />
+
+    <application
+        android:allowBackup="false"
+        android:networkSecurityConfig="@xml/network_security_config"
+        android:icon="@mipmap/ic_launcher"
+        android:roundIcon="@mipmap/ic_launcher_round"
+        android:label="${appLabel}"
+        android:theme="@style/Theme.DriftDroid">
+
+        <!-- Lets `adb shell simpleperf` profile release builds, which is where performance has to
+             be measured (debug builds run with CheckJNI). It grants nothing to other apps. -->
+        <profileable android:shell="true" />
+
+        <!-- The Original/Retro Rewind choice must happen before any product .so loads (Android
+             cannot swap which native library is loaded within a process), so it's now the actual
+             launcher - MainActivity is started explicitly from here with the resolved choice. -->
+        <activity
+            android:name=".ModePickerActivity"
+            android:exported="true"
+            android:screenOrientation="sensorLandscape">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+
+        <activity
+            android:name=".MainActivity"
+            android:exported="${gameActivityExported}"
+            android:launchMode="singleTask"
+            android:screenOrientation="sensorLandscape"
+            android:configChanges="layoutDirection|locale|orientation|uiMode|screenLayout|screenSize|smallestScreenSize|keyboard|keyboardHidden|navigation">
+        </activity>
+
+        <service
+            android:name=".RetroRewindInstallService"
+            android:exported="false"
+            android:foregroundServiceType="dataSync" />
+
+        <!-- New Super Mario Bros. Wii: launcher-side screens in ":nsmbw", the game in ":nsmbw_game". The native
+             runtime starts once per process, so leaving the game ends that process. -->
+        <activity android:name="com.wither.nsmbw.ThorLaunchActivity" android:exported="false" android:process=":nsmbw"
+            android:theme="@style/NsmbAppTheme" android:screenOrientation="sensorLandscape" />
+        <activity android:name="com.wither.nsmbw.LauncherActivity" android:exported="false" android:process=":nsmbw"
+            android:theme="@style/NsmbAppTheme" android:screenOrientation="sensorLandscape" />
+        <activity android:name="com.wither.nsmbw.GameActivity" android:exported="false" android:process=":nsmbw_game"
+            android:launchMode="singleTask" android:screenOrientation="sensorLandscape"
+            android:resizeableActivity="false" android:preferMinimalPostProcessing="true"
+            android:theme="@style/NsmbGameTheme"
+            android:configChanges="layoutDirection|locale|grammaticalGender|fontScale|fontWeightAdjustment|orientation|uiMode|screenLayout|screenSize|smallestScreenSize|keyboard|keyboardHidden|navigation" />
+
+        <!-- MSMBWii (same code, its own processes and saves): launcher-side screens in ":msmbwii", the game in ":msmbwii_game". The native
+             runtime starts once per process, so leaving the game ends that process. -->
+        <activity android:name="com.wither.nsmbw.MsmbwiiActivities$Launch" android:exported="false" android:process=":msmbwii"
+            android:theme="@style/NsmbAppTheme" android:screenOrientation="sensorLandscape" />
+        <activity android:name="com.wither.nsmbw.MsmbwiiActivities$Launcher" android:exported="false" android:process=":msmbwii"
+            android:theme="@style/NsmbAppTheme" android:screenOrientation="sensorLandscape" />
+        <activity android:name="com.wither.nsmbw.MsmbwiiActivities$Game" android:exported="false" android:process=":msmbwii_game"
+            android:launchMode="singleTask" android:screenOrientation="sensorLandscape"
+            android:resizeableActivity="false" android:preferMinimalPostProcessing="true"
+            android:theme="@style/NsmbGameTheme"
+            android:configChanges="layoutDirection|locale|grammaticalGender|fontScale|fontWeightAdjustment|orientation|uiMode|screenLayout|screenSize|smallestScreenSize|keyboard|keyboardHidden|navigation" />
+
+        <!-- Super Mario Sunshine (SDL 2, Java glue in org.libsdl.sdl2.app). -->
+        <activity android:name="com.wither.sms.ThorLaunchActivity" android:exported="false" android:process=":sms"
+            android:theme="@android:style/Theme.Material.NoActionBar"
+            android:screenOrientation="userLandscape" android:excludeFromRecents="true" />
+        <activity android:name="dev.chasem.smslauncher.LauncherActivity" android:exported="false" android:process=":sms"
+            android:theme="@android:style/Theme.Material.NoActionBar" android:screenOrientation="userLandscape"
+            android:configChanges="orientation|screenSize|screenLayout|density" />
+        <activity android:name="dev.chasem.smslauncher.InputMonitorActivity" android:exported="false" android:process=":sms"
+            android:theme="@android:style/Theme.Material.NoActionBar" android:screenOrientation="userLandscape"
+            android:configChanges="keyboard|keyboardHidden|orientation|screenSize|screenLayout|density|navigation" />
+        <activity android:name="dev.chasem.smslauncher.ControllerConfigActivity" android:exported="false" android:process=":sms"
+            android:theme="@android:style/Theme.Material.NoActionBar" android:screenOrientation="userLandscape"
+            android:enableOnBackInvokedCallback="true"
+            android:configChanges="keyboard|keyboardHidden|orientation|screenSize|screenLayout|density|navigation" />
+        <activity android:name="dev.chasem.smslauncher.GameActivity" android:exported="false" android:process=":sms_game"
+            android:enableOnBackInvokedCallback="true" android:screenOrientation="userLandscape"
+            android:configChanges="keyboard|keyboardHidden|orientation|screenSize|screenLayout|uiMode|navigation|density"
+            android:theme="@android:style/Theme.Material.NoActionBar.Fullscreen" />
+
+        <!-- Super Mario Eclipse (isolated game files, preferences, saves and processes). -->
+        <activity android:name="dev.chasem.eclipselauncher.ThorLaunchActivity" android:exported="false" android:process=":eclipse"
+            android:theme="@android:style/Theme.Material.NoActionBar"
+            android:screenOrientation="userLandscape" android:excludeFromRecents="true" />
+        <activity android:name="dev.chasem.eclipselauncher.LauncherActivity" android:exported="false" android:process=":eclipse"
+            android:theme="@android:style/Theme.Material.NoActionBar" android:screenOrientation="userLandscape"
+            android:configChanges="orientation|screenSize|screenLayout|density" />
+        <activity android:name="dev.chasem.eclipselauncher.InputMonitorActivity" android:exported="false" android:process=":eclipse"
+            android:theme="@android:style/Theme.Material.NoActionBar" android:screenOrientation="userLandscape"
+            android:configChanges="keyboard|keyboardHidden|orientation|screenSize|screenLayout|density|navigation" />
+        <activity android:name="dev.chasem.eclipselauncher.ControllerConfigActivity" android:exported="false" android:process=":eclipse"
+            android:theme="@android:style/Theme.Material.NoActionBar" android:screenOrientation="userLandscape"
+            android:enableOnBackInvokedCallback="true"
+            android:configChanges="keyboard|keyboardHidden|orientation|screenSize|screenLayout|density|navigation" />
+        <activity android:name="dev.chasem.eclipselauncher.GameActivity" android:exported="false" android:process=":eclipse_game"
+            android:enableOnBackInvokedCallback="true" android:screenOrientation="userLandscape"
+            android:configChanges="keyboard|keyboardHidden|orientation|screenSize|screenLayout|uiMode|navigation|density"
+            android:theme="@android:style/Theme.Material.NoActionBar.Fullscreen" />
+
+        <activity
+            android:name=".GamesActivity"
+            android:exported="false"
+            android:screenOrientation="sensorLandscape" />
+
+        <activity
+            android:name=".ThorRetroRewindUpdatesActivity"
+            android:exported="false"
+            android:screenOrientation="sensorLandscape" />
+
+        <activity
+            android:name=".ThorRestartActivity"
+            android:exported="false"
+            android:process=":thor_restart"
+            android:taskAffinity="${applicationId}.restart"
+            android:noHistory="true"
+            android:screenOrientation="sensorLandscape" />
+
+        <service
+            android:name=".ThorRetroRewindUpdateService"
+            android:exported="false"
+            android:foregroundServiceType="dataSync" />
+
+    </application>
+
+</manifest>

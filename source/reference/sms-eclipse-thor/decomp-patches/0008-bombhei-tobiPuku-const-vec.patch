@@ -1,0 +1,23 @@
+Reason: g++: const TVec3 passed to generate(TVec3&); const_cast
+--- a/src/Enemy/bombhei.cpp
++++ b/src/Enemy/bombhei.cpp
+@@ -279,7 +279,7 @@
+ 		    = (TEffectExplosion*)gpConductor->makeOneEnemyAppear(
+ 		        mPosition, "エフェクト爆発マネージャー", 1);
+ 		if (smoke)
+-			smoke->generate(*BombheiPosition(this), mScaling);
++			smoke->generate(const_cast<JGeometry::TVec3<f32>&>(*BombheiPosition(this)), mScaling);
+ 	}
+ }
+ 
+--- a/src/Enemy/tobiPuku.cpp
++++ b/src/Enemy/tobiPuku.cpp
+@@ -895,7 +895,7 @@
+ 	        mPosition, "エフェクト水柱マネージャー", 0);
+ 
+ 	if (enemy)
+-		enemy->generate(getPosition(), mScaling);
++		enemy->generate(const_cast<JGeometry::TVec3<f32>&>(getPosition()), mScaling);
+ 
+ 	if (mSpine->getCurrentNerve() != &TNerveTobiPukuGenerate::theNerve())
+ 		SMSGetMSound()->startSoundActor(MSD_SE_EN_MOEPUKU_TOWATER, &mPosition,

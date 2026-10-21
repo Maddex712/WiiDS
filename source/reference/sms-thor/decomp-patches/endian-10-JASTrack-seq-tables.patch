@@ -1,0 +1,71 @@
+Reason: endian: sequence (.bms) data stays big-endian; oscillator tables it points at (opcodes 0xD7/0xF2) become host-order copies from platform/endian, FIR coefficients (0xED) are converted when copied
+--- a/libs/JSystem/src/JAudio/JASystem/JASTrack.cpp
++++ b/libs/JSystem/src/JAudio/JASystem/JASTrack.cpp
+@@ -1,3 +1,7 @@
++#ifdef TARGET_PC
++// platform/endian: host-order copy of a big-endian s16 oscillator table.
++extern "C" s16* port_seq_s16_osc_table(const void* be_table);
++#endif
+ #include <JSystem/JAudio/JASystem/JASTrack.hpp>
+ #include <JSystem/JAudio/JASystem/JASPlayer_impl.hpp>
+ #include <JSystem/JAudio/JASystem/JASCalc.hpp>
+@@ -344,7 +348,11 @@
+ 		if (param_2 == 0)
+ 			mOscData[var1].mAdsTable = nullptr;
+ 
++#ifdef TARGET_PC
++		mOscData[var1].mAdsTable = port_seq_s16_osc_table(mSeqCtrl.getBase() + param_2);
++#else
+ 		mOscData[var1].mAdsTable = (s16*)(mSeqCtrl.getBase() + param_2);
++#endif
+ 	}
+ 
+ 	if (!var5)
+@@ -353,7 +361,11 @@
+ 	if (param_3 == 0)
+ 		mOscData[var1].mRelTable = Player::sRelTable;
+ 
++#ifdef TARGET_PC
++	mOscData[var1].mRelTable = port_seq_s16_osc_table(mSeqCtrl.getBase() + param_3);
++#else
+ 	mOscData[var1].mRelTable = (s16*)(mSeqCtrl.getBase() + param_3);
++#endif
+ }
+ 
+ void TTrack::oscSetupSimpleEnv(u8 param_1, u32 param_2)
+@@ -361,10 +373,18 @@
+ 	switch (param_1) {
+ 	case 0:
+ 		mOscData[0]           = Player::sEnvelopeDef;
++#ifdef TARGET_PC
++		mOscData[0].mAdsTable = port_seq_s16_osc_table(mSeqCtrl.getBase() + param_2);
++#else
+ 		mOscData[0].mAdsTable = (s16*)(mSeqCtrl.getBase() + param_2);
++#endif
+ 		break;
+ 	case 1:
++#ifdef TARGET_PC
++		mOscData[0].mRelTable = port_seq_s16_osc_table(mSeqCtrl.getBase() + param_2);
++#else
+ 		mOscData[0].mRelTable = (s16*)(mSeqCtrl.getBase() + param_2);
++#endif
+ 		break;
+ 	}
+ }
+--- a/libs/JSystem/src/JAudio/JASystem/JASSeqParser.cpp
++++ b/libs/JSystem/src/JAudio/JASystem/JASSeqParser.cpp
+@@ -523,7 +523,14 @@
+ 
+ int TSeqParser::cmdFIRSet(TTrack* track, u32* args)
+ {
++#ifdef TARGET_PC
++	s16 fir[8];
++	for (int i = 0; i < 8; i++)
++		fir[i] = (s16)port_be16(track->mSeqCtrl.getAddr(args[0]) + i * 2);
++	track->setExtFirFilterD(fir);
++#else
+ 	track->setExtFirFilterD((s16*)track->mSeqCtrl.getAddr(args[0]));
++#endif
+ 	return 0;
+ }
+ 

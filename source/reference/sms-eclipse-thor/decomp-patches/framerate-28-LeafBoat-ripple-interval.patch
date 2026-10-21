@@ -1,0 +1,62 @@
+Reason: port: with frame_rate = 60 the leaf boat (TLeafBoat) ripples at its 30 fps interval; the interval is counted on the calc-anim pass, which comes every frame, so it rippled twice as often; the ripple's keep-alive emitters are requested for the same 1/30 s as at 30
+--- a/src/MoveBG/MapObjBianco.cpp
++++ b/src/MoveBG/MapObjBianco.cpp
+@@ -636,9 +636,42 @@ void TLeafBoat::control()
+ 	mVelocity.z *= mFriction;
+ }
+ 
++#ifdef TARGET_PC
++#include <System/MarDirector.hpp>
++
++// At 120 fps the shared timing helpers use quarter-frame steps and
++// four frames per native count; the 60 fps case below uses half steps.
++// Port: calc() (the calc-anim pass) counts mEffectTimer up to 8 between the
++// moving leaf boat's ripples. With frame_rate = 60 that pass comes every
++// frame, twice as often per second as at 30, so it rippled twice as often.
++// Count once per 1/30 s: on the calc pass of every other frame at 60 (the
++// director counts one unk5C per tick, two a frame). Both ripple emitters are
++// keep-alive requests that TMarioParticleManager kills on the first pass
++// they are not repeated, so at 30 they live one frame, 1/30 s; on the frame
++// after a ripple (mEffectTimer < 0, set at higher rates) request them again so
++// they live as long.
++#include "port_framerate.h"
++static inline bool LeafBoatPortCalcStep()
++{
++	return port_native_frame_step(gpMarDirector->unk5C);
++}
++#endif
++
+ void TLeafBoat::calc()
+ {
+ 	if (mWaterPushRate != 0.0f) {
++#ifdef TARGET_PC
++		if (!LeafBoatPortCalcStep()) {
++			if (mEffectTimer < 0) {
++				JGeometry::TVec3<f32> scale(2.0f, 2.0f, 2.0f);
++				emitAndBindScale(PARTICLE_MS_M_HAMON_B, 3, &mEffectPos, scale);
++				emitAndBindScale(PARTICLE_MS_M_HAMON_A, 1, &mEffectPos, scale);
++				++mEffectTimer;
++			}
++			return;
++		}
++		bool portRippled = false;
++#endif
+ 		if (mEffectTimer > 8) {
+ 			if (fabsf(mVelocity.x) + fabsf(mVelocity.z) > 0.1f) {
+ 				mEffectPos.set(mPosition.x, getPosition().y - mYOffset,
+@@ -646,8 +677,15 @@ void TLeafBoat::calc()
+ 				JGeometry::TVec3<f32> scale(2.0f, 2.0f, 2.0f);
+ 				emitAndBindScale(PARTICLE_MS_M_HAMON_B, 3, &mEffectPos, scale);
+ 				emitAndBindScale(PARTICLE_MS_M_HAMON_A, 1, &mEffectPos, scale);
++#ifdef TARGET_PC
++				portRippled = true;
++#endif
+ 			}
+ 			mEffectTimer = 0;
++#ifdef TARGET_PC
++			if (port_high_fps_active && portRippled)
++				mEffectTimer = 1 - port_native_frame_divisor();
++#endif
+ 		} else {
+ 			mEffectTimer++;
+ 		}

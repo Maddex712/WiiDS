@@ -1,0 +1,34 @@
+Reason: endian: read the Yaz0 header's decompressed length as big-endian
+--- a/libs/JSystem/src/JKernel/JKRDvdRipper.cpp
++++ b/libs/JSystem/src/JKernel/JKRDvdRipper.cpp
+@@ -319,7 +319,7 @@
+ 		return -1;
+ 	}
+ 
+-	endPtr = dest + (((SYaz0Header*)src)->length - fileOffset);
++	endPtr = dest + (port_be32(&((SYaz0Header*)src)->length) - fileOffset);
+ 	if (endPtr > dest + maxDest) {
+ 		endPtr = dest + maxDest;
+ 	}
+--- a/libs/JSystem/src/JKernel/JKRAram.cpp
++++ b/libs/JSystem/src/JKernel/JKRAram.cpp
+@@ -387,7 +387,7 @@
+ 		return -1;
+ 	}
+ 
+-	u8* endPtr = dest + (((SYaz0Header*)src)->length - fileOffset);
++	u8* endPtr = dest + (port_be32(&((SYaz0Header*)src)->length) - fileOffset);
+ 	if (endPtr > dest + maxDest) {
+ 		endPtr = dest + maxDest;
+ 	}
+--- a/libs/JSystem/src/JKernel/JKRDvdAramRipper.cpp
++++ b/libs/JSystem/src/JKernel/JKRDvdAramRipper.cpp
+@@ -328,7 +328,7 @@
+ 		return -1;
+ 	}
+ 
+-	endAddr = dest + (((SYaz0Header*)src)->length - fileOffset);
++	endAddr = dest + (port_be32(&((SYaz0Header*)src)->length) - fileOffset);
+ 	if (endAddr > dest + maxDest) {
+ 		endAddr = dest + maxDest;
+ 	}

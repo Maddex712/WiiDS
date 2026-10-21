@@ -1,0 +1,91 @@
+diff --git a/include/dawn/native/VulkanBackend.h b/include/dawn/native/VulkanBackend.h
+index 355c4b8646..6c2750f7c6 100644
+--- a/include/dawn/native/VulkanBackend.h
++++ b/include/dawn/native/VulkanBackend.h
+@@ -39,6 +39,12 @@ namespace dawn::native::vulkan {
+ 
+ DAWN_NATIVE_EXPORT VkInstance GetInstance(WGPUDevice device);
+ 
++// Makes every Vulkan instance created afterwards load its entry points from `dlHandle` instead of
++// dlopen()ing the system libvulkan. For drivers the embedder loads itself, such as a custom Adreno
++// driver loaded through libadrenotools. Pass nullptr to go back to the system loader. The handle
++// must stay open for the life of every instance created with it.
++DAWN_NATIVE_EXPORT void SetVulkanLibraryOverride(void* dlHandle);
++
+ DAWN_NATIVE_EXPORT PFN_vkVoidFunction GetInstanceProcAddr(WGPUDevice device, const char* pName);
+ 
+ enum class NeedsDedicatedAllocation {
+diff --git a/src/dawn/common/DynamicLib.cpp b/src/dawn/common/DynamicLib.cpp
+index d155e490de..f6dd39d0ca 100644
+--- a/src/dawn/common/DynamicLib.cpp
++++ b/src/dawn/common/DynamicLib.cpp
+@@ -80,6 +80,13 @@ bool DynamicLib::OpenSystemLibrary(std::wstring_view filename, std::string* erro
+ }
+ #endif
+ 
++bool DynamicLib::AdoptHandle(void* handle) {
++    DAWN_ASSERT(mHandle == nullptr);
++    mHandle = handle;
++    mNeedsClose = false;
++    return mHandle != nullptr;
++}
++
+ bool DynamicLib::Open(const std::string& filename, std::string* error) {
+     DAWN_ASSERT(mHandle == nullptr);
+ 
+diff --git a/src/dawn/common/DynamicLib.h b/src/dawn/common/DynamicLib.h
+index e678438b9c..67b4b9c320 100644
+--- a/src/dawn/common/DynamicLib.h
++++ b/src/dawn/common/DynamicLib.h
+@@ -66,6 +66,9 @@ class DynamicLib {
+               std::span<const std::string> searchPaths,
+               std::string* error = nullptr);
+     bool OpenLoaded(const std::string& filename, std::string* error = nullptr);
++    // Wraps a handle the caller already opened (e.g. a Vulkan driver loaded into its own linker
++    // namespace by libadrenotools). The caller keeps ownership: Close() will not dlclose it.
++    bool AdoptHandle(void* handle);
+     void Close();
+ 
+     void* GetProc(const std::string& procName, std::string* error = nullptr) const;
+diff --git a/src/dawn/native/vulkan/BackendVk.cpp b/src/dawn/native/vulkan/BackendVk.cpp
+index 86e89f947c..84c6b4748a 100644
+--- a/src/dawn/native/vulkan/BackendVk.cpp
++++ b/src/dawn/native/vulkan/BackendVk.cpp
+@@ -28,6 +28,7 @@
+ #include "src/dawn/native/vulkan/BackendVk.h"
+ 
+ #include <algorithm>
++#include <atomic>
+ #include <string>
+ #include <utility>
+ 
+@@ -73,6 +74,9 @@ constexpr char kVulkanLibName[] = "libvulkan.so";
+ #error "Unimplemented Vulkan backend platform"
+ #endif
+ 
++// See SetVulkanLibraryOverride in VulkanBackend.h.
++static std::atomic<void*> gVulkanLibraryOverride{nullptr};
++
+ struct SkippedMessage {
+     const char* messageId;
+     const char* messageContents;
+@@ -366,6 +370,10 @@ MaybeError VulkanInstance::Initialize(const InstanceBase* instance, ICD icd) {
+ 
+     switch (icd) {
+         case ICD::None: {
++            if (void* overrideHandle = gVulkanLibraryOverride.load(std::memory_order_acquire)) {
++                mVulkanLib.AdoptHandle(overrideHandle);
++                break;
++            }
+             DAWN_TRY(LoadVulkan(kVulkanLibName));
+             // Succesfully loaded driver; break.
+             break;
+@@ -633,4 +641,8 @@ BackendConnection* Connect(InstanceBase* instance) {
+     return new Backend(instance);
+ }
+ 
++void SetVulkanLibraryOverride(void* dlHandle) {
++    gVulkanLibraryOverride.store(dlHandle, std::memory_order_release);
++}
++
+ }  // namespace dawn::native::vulkan

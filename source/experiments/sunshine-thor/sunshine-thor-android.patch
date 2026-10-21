@@ -1,0 +1,389 @@
+diff --git a/android/app/build.gradle b/android/app/build.gradle
+index c948cd1..e3099cd 100644
+--- a/android/app/build.gradle
++++ b/android/app/build.gradle
+@@ -27,38 +27,31 @@ def gameRevision = sourceRevision(portRoot)
+ 
+ android {
+     namespace 'dev.chasem.smslauncher'
+-    compileSdk 35
+-    ndkVersion '28.2.13676358'
++    compileSdk 34
++    ndkVersion '29.0.14206865'
++    buildToolsVersion '34.0.0'
+     defaultConfig {
+-        applicationId 'dev.chasem.smslauncher'
++        applicationId 'com.wither.sms.thor'
+         minSdk 29
+-        targetSdk 35
++        targetSdk 34
+         versionCode versionParts[0] * 1000000 + versionParts[1] * 10000 + versionParts[2] * 100 + previewBuild
+         versionName launcherPackage.version + '-android' + (previewBuild ? "-preview.${previewBuild}" : '')
+         buildConfigField 'String', 'LAUNCHER_REVISION', groovy.json.JsonOutput.toJson(launcherRevision)
+         buildConfigField 'String', 'GAME_REVISION', groovy.json.JsonOutput.toJson(gameRevision)
+         ndk { abiFilters 'arm64-v8a' }
+-        externalNativeBuild {
+-            cmake {
+-                arguments '-DSMS_ARCH=64', '-DSMS_GX_BUILD_TESTS=OFF', "-DSMS_SDL2_SOURCE=${sdlRoot}", '-DSMS_BUNDLE_DISC='
+-                targets 'sms', 'smsbootstrap', 'SDL2'
+-            }
+-        }
+     }
+-    externalNativeBuild { cmake { path "${portRoot}/CMakeLists.txt"; version '3.22.1' } }
++
+     sourceSets {
+         main {
+             java.srcDirs += "${sdlRoot}/android-project/app/src/main/java"
+-            assets.srcDirs += ['../../src/android', '../../src/assets']
++            jniLibs.srcDirs = [providers.gradleProperty('smsNativeLibs').getOrElse('../../../../build/sunshine-thor/jniLibs')]
+         }
+     }
+     buildFeatures { buildConfig true }
+     compileOptions { sourceCompatibility JavaVersion.VERSION_17; targetCompatibility JavaVersion.VERSION_17 }
+     packaging { jniLibs { useLegacyPackaging true } }
+     buildTypes {
+-        debug {
+-            externalNativeBuild { cmake { arguments '-DSMS_GX_BUILD_TESTS=ON'; targets 'gx_selftest' } }
+-        }
++        debug {}
+         release { minifyEnabled false }
+     }
+ }
+diff --git a/android/app/src/main/AndroidManifest.xml b/android/app/src/main/AndroidManifest.xml
+index abfcbc0..94edc6e 100644
+--- a/android/app/src/main/AndroidManifest.xml
++++ b/android/app/src/main/AndroidManifest.xml
+@@ -5,8 +5,11 @@
+     <uses-feature android:name="android.hardware.gamepad" android:required="false" />
+     <uses-permission android:name="android.permission.VIBRATE" />
+     <uses-permission android:name="android.permission.INTERNET" />
+-    <application android:label="SMS Launcher" android:theme="@android:style/Theme.Material.NoActionBar"
++    <queries><package android:name="com.driftdroid.android.thor" /></queries>
++    <application android:label="Super Mario Sunshine - Thor" android:theme="@android:style/Theme.Material.NoActionBar"
+         android:allowBackup="false" android:hardwareAccelerated="true" android:appCategory="game">
++        <activity android:name="com.wither.sms.ThorLaunchActivity" android:exported="true"
++            android:screenOrientation="userLandscape" android:excludeFromRecents="true" />
+         <activity android:name=".LauncherActivity" android:exported="true" android:screenOrientation="userLandscape"
+             android:configChanges="orientation|screenSize|screenLayout|density">
+             <intent-filter>
+diff --git a/android/app/src/main/java/dev/chasem/smslauncher/ControllerProfiles.java b/android/app/src/main/java/dev/chasem/smslauncher/ControllerProfiles.java
+index 0f3b001..dfd4cc6 100644
+--- a/android/app/src/main/java/dev/chasem/smslauncher/ControllerProfiles.java
++++ b/android/app/src/main/java/dev/chasem/smslauncher/ControllerProfiles.java
+@@ -68,7 +68,7 @@ final class ControllerProfiles {
+         for (Profile p : saved(context)) if (!p.mapping.bindings.isEmpty())
+             out.append(String.format(Locale.ROOT,"%04x:%04x:%04x\t",p.vendor,p.product,ControllerMapping.descriptorCrc(p.descriptor)))
+                 .append(p.mapping.entries()).append('\n');
+-        File file=new File(context.getFilesDir(),"controller-mappings.txt"),temp=new File(context.getFilesDir(),"controller-mappings.tmp");
++        File file=new File(ThorStorage.root(context),"controller-mappings.txt"),temp=new File(ThorStorage.root(context),"controller-mappings.tmp");
+         Files.write(temp.toPath(),out.toString().getBytes(StandardCharsets.UTF_8));
+         Files.move(temp.toPath(),file.toPath(),StandardCopyOption.REPLACE_EXISTING,StandardCopyOption.ATOMIC_MOVE);
+     }
+diff --git a/android/app/src/main/java/dev/chasem/smslauncher/GameActivity.java b/android/app/src/main/java/dev/chasem/smslauncher/GameActivity.java
+index b610804..3e88023 100644
+--- a/android/app/src/main/java/dev/chasem/smslauncher/GameActivity.java
++++ b/android/app/src/main/java/dev/chasem/smslauncher/GameActivity.java
+@@ -26,7 +26,7 @@ public class GameActivity extends SDLActivity {
+                 // Set before SDL starts its native thread, and again when the
+                 // surface is recreated. This is a display hint, not a CPU lock.
+                 if (Build.VERSION.SDK_INT >= 30 && settings().getBoolean("match_display_rate", false)) {
+-                    float rate = "30".equals(settings().getString("frame_rate", "60")) ? 30f : 60f;
++                    float rate = "30".equals(settings().getString("frame_rate", "30")) ? 30f : 60f;
+                     try {
+                         holder.getSurface().setFrameRate(rate, Surface.FRAME_RATE_COMPATIBILITY_FIXED_SOURCE);
+                         displayRequest = "requested " + rate + " FPS";
+@@ -57,18 +57,24 @@ public class GameActivity extends SDLActivity {
+         } catch (RuntimeException e) { gamePolicy = "GameManager rejected: " + e.getClass().getSimpleName(); }
+         android.util.Log.i("SMSLauncher", gamePolicy);
+     }
+-    @Override protected void onResume() { reportGamePolicy(true); super.onResume(); }
+-    @Override protected void onPause() { super.onPause(); reportGamePolicy(false); }
++    private void traceLifecycle(String boundary) {
++        Thread sdl = mSDLThread;
++        android.util.Log.i("SMS-Thor", boundary + " pid=" + android.os.Process.myPid()
++            + " finishing=" + isFinishing() + " configuration=" + isChangingConfigurations()
++            + " SDLThread=" + (sdl == null ? "none" : sdl.getState()));
++    }
++    @Override protected void onResume() { traceLifecycle("resume begin"); reportGamePolicy(true); super.onResume(); traceLifecycle("resume end"); }
++    @Override protected void onPause() { traceLifecycle("pause begin"); super.onPause(); reportGamePolicy(false); traceLifecycle("pause end"); }
+     @Override protected String[] getLibraries() { return new String[]{"SDL2", "smsbootstrap"}; }
+     @Override protected String[] getArguments() {
+-        File data = new File(getFilesDir(), "game");
++        File data = new File(ThorStorage.root(this), "game");
+         ArrayList<String> args = new ArrayList<>();
+         args.add("--data"); args.add(data.getAbsolutePath());
+         args.add("--libraries"); args.add(getApplicationInfo().nativeLibraryDir);
+-        args.add("--disc"); args.add(new File(getFilesDir(), "disc/game.iso").getAbsolutePath());
+-        args.add("--env"); args.add("SMS_SAVE_DIR=" + new File(getFilesDir(), "saves/card-a").getAbsolutePath());
++        args.add("--disc"); args.add(new File(ThorStorage.root(this), "disc/game.iso").getAbsolutePath());
++        args.add("--env"); args.add("SMS_SAVE_DIR=" + new File(ThorStorage.root(this), "saves/card-a").getAbsolutePath());
+         args.add("--env"); args.add("SMS_SETTINGS=" + new File(data, "settings.txt").getAbsolutePath());
+-        args.add("--env"); args.add("SMS_ANDROID_CONTROLLER_MAPPINGS=" + new File(getFilesDir(), "controller-mappings.txt").getAbsolutePath());
++        args.add("--env"); args.add("SMS_ANDROID_CONTROLLER_MAPPINGS=" + new File(ThorStorage.root(this), "controller-mappings.txt").getAbsolutePath());
+         PowerManager power = getSystemService(PowerManager.class);
+         Display display = getWindow().getDecorView().getDisplay();
+         args.add("--env"); args.add("SMS_ANDROID_STARTUP_POLICY=" + gamePolicy
+@@ -86,10 +92,12 @@ public class GameActivity extends SDLActivity {
+         return args.toArray(new String[0]);
+     }
+     @Override protected void onCreate(Bundle state) {
++        traceLifecycle("create begin");
+         getWindow().addFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+         super.onCreate(state);
+         if (android.os.Build.VERSION.SDK_INT >= 33)
+             getOnBackInvokedDispatcher().registerOnBackInvokedCallback(android.window.OnBackInvokedDispatcher.PRIORITY_DEFAULT, this::finish);
++        traceLifecycle("create end");
+     }
+     @Override public boolean dispatchKeyEvent(android.view.KeyEvent event) {
+         if (event.getKeyCode() == android.view.KeyEvent.KEYCODE_BACK) {
+@@ -105,10 +113,44 @@ public class GameActivity extends SDLActivity {
+         }
+         return super.dispatchKeyEvent(event);
+     }
++    @Override public void finish() {
++        traceLifecycle("finish requested");
++        if (getIntent().getBooleanExtra("thor_library", false)) ThorStorage.returnToLibrary(this);
++        super.finish();
++    }
+     @Override protected void onDestroy() {
+-        super.onDestroy();
+-        // The game owns global heaps, SDK threads, and caches. A fresh process
+-        // on each Play avoids carrying that state into the next session.
++        traceLifecycle("destroy begin");
++        // SDL's super.onDestroy sends SDL_QUIT, then joins SDLThread without a
++        // timeout. That thread waits for the native game thread, so a paused
++        // renderer/event-pump shutdown can otherwise strand the UI in join()
++        // and make the following Play wait forever in this old process.
++        Thread main = android.os.Looper.getMainLooper().getThread();
++        Thread sdl = mSDLThread;
++        ThorSessionShutdown shutdown = new ThorSessionShutdown(2000, () -> {
++            traceLifecycle("destroy exceeded 2000 ms; ending session");
++            for (Thread thread : new Thread[]{main, sdl}) if (thread != null) {
++                android.util.Log.e("SMS-Thor", "Teardown thread " + thread.getName() + " state=" + thread.getState());
++                for (StackTraceElement frame : thread.getStackTrace()) android.util.Log.e("SMS-Thor", "  at " + frame);
++            }
++        }, this::terminateSessionProcess);
++        try {
++            super.onDestroy();
++            traceLifecycle("destroy SDL cleanup returned");
++        } finally {
++            shutdown.close();
++            // The game owns global heaps and SDK threads. Upstream already
++            // terminates this process after teardown to keep each Play fresh.
++            terminateSessionProcess();
++        }
++    }
++    private void terminateSessionProcess() {
++        String expected = getPackageName() + ":game";
++        String actual = android.app.Application.getProcessName();
++        if (!expected.equals(actual)) {
++            android.util.Log.e("SMS-Thor", "Refusing to terminate unexpected process " + actual);
++            return;
++        }
++        android.util.Log.i("SMS-Thor", "Ending own session process pid=" + android.os.Process.myPid());
+         android.os.Process.killProcess(android.os.Process.myPid());
+     }
+ }
+diff --git a/android/app/src/main/java/dev/chasem/smslauncher/LauncherActivity.java b/android/app/src/main/java/dev/chasem/smslauncher/LauncherActivity.java
+index 78ae4f1..79dd813 100644
+--- a/android/app/src/main/java/dev/chasem/smslauncher/LauncherActivity.java
++++ b/android/app/src/main/java/dev/chasem/smslauncher/LauncherActivity.java
+@@ -27,7 +27,7 @@ public class LauncherActivity extends Activity {
+ 
+     @Override public void onCreate(Bundle state) {
+         super.onCreate(state);
+-        root = getFilesDir(); disc = new File(root, "disc/game.iso");
++        root = ThorStorage.root(this); disc = new File(root, "disc/game.iso");
+         card = new File(root, "saves/card-a"); game = new File(root, "game");
+         disc.getParentFile().mkdirs(); card.mkdirs(); game.mkdirs(); new File(game, "cache").mkdirs();
+         prefs = getSharedPreferences("settings", MODE_PRIVATE);
+@@ -55,8 +55,8 @@ public class LauncherActivity extends Activity {
+         label("Import a US revision 0 disc image, then play with your handheld's controls or a connected controller.", 14);
+         status = label("", 16);
+         button("Play", () -> {
+-            if (!disc.isFile()) { message("Import a disc image first."); return; }
+             try {
++                ThorStorage.validateDisc(disc);
+                 writeSettings();
+                 Intent launch = new Intent(this, GameActivity.class);
+                 if (BuildConfig.DEBUG && getIntent().hasExtra("testEnvironment"))
+@@ -66,6 +66,7 @@ public class LauncherActivity extends Activity {
+             }
+             catch (IOException e) { message(e.getMessage()); }
+         });
++        button("Main Menu", () -> { if (ThorStorage.returnToLibrary(this)) finish(); });
+         button("Import disc image", () -> pick(DISC));
+         label("Saves and diagnostics", 18);
+         button("Input test (controllers and keyboards)", () -> startActivity(new Intent(this, InputMonitorActivity.class)));
+@@ -74,11 +75,11 @@ public class LauncherActivity extends Activity {
+         button("Export game log", () -> create(EXPORT_LOG, "text/plain", "sunshine-game.log"));
+         content = panel(columns, "Game settings");
+         button("Controller configuration", () -> startActivity(new Intent(this, ControllerConfigActivity.class)));
+-        choice("Frame rate", "frame_rate", new String[]{"30", "60"}, "60");
++        choice("Frame rate", "frame_rate", new String[]{"30", "60"}, "30");
+         choice("Resolution scale", "resolution", new String[]{"1", "2", "3"}, "1");
+-        choice("Aspect ratio", "widescreen", new String[]{"off", "16:9"}, "16:9");
++        choice("Aspect ratio", "widescreen", new String[]{"off", "16:9"}, "off");
+         choice("Volume", "volume", new String[]{"0", "25", "50", "75", "100"}, "100");
+-        toggle("Android performance hints", "performance_hints", true);
++        toggle("Android performance hints", "performance_hints", false);
+         toggle("Use performance CPU cores", "performance_cores", false);
+         toggle("Request performance headroom", "performance_headroom", false);
+         toggle("Match display refresh to game FPS", "match_display_rate", false);
+@@ -139,12 +140,17 @@ public class LauncherActivity extends Activity {
+         box.setOnCheckedChangeListener((view, checked) -> prefs.edit().putBoolean(key, checked).apply());
+         content.addView(box);
+     }
+-    private void writeSettings() throws IOException {
+-        ControllerProfiles.writeGameFile(this);
+-        String text = "frame_rate=" + prefs.getString("frame_rate", "60") + "\nresolution=" + prefs.getString("resolution", "1")
+-            + "\nwidescreen=" + prefs.getString("widescreen", "16:9") + "\nvolume=" + prefs.getString("volume", "100")
++    private void writeSettings() throws IOException { prepareGame(this); }
++    public static void prepareGame(android.content.Context context) throws IOException {
++        File root = ThorStorage.root(context), game = new File(root, "game");
++        new File(root, "disc").mkdirs(); new File(root, "saves/card-a").mkdirs();
++        game.mkdirs(); new File(game, "cache").mkdirs();
++        SharedPreferences prefs = context.getSharedPreferences("settings", MODE_PRIVATE);
++        ControllerProfiles.writeGameFile(context);
++        String text = "frame_rate=" + prefs.getString("frame_rate", "30") + "\nresolution=" + prefs.getString("resolution", "1")
++            + "\nwidescreen=" + prefs.getString("widescreen", "off") + "\nvolume=" + prefs.getString("volume", "100")
+             + "\nmsaa=0\nfullscreen=on\nvsync=on\nbutton_prompts=auto\n"
+-            + "SMS_ANDROID_PERFORMANCE_HINTS=" + (prefs.getBoolean("performance_hints", true) ? "1" : "0")
++            + "SMS_ANDROID_PERFORMANCE_HINTS=" + (prefs.getBoolean("performance_hints", false) ? "1" : "0")
+             + "\nSMS_ANDROID_PERFORMANCE_CORES=" + (prefs.getBoolean("performance_cores", false) ? "1" : "0")
+             + "\nSMS_ANDROID_PERFORMANCE_HEADROOM=" + (prefs.getBoolean("performance_headroom", false) ? "1" : "0")
+             + "\nSMS_TIMING_LOG=" + (prefs.getBoolean("timing_log", false) ? "1" : "0")
+@@ -192,12 +198,7 @@ public class LauncherActivity extends Activity {
+         File temp = new File(disc.getParentFile(), "import.part");
+         try {
+             try (InputStream in = input(uri); OutputStream out = new FileOutputStream(temp)) { copy(in, out, 2L << 30); }
+-            try (RandomAccessFile in = new RandomAccessFile(temp, "r")) {
+-                byte[] header = new byte[32]; in.readFully(header);
+-                if (!new String(header, 0, 6, java.nio.charset.StandardCharsets.US_ASCII).equals("GMSE01") || header[7] != 0
+-                    || header[28] != (byte)0xc2 || header[29] != 0x33 || header[30] != (byte)0x9f || header[31] != 0x3d)
+-                    throw new IOException("Use a US revision 0 Sunshine ISO or GCM image.");
+-            }
++            ThorStorage.validateDisc(temp);
+             Files.move(temp.toPath(), disc.toPath(), StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
+         } finally { temp.delete(); }
+     }
+diff --git a/android/build.gradle b/android/build.gradle
+index 3810dee..bb97a9a 100644
+--- a/android/build.gradle
++++ b/android/build.gradle
+@@ -1 +1 @@
+-plugins { id 'com.android.application' version '9.0.1' apply false }
++plugins { id 'com.android.application' version '8.5.2' apply false }
+diff --git a/android/app/src/main/java/dev/chasem/smslauncher/ThorStorage.java b/android/app/src/main/java/dev/chasem/smslauncher/ThorStorage.java
+new file mode 100644
+--- /dev/null
++++ b/android/app/src/main/java/dev/chasem/smslauncher/ThorStorage.java
+@@ -0,0 +1,41 @@
++package dev.chasem.smslauncher;
++
++import android.content.Context;
++import android.content.Intent;
++import java.io.File;
++import java.io.IOException;
++import java.io.RandomAccessFile;
++
++/** Thor owns one separate app-scoped data tree; launch intents cannot select paths. */
++public final class ThorStorage {
++    private ThorStorage() {}
++    public static File root(Context context) {
++        File root = context.getExternalFilesDir(null);
++        if (root == null) throw new IllegalStateException("Sunshine storage is unavailable.");
++        return root;
++    }
++    public static void validateDisc(Context context) throws IOException {
++        validateDisc(new File(root(context), "disc/game.iso"));
++    }
++    public static void validateDisc(File disc) throws IOException {
++        if (disc.length() != 1459978240L) throw new IOException("Import the verified US revision 0 Sunshine disc first.");
++        try (RandomAccessFile in = new RandomAccessFile(disc, "r")) {
++            byte[] h = new byte[32]; in.readFully(h);
++            if (!new String(h, 0, 6, java.nio.charset.StandardCharsets.US_ASCII).equals("GMSE01")
++                || h[6] != 0 || h[7] != 0 || h[28] != (byte)0xc2 || h[29] != 0x33
++                || h[30] != (byte)0x9f || h[31] != 0x3d)
++                throw new IOException("Sunshine requires a US revision 0 GameCube disc.");
++        }
++    }
++    public static boolean returnToLibrary(Context context) {
++        try {
++            context.startActivity(new Intent().setComponent(new android.content.ComponentName(
++                "com.driftdroid.android.thor", "com.driftdroid.android.ModePickerActivity"))
++                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_REORDER_TO_FRONT));
++            return true;
++        } catch (android.content.ActivityNotFoundException | SecurityException e) {
++            android.util.Log.w("SMS-Thor", "Shared library is unavailable", e);
++            return false;
++        }
++    }
++}
+diff --git a/android/app/src/main/java/dev/chasem/smslauncher/ThorSessionShutdown.java b/android/app/src/main/java/dev/chasem/smslauncher/ThorSessionShutdown.java
+new file mode 100644
+--- /dev/null
++++ b/android/app/src/main/java/dev/chasem/smslauncher/ThorSessionShutdown.java
+@@ -0,0 +1,24 @@
++package dev.chasem.smslauncher;
++
++import java.util.concurrent.atomic.AtomicBoolean;
++
++/** Bounds a terminal session teardown; never armed for pause, Home or sleep. */
++final class ThorSessionShutdown implements AutoCloseable {
++    private final AtomicBoolean complete = new AtomicBoolean();
++    private final Thread watchdog;
++    ThorSessionShutdown(long graceMillis, Runnable diagnostics, Runnable terminate) {
++        watchdog = new Thread(() -> {
++            try { Thread.sleep(graceMillis); }
++            catch (InterruptedException done) { return; }
++            if (complete.compareAndSet(false, true)) {
++                try { diagnostics.run(); }
++                finally { terminate.run(); }
++            }
++        }, "ThorSessionExit");
++        watchdog.setDaemon(true);
++        watchdog.start();
++    }
++    @Override public void close() {
++        if (complete.compareAndSet(false, true)) watchdog.interrupt();
++    }
++}
+diff --git a/android/app/src/main/java/com/wither/sms/ThorLaunchActivity.java b/android/app/src/main/java/com/wither/sms/ThorLaunchActivity.java
+new file mode 100644
+--- /dev/null
++++ b/android/app/src/main/java/com/wither/sms/ThorLaunchActivity.java
+@@ -0,0 +1,33 @@
++package com.wither.sms;
++
++import android.app.Activity;
++import android.content.Intent;
++import android.os.Bundle;
++import dev.chasem.smslauncher.GameActivity;
++import dev.chasem.smslauncher.LauncherActivity;
++import dev.chasem.smslauncher.ThorStorage;
++
++/** Explicit, versioned transport from the shared Thor library. */
++public final class ThorLaunchActivity extends Activity {
++    @Override public void onCreate(Bundle state) {
++        super.onCreate(state);
++        Intent request = getIntent();
++        if (!"dev.thor.launcher.action.PLAY_GAME".equals(request.getAction())
++            || request.getIntExtra("thor_protocol", -1) != 1
++            || !"sunshine".equals(request.getStringExtra("thor_game"))) {
++            android.util.Log.w("SMS-Thor", "Rejected unknown launch protocol");
++            finish(); return;
++        }
++        try {
++            ThorStorage.validateDisc(this);
++            LauncherActivity.prepareGame(this);
++            startActivity(new Intent(this, GameActivity.class).putExtra("thor_library", true)
++                .addFlags(Intent.FLAG_ACTIVITY_REORDER_TO_FRONT | Intent.FLAG_ACTIVITY_SINGLE_TOP));
++        } catch (java.io.IOException | IllegalStateException e) {
++            android.util.Log.e("SMS-Thor", "Sunshine data is not ready", e);
++            startActivity(new Intent(this, LauncherActivity.class));
++            android.widget.Toast.makeText(this, e.getMessage(), android.widget.Toast.LENGTH_LONG).show();
++        }
++        finish();
++    }
++}

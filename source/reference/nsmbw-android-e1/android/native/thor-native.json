@@ -1,0 +1,17 @@
+{
+  "schema": 1,
+  "disc_id": "SMNE01",
+  "disc_revision": 1,
+  "dol_sha256": "166eb6b7cca21418e316a6cfbf1bfbf0a213eb8f6396d42126a1482bb764a955",
+  "source_commit": "20f0158dd1d96bd94f821adf80ee361e4fbd414e",
+  "library_sha256": "e9a5169afbab0526f16f04a4b61e2aee85b9636dde3c901b028dc27d82b5e911",
+  "libraries": {
+    "libmain.so": "e9a5169afbab0526f16f04a4b61e2aee85b9636dde3c901b028dc27d82b5e911",
+    "libpng16.so": "557d15c3434f378bedeb81c3c801bbdfd82453e5d35a4ec8a7177a1bed198bf6"
+  },
+  "native_build_receipt_sha256": "606f89f2521caf1dec8ba11cc66402a5b928db0ae15fa57a0838a0ce59f62a95",
+  "translation_verification_sha256": "345a337c8b1b715651840f83381fa5b18197432f695946dfba61fae0caa96a9e",
+  "limits": [
+    "Staged locally. No boot or gameplay validation is implied."
+  ]
+}

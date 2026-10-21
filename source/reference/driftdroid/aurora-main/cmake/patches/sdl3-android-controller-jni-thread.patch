@@ -1,0 +1,242 @@
+diff --git a/src/core/android/SDL_android.c b/src/core/android/SDL_android.c
+index fa55948..125eb17 100644
+--- a/src/core/android/SDL_android.c
++++ b/src/core/android/SDL_android.c
+@@ -2183,40 +2183,225 @@ void Android_JNI_InitTouch(void)
+     (*env)->CallStaticVoidMethod(env, mActivityClass, midInitTouch);
+ }
+ 
++/* DriftDroid: translated guest code swaps the native stack on its OS thread.
++ * Entering ART on that fiber corrupts CheckJNI transition-frame references.
++ * Run all controller JNI work on one ordinary pthread. Never wait for it: SDL
++ * calls these functions with its joystick lock held, and Java add/remove
++ * callbacks need the same lock. Initial discovery uses existing hotplug events.
++ * Poll bits and latest output per device bound work even if Binder is slow.
++ */
++#define CONTROLLER_JNI_OUTPUT_CAPACITY 32
++#define CONTROLLER_POLL_INPUT 1
++#define CONTROLLER_POLL_HAPTIC 2
++#define CONTROLLER_OUTPUT_LED 1
++#define CONTROLLER_OUTPUT_HAPTIC 2
++#define CONTROLLER_HAPTIC_RUN 1
++#define CONTROLLER_HAPTIC_RUMBLE 2
++#define CONTROLLER_HAPTIC_STOP 3
++
++struct ControllerJniOutput {
++    unsigned int flags;
++    int device_id;
++    int red, green, blue;
++    int haptic_kind;
++    float low, high;
++    int length;
++};
++
++static pthread_mutex_t controller_jni_mutex = PTHREAD_MUTEX_INITIALIZER;
++static pthread_cond_t controller_jni_condition = PTHREAD_COND_INITIALIZER;
++static unsigned int controller_poll_pending;
++static struct ControllerJniOutput controller_outputs[CONTROLLER_JNI_OUTPUT_CAPACITY];
++static unsigned int controller_output_pending;
++static bool controller_jni_thread_started;
++static bool controller_output_overflow_reported;
++
++static void Android_JNI_FinishControllerCall(JNIEnv *env)
++{
++    if ((*env)->ExceptionCheck(env)) {
++        (*env)->ExceptionDescribe(env);
++        (*env)->ExceptionClear(env);
++    }
++}
++
++static void *Android_JNI_ControllerThread(void *unused)
++{
++    (void)unused;
++    SDL_Log("DriftDroid: controller enumeration uses a dedicated JNI thread (including rumble and LED)");
++    for (;;) {
++        JNIEnv *env;
++        unsigned int pending, i;
++        struct ControllerJniOutput outputs[CONTROLLER_JNI_OUTPUT_CAPACITY];
++        pthread_mutex_lock(&controller_jni_mutex);
++        while (!controller_poll_pending && !controller_output_pending) {
++            pthread_cond_wait(&controller_jni_condition, &controller_jni_mutex);
++        }
++        pending = controller_poll_pending;
++        controller_poll_pending = 0;
++        SDL_memcpy(outputs, controller_outputs, sizeof(outputs));
++        SDL_zeroa(controller_outputs);
++        controller_output_pending = 0;
++        pthread_mutex_unlock(&controller_jni_mutex);
++
++        env = Android_JNI_GetEnv(); /* Attach this untouched pthread on demand. */
++        if (!env) {
++            SDL_LogError(SDL_LOG_CATEGORY_INPUT, "Cannot attach controller JNI thread");
++            continue; /* A later request retries attachment; never enter ART on the fiber. */
++        }
++        if (pending & CONTROLLER_POLL_INPUT) {
++            (*env)->CallStaticVoidMethod(env, mControllerManagerClass, midPollInputDevices);
++            Android_JNI_FinishControllerCall(env);
++        }
++        if (pending & CONTROLLER_POLL_HAPTIC) {
++            (*env)->CallStaticVoidMethod(env, mControllerManagerClass, midPollHapticDevices);
++            Android_JNI_FinishControllerCall(env);
++        }
++        for (i = 0; i < CONTROLLER_JNI_OUTPUT_CAPACITY; ++i) {
++            const struct ControllerJniOutput *output = &outputs[i];
++            if (output->flags & CONTROLLER_OUTPUT_LED) {
++                (*env)->CallStaticVoidMethod(env, mControllerManagerClass, midJoystickSetLED,
++                                            output->device_id, output->red, output->green, output->blue);
++                Android_JNI_FinishControllerCall(env);
++            }
++            if (output->flags & CONTROLLER_OUTPUT_HAPTIC) {
++                switch (output->haptic_kind) {
++                case CONTROLLER_HAPTIC_RUN:
++                    (*env)->CallStaticVoidMethod(env, mControllerManagerClass, midHapticRun,
++                                                output->device_id, output->low, output->length);
++                    break;
++                case CONTROLLER_HAPTIC_RUMBLE:
++                    (*env)->CallStaticVoidMethod(env, mControllerManagerClass, midHapticRumble,
++                                                output->device_id, output->low, output->high, output->length);
++                    break;
++                case CONTROLLER_HAPTIC_STOP:
++                    (*env)->CallStaticVoidMethod(env, mControllerManagerClass, midHapticStop, output->device_id);
++                    break;
++                }
++                Android_JNI_FinishControllerCall(env);
++            }
++        }
++    }
++    return NULL;
++}
++
++/* Called only while holding controller_jni_mutex. Never synchronously join. */
++static void Android_JNI_WakeControllerThread(void)
++{
++    if (!controller_jni_thread_started) {
++        pthread_t thread;
++        int result = pthread_create(&thread, NULL, Android_JNI_ControllerThread, NULL);
++        if (result != 0) {
++            SDL_LogError(SDL_LOG_CATEGORY_INPUT, "Cannot start controller JNI thread: %d", result);
++            return; /* Pending work remains bounded; retry on the next request. */
++        }
++        pthread_detach(thread);
++        controller_jni_thread_started = true;
++    }
++    pthread_cond_signal(&controller_jni_condition);
++}
++
++static void Android_JNI_RequestControllerPoll(unsigned int devices)
++{
++    pthread_mutex_lock(&controller_jni_mutex);
++    controller_poll_pending |= devices;
++    Android_JNI_WakeControllerThread();
++    pthread_mutex_unlock(&controller_jni_mutex);
++}
++
++static void Android_JNI_RequestControllerOutput(struct ControllerJniOutput output)
++{
++    unsigned int i;
++    struct ControllerJniOutput *slot = NULL;
++    pthread_mutex_lock(&controller_jni_mutex);
++    for (i = 0; i < CONTROLLER_JNI_OUTPUT_CAPACITY; ++i) {
++        if (controller_outputs[i].flags && controller_outputs[i].device_id == output.device_id) {
++            slot = &controller_outputs[i];
++            break;
++        }
++        if (!controller_outputs[i].flags && !slot) {
++            slot = &controller_outputs[i];
++        }
++    }
++    if (!slot) {
++        if (!controller_output_overflow_reported) {
++            SDL_LogError(SDL_LOG_CATEGORY_INPUT, "Controller JNI output queue exceeded 32 pending devices");
++            controller_output_overflow_reported = true;
++        }
++        pthread_mutex_unlock(&controller_jni_mutex);
++        return;
++    }
++    if (!slot->flags) {
++        ++controller_output_pending;
++        slot->device_id = output.device_id;
++    }
++    if (output.flags & CONTROLLER_OUTPUT_LED) {
++        slot->red = output.red;
++        slot->green = output.green;
++        slot->blue = output.blue;
++    }
++    if (output.flags & CONTROLLER_OUTPUT_HAPTIC) {
++        /* A stop replaces an older start, and a later start replaces that stop. */
++        slot->haptic_kind = output.haptic_kind;
++        slot->low = output.low;
++        slot->high = output.high;
++        slot->length = output.length;
++    }
++    slot->flags |= output.flags;
++    Android_JNI_WakeControllerThread();
++    pthread_mutex_unlock(&controller_jni_mutex);
++}
++
+ void Android_JNI_PollInputDevices(void)
+ {
+-    JNIEnv *env = Android_JNI_GetEnv();
+-    (*env)->CallStaticVoidMethod(env, mControllerManagerClass, midPollInputDevices);
++    Android_JNI_RequestControllerPoll(CONTROLLER_POLL_INPUT);
+ }
+ 
+ void Android_JNI_JoystickSetLED(int device_id, int red, int green, int blue)
+ {
+-    JNIEnv *env = Android_JNI_GetEnv();
+-    (*env)->CallStaticVoidMethod(env, mControllerManagerClass, midJoystickSetLED, device_id, red, green, blue);
++    struct ControllerJniOutput output = {0};
++    output.flags = CONTROLLER_OUTPUT_LED;
++    output.device_id = device_id;
++    output.red = red;
++    output.green = green;
++    output.blue = blue;
++    Android_JNI_RequestControllerOutput(output);
+ }
+ 
+ void Android_JNI_PollHapticDevices(void)
+ {
+-    JNIEnv *env = Android_JNI_GetEnv();
+-    (*env)->CallStaticVoidMethod(env, mControllerManagerClass, midPollHapticDevices);
++    Android_JNI_RequestControllerPoll(CONTROLLER_POLL_HAPTIC);
+ }
+ 
+ void Android_JNI_HapticRun(int device_id, float intensity, int length)
+ {
+-    JNIEnv *env = Android_JNI_GetEnv();
+-    (*env)->CallStaticVoidMethod(env, mControllerManagerClass, midHapticRun, device_id, intensity, length);
++    struct ControllerJniOutput output = {0};
++    output.flags = CONTROLLER_OUTPUT_HAPTIC;
++    output.device_id = device_id;
++    output.haptic_kind = CONTROLLER_HAPTIC_RUN;
++    output.low = intensity;
++    output.length = length;
++    Android_JNI_RequestControllerOutput(output);
+ }
+ 
+ void Android_JNI_HapticRumble(int device_id, float low_frequency_intensity, float high_frequency_intensity, int length)
+ {
+-    JNIEnv *env = Android_JNI_GetEnv();
+-    (*env)->CallStaticVoidMethod(env, mControllerManagerClass, midHapticRumble, device_id, low_frequency_intensity, high_frequency_intensity, length);
++    struct ControllerJniOutput output = {0};
++    output.flags = CONTROLLER_OUTPUT_HAPTIC;
++    output.device_id = device_id;
++    output.haptic_kind = CONTROLLER_HAPTIC_RUMBLE;
++    output.low = low_frequency_intensity;
++    output.high = high_frequency_intensity;
++    output.length = length;
++    Android_JNI_RequestControllerOutput(output);
+ }
+ 
+ void Android_JNI_HapticStop(int device_id)
+ {
+-    JNIEnv *env = Android_JNI_GetEnv();
+-    (*env)->CallStaticVoidMethod(env, mControllerManagerClass, midHapticStop, device_id);
++    struct ControllerJniOutput output = {0};
++    output.flags = CONTROLLER_OUTPUT_HAPTIC;
++    output.device_id = device_id;
++    output.haptic_kind = CONTROLLER_HAPTIC_STOP;
++    Android_JNI_RequestControllerOutput(output);
+ }
+ 
+ // See SDLActivity.java for constants.

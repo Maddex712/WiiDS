@@ -1,0 +1,1 @@
+WiiDS copy of SDL 2.32.10: Java glue package org.libsdl.sdl2.app (SDL_JAVA_PREFIX and RegisterNatives class names). Everything else is the official release.

@@ -1,0 +1,47 @@
+Reason: port: Coin Multiplier (F9 menu, factor 1/2/5/10): one yellow coin pickup adds the factor in coins (port_cheat_coin_multiplier in platform/misc/port_cheats.cpp); the 100-coin Shine fires when a pickup passes 100 and the 1-up when it passes a multiple of 50; blue and red coins are not changed
+--- a/src/System/FlagManager.cpp
++++ b/src/System/FlagManager.cpp
+@@ -355,2 +355,11 @@
+-void TFlagManager::incFlag(u32 flag, s32 amount)
+-{
++#ifdef TARGET_PC
++extern "C" int port_cheat_coin_multiplier;
++#endif
++
++void TFlagManager::incFlag(u32 flag, s32 amount)
++{
++#ifdef TARGET_PC
++	// the coin counter is only written by coin pickups
++	if (flag == 0x40002)
++		amount *= port_cheat_coin_multiplier;
++#endif
+--- a/src/MoveBG/Item.cpp
++++ b/src/MoveBG/Item.cpp
+@@ -212,1 +212,5 @@
+-void TCoin::taken(THitActor* param_1)
++#ifdef TARGET_PC
++extern "C" int port_cheat_coin_multiplier;
++#endif
++
++void TCoin::taken(THitActor* param_1)
+@@ -227,1 +231,2 @@
+-	    && TFlagManager::smInstance->getFlag(0x40002) == 100) {
++	    && TFlagManager::smInstance->getFlag(0x40002) >= 100
++	    && TFlagManager::smInstance->getFlag(0x40002) - port_cheat_coin_multiplier < 100) {
+--- a/src/Player/MarioReceiveMsg.cpp
++++ b/src/Player/MarioReceiveMsg.cpp
+@@ -104,1 +104,5 @@
+-void TMario::getCoin()
++#ifdef TARGET_PC
++extern "C" int port_cheat_coin_multiplier;
++#endif
++
++void TMario::getCoin()
+@@ -109,1 +113,6 @@
+-	if ((TFlagManager::smInstance->getFlag(0x40002) % 50) == 0) {
++	s32 coinGain = 1;
++#ifdef TARGET_PC
++	coinGain = port_cheat_coin_multiplier;
++#endif
++	// a multiplied pickup can pass a multiple of 50 without landing on it
++	if ((TFlagManager::smInstance->getFlag(0x40002) % 50) < coinGain) {

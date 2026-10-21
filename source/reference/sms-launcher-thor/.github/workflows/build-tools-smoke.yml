@@ -1,0 +1,141 @@
+name: Smoke test build tools
+on:
+  pull_request:
+  schedule:
+    - cron: '17 8 * * 1'
+  workflow_dispatch:
+  workflow_call:
+    inputs:
+      ref:
+        type: string
+        required: false
+permissions:
+  contents: read
+# A new push to a pull request cancels its older runs. Other runs never share a group.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name == 'pull_request' && github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: true
+jobs:
+  compile-port:
+    name: compile-port (${{ matrix.target }})
+    strategy:
+      fail-fast: false
+      matrix:
+        # Each Windows architecture gets its own runner so the two builds run at the same time.
+        include:
+          - os: ubuntu-24.04
+            target: ubuntu-24.04
+            arches: '64,32'
+          - os: windows-2025
+            target: windows-2025, 64-bit
+            arches: '64'
+          - os: windows-2025
+            target: windows-2025, 32-bit
+            arches: '32'
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref || github.sha }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm ci --ignore-scripts
+      - name: Install compiler cache
+        if: runner.os == 'Windows'
+        uses: Mozilla-Actions/sccache-action@9e7fa8a12102821edf02ca5dbea1acd0f89a2696 # v0.0.10
+        with:
+          version: v0.18.0
+      # Game revisions that predate SMS_COMPILER_CACHE ignore it and compile uncached.
+      - name: Enable compiler cache
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          "SMS_COMPILER_CACHE=$((Get-Command sccache).Source.Replace('\', '/'))" >> $env:GITHUB_ENV
+          "SCCACHE_GHA_ENABLED=on" >> $env:GITHUB_ENV
+          "SCCACHE_IGNORE_SERVER_IO_ERROR=1" >> $env:GITHUB_ENV
+      - run: node scripts/smoke-build-tools.js
+        env:
+          SMS_SMOKE_ARCHES: ${{ matrix.arches }}
+      - name: Verify a warm compiler cache hit
+        if: runner.os == 'Windows'
+        shell: pwsh
+        env:
+          SMS_SMOKE_ARCHES: ${{ matrix.arches }}
+        run: |
+          @'
+          const fs = require('node:fs');
+          const path = require('node:path');
+          const os = require('node:os');
+          const { spawnSync } = require('node:child_process');
+          const tools = require('./src/build-tools');
+          const root = path.join(os.tmpdir(), 'SMS Port Private Tools CI');
+          const check = path.join(root, 'tools', 'tests', 'check_compiler_cache.py');
+          if (!fs.existsSync(check)) {
+            console.log('This game revision has no compiler cache check; skipping.');
+            process.exit(0);
+          }
+          const userData = path.join(os.tmpdir(), 'SMS Launcher Private Tools CI');
+          const env = tools.environment(userData, { ...process.env, SMS_ARCH: process.env.SMS_SMOKE_ARCHES });
+          const python = path.join(env.MSYS2_ROOT, 'mingw64', 'bin', 'python.exe');
+          const result = spawnSync(python, [check], { cwd: root, env, stdio: 'inherit' });
+          if (result.error) throw result.error;
+          process.exit(result.status ?? 1);
+          '@ | node
+  compile-mac-port:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-15, macos-15-intel]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref || github.sha }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm ci --ignore-scripts
+      - run: npm test
+      - name: Enable Intel execution on the Apple Silicon CI runner
+        run: |
+          if [[ "$(sysctl -n hw.optional.arm64)" == 1 ]]; then
+            sudo softwareupdate --install-rosetta --agree-to-license
+          fi
+      - name: Verify Finder tool detection and compile Sunshine without a ROM
+        run: node scripts/smoke-mac-tools.js
+  compile-eclipse:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, windows-2025, macos-15]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref || github.sha }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm ci --ignore-scripts
+      - name: Install compiler cache
+        if: runner.os == 'Windows'
+        uses: Mozilla-Actions/sccache-action@9e7fa8a12102821edf02ca5dbea1acd0f89a2696 # v0.0.10
+        with:
+          version: v0.18.0
+      # Game revisions that predate SMS_COMPILER_CACHE ignore it and compile uncached.
+      - name: Enable compiler cache
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          "SMS_COMPILER_CACHE=$((Get-Command sccache).Source.Replace('\', '/'))" >> $env:GITHUB_ENV
+          "SCCACHE_GHA_ENABLED=on" >> $env:GITHUB_ENV
+          "SCCACHE_IGNORE_SERVER_IO_ERROR=1" >> $env:GITHUB_ENV
+      - name: Enable Intel execution on the Apple Silicon CI runner
+        if: runner.os == 'macOS'
+        run: sudo softwareupdate --install-rosetta --agree-to-license
+      - name: Compile Eclipse without a ROM
+        run: node scripts/smoke-eclipse.js

@@ -1,0 +1,66 @@
+Reason: Returns: OSCreateThread entry points (setupThreadFunc of TSelectDir/TMarDirector/TMenuDirector/TMovieDirector, TCardManager's cardmain) fall off the end of a void* function; retail leaves the callee's r3 as the unused exit value. Return nullptr on TARGET_PC.
+--- a/src/GC2D/SelectDir.cpp
++++ b/src/GC2D/SelectDir.cpp
+@@ -78,6 +78,9 @@
+ void* TSelectDir::setupThreadFunc(void* param_1)
+ {
+ 	((TSelectDir*)param_1)->rsetup();
++#ifdef TARGET_PC
++	return nullptr; // thread exit value: retail leaves the callee's r3, nothing reads it
++#endif
+ }
+ 
+ int TSelectDir::rsetup()
+--- a/src/System/CardManager.cpp
++++ b/src/System/CardManager.cpp
+@@ -212,7 +212,13 @@
+ 	}
+ }
+ 
+-static void* cardmain(void* param_1) { ((TCardManager*)param_1)->cmdLoop(); }
++static void* cardmain(void* param_1)
++{
++	((TCardManager*)param_1)->cmdLoop();
++#ifdef TARGET_PC
++	return nullptr; // thread exit value: retail leaves the callee's r3, nothing reads it
++#endif
++}
+ 
+ TCardManager::TCardManager(void* sector_work_area, void* card_work_area,
+                            s32 channel, s32 thread_prio, void* thread_stack,
+--- a/src/System/MarDirector.cpp
++++ b/src/System/MarDirector.cpp
+@@ -72,6 +72,9 @@
+ void* TMarDirector::setupThreadFunc(void* param_1)
+ {
+ 	((TMarDirector*)param_1)->loadResource();
++#ifdef TARGET_PC
++	return nullptr; // thread exit value: retail leaves the callee's r3, nothing reads it
++#endif
+ }
+ 
+ extern OSThread gSetupThread;
+--- a/src/System/MenuDir.cpp
++++ b/src/System/MenuDir.cpp
+@@ -59,6 +59,9 @@
+ {
+ 	// BUG: return missing
+ 	((TMenuDirector*)param_1)->rsetup();
++#ifdef TARGET_PC
++	return nullptr; // thread exit value: retail leaves the callee's r3, nothing reads it
++#endif
+ }
+ 
+ extern OSThread gSetupThread;
+--- a/src/System/MovieDirector.cpp
++++ b/src/System/MovieDirector.cpp
+@@ -167,6 +167,9 @@
+ void* TMovieDirector::setupThreadFunc(void* self)
+ {
+ 	((TMovieDirector*)self)->rsetup();
++#ifdef TARGET_PC
++	return nullptr; // thread exit value: retail leaves the callee's r3, nothing reads it
++#endif
+ }
+ 
+ extern OSThread gSetupThread;

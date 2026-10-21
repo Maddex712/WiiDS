@@ -1,0 +1,20 @@
+Reason: port: with frame_rate = 60 or 120 the GO! letters grew two or four times as fast as they fly apart (each movement tick grows them to their global bounds plus two, and the global bounds only update once a frame is drawn), and kept the excess, so later GO!s were drawn too big; grow once per native frame
+--- a/src/GC2D/ConsoleStr.cpp
++++ b/src/GC2D/ConsoleStr.cpp
+@@ -587,6 +587,16 @@
+ 
+ 				JUTRect global = mGoPanes[i]->getPane()->getGlobalBounds();
+ 				mGoPanes[i]->getPane()->setAlpha(alpha);
++#ifdef TARGET_PC
++				// Port: the letters grow to their global bounds plus two on
++				// every movement tick, but the global bounds are only updated
++				// when a frame is drawn: once in four ticks at 30 fps, every
++				// tick at 120. They grew two or four times as fast at 60/120
++				// fps and kept the excess after the shrink at 175, so every
++				// later GO! (Eclipse's race starts) was drawn that much bigger.
++				// Grow once per native frame.
++				if (port_native_frame_step(gpMarDirector->unk5C))
++#endif
+ 				mGoPanes[i]->getPane()->resize(global.getWidth() + 2,
+ 				                            global.getHeight() + 2);
+ 

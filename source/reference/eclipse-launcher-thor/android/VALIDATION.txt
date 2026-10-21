@@ -1,0 +1,644 @@
+Android validation — 2026-10-11
+
+Scope and environment
+---------------------
+Both repositories use isolated feat/android-arm64 worktrees. The Android port
+contains native-support commit 2827707, GLES streaming/caching commit 8502bba,
+and process-exit fix 68fd0f7. Original repositories and desktop saves were not
+modified. No ROM or save data is included in the APK.
+
+The test device is the Android 35 Google APIs x86_64 emulator on Linux/KVM,
+using NVIDIA host graphics, GLES 3.1, and libndk_translation 0.2.3. Its supported
+ABI list includes arm64-v8a; the installed application's native ABI is ARM64.
+This tests the actual ARM64 libraries through Android, with CPU translation.
+The older Android 30 bridge crashed on a valid ARM64 conversion instruction;
+that image was retired. No instruction-emulation workaround was added.
+
+Build and automated checks
+--------------------------
+JDK 17, Gradle 9.2.1, AGP 9.0.1, compile/target SDK 35, minimum SDK 29,
+NDK 28.2.13676358, CMake 3.22.1, and checksum-verified SDL 2.32.10.
+Both assembleDebug and assembleRelease completed successfully. The final
+incremental rebuild after the exit fix completed in 17 seconds. The first
+complete release build took 4 minutes 6 seconds. Builds use constrained worker
+and compiler parallelism; RAM was monitored during emulator/build work.
+
+The release APK contains exactly libSDL2.so, libsms.so, and libsmsbootstrap.so,
+all ELF64 AArch64 under lib/arm64-v8a/. Each PT_LOAD alignment is 16384 bytes.
+zipalign -c -P 16 4 passed. The installable release test APK is signed with the
+local Android development key; apksigner verifies its v3 signature. Production
+distribution needs the project's own signing configuration. Release builds
+omit the GX self-test library and ignore diagnostic intent extras.
+
+Release test APK SHA256:
+19e0a4cba23e447d3227df830bf45303f2e3a2d10f08fda06d75194d9f3a357a
+
+Android GX graphics self-test: 60 passed, 0 failed, returned 0.
+Desktop GX regression tests: 60 passed, 0 failed.
+Desktop HD texture tests: 0 failures.
+Launcher Node tests: 227 passed, 0 failed.
+An attempted x86_64 Android CMake configuration correctly fails the ARM64-only
+check. The graphics tests cover numeric pixel metrics, clipping, depth peeks,
+texture sampling, logic operations, and overlay state preservation.
+
+Runtime checks
+--------------
+Android's real document picker imported a US revision 0 disc image and a
+desktop card-a backup. Exported ZIP members were byte-equal to the imported
+card before the in-game save. Both launcher columns scroll independently in
+landscape, with Android system-bar insets respected.
+
+The imported slot A shows one Shine. It loaded into Delfino Plaza, including
+the native 3D arrival sequence, and reached player-controlled gameplay.
+Keyboard input through ADB moved Mario, moved the camera, jumped, opened Pause,
+and selected Save. The native Save complete prompt was observed; continuing
+returned to gameplay. Spray was first obscured by a wall in the debug session;
+the release recheck showed FLUDD water particles in front of Mario in response
+to a held spray input.
+
+Android card data changed from
+40c7263250c74316c3ae7a838012ca8fffe893ae4b6f2e4fcbcac88168c746ca
+to
+39a4973f53e38ec0496fab86d191b79dab3c24e66d8365abdd98d1686f6a967f
+after Save complete. The original desktop card retained its original hash.
+
+Opening, prison explanation, and police arrival movies were watched unskipped
+before the GLES performance changes. The final release APK's ordinary opening
+movie was watched through to the title screen, without diagnostic intent
+extras or movie skipping. The Android-written card was then reloaded, retained
+the slot's one-Shine progress, rendered the native plaza arrival sequence, and
+reached player control in the release APK. Its police arrival movie also played
+through. The repeated prison movie was skipped using its normal in-game Skip
+control after partial playback. Repeated debug gameplay checks used the
+SMS_SKIP_MOVIES flag; the flag does not skip native 3D camera sequences.
+
+Back returns to LauncherActivity and removes the game process. A cleanup race
+in exit() was found and fixed: the dedicated Android game process now flushes
+its log and terminates without global destructors racing SDK worker threads.
+A subsequent normal Play starts a fresh process and plays the opening movie.
+The corrected exit log has no FORTIFY mutex-abort messages.
+
+Performance and limits
+----------------------
+At 1x internal resolution and the 60 fps setting, the debug overlay showed
+roughly 18–20 fps at the title and 1–1.2 fps in Delfino Plaza. Plaza rendering
+cost roughly 750–900 ms per frame, with game logic roughly 35–45 ms. Expensive
+GLES ordered numeric pixel-metric draws are a principal renderer bottleneck.
+Removing per-triangle synchronous uniform queries and GPU index readbacks
+resolved multi-minute frame stalls, but does not make this emulator playable
+at full speed. These measurements are not an AYN Thor benchmark.
+
+In the release build's plaza arrival, another overlay sample showed 1.5 fps,
+635.9 ms rendering, 33.5 ms game logic, and 674.6 ms average total frame time.
+Release movie playback showed a stable 30 fps. Neither the debug nor release
+plaza measurements establish performance on native ARM64 handheld hardware.
+
+Physical handheld performance, thermals, controller feel, rumble, audible
+output, and actual 16 KiB-page runtime remain untested. The emulator was
+started with host audio disabled; the Android audio queue initialized, but
+audibility is not claimed. Keyboard input validates control functionality,
+not a physical gamepad. This launcher currently covers the base game; Eclipse
+and HD texture-pack installation remain desktop-launcher features.
+
+Local evidence
+--------------
+Logs and screenshots are in /home/netflix/android-work/validation/ and
+/home/netflix/android-work/tools/. Key logs: android-gx-async-final.log,
+android-final-native-save-game.log, android-native-save-hashes.txt,
+android-clean-exit-game.log, android-release-v2-apk-audit.txt,
+apk-build-clean-exit.log, launcher-tests-final.log,
+desktop-gx-android-final.log, and desktop-hires-android-final.log.
+Full-window screenshots capture the real emulator title bar and side controls.
+
+2026-10-11 performance follow-up (v3)
+------------------------------------
+The Android pollution callback now ends its completed numeric pixel-metric
+scope after reading it. Ordinary scene drawing no longer counts unused
+samples; subsequent Clear starts the next scope. Ordinary GX reads remain
+cumulative. GLES 3.1 ordinary draws also reuse retained CPU indices instead
+of reading index data back from the GPU to emulate base-vertex draws.
+
+Three additional regression checks cover cumulative reads, exclusion of
+later draws after explicit scope end (including repeated end), and restart
+with Clear. Android emulator GX 63/63, desktop GX 63/63, desktop HD texture
+checks 0 failures, and launcher Node 227/227 passed. The Android 15 ReDroid
+container also passed all 63 renderer checks on actual ARM64 libraries using
+its installed native bridge and SwiftShader GLES 3.2.
+
+Debug and release v3 APK builds succeeded. The development-signed release
+APK is validation/sms-launcher-arm64-release-test-v3.apk, SHA256:
+c75b61349c08e08b153119b5299eb76a3b57ebb762c71fbf6cf2106866886d56
+It contains only arm64-v8a SDL2, sms, and smsbootstrap libraries. All three
+have at least 16 KiB ELF LOAD alignment; zipalign -P 16 and v3 signature
+verification passed. No ROM, save, or debug self-test is bundled.
+
+The release played the ordinary opening movie at about 30 fps and reached
+the title. It loaded the existing Android-written one-Shine save, played
+prison/police movies (manually skipped where the A Skip prompt allowed),
+rendered the full native plaza camera sequence, reached player control,
+and rendered Mario jumping and moving. Android Back removed the game PID
+and resumed the launcher; the log has no FORTIFY mutex abort. The original
+desktop save hash remains 40c7263250c74316c3ae7a838012ca8fffe893ae4b6f2e4fcbcac88168c746ca.
+
+Observed debug plaza gameplay samples were 2.4–2.9 fps. Release arrival
+showed 5.3 fps (190 ms total, 157 ms GX); player-control samples were
+1.6–2.3 fps (426–610 ms total), compared with earlier baseline gameplay
+1.1–1.5 fps. These are scene samples, not a controlled same-frame benchmark.
+The release follow-up used the same Android 35 ARM64-translation emulator
+and NVIDIA host GLES, with a headless window and 1536 MiB guest RAM instead
+of the earlier 2560 MiB; the separate Android container/viewer also ran.
+These results do not establish AYN Thor performance.
+
+Container OS viewer and cleanup
+-------------------------------
+A separate Android 15 64-bit-only ReDroid container and KasmVNC/scrcpy viewer
+run locally at http://192.168.50.100:6901/. The browser viewer's authenticated
+HTTP endpoint responded successfully, and its real desktop/Android window
+was captured and inspected. Product-native browser automation RPC calls
+failed even for about:blank; browser automation inspection is not claimed.
+
+The downloaded ReDroid image advertised ARM64 but lacked translation
+libraries. Libraries from the already-working Android 15 SDK emulator,
+including libberberis_exec_region.so, were installed locally. ARM64 renderer
+checks then passed; game startup and movie rendering initially worked, but ordinary
+game startup stalled on a black scene after movie playback. The follow-up
+below fixes that loading hang and validates container save loading/gameplay.
+Its GPU uses SwiftShader software rendering; it is not a handheld benchmark.
+
+At the user's request, retired Android 30 emulator data/system image, unused
+Android 35 snapshots, superseded build caches, SDK/JDK download archives,
+and temporary raw captures were removed: about 10.4 GiB of allocated task
+files. Worktrees, current SDK/build dependencies, emulator 35 save data, ROM,
+save backups, final APKs, and validation evidence were preserved. Cleanup
+manifest: validation/task-cleanup-2026-10-11.json. No unrelated Docker
+containers or volumes were pruned.
+
+2026-10-11 container gameplay and final PR build (v4–v6)
+-------------------------------------------------------
+Slow Android presentation consumed the retrace interval, keeping the main
+SDK thread runnable and starving lower-priority stage-loading work. Android
+frame waits now block for one retrace when background loading is runnable
+and the frame has not already waited. Deterministic and desktop timing paths
+are unchanged. At the normal VI clock, both debug and optimized release
+container builds now reach the title, load slot A's one-Shine save, render
+the full native plaza arrival and reach player control. Jumping and movement
+were observed. Back closes the game process without a FORTIFY mutex abort.
+Prerecorded movies were skipped for these gameplay/performance runs.
+
+ReDroid Android 15 is 64-bit-only x86_64 with the same ARM64 bridge, ANGLE
+SwiftShader GLES 3.2, 1280x720 landscape, 1x internal scale, 16:9 and the
+60 fps game setting. Backend RAM is capped at 3 GiB; viewer RAM at 1 GiB.
+Release v4 stationary plaza samples, each 45 seconds with the first partial
+30-frame window discarded:
+  2 CPU quota: 120 measured frames, 297.8 ms/frame, 3.36 fps.
+  3 CPU quota: 240 measured frames, 160.225 ms/frame, 6.24 fps.
+  2 CPU repeat with unrelated host builds: 90 frames, 341.9 ms, 2.92 fps.
+The host is an i5-6600K with four cores; CPU contention and dynamic scene
+activity limit comparisons. These are software-renderer observations, not
+physical-device FPS predictions. The NVIDIA DRM host path is not supported
+by this container setup, so it cannot use the host GPU directly here.
+
+The ordinary overlay's swap field includes driver completion waits, not
+only exchanging buffers. Its explicit GPU-wait field measures separate
+fence/readback waits. An optional Android-only SMS_GX_FINISH_BEFORE_SWAP=1
+diagnostic forces glFinish before swapping and logs both durations; default
+is off. In a 45-second v5 plaza gameplay diagnostic, 210 measured frames
+averaged 121.4 ms waiting for render completion and 2.9 ms in buffer swap.
+Total was 197.57 ms/frame (5.06 fps). This serializes rendering and is not a
+normal benchmark or an asynchronous GPU timestamp.
+
+Both repositories incorporated main's fixes before the final v6 build.
+assembleDebug and assembleRelease passed. Final desktop GX: 63/63; Android
+container GX: 63/63; launcher Node tests: 228/228. v3 desktop HD checks remain
+zero failures. The v6 optimized release APK has exactly three ARM64 libraries,
+all PT_LOAD aligned to 16384 bytes; zipalign -P 16 and signature verification
+passed. Release omits self-test libraries and diagnostic intent handling.
+The test APK is development-signed, not production-signed, and contains no
+ROM or save data. Physical-device performance, thermals, audio/controller
+feel, rumble and actual 16 KiB runtime still require tester validation.
+
+Final test APK: sms-launcher-arm64-release-test-v6.apk
+SHA256: 1ea42bf3c3706d69ea2d62be52e0a872edbef883155b58ba50a54c3a929c6f69
+Local logs: apk-build-pr-final-v6.log, launcher-tests-pr-final.log,
+desktop-gx-pr-final.log, android-container-v6-gx-observed.txt, and
+android-container-v4-gameplay-{2cpu-a,3cpu,2cpu-b-contended}.{log,json}.
+Swap diagnostic: android-container-v5-swap-diagnostic.{log,json,split.json}.
+
+2026-10-12 Adreno 750 black-screen fix (v7)
+-------------------------------------------
+A tester reported immediate black video with audio on an S24 Ultra running
+Android 16. The supplied game log identifies Qualcomm Adreno 750 GLES 3.2
+V@0762.41 and successful context creation, followed by repeated shader
+compile/link errors: gl_ClipDistance is a reserved built-in name. The error
+is at the adapter's explicit standalone out float gl_ClipDistance[2] line.
+
+The GLES adapter now relies on EXT_clip_cull_distance's predeclared array
+and sizes it implicitly with constant indices 0 and 1, as the extension
+specification allows. The extension, writes and both hardware clip planes
+remain enabled. Shader failure logs now show the adapted GLES source sent
+to the compiler. The shader cache already hashes adapted source, so changed
+programs automatically invalidate previous binary cache entries.
+Specification: https://registry.khronos.org/OpenGL/extensions/EXT/EXT_clip_cull_distance.txt
+
+Three pixel checks exercise near/far rejection and retained inside geometry
+on contexts supporting clip distances. Android ReDroid with shader cache off:
+66 passed, 0 failed, with 13 shaders compiled and no GL errors. Desktop GX:
+66 passed, 0 failed. Launcher Node: 228 passed, 0 failed. Debug and optimized
+release APKs compiled; v7 retains ARM64-only libraries, 16 KiB ELF/APK
+alignment and a verified development signature. Release startup at 30 fps,
+1x scale and 4:3 rendered the native title with shader caching disabled;
+no shader compile/link errors were observed in the captured startup log.
+Prerecorded movies were skipped in that local startup check.
+
+The updated APK was installed over the previous build with ROM/save data
+retained. The Adreno device itself is not available here: the replacement
+still requires an S24 Ultra retry to confirm the reported device now renders.
+This does not claim Android 16 or Adreno hardware validation from the Android
+15 software-renderer test.
+
+APK: sms-launcher-arm64-release-test-v7.apk
+SHA256: 55fec6f4ebb74086c61f93e8433fa41274e79cac7d0a39d74da4d44b276c4d6b
+Logs: android-container-v7-gx.log, android-container-v7-release-startup.log,
+desktop-gx-adreno-v7.log, launcher-tests-adreno-v7.log,
+apk-build-adreno-v7-final.log, android-release-v7-apk-audit.json,
+and android-release-v7-signature.txt.
+
+2026-10-12 Android game classification and performance hints (v8)
+----------------------------------------------------------------
+The S24 Ultra tester confirmed v7 renders gameplay, selected 60 FPS and
+reported lower clocks/FPS without screen recording, with approximately
+61 Surface FPS while recording. The recording screenshot shows about
+2246 MHz on the CPU cluster and 422 MHz GPU, compared with the prior
+231 MHz GPU sample. These are tester reports/snapshots, not a controlled
+same-camera benchmark or a sustained device performance guarantee.
+
+The manifest now declares appCategory=game, verified in the compiled APK
+as category 0. This identifies the application for game policies; it does
+not grant extra cores/RAM or bypass power/thermal limits. Optional Android
+12+ performance hints register the native frame-producing SDK thread and
+its GL worker when enabled. Android normally executes both on one thread;
+IDs are deduplicated. The frame-work cycle is reported before the SDK's
+intentional retrace sleep and restarted afterward. Driver/graphics waits
+remain included: this is wall time on the frame-production path, not an
+asynchronous GPU time or CPU utilization measurement. The target follows
+actual frame cadence, including 30 fps menus/movies and 60 fps gameplay.
+
+Runtime symbol lookup preserves Android 10/11 support. Missing/rejected
+services disable hints once. Backgrounding closes the session and discards
+partial timing; returning recreates it. Shutdown explicitly closes it.
+The default-on Android performance hints checkbox allows device comparisons;
+the default-off Show performance overlay checkbox exposes the port's own
+FPS and game/GX/presentation/swap/idle measurements. Both persist preferences
+and are written by ordinary launcher Play.
+
+Debug and optimized release builds passed. Android and desktop GX: 66/66;
+launcher Node tests: 228/228. The standalone performance-hint controller test
+passed thread-group selection/deduplication, invalid budgets, target updates,
+thread replacement, pause/resume and rejected/unsupported service handling.
+The Android container accepted a real hint session and work reports. The
+observed budget changed from 33.37 ms to 16.68 ms when loading slot A into
+the game. The ordinary Play exercised movie playback and the port overlay;
+Back returned to the launcher and removed the game PID. Turning the hints
+checkbox off and pressing Play wrote SMS_ANDROID_PERFORMANCE_HINTS=0 and
+logged performance hints disabled, with ordinary video still rendering.
+This does not test whether Samsung's scheduler raises clocks or whether FPS improves on device.
+
+v8 APK: sms-launcher-arm64-release-test-v8.apk
+SHA256: e1654de7344a2fef8662be9530f153b42ce6322d1c8a4db1ce49c65065ecc9ed
+ARM64-only libraries; 16 KiB ELF/APK alignment and development signature
+verified. Install over the previous preview with existing ROM/save retained.
+Logs: android-container-v8-gx.log, android-container-v8-hints-on.log,
+android-container-v8-hints-off.log,
+desktop-gx-performance-v8.log, launcher-tests-performance-v8.log,
+performance-session-tests-v8.log, apk-build-performance-v8-final.log,
+android-release-v8-apk-audit.json and android-release-v8-signature.txt.
+
+
+v9 policy/headroom candidate (2026-10-12)
+-----------------------------------------
+The S24 Ultra / Android 16 tester reports no improvement from v8 during
+ordinary, non-recorded play. Its exported log shows accepted hint sessions,
+but only a startup work measurement; acceptance is not evidence of boosting.
+Notifications, touches and screen recording reportedly raise clocks and
+restore near-60 FPS. This is an observation, not an isolated cause.
+
+v9 changes the actual Android requests, beyond diagnostics:
+- Game State reports pausable gameplay while the game activity is resumed,
+  and MODE_NONE on pause, on Android 13+. Game Mode is queried on resume;
+  no game-mode configuration overrides OEM interventions, and the app
+  cannot select Performance mode itself.
+- Default-on Request performance headroom sets ADPF's target to 80% of the
+  real frame interval, about 13.35 ms at nominal 60 FPS. Work reports are not
+  inflated, game speed is unchanged, and disabling it restores v8's target.
+- Optional Android 15 power-efficiency preference is explicitly false;
+  false is already the OS default, so that call alone is not a boost fix.
+- Default-on Match display refresh to game FPS sends a Surface rate hint
+  on Android 11+. Actual display refresh remains the OS's choice.
+- Optional hidden-overlay timing logs include steady work/pacing/present
+  timings and main-thread CPU time. Frequency reads may be unavailable.
+
+Validation for v9: debug/release Android builds passed; host graphics 66/66
+with timing logging enabled, including hidden-overlay no-upload checks;
+launcher Node tests 228/228; hint controller tests cover headroom budgets,
+thread grouping/lifecycle, basic service failures and optional-policy
+rejection without losing basic hints. APK signature and 16 KiB ELF/APK
+alignment pass. ARM64 only; no disc, save or self-test in the release APK.
+
+No v9 Android runtime/container/emulator test or benchmark was run, per the
+user's instruction. Previous Android correctness checks described above
+apply to earlier revisions. v9's Android lifecycle/API behavior and effect
+on Samsung clocks/FPS require a tester run; no performance gain is claimed.
+
+APK: sms-launcher-arm64-release-test-v9.apk
+SHA256: 4bad831387adb81e5efe5326ea80a1e71486277190953ea43d92a48299ebeb78
+Install over v8 with the same development signing key; retain disc/save.
+For comparison: 60 FPS, scale 1, performance hints/headroom/display match on,
+recording off. To diagnose, enable Log performance timings, leave a fixed
+plaza view for 30 seconds without screen touches or notifications, return
+with Back, and Export game log before another Play. Compare headroom off
+in the same scene if performance remains low. Do not treat Surface FPS as
+proof of game logic cadence.
+Logs: apk-build-policy-v9.log, desktop-gx-policy-v9.log,
+launcher-tests-policy-v9.log, performance-session-tests-v9.log,
+android-release-v9-signature.txt, android-release-v9-apk-audit.json.
+
+
+v10 build identification (2026-10-12)
+------------------------------------
+Both panels now use fixed headings, explicit swipe hints, persistent overflow
+scrollbars, and tighter spacing within separate cards. Adds an always-visible
+launcher footer with version, Android preview number,
+build variant, ARM64 and launcher/game source revisions. Game logs include
+that metadata at startup. Android version name now includes preview.10;
+version code increases from 15700 to 15710. This is a build-identification
+change. Following a report that v9 ran much slower (near 30 FPS until a
+screenshot temporarily raised it), experimental headroom and display
+matching now default off. The original full-frame ADPF deadline is used
+unless explicitly enabled. Existing saved choices are preserved, so upgraded
+testers should check those switches manually. The cause and improvement
+remain unverified.
+The game revision is read from the actual port checkout, rather
+than the desktop release pin. Modified tracked sources are marked; Gitless
+archives explicitly show unknown. Release builders must increment the
+preview property and commit sources before generating each tester APK.
+
+No Android container/emulator run or benchmark is permitted for this
+follow-up. Validate compilation, host launcher checks, embedded APK
+metadata, development signature and ARM64/16 KiB packaging. Actual Android
+footer rendering and installer behavior still require the tester's device.
+
+
+v11 performance-core candidate (2026-10-12)
+------------------------------------------
+The tester reports no effect from hints and headroom separately or in their
+on/off combinations. No conclusion about Samsung accepting clock requests
+is drawn from API success. ARMSX2 2.6.7 documents big/prime group affinity
+as its default, while ADPF was introduced off by default in 2.6.5. Source
+inspection at 6cfb3070664ceeb3c0efdcc8aa5362ed3a090c64 confirms group
+placement. Our port previously set no Android core affinity.
+
+v11 adds optional Use performance CPU cores (default off). Before native
+hint-session setup, the current frame producer and optional GL worker can
+restrict themselves to a group within their current allowed CPU masks.
+Complete cpu_capacity metadata is preferred, then complete cpuinfo_max_freq
+metadata; scales are not mixed. Cores at least 75% of the peak ranking are
+selected, only if that identifies a distinct group with at least two cores.
+Missing metadata, a homogeneous/already-narrow mask or a lone prime leaves
+placement unchanged. Rejected affinity calls also fall back. No individual
+core numbers are hard-coded, clock speed is not forced, and no helper work
+is manufactured to raise clocks. Each participating thread attempts once
+per game process and logs requested/effective masks or a fallback reason.
+The option works with ADPF disabled. Existing headroom/display options
+remain opt-in. Version preview.11 / Android version code 15711.
+
+Do not run the Android container/emulator for this follow-up. Validate the
+host topology-selection/controller tests, launcher checks, Android builds,
+APK source/version metadata, signature and ARM64/16 KiB packaging. Actual
+Android affinity acceptance, UI and performance require a physical tester.
+Suggested device comparison: 60 FPS, resolution1, hints/headroom/display
+matching off, recording off, same fixed stage view; performance CPU cores
+off then on, with a new Play session after each change. Export the game log
+to confirm whether a mask was actually applied. Battery Saver off and a
+charged/cool phone help keep the comparison consistent. No FPS gain claimed.
+
+
+v12 background pacing fix (2026-10-12)
+--------------------------------------
+The tester confirmed v11 applied CPUs 2–7 but performance cores alone did
+not help. Hints/headroom combinations also had no effect. Their all-options-
+off timing log shows roughly 11–13 ms average frame work, 0.5–0.6 ms swaps,
+and frequent 33–35 ms frames with 29–66 background yields per 120 frames.
+CPU frequency samples reach 3.15 GHz, so low clocks alone do not account
+for these drops. Separate log windows are not perfectly aligned; do not
+infer an exact per-frame correlation from adjacent summary lines.
+
+The old background fallback waited for another VI retrace whenever a frame
+was already due and a lower-priority SDK worker was runnable. v12 instead
+temporarily blocks the frame producer for a cooperative worker turn. It
+returns as soon as workers block/exit or after a 1 ms budget at an SDK
+scheduling checkpoint. Uninterrupted native work can exceed that budget.
+Normal frame targets, SDK priorities and optional performance settings are
+preserved. Background average/max time is added to existing pacing logs.
+Android version preview.12 / version code 15712.
+
+Host regression tests run the actual Android-configured scheduler and VI
+frame-wait code without a ROM, GPU or VI timer. They cover short jobs,
+continuously runnable yield/poll jobs, higher-priority work, IRQ-state and
+scheduler guards, worker exit and repeated handoffs. An already-due frame
+returns without a new retrace, retaining background progress. Existing
+fallback code stalls in that same no-timer regression fixture. Existing
+32/64-bit frame-rate checks pass. Android builds and APK packaging are
+validated separately; no Android container/emulator runtime test is run.
+
+Device comparison: keep 60 FPS, scale 1, performance hints, headroom,
+display matching and performance CPU cores OFF; Log performance timings
+ON. Skip movies for steady gameplay comparison. Use the same stationary
+plaza view without recording or touching the screen, then export the log
+before another Play. Check title/save/stage loading still completes. No
+device FPS improvement is claimed before the tester runs this candidate.
+
+
+v12 tester result and v13 widescreen CPU work (2026-10-12)
+---------------------------------------------------------
+The S24 Ultra tester calls v12 "way faster". A supplied 4:3 log shows
+sustained game/shown 59.94 FPS after loading with roughly 12.6–12.8 ms
+average work, about 4 ms intentional wait and performance hints/cores off.
+A widescreen log shows roughly 55–60 FPS and 17–18 ms work during slower
+sections. Background handoffs are short (about 0.3 ms per frame in those
+widescreen sections). Frequency readings are point samples, not sustained
+measurements. Both logs include loading/menu/cutscene transitions; these
+are not a controlled same-camera comparison or proof that every extra
+millisecond comes from layout, pixel count or clock policy.
+
+v13 reduces known CPU work in widescreen layout. Centred artwork and 3D HUD
+pieces with an existing pane anchor avoid unnecessary bounds scans. Bounds
+that are still needed walk cached vertex runs once, instead of rescanning
+the run list for every vertex, and reuse consecutive position matrices.
+The perspective-aspect threshold is computed once at widescreen setup.
+Existing compiler optimization and floating-point rules are preserved. Resolution,
+field of view and normal frame targets remain unchanged. Existing timing
+logging adds vertex/draw/texture/copy/peek detail; no new setting is needed.
+Android version preview.13 / version code 15713.
+
+Validation uses host bounds equivalence fixtures and actual headless desktop
+GL pixel checks at 1x/2x, including HUD anchors, unanchored HUD, full/partial
+artwork, wipes, scissors and mixed stream/arena batches. The pre-change
+renderer also passes the placement fixtures. A CPU-only bounds benchmark
+measures the routine's speed; it does not predict Android game FPS.
+An experimental -O3 host build exposed graphics failures with the optional
+GL worker; that compiler change is excluded from this candidate.
+Build the actual Android debug/release APK and audit source metadata,
+signature and ARM64/16 KiB packaging separately. No Android runtime,
+container or emulator run/benchmark is performed for this follow-up.
+
+Device comparison: 60 FPS, scale 1, widescreen 16:9; hints/headroom/display
+matching/performance cores OFF, timing logs ON. Compare v12/v13 in the
+same stationary scene without recording/screenshots/touches. Check HUD,
+fades and save/stage loading. Export the log before another Play; use the
+GX breakdown to distinguish decoder, draw, texture, copy and peek costs.
+No physical-device FPS improvement from v13 is claimed before testing.
+
+
+v14 Android input monitor (2026-10-12)
+-------------------------------------
+The user reports no input from a generic controller through a C3tech adapter
+and requests a keypress monitor for wireless keyboards. Model/device details
+are not yet supplied, so no adapter-specific mapping is assumed.
+
+Input test under Saves and diagnostics captures Android input directly in
+a separate launcher activity. It lists Android input devices with names,
+VID/PID, sources and axis ranges, plus USB device enumeration without opening
+USB devices or requesting access. Live key down/up/repeats, unknown-key scan
+codes, modifiers, held buttons and controller axes appear in scrolling panels.
+Device connect/disconnect updates inventory; Refresh handles USB-only adapters.
+Controller Back is captured; Done/system Back closes the screen. Capture and
+listeners stop on pause, and held state clears on focus loss/disconnect.
+Export snapshots build/phone/device metadata and the last 256 events to the
+document picker. Motion history is throttled while live axes remain current.
+No input is monitored outside this test screen, and no new permissions are added.
+
+Pure-Java host tests cover independent device/scan-code identities, key release,
+disconnect, axes/history throttling, bounded history, focus loss and clear.
+Run JAVA_HOME=... bash android/tests/check-input-monitor.sh. Android compilation
+checks actual Activity/InputDevice/KeyEvent/MotionEvent/USB/document-picker APIs;
+launcher Node tests and static signed APK audits are separate checks. Actual
+UI, wireless keyboard/C3tech events, hotplug and picker export need a device.
+No Android container/emulator is run, per the user's continuing instruction.
+Version preview.14 / version code 15714; native game remains the v13 revision.
+
+
+v15 MEM1 address-collision fix (2026-10-12)
+-------------------------------------------
+An Adreno 740 tester's v13 log reports the game library at 0x38000000 and
+failure to map MEM1 at 0x80000000. The old arbitrary mmap fallback placed
+MEM1 at 0x7126bc8000; raw arena fields then show truncated 0x26bc... addresses.
+SIGSEGV at libsms.so+0x71b338 / address 0xA717C78C resolves against the matching
+v13 symbols to gx::loadComp<short,false> in gx_fifo.cpp during display-list
+vertex decoding. SDK conversions and GX still used their preferred base.
+
+The fix retains preferred placement when free, otherwise selects a complete
+arena inside the compatibility address window without replacing system pages.
+It scans fragmented low gaps, then upper-half ranges if needed, rejecting
+ArenaHi at/above 4 GiB and any unsafe high heap fallback. Android SDK physical
+addresses become relative to the actual arena, cached/uncached CPU aliases
+share it, and GX receives its base/size before game commands. Native boot-info
+writes follow the arena. The app remains ARM64; this preserves legacy address
+fields rather than changing the process architecture. Desktop SDK behavior
+is preserved by the Android-only translation patch.
+
+Host regression coverage uses the actual runtime and patched SDK header:
+preferred mapping, occupied preferred mapping, 1 MiB fragmentation, upper-half
+fallback, pointer/rounding/physical-alias round trips, renderer-window callback,
+sentinel preservation, and exhausted compatible space with a free but invalid
+4 GiB endpoint. It does not run a ROM, GPU or Android OS. Android debug/release
+compilation, existing scheduler/frame-rate/graphics checks, launcher checks and
+static signed APK audits are separate validation. No Android container/emulator
+runtime test is performed. Actual title/save/stage loading and movies on the
+affected device still need tester confirmation. Preview.15 / version code15715.
+
+
+v16 J3D texture/palette relocation fix (2026-10-12)
+-------------------------------------------------
+Physical v15 log from Adreno740 confirms MEM1 at 0x40800000 and matching SDK
+arena/audio addresses, with no crash in the supplied snippet. Tester reports
+no image after skipping the intro. Two actual JRenderer GD command writers
+use OSPhysicalToCached on cached texture/palette pointers, a retail shortcut
+that only works with the original base. For example, at base0x40800000 an
+image0x40900000 is incorrectly decoded as0x41900000 by the old command.
+Android-only patched writers now encode OSCachedToPhysical(pointer)>>5;
+texture registers and all palette selector/load/flush bytes stay unchanged.
+Desktop writers and v15 release/APK stay unchanged.
+
+New host script platform/tests/check_j3d_addresses.sh compiles real writers
+and SDK adaptation, reproduces old failure, then passes 68640 command checks
+with fixed Android writers across five bases, eight slots and varied offsets,
+and 13728 checks for the unchanged preferred-base desktop path. Independent
+checks cover exact BP bytes/opcodes/count, physical offsets/pointer round trips,
+write guards and unchanged palette sequence. No ROM, GPU or Android OS is run
+by that fixture. NDK debug/release compilation and signed APK audits follow.
+No Android container/emulator test is performed. Actual texture/image recovery,
+intro playback/skipping, save and stage loading require physical retesting.
+Preview.16 / version code15716. No clock/performance-policy change.
+
+
+v17 legacy USB Gamepad mapping (2026-10-12)
+------------------------------------------
+Physical Input test report: v16 on moto g53 5G/Android14 detects0810:0001 USB
+Gamepad, keyboard+joystick sources, X/Y/Z/RZ+HAT_X/Y, genericBUTTON_1..12.
+SDL2.32.10 forwards keyboard-source keys from a joystick device correctly,
+but its Android generated mapping rejects devices without namedA/B/X/Y keys.
+The game listens to mapped controller events and never opens this raw device.
+
+Native Android fallback adds an exact live-GUID SDL mapping for the unmapped
+0810:0001 four-axis/numbered-button layout only. Generic keys map to raw20..31;
+D-pad hats are already converted to raw11..14. Profile assignments translate
+SDL's existing Linux PS1 profile for this VID/PID. Existing/user mappings and
+other devices/layouts are preserved. Open immediately after adding the profile
+because this SDL API does not emit another controller-add event; instance-ID
+guards prevent duplicate opens. Normal removal/reconnect/rumble paths remain.
+The accepted profile is logged. No SDL dependency or Java input code is edited.
+
+Host fixture uses SDL2.30 virtual joystick with actual SDL mapping/event
+conversion, without video/Android: profile exclusions, mapping recognition,
+numbered face/shoulder/start/select/stick buttons, full digital triggers,
+D-pad/stick axes, releases and reconnect with a distinct instanceID. Android
+NDK compilation uses bundledSDL2.32.10. Existing host graphics and launcher
+checks, debug/release APK compilation and static audits are separate checks.
+No Android emulator/container is run. Physical game input and the exact face,
+shoulder and right-stick assignments still require the tester. No controller
+compatibility/performance guarantee is made before that test. Preview17/code15717.
+
+
+v18 controller configuration in Settings (2026-10-12)
+----------------------------------------------------
+User clarified they wanted their own mapping UI, beyond v17's adapter profile.
+Added a private landscape ControllerConfigActivity under Game settings with
+per-device selection, Assign/press or axis-direction capture, Cancel capture,
+Clear/unbind, Save per controller, Restore defaults, live key/axis preview and
+Done/discard-unsaved protection. Both panels scroll, headings/footer are fixed,
+insets handled. Device hotplug/disconnected saved profiles supported. Captures
+only selected device while active; repeated/held keys do not bind, first motion
+is primed if neutral data absent, focus/pause/disconnect cancel capture. Drafts
+serialize across Activity recreation; mappings stored in private preferences.
+
+Play atomically writes descriptor-CRC/VID/PID profiles and passes a private
+path to native code. Java button IDs and axis sorting match bundled SDL2.32.10.
+Trigger capture distinguishes endpoint-rest full axes from centred half axes;
+requested right/down movement detects inversion. Native code validates file,
+allowed targets/expressions and physical button/axis bounds, merges edited rows
+with automatic SDL bindings and opens the controller immediately when needed.
+A controller Back key explicitly bound to a game action bypasses app exit;
+Android navigation Back remains unchanged. Configured known VID/PID devices
+route through Android input instead of HIDAPI's different raw ABI; custom mode
+has no SDL controller rumble. Product-zero IDs never create a HIDAPI wildcard.
+Defaults remove overrides and restore driver choice next Play. No permissions
+or background input monitor added. Existing v15/v16/v17 artifacts preserved.
+
+Pure-Java checks validate key ABI, axis sorting, inversion, trigger rest/direction,
+noise rejection, CRC identity and bounded serialization. Actual host SDL virtual
+joystick checks validate profile parsing/identity/exclusions, override/clear/default
+merging, events, inversion and half-axis triggers; native builds use SDL2.32.10.
+Android Activity compile checks APIs; full debug/release and static APK checks
+follow. No Android emulator/container runtime test is performed. Actual UI,
+controller capture/persistence, restore, hotplug, Back behavior, rumble tradeoff
+and application to gameplay still require physical validation. Preview18/code15718.

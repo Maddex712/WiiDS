@@ -1,0 +1,37 @@
+Reason: port: SMS_WIDESCREEN_HUD=edges moves the HUD's pieces to the screen edges, but the 2D particles it emits at its panes (the coin counter's sparkle, the GO! trails) were drawn at the centred 4:3 position; drawing the director's 2D emitter manager as HUD moves each with the third of the screen it is in
+--- a/src/System/EmitterViewObj.cpp
++++ b/src/System/EmitterViewObj.cpp
+@@ -9,6 +9,16 @@
+ #include <Camera/Camera.hpp>
+ 
+ #ifdef TARGET_PC
++// sms_gx widescreen (SMS_WIDESCREEN_HUD=edges): the 2D particles the HUD
++// emits at its own panes (the coin counter's digit sparkle, the GO! letters'
++// trails) are drawn by the director's 2D emitter manager, apart from the
++// HUD's panes. Drawn as HUD, each moves with the third of the screen it is
++// in, as the pane it was emitted at does.
++extern "C" void GXPC_SetHud(int on);
++extern JPAEmitterManager* gpEmitterManager4D2;
++#endif
++
++#ifdef TARGET_PC
+ #include "port_framerate.h"
+ 
+ // JPA uses whole 1/60 s simulation steps. A 120 fps animation rate is 0.5,
+@@ -79,7 +89,16 @@
+ 
+ 	if (cue & CUE_DRAW) {
+ 		JPADrawInfo drawInfo(graphics->getViewMtx());
++#ifdef TARGET_PC
++		bool hud = unk10 == gpEmitterManager4D2;
++		if (hud)
++			GXPC_SetHud(1);
+ 		unk10->draw(&drawInfo);
++		if (hud)
++			GXPC_SetHud(0);
++#else
++		unk10->draw(&drawInfo);
++#endif
+ 	}
+ }
+ 

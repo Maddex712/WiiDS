@@ -1,0 +1,17 @@
+Reason: g++: case label jumps over initialised local turnHit; brace the case body
+--- a/src/Enemy/gesso.cpp
++++ b/src/Enemy/gesso.cpp
+@@ -664,11 +664,13 @@
+ 		mVelocity.y -= getGravityY();
+ 		if (mVelocity.y < mVelocityMinY)
+ 			mVelocity.y = mVelocityMinY;
++		{
+ 		bool turnHit = isBckAnm(18);
+ 		if (turnHit) // geso_turn_hit1.bas
+ 			mState = 4;
+ 		else if (mThroughHoseiDistY * 0.5f + mPosition.y < unk1A4)
+ 			mState = 4;
++		}
+ 		break;
+ 
+ 	case STATE_ROLLING:

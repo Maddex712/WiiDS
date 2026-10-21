@@ -1,0 +1,9 @@
+// Verification only. Compile the Android shell without pretending the absent game
+// libraries or generated PowerPC translation are available. Never package with this.
+gradle.beforeProject { project ->
+    project.afterEvaluate {
+        if (project.plugins.hasPlugin('com.android.application')) {
+            project.android.externalNativeBuild.cmake.path = null
+        }
+    }
+}

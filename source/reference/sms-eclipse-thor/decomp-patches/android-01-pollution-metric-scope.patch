@@ -1,0 +1,25 @@
+Reason: Android: stop completed pollution metric scopes before ordinary scene drawing; keep numeric results and normal cumulative GX reads intact
+
+--- a/src/Map/PollutionCount.cpp
++++ b/src/Map/PollutionCount.cpp
+@@ -1,4 +1,8 @@
+ #include <Map/PollutionCount.hpp>
++
++#ifdef __ANDROID__
++extern "C" void GXPC_EndPixMetric(void);
++#endif
+ #include <Map/PollutionLayer.hpp>
+ #include <Map/PollutionManager.hpp>
+ #include <MarioUtil/ReinitGX.hpp>
+@@ -61,6 +65,11 @@
+ 	u32 discard;
+ 	GXReadPixMetric(&discard, &discard, &discard, &discard, mCounters[token],
+ 	                &discard);
++#ifdef __ANDROID__
++	// Every pollution count starts with GXClearPixMetric. Nothing reads the
++	// intervening world draws, so leave them out of this completed scope.
++	GXPC_EndPixMetric();
++#endif
+ 	*mCounters[token] -= mPolygonCount[token] * 4;
+ }
+ 

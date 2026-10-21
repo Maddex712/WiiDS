@@ -1,0 +1,541 @@
+Reason: Language packs: GO!, SHINE! and TOO BAD! have as many letters as big_tx_1.blo has (up to 12), not English's 3, 6 and 7
+--- a/include/GC2D/ConsoleStr.hpp
++++ b/include/GC2D/ConsoleStr.hpp
+@@ -62,6 +62,20 @@
+ 	/* 0x2A8 */ JPABaseEmitter* unk2A8[3];
+ 	/* 0x2B4 */ int unk2B4;
+ 	/* 0x2B8 */ int unk2B8;
++#ifdef TARGET_PC
++	// Port: the shouts' letters, as many as big_tx_1.blo has. The fields above
++	// hold English's 3 (GO!), 6 (SHINE!) and 7 (TOO BAD!); a language pack's
++	// words have up to 12 (C'EST PARTI !, BRAVISSIMO !, DOMMAGE !).
++	enum { cMaxLetters = 12 };
++	TBoundPane* mGoPanes[cMaxLetters];
++	JUTPoint mGoTrail[cMaxLetters][22];
++	JPABaseEmitter* mGoEmitters[cMaxLetters];
++	TBoundPane* mShinePanes[cMaxLetters];
++	TBoundPane* mMissPanes[cMaxLetters];
++	int mGoCount;
++	int mShineCount;
++	int mMissCount;
++#endif
+ };
+ 
+ #endif
+--- a/src/GC2D/ConsoleStr.cpp
++++ b/src/GC2D/ConsoleStr.cpp
+@@ -79,6 +79,33 @@
+ 	return table[(u8)scenario];
+ }
+ 
++// Port: the panes 'xx00', 'xx01', ... of one of the shouts, as many as the
++// layout has (English: GO! 3, SHINE! 6, TOO BAD! 7; a language pack's up to
++// TConsoleStr::cMaxLetters).
++static int ConsoleStrLetters(J2DScreen* screen, char a, char b, TBoundPane** panes)
++{
++	int n = 0;
++	while (n < TConsoleStr::cMaxLetters) {
++		u32 tag = (u32)a << 24 | (u32)b << 16 | (u32)('0' + n / 10) << 8 | (u32)('0' + n % 10);
++		if (!screen->search(tag))
++			break;
++		panes[n++] = new TBoundPane(screen, tag);
++	}
++	return n;
++}
++
++// Port: where GO!'s letter `i` of `n` flies once it has landed: English's
++// three go up-left, up and up-right; longer words spread over the same arc.
++static void ConsoleStrGoFlight(int i, int n, JUTPoint& mid, JUTPoint& end)
++{
++	f32 t  = n > 1 ? (f32)i / (n - 1) : 0.5f;
++	f32 x  = t < 0.5f ? -170.0f * (1.0f - 2.0f * t) : 160.0f * (2.0f * t - 1.0f);
++	f32 up = 1.0f - (t < 0.5f ? 1.0f - 2.0f * t : 2.0f * t - 1.0f);
++	int mx = (int)x, my = (int)(-180.0f - 40.0f * up);
++	mid.set(mx, my);
++	end.set(mx * 2, my * 2);
++}
++
+ void TConsoleStr::load(JSUMemoryInputStream& stream)
+ {
+ 	JKRArchive* arch = SMSSwitch2DArchive("guide", gArBkConsole);
+@@ -88,18 +115,18 @@
+ 	unk14 = new J2DSetScreen("scenario_demo_1.blo", arch);
+ 	unk14->setCullBack(GX_CULL_BACK);
+ 
+-	for (int i = 0; i < 3; ++i) {
+-		unk28[i] = new TBoundPane(unk10, 'go00' + i);
+-		unk28[i]->getPane()->hide();
+-	}
+-
+-	for (int i = 0; i < 6; ++i) {
+-		unk244[i] = new TBoundPane(unk10, 'sg00' + i);
+-	}
+-
+-	for (int i = 0; i < 7; ++i) {
+-		unk25C[i] = new TBoundPane(unk10, 'ms00' + i);
+-	}
++	mGoCount = ConsoleStrLetters(unk10, 'g', 'o', mGoPanes);
++	for (int i = 0; i < mGoCount; ++i)
++		mGoPanes[i]->getPane()->hide();
++	mShineCount = ConsoleStrLetters(unk10, 's', 'g', mShinePanes);
++	mMissCount  = ConsoleStrLetters(unk10, 'm', 's', mMissPanes);
++	// the original fields, for anything that reads them
++	for (int i = 0; i < 3; ++i)
++		unk28[i] = i < mGoCount ? mGoPanes[i] : nullptr;
++	for (int i = 0; i < 6; ++i)
++		unk244[i] = i < mShineCount ? mShinePanes[i] : nullptr;
++	for (int i = 0; i < 7; ++i)
++		unk25C[i] = i < mMissCount ? mMissPanes[i] : nullptr;
+ 
+ 	for (int i = 0; i < 5; ++i) {
+ 		unk278[i] = new TExPane(unk10, 're00' + i);
+@@ -164,16 +191,15 @@
+ 
+ static inline JPABaseEmitter** ConsoleStrEmitters(TConsoleStr* p)
+ {
+-	JPABaseEmitter** emitters = p->unk2A8;
++	JPABaseEmitter** emitters = p->mGoEmitters;
+ 	return emitters;
+ }
+ 
+ void TConsoleStr::loadAfter()
+ {
+ 	JDrama::TViewObj::loadAfter();
+-	ConsoleStrEmitters(this)[0] = nullptr;
+-	unk2A8[1] = nullptr;
+-	unk2A8[2] = nullptr;
++	for (int i = 0; i < cMaxLetters; ++i)
++		ConsoleStrEmitters(this)[i] = nullptr;
+ }
+ 
+ // An inline level: retail lays trail/bounds/shrunk out ascending, as an
+@@ -182,30 +208,30 @@
+ {
+ 	int trail[3] = { 4, 10, 20 };
+ 
+-	u8 alpha       = self->unk28[i]->getPane()->getAlpha();
++	u8 alpha       = self->mGoPanes[i]->getPane()->getAlpha();
+ 	u8 fadedAlpha  = alpha;
+-	JUTRect bounds = self->unk28[i]->getPane()->getBounds();
++	JUTRect bounds = self->mGoPanes[i]->getPane()->getBounds();
+ 
+ 	for (int j = 0; j < 3; ++j) {
+ 		int slot = trail[j];
+-		JUTPoint& pt = self->unk34[i][slot];
++		JUTPoint& pt = self->mGoTrail[i][slot];
+ 		if (pt.x != 0) {
+ 			fadedAlpha = fadedAlpha * 0.7f;
+-			self->unk28[i]->getPane()->setAlpha(fadedAlpha);
+-			self->unk28[i]->getPane()->resize(
++			self->mGoPanes[i]->getPane()->setAlpha(fadedAlpha);
++			self->mGoPanes[i]->getPane()->resize(
+ 			    bounds.getWidth() - slot * 3,
+ 			    bounds.getHeight() - slot * 3);
+ 
+-			JUTRect shrunk = self->unk28[i]->getPane()->getBounds();
+-			((J2DPicture*)self->unk28[i]->getPane())
++			JUTRect shrunk = self->mGoPanes[i]->getPane()->getBounds();
++			((J2DPicture*)self->mGoPanes[i]->getPane())
+ 			    ->draw(pt.x, pt.y,
+ 			           shrunk.getWidth(), shrunk.getHeight(), false,
+ 			           false, false);
+ 		}
+ 	}
+ 
+-	self->unk28[i]->getPane()->setAlpha(alpha);
+-	self->unk28[i]->getPane()->resize(bounds.getWidth(),
++	self->mGoPanes[i]->getPane()->setAlpha(alpha);
++	self->mGoPanes[i]->getPane()->resize(bounds.getWidth(),
+ 	                            bounds.getHeight());
+ }
+ 
+@@ -227,9 +253,9 @@
+ 
+ 			case 2:
+ 				if (unk18 == unk20) {
+-					unk244[0]->setPanePosition(0x28, cShineGetRight1,
++					mShinePanes[0]->setPanePosition(0x28, cShineGetRight1,
+ 					                           cShineGetLeft1, cShineGetLeft1);
+-					unk244[0]->getPane()->show();
++					mShinePanes[0]->getPane()->show();
+ 				} else if (unk18 > unk20) {
+ 					bVar6 = processShineGet((unk18 - unk20) * 2.0f);
+ 				}
+@@ -247,12 +273,10 @@
+ 				bVar6 = processReady(unk18 * 2.0f);
+ 				if (unk18 >= 60.0f) {
+ 					if (unk18 == 60.0f) {
+-						unk28[0]->getPane()->hide();
+-						unk28[1]->getPane()->hide();
+-						unk28[2]->getPane()->hide();
+-						unk28[0]->getPane()->setAlpha(0xff);
+-						unk28[1]->getPane()->setAlpha(0xff);
+-						unk28[2]->getPane()->setAlpha(0xff);
++						for (int i = 0; i < mGoCount; ++i) {
++							mGoPanes[i]->getPane()->hide();
++							mGoPanes[i]->getPane()->setAlpha(0xff);
++						}
+ 					}
+ 					bVar6 &= processGo(unk18 - 60.0f);
+ 				}
+@@ -311,23 +335,17 @@
+ 
+ 		// The "GO!" emitters are paused while the game is paused.
+ 		if (!unk2A5 && gpMarDirector->mState != 4) {
+-			if (unk2A8[0])
+-				unk2A8[0]->stopCreateParticle();
+-			if (unk2A8[1])
+-				unk2A8[1]->stopCreateParticle();
+-			if (unk2A8[2])
+-				unk2A8[2]->stopCreateParticle();
++			for (int i = 0; i < mGoCount; ++i)
++				if (mGoEmitters[i])
++					mGoEmitters[i]->stopCreateParticle();
+ 
+ 			unk2A5 = true;
+ 		}
+ 
+ 		if (unk2A5 && gpMarDirector->mState == 4) {
+-			if (unk2A8[0])
+-				unk2A8[0]->playCreateParticle();
+-			if (unk2A8[1])
+-				unk2A8[1]->playCreateParticle();
+-			if (unk2A8[2])
+-				unk2A8[2]->playCreateParticle();
++			for (int i = 0; i < mGoCount; ++i)
++				if (mGoEmitters[i])
++					mGoEmitters[i]->playCreateParticle();
+ 
+ 			unk2A5 = false;
+ 		}
+@@ -340,7 +358,7 @@
+ 		local_1a0.setup2D();
+ 
+ 		if (unk2B4 == 1 && unk18 > 60.0f) {
+-			for (int i = 0; i < 3; ++i)
++			for (int i = 0; i < mGoCount; ++i)
+ 				drawGoTrail(this, i);
+ 		}
+ 
+@@ -373,12 +391,10 @@
+ #endif
+ 	unk18  = 0.0f;
+ 	unk2A5 = 0;
+-	unk28[0]->unk0->hide();
+-	unk28[1]->unk0->hide();
+-	unk28[2]->unk0->hide();
+-	unk28[0]->unk0->mAlpha = 0xff;
+-	unk28[1]->unk0->mAlpha = 0xff;
+-	unk28[2]->unk0->mAlpha = 0xff;
++	for (int i = 0; i < mGoCount; ++i) {
++		mGoPanes[i]->unk0->hide();
++		mGoPanes[i]->unk0->mAlpha = 0xff;
++	}
+ }
+ 
+ void TConsoleStr::startAppearGo()
+@@ -389,12 +405,10 @@
+ 	unk2B4 = 1;
+ 	unk18  = 0.0f;
+ 	unk2A5 = 0;
+-	unk28[0]->getPane()->hide();
+-	unk28[1]->getPane()->hide();
+-	unk28[2]->getPane()->hide();
+-	unk28[0]->getPane()->setAlpha(0xff);
+-	unk28[1]->getPane()->setAlpha(0xff);
+-	unk28[2]->getPane()->setAlpha(0xff);
++	for (int i = 0; i < mGoCount; ++i) {
++		mGoPanes[i]->getPane()->hide();
++		mGoPanes[i]->getPane()->setAlpha(0xff);
++	}
+ }
+ 
+ void TConsoleStr::startAppearShineGet()
+@@ -413,23 +427,22 @@
+ 		return;
+ 
+ 	if (unk2B4 == 1) {
+-		unk28[0]->getPane()->hide();
+-		unk28[1]->getPane()->hide();
+-		unk28[2]->getPane()->hide();
++		for (int i = 0; i < mGoCount; ++i)
++			mGoPanes[i]->getPane()->hide();
+ 	}
+ 
+ 	unk2B4 = 3;
+ 	unk18  = 0.0f;
+ 
+-	for (int i = 0; i < 7; ++i) {
+-		unk25C[i]->getPane()->hide();
+-		unk25C[i]->getPane()->setAlpha(0);
++	for (int i = 0; i < mMissCount; ++i) {
++		mMissPanes[i]->getPane()->hide();
++		mMissPanes[i]->getPane()->setAlpha(0);
+ 	}
+ 
+-	unk25C[0]->setPanePosition(0x28, JUTPoint(0, -270), JUTPoint(0, -270),
++	mMissPanes[0]->setPanePosition(0x28, JUTPoint(0, -270), JUTPoint(0, -270),
+ 	                           JUTPoint(0, 30));
+ 
+-	unk25C[0]->getPane()->show();
++	mMissPanes[0]->getPane()->show();
+ }
+ 
+ void TConsoleStr::startAppearScenario()
+@@ -515,24 +528,27 @@
+ 	bool result = false;
+ 
+ 	if (param_1 < 90.0f) {
+-		for (int i = 0; i < 3; ++i) {
+-			if (param_1 == i * 10) {
+-				unk28[i]->setPanePosition(0x28, JUTPoint(0, 60),
++		// English's letters start 10 frames apart; a longer word's closer
++		// together, so that its last one still lands before frame 90.
++		int step = mGoCount <= 3 ? 10 : (20 / (mGoCount - 1) > 2 ? 20 / (mGoCount - 1) : 2);
++		for (int i = 0; i < mGoCount; ++i) {
++			if (param_1 == i * step) {
++				mGoPanes[i]->setPanePosition(0x28, JUTPoint(0, 60),
+ 				                          JUTPoint(0, -40), JUTPoint(0, -40));
+-				unk28[i]->getPane()->show();
++				mGoPanes[i]->getPane()->show();
+ 			}
+ 		}
+ 
+-		for (int i = 0; i < 3; ++i) {
+-			JUTRect rect = unk28[i]->getPane()->getBounds();
+-			if (unk28[i]->update()) {
++		for (int i = 0; i < mGoCount; ++i) {
++			JUTRect rect = mGoPanes[i]->getPane()->getBounds();
++			if (mGoPanes[i]->update()) {
+ 				// The test is on TBoundPane's own target rect, not on the
+ 				// pane's bounds: the ROM reads +0x14/+0x18 off the
+ 				// TBoundPane itself.
+ 				bool landed
+-				    = unk28[i]->unk14.x == 0 && unk28[i]->unk14.y == 0;
++				    = mGoPanes[i]->unk14.x == 0 && mGoPanes[i]->unk14.y == 0;
+ 				if (!landed) {
+-					unk28[i]->setPanePosition(0x1E, JUTPoint(0, -40),
++					mGoPanes[i]->setPanePosition(0x1E, JUTPoint(0, -40),
+ 					                          JUTPoint(0, -40),
+ 					                          JUTPoint(0, 0));
+ 				}
+@@ -543,64 +559,62 @@
+ 	} else {
+ 		if (95.0f == param_1) {
+ 			// The three letters fly apart, each trailing a particle emitter.
+-			unk28[0]->setPanePosition(0x50, JUTPoint(0, 0),
+-			                          JUTPoint(-170, -180),
+-			                          JUTPoint(-340, -360));
+-			unk28[1]->setPanePosition(0x50, JUTPoint(0, 0), JUTPoint(0, -220),
+-			                          JUTPoint(0, -440));
+-			unk28[2]->setPanePosition(0x50, JUTPoint(0, 0), JUTPoint(160, -180),
+-			                          JUTPoint(320, -360));
++			for (int i = 0; i < mGoCount; ++i) {
++				JUTPoint mid, end;
++				ConsoleStrGoFlight(i, mGoCount, mid, end);
++				mGoPanes[i]->setPanePosition(0x50, JUTPoint(0, 0), mid, end);
++			}
+ 
+-			for (int i = 0; i < 3; ++i) {
++			for (int i = 0; i < mGoCount; ++i) {
+ 				for (int j = 0; j < 16; ++j) {
+-					JUTRect global = unk28[i]->getPane()->getGlobalBounds();
+-					unk34[i][j].set(global.x1, global.y1);
++					JUTRect global = mGoPanes[i]->getPane()->getGlobalBounds();
++					mGoTrail[i][j].set(global.x1, global.y1);
+ 				}
+ 
+-				JUTRect rect = unk28[i]->getPane()->getBounds();
++				JUTRect rect = mGoPanes[i]->getPane()->getBounds();
+ 				EmitAtRectCentre(rect, 0x1FD);
+-				unk2A8[i] = gpEmitterManager4D2->unkC8[0][0];
++				mGoEmitters[i] = gpEmitterManager4D2->unkC8[0][0];
+ 			}
+ 		} else if (param_1 < 175.0f) {
+ 			// Every other frame the trail shifts one slot down and the current
+ 			// global position is pushed in at the front.
+ 			int frame = param_1;
+ 
+-			for (int i = 0; i < 3; ++i) {
+-				int alpha = unk28[i]->getPane()->getAlpha() - 4;
++			for (int i = 0; i < mGoCount; ++i) {
++				int alpha = mGoPanes[i]->getPane()->getAlpha() - 4;
+ 				if (alpha < 0)
+ 					alpha = 0;
+ 
+-				JUTRect global = unk28[i]->getPane()->getGlobalBounds();
+-				unk28[i]->getPane()->setAlpha(alpha);
+-				unk28[i]->getPane()->resize(global.getWidth() + 2,
++				JUTRect global = mGoPanes[i]->getPane()->getGlobalBounds();
++				mGoPanes[i]->getPane()->setAlpha(alpha);
++				mGoPanes[i]->getPane()->resize(global.getWidth() + 2,
+ 				                            global.getHeight() + 2);
+ 
+ 				JGeometry::TVec3<f32> pos(global.x1 + global.getWidth() * 0.5f,
+ 				                          global.y1 + global.getHeight() * 0.5f,
+ 				                          0.0f);
+-				unk2A8[i]->setGlobalTranslation(pos);
++				mGoEmitters[i]->setGlobalTranslation(pos);
+ 
+-				unk28[i]->update();
++				mGoPanes[i]->update();
+ 
+ 				if (frame % 2 == 0) {
+ 					for (int j = 14; j >= 0; --j)
+-						unk34[i][j + 1] = unk34[i][j];
++						mGoTrail[i][j + 1] = mGoTrail[i][j];
+ 
+-					unk34[i][0].set(global.x1, global.y1);
++					mGoTrail[i][0].set(global.x1, global.y1);
+ 				}
+ 			}
+ 		} else if (param_1 == 175.0f) {
+-			for (int i = 0; i < 3; ++i) {
+-				JUTRect rect = unk28[i]->getPane()->getBounds();
+-				unk28[i]->getPane()->resize(rect.getWidth() - 80,
++			for (int i = 0; i < mGoCount; ++i) {
++				JUTRect rect = mGoPanes[i]->getPane()->getBounds();
++				mGoPanes[i]->getPane()->resize(rect.getWidth() - 80,
+ 				                            rect.getHeight() - 80);
+ 			}
+ 		} else {
+-			for (int i = 0; i < 3; ++i) {
+-				unk28[i]->getPane()->hide();
+-				if (unk2A8[i])
+-					unk2A8[i]->stopCreateParticle();
++			for (int i = 0; i < mGoCount; ++i) {
++				mGoPanes[i]->getPane()->hide();
++				if (mGoEmitters[i])
++					mGoEmitters[i]->stopCreateParticle();
+ 			}
+ 
+ 			result = true;
+@@ -618,49 +632,49 @@
+ {
+ 	bool result = true;
+ 
+-	for (int i = 0; i < 6; ++i) {
++	for (int i = 0; i < mShineCount; ++i) {
+ 		if (param_1 == 6 * i) {
+-			unk244[i]->getPane()->show();
+-			unk244[i]->setPanePosition(0x28, cShineGetRight1, cShineGetLeft1,
++			mShinePanes[i]->getPane()->show();
++			mShinePanes[i]->setPanePosition(0x28, cShineGetRight1, cShineGetLeft1,
+ 			                           cShineGetLeft1);
+-			JUTRect local_74 = unk244[i]->getPane()->getBounds();
++			JUTRect local_74 = mShinePanes[i]->getPane()->getBounds();
+ 			EmitAtRectCentre(local_74, 0x1FE);
+ 		}
+ 
+ 		if (param_1 == i * 6 + 40) {
+-			unk244[i]->setPanePosition(0x14, cShineGetLeft2, cShineGetLeft2,
++			mShinePanes[i]->setPanePosition(0x14, cShineGetLeft2, cShineGetLeft2,
+ 			                           cShineGetRight2);
+ 		}
+ 
+ 		if (param_1 == i * 6 + 60) {
+-			JUTRect local_94 = unk244[i]->getPane()->getBounds();
++			JUTRect local_94 = mShinePanes[i]->getPane()->getBounds();
+ 			EmitAtRectCentre(local_94, 0x1FF);
+ 		}
+ 
+ 		if (param_1 == i * 6 + 200) {
+-			unk244[i]->setPanePosition(0x28, cShineGetRight3, cShineGetRight3,
++			mShinePanes[i]->setPanePosition(0x28, cShineGetRight3, cShineGetRight3,
+ 			                           cShineGetLeft3);
+ 		}
+ 
+ 		if (param_1 < i * 6 + 40) {
+-			u16 alpha = unk244[i]->getPane()->getAlpha();
++			u16 alpha = mShinePanes[i]->getPane()->getAlpha();
+ 			alpha += 7;
+ 			if (alpha > 0xff)
+ 				alpha = 0xff;
+-			unk244[i]->getPane()->setAlpha(alpha);
++			mShinePanes[i]->getPane()->setAlpha(alpha);
+ 		}
+ 
+ 		if (param_1 > i * 6 + 200) {
+-			s16 alpha = unk244[i]->getPane()->getAlpha();
++			s16 alpha = mShinePanes[i]->getPane()->getAlpha();
+ 			alpha -= 7;
+ 			if (alpha < 0)
+ 				alpha = 0;
+-			unk244[i]->getPane()->setAlpha(alpha);
++			mShinePanes[i]->getPane()->setAlpha(alpha);
+ 		}
+ 
+-		if (unk244[i]->update()) {
++		if (mShinePanes[i]->update()) {
+ 			if (param_1 > i * 6 + 280) {
+-				unk244[i]->getPane()->hide();
++				mShinePanes[i]->getPane()->hide();
+ 				result &= true;
+ 			} else {
+ 				result = 0;
+@@ -684,52 +698,52 @@
+ {
+ 	bool result = true;
+ 
+-	for (int i = 0; i < 7; ++i) {
++	for (int i = 0; i < mMissCount; ++i) {
+ 		if (param_1 == i * 10) {
+-			unk25C[i]->getPane()->show();
+-			unk25C[i]->setPanePosition(0x3C, JUTPoint(0, -270),
++			mMissPanes[i]->getPane()->show();
++			mMissPanes[i]->setPanePosition(0x3C, JUTPoint(0, -270),
+ 			                           JUTPoint(0, -270), JUTPoint(0, 30));
+ 		}
+ 
+ 		if (param_1 == i * 10 + 1) {
+-			JUTRect local_9c = unk25C[i]->getPane()->getBounds();
++			JUTRect local_9c = mMissPanes[i]->getPane()->getBounds();
+ 			EmitAtRectCentre(local_9c, 0x1F9);
+ 		}
+ 
+ 		if (param_1 == i * 10 + 60) {
+-			unk25C[i]->getPane()->mRotation = 0.0f;
+-			unk25C[i]->setPanePosition(0x28, JUTPoint(0, 30), JUTPoint(0, -80),
++			mMissPanes[i]->getPane()->mRotation = 0.0f;
++			mMissPanes[i]->setPanePosition(0x28, JUTPoint(0, 30), JUTPoint(0, -80),
+ 			                           JUTPoint(0, -80));
+ 		}
+ 
+ 		if (param_1 == i * 10 + 100) {
+-			unk25C[i]->setPanePosition(0x28, JUTPoint(0, -80), JUTPoint(0, -80),
++			mMissPanes[i]->setPanePosition(0x28, JUTPoint(0, -80), JUTPoint(0, -80),
+ 			                           JUTPoint(0, 0));
+ 		}
+ 
+ 		if (param_1 == i * 10 + 300) {
+-			unk25C[i]->setPanePosition(0x1E, JUTPoint(0, 0), JUTPoint(0, 0),
++			mMissPanes[i]->setPanePosition(0x1E, JUTPoint(0, 0), JUTPoint(0, 0),
+ 			                           JUTPoint(0, 150));
+ 		}
+ 
+ 		if (param_1 < i * 10 + 60) {
+-			u16 alpha = unk25C[i]->getPane()->getAlpha();
++			u16 alpha = mMissPanes[i]->getPane()->getAlpha();
+ 			alpha += 12;
+ 			if (alpha > 0xff)
+ 				alpha = 0xff;
+-			unk25C[i]->getPane()->setAlpha(alpha);
++			mMissPanes[i]->getPane()->setAlpha(alpha);
+ 		}
+ 
+-		if (unk25C[i]->update()) {
++		if (mMissPanes[i]->update()) {
+ 			if (param_1 > i * 10 + 360) {
+-				unk25C[i]->getPane()->hide();
++				mMissPanes[i]->getPane()->hide();
+ 				result &= true;
+ 			} else {
+ 				result = false;
+ 			}
+ 		} else {
+ 			if (param_1 < i * 10 + 60) {
+-				unk25C[i]->getPane()->mRotation = (i * 10 - param_1) * 6;
++				mMissPanes[i]->getPane()->mRotation = (i * 10 - param_1) * 6;
+ 			}
+ 
+ 			result = false;

@@ -1,0 +1,56 @@
+Reason: endian: .blo screens stay big-endian (typed reads convert, 0013); convert the raw peek/read of the SCRN magic, block magic and size, old-format tags and pane kind
+--- a/libs/JSystem/src/J2D/J2DScreen.cpp
++++ b/libs/JSystem/src/J2D/J2DScreen.cpp
+@@ -24,6 +24,9 @@
+ 	if (we_are_root) {
+ 		u32 magic;
+ 		stream->peek(&magic, 4);
++#ifdef TARGET_PC
++		magic = port_be32(&magic);
++#endif
+ 		is_ex  = magic == 'SCRN' ? true : false;
+ 		mColor = 0;
+ 		if (is_ex) {
+@@ -54,6 +57,10 @@
+ 			if (stream->peek(&size, 4) != 4) {
+ 				OSPanic("J2DScreen.cpp", 0x96, "SCRN resource is broken.\n");
+ 			}
++#ifdef TARGET_PC
++			magic = port_be32(&magic);
++			size  = port_be32(&size);
++#endif
+ 			stream->skip(-4);
+ 			*out_next_pane_offset = size + stream->getPosition();
+ 
+@@ -91,6 +98,9 @@
+ 			if (stream->peek(&tag, 2) != 2) {
+ 				OSPanic("J2DScreen.cpp", 199, "SCRN resource is broken.\n");
+ 			}
++#ifdef TARGET_PC
++			tag = port_be16(&tag);
++#endif
+ 			switch (tag) {
+ 			case 0:
+ 				return;
+--- a/libs/JSystem/src/J2D/J2DPane.cpp
++++ b/libs/JSystem/src/J2D/J2DPane.cpp
+@@ -88,6 +88,9 @@
+ {
+ 	if (isEx) {
+ 		p_stream->read(&mKind, sizeof(mKind));
++#ifdef TARGET_PC
++		mKind = port_be32(&mKind);
++#endif
+ 		p_stream->skip(4);
+ 		u8 fields;
+ 		p_stream->read(&fields, sizeof(fields));
+@@ -129,6 +132,9 @@
+ 		p_stream->align(4);
+ 	} else {
+ 		p_stream->read(&mInfoTag, sizeof(mInfoTag));
++#ifdef TARGET_PC
++		mInfoTag = port_be16(&mInfoTag);
++#endif
+ 		p_stream->read(&mVisible, sizeof(mVisible));
+ 		p_stream->skip(1);
+ 		mUserInfoTag = p_stream->readU32();

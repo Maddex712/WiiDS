@@ -1,0 +1,33 @@
+Reason: endian: JPA BEM1 is read big-endian through JSU typed reads (0013); read its raw Vec/S16Vec fields per component so they convert too
+--- a/libs/JSystem/src/JParticle/JPAEmitter.cpp
++++ b/libs/JSystem/src/JParticle/JPAEmitter.cpp
+@@ -279,9 +279,17 @@
+ 
+ 	JSUInputStream& stream = stream2;
+ 	stream.skip(0xC);
++#ifdef TARGET_PC
++	// BEM1 stays big-endian (platform/endian): read the vectors per component
++	// through the converting typed reads.
++	stream >> mScale.x >> mScale.y >> mScale.z;
++	stream >> mTrans.x >> mTrans.y >> mTrans.z;
++	stream >> mRot.x >> mRot.y >> mRot.z;
++#else
+ 	stream.read(&mScale, sizeof(mScale));
+ 	stream.read(&mTrans, sizeof(mTrans));
+ 	stream.read(&mRot, sizeof(mRot));
++#endif
+ 	stream >> mVolumeType;
+ 	stream >> mEmitInterval;
+ 	stream.skip(2);
+@@ -318,7 +326,11 @@
+ 	stream >> unk208;
+ 	stream >> unk1C8;
+ 
++#ifdef TARGET_PC
++	stream >> fixVec.x >> fixVec.y >> fixVec.z;
++#else
+ 	stream.read(&fixVec, sizeof(fixVec));
++#endif
+ 	JPAConvertFixVecToFloatVec(floatVec, fixVec);
+ 	mEmitterDirection.normalize(floatVec);
+ 	stream >> fix;

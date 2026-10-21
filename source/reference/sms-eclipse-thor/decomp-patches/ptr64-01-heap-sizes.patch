@@ -1,0 +1,45 @@
+Reason: 64-bit: objects holding pointers are up to twice their GameCube size, so the heaps the game sizes with fixed constants (system heap, game heap block, MSound's heap, JAudio's DRAM heap) get PORT_HEAP64, which doubles them on 64-bit hosts and is the identity on 32-bit.
+--- a/src/System/Application.cpp
++++ b/src/System/Application.cpp
+@@ -226,7 +226,7 @@
+ 	JKRDvdRipper::setSzpBufferSize(0x1000);
+ 	JKRDvdAramRipper::setSzpBufferSize(0x1000);
+ 	JKRExpHeap::createRoot(1, false);
+-	JKRExpHeap::create(0x20000, JKRGetRootHeap(), false)->becomeSystemHeap();
++	JKRExpHeap::create(PORT_HEAP64(0x20000), JKRGetRootHeap(), false)->becomeSystemHeap();
+ 	JKRGetRootHeap()->becomeCurrentHeap();
+ 	DVDInit();
+ 	MarErrInit();
+@@ -242,8 +242,8 @@
+ 
+ 	JKRHeap* prevHeap = JKRGetCurrentHeap();
+ 
+-	spGameHeapBlock = new (-0x20) u8[0x500000];
+-	mHeap = JKRExpHeap::create(spGameHeapBlock, 0x500000, JKRGetCurrentHeap(),
++	spGameHeapBlock = new (-0x20) u8[PORT_HEAP64(0x500000)];
++	mHeap = JKRExpHeap::create(spGameHeapBlock, PORT_HEAP64(0x500000), JKRGetCurrentHeap(),
+ 	                           true);
+ 
+ 	gpRomFont = new JUTRomFont(JKRGetCurrentHeap());
+--- a/src/MSound/MSound.cpp
++++ b/src/MSound/MSound.cpp
+@@ -502,7 +502,7 @@
+                u8* param_5, u32 param_6)
+ {
+ 	u32 aramSize       = param_3;
+-	JKRSolidHeap* heap = JKRSolidHeap::create(0x151800, param_1, false);
++	JKRSolidHeap* heap = JKRSolidHeap::create(PORT_HEAP64(0x151800), param_1, false);
+ 	if (param_2 != nullptr) {
+ 		JAInter::TDebugHeap::currentHeap = param_2;
+ 		JADHioNode::smCurrentHeap        = param_2;
+--- a/libs/JSystem/src/JAudio/JASystem/JASSystemHeap.cpp
++++ b/libs/JSystem/src/JAudio/JASystem/JASSystemHeap.cpp
+@@ -9,7 +9,7 @@
+ namespace JASystem {
+ namespace Kernel {
+ 
+-	static u32 audioDramSize = 0x0c8000;
++	static u32 audioDramSize = PORT_HEAP64(0x0c8000);
+ 
+ 	void sysDramSetup(JKRSolidHeap* heap)
+ 	{

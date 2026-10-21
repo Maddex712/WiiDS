@@ -1,0 +1,68 @@
+name: Crash or freeze
+description: The app closes, freezes, or shows an error screen.
+title: "[Crash] "
+labels: ["crash"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting! Please tap **Export Diagnostics** on the start screen after the crash and attach the zip below.
+  - type: input
+    id: version
+    attributes:
+      label: DriftDroid version
+      description: Android Settings > Apps > DriftDroid shows it at the bottom.
+      placeholder: "e.g. 1.1.0"
+    validations:
+      required: true
+  - type: input
+    id: device
+    attributes:
+      label: Phone / handheld model
+      placeholder: "e.g. Galaxy S24 Ultra, Odin 2 Portal, Retroid Pocket 5"
+    validations:
+      required: true
+  - type: input
+    id: gpu
+    attributes:
+      label: Chip or GPU (if you know it)
+      description: Helps a lot for graphics bugs. Search your model online if unsure.
+      placeholder: "e.g. Snapdragon 8 Gen 2 / Adreno 740, Helio G85 / Mali-G52"
+  - type: input
+    id: android
+    attributes:
+      label: Android version
+      placeholder: "e.g. Android 14"
+  - type: dropdown
+    id: mode
+    attributes:
+      label: Which game?
+      options:
+        - Original Mario Kart Wii
+        - Retro Rewind
+        - Both
+        - Doesn't get that far
+    validations:
+      required: true
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened?
+      description: What were you doing when it crashed? Which track or menu?
+    validations:
+      required: true
+  - type: dropdown
+    id: frequency
+    attributes:
+      label: How often?
+      options:
+        - Every time
+        - Sometimes
+        - Happened once
+  - type: textarea
+    id: diagnostics
+    attributes:
+      label: Diagnostics
+      description: |
+        In DriftDroid's start screen, tap **Export Diagnostics** and drag the zip file here.
+        This is the single most useful thing you can attach.

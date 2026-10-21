@@ -1,0 +1,751 @@
+diff --git a/android/app/build.gradle b/android/app/build.gradle
+--- a/android/app/build.gradle
++++ b/android/app/build.gradle
+@@ -1,13 +1,25 @@
+ plugins {
+     id 'com.android.application'
+ }
++
++def thorBuild = providers.gradleProperty('thorBuild').orNull == 'true'
++def thorDiscRevision = providers.gradleProperty('thorDiscRevision').orElse('2').get().toInteger()
++if (!(thorDiscRevision in [1, 2])) throw new GradleException('thorDiscRevision must be 1 or 2.')
++def discRevision = thorBuild ? thorDiscRevision : 1
++def discDolHash = discRevision == 2
++        ? '0373b4dbffd7c9da9d27eb7257a7677877a3e33ceb81818bab1daa93560b9907'
++        : '6d755ec24c395fee600a856a85785e0e99c0b7ecb680d573a6cdd1aa6f7beee7'
+ 
+ android {
+     namespace 'com.wither.nsmbw'
+     compileSdk 34
+ 
+     defaultConfig {
+-        applicationId 'com.wither.nsmbw'
++        applicationId thorBuild ? 'com.wither.nsmbw.thor' : 'com.wither.nsmbw'
++        buildConfigField 'boolean', 'THOR_BUILD', thorBuild.toString()
++        buildConfigField 'int', 'DISC_REVISION', discRevision.toString()
++        buildConfigField 'String', 'DOL_SHA256', '"' + discDolHash + '"'
++        manifestPlaceholders = [thorExported: thorBuild.toString()]
+         // Guest RAM uses memfd_create, which bionic has from Android 11 (API 30).
+         minSdk 30
+         targetSdk 34
+@@ -17,6 +29,8 @@
+             abiFilters 'arm64-v8a'
+         }
+     }
++
++    buildFeatures { buildConfig true }
+ 
+     buildTypes {
+         release {
+@@ -52,3 +66,43 @@
+         }
+     }
+ }
++
++// Compilation checks may run before the game exists. APK packaging must have a stamped native
++// build for the same disc revision, so a Java-only shell cannot become a purported playable APK.
++if (thorBuild) {
++    def verifyThorNative = tasks.register('verifyThorNative') {
++        doLast {
++            def nativeRoot = file('../native')
++            def receiptFile = new File(nativeRoot, 'thor-native.json')
++            def library = new File(nativeRoot, 'jniLibs/arm64-v8a/libmain.so')
++            if (!receiptFile.isFile() || !library.isFile()) {
++                throw new GradleException('Stage a verified Thor native build for this disc revision before packaging an APK.')
++            }
++            def receipt = new groovy.json.JsonSlurper().parse(receiptFile)
++            if (receipt.schema != 1 || receipt.disc_id != 'SMNE01' || receipt.disc_revision != discRevision
++                    || receipt.dol_sha256 != discDolHash) {
++                throw new GradleException('The staged native build does not match Thor USA revision ' + discRevision + '.')
++            }
++            def hash = java.security.MessageDigest.getInstance('SHA-256')
++            library.withInputStream { stream ->
++                byte[] buffer = new byte[65536]
++                int n
++                while ((n = stream.read(buffer)) != -1) hash.update(buffer, 0, n)
++            }
++            if (hash.digest().encodeHex().toString() != receipt.library_sha256) {
++                throw new GradleException('The staged native library differs from its build receipt.')
++            }
++            for (name in ['dsp_coef.bin', 'cacert.pem', 'initial_pipeline_cache.db']) {
++                if (!new File(nativeRoot, 'assets/runtime/' + name).isFile()) {
++                    throw new GradleException('Missing runtime asset: ' + name)
++                }
++            }
++            if (!new File(nativeRoot, 'assets/runtime/wii_bootstrap').isDirectory()) {
++                throw new GradleException('Missing runtime NAND bootstrap.')
++            }
++        }
++    }
++    tasks.configureEach {
++        if (name in ['packageDebug', 'packageRelease']) dependsOn verifyThorNative
++    }
++}
+diff --git a/android/app/src/main/AndroidManifest.xml b/android/app/src/main/AndroidManifest.xml
+--- a/android/app/src/main/AndroidManifest.xml
++++ b/android/app/src/main/AndroidManifest.xml
+@@ -1,5 +1,9 @@
+ <?xml version="1.0" encoding="utf-8"?>
+ <manifest xmlns:android="http://schemas.android.com/apk/res/android">
++
++    <queries>
++        <package android:name="com.driftdroid.android.thor" />
++    </queries>
+ 
+     <!-- The renderer is Dawn on Vulkan. -->
+     <uses-feature android:name="android.hardware.vulkan.level" android:version="0" android:required="true" />
+@@ -25,6 +29,11 @@
+         android:theme="@style/AppTheme">
+ 
+         <activity
++            android:name=".ThorLaunchActivity"
++            android:exported="${thorExported}"
++            android:screenOrientation="sensorLandscape" />
++
++        <activity
+             android:name=".LauncherActivity"
+             android:exported="true">
+             <intent-filter>
+diff --git a/android/app/src/main/java/com/wither/nsmbw/AppFiles.java b/android/app/src/main/java/com/wither/nsmbw/AppFiles.java
+--- a/android/app/src/main/java/com/wither/nsmbw/AppFiles.java
++++ b/android/app/src/main/java/com/wither/nsmbw/AppFiles.java
+@@ -12,6 +12,8 @@
+ import java.io.InputStream;
+ import java.io.OutputStream;
+ import java.nio.charset.StandardCharsets;
++import java.security.MessageDigest;
++import java.security.NoSuchAlgorithmException;
+ import java.util.Locale;
+ 
+ /**
+@@ -67,23 +69,63 @@
+         } catch (IOException e) {
+             return "It has no sys/boot.bin, so the game can't be identified.";
+         }
+-        return headerProblem(header);
++        final String problem = headerProblem(header);
++        if (problem != null) return problem;
++        try {
++            if (!BuildConfig.DOL_SHA256.equals(sha256(new File(root, "sys/main.dol")))) {
++                return "The game executable does not match the disc revision compiled into this app.";
++            }
++            if (BuildConfig.THOR_BUILD) {
++                final String[][] modules = BuildConfig.DISC_REVISION == 1 ? new String[][] {
++                        {"d_profileNP", "f04ca9636e20feb5bdacdb8a1115a2b4a71e99f5091df56b4099ae8ea36c7eaf"},
++                        {"d_basesNP", "66b51efac566aead05e4b2351f64800ca54cd38aa93d8d1c9961a054f2854ebb"},
++                        {"d_enemiesNP", "9896eab47a57ee0d3e2644393dd4c35e81171662da020fdb6bebc9307a4a9283"},
++                        {"d_en_bossNP", "ca28f19ed9fa1a16d5bca7260e9e0127ecd0a964697531da16747d8edffac124"}
++                } : new String[][] {
++                        {"d_profileNP", "51bccc66ff299411f46adac5520e28d5b3e890bd93713acee697f89b673d4011"},
++                        {"d_basesNP", "eb58ce05b3664be786752f1ced1dd1e11b2aa86216e56719e46402d18338db95"},
++                        {"d_enemiesNP", "f7941b87baf0b6151f087bcc41323aa43877f1c9f1763b327bfd2869e8a28955"},
++                        {"d_en_bossNP", "a0946cd4f7a1d461ba4f316e3db63f619917246b2050e13660759e5e5a8d3875"}
++                };
++                for (String[] module : modules) {
++                    if (!module[1].equals(sha256(new File(root, "files/rels/" + module[0] + ".rel.LZ")))) {
++                        return "The game modules do not match the disc revision compiled into this app.";
++                    }
++                }
++            }
++        } catch (IOException | NoSuchAlgorithmException failure) {
++            return "Could not verify the game executable: " + failure.getMessage();
++        }
++        return null;
++    }
++
++    private static String sha256(File file) throws IOException, NoSuchAlgorithmException {
++        final MessageDigest hash = MessageDigest.getInstance("SHA-256");
++        try (InputStream in = new FileInputStream(file)) {
++            final byte[] chunk = new byte[65536];
++            int count;
++            while ((count = in.read(chunk)) != -1) hash.update(chunk, 0, count);
++        }
++        final StringBuilder hex = new StringBuilder(64);
++        for (byte value : hash.digest()) hex.append(String.format(Locale.ROOT, "%02x", value & 0xff));
++        return hex.toString();
+     }
+ 
+     /**
+      * The first 8 bytes of sys/boot.bin name the game (6 characters) and its revision (byte 7).
+-     * This port runs only the USA disc, revision 1: other revisions put the game's code elsewhere.
++     * The revision is tied to this build's translated code, not just an accepted header.
+      */
+     static String headerProblem(byte[] header) {
++        if (header == null || header.length < 8) return "The disc header is incomplete.";
+         final String id = new String(header, 0, 6, StandardCharsets.US_ASCII);
+         final int revision = header[7] & 0xFF;
+         if (!id.equals("SMNE01")) {
+             return "That is " + id.trim() + ", not New Super Mario Bros. Wii for the USA (SMNE01). "
+-                    + "This port runs only the USA disc, revision 1.";
+-        }
+-        if (revision != 1) {
++                    + "This build requires USA revision " + BuildConfig.DISC_REVISION + ".";
++        }
++        if (revision != BuildConfig.DISC_REVISION) {
+             return "That is New Super Mario Bros. Wii revision " + revision + ". This port runs only "
+-                    + "revision 1 (Dolphin shows it under Properties > Info).";
++                    + "revision " + BuildConfig.DISC_REVISION + " (Dolphin shows it under Properties > Info).";
+         }
+         return null;
+     }
+diff --git a/android/app/src/main/java/com/wither/nsmbw/AppSettings.java b/android/app/src/main/java/com/wither/nsmbw/AppSettings.java
+--- a/android/app/src/main/java/com/wither/nsmbw/AppSettings.java
++++ b/android/app/src/main/java/com/wither/nsmbw/AppSettings.java
+@@ -26,7 +26,7 @@
+         prefs = context.getSharedPreferences(FILE, Context.MODE_PRIVATE);
+     }
+ 
+-    int aspectMode() { return prefs.getInt("aspect_mode", ASPECT_FILL); }
++    int aspectMode() { return prefs.getInt("aspect_mode", BuildConfig.THOR_BUILD ? ASPECT_16_9 : ASPECT_FILL); }
+     void setAspectMode(int mode) { prefs.edit().putInt("aspect_mode", mode).commit(); }
+ 
+     float resolutionScale() { return prefs.getFloat("resolution_scale", 1f); }
+@@ -43,16 +43,16 @@
+     boolean frameGraph() { return prefs.getBoolean("frame_graph", false); }
+     void setFrameGraph(boolean on) { prefs.edit().putBoolean("frame_graph", on).commit(); }
+ 
+-    boolean touchControls() { return prefs.getBoolean("touch_controls", true); }
++    boolean touchControls() { return !BuildConfig.THOR_BUILD && prefs.getBoolean("touch_controls", true); }
+     void setTouchControls(boolean on) { prefs.edit().putBoolean("touch_controls", on).commit(); }
+ 
+     float touchOpacity() { return prefs.getFloat("touch_opacity", 0.6f); }
+     void setTouchOpacity(float opacity) { prefs.edit().putFloat("touch_opacity", opacity).commit(); }
+ 
+-    boolean motionTilt() { return prefs.getBoolean("motion_tilt", true); }
++    boolean motionTilt() { return prefs.getBoolean("motion_tilt", !BuildConfig.THOR_BUILD); }
+     void setMotionTilt(boolean on) { prefs.edit().putBoolean("motion_tilt", on).commit(); }
+ 
+-    boolean motionShake() { return prefs.getBoolean("motion_shake", true); }
++    boolean motionShake() { return prefs.getBoolean("motion_shake", !BuildConfig.THOR_BUILD); }
+     void setMotionShake(boolean on) { prefs.edit().putBoolean("motion_shake", on).commit(); }
+ 
+     boolean haptics() { return prefs.getBoolean("haptics", true); }
+diff --git a/android/app/src/main/java/com/wither/nsmbw/GameActivity.java b/android/app/src/main/java/com/wither/nsmbw/GameActivity.java
+--- a/android/app/src/main/java/com/wither/nsmbw/GameActivity.java
++++ b/android/app/src/main/java/com/wither/nsmbw/GameActivity.java
+@@ -29,6 +29,9 @@
+     /** Player 1's on-screen remote and motion (runtime/src/android/android_bridge.cpp). */
+     static native void nativeSetTouchState(int buttons, boolean shake, float tilt);
+ 
++    /** Immutable guest-thread snapshot for the lower display; no direct reads of guest RAM. */
++    static native int[] nativeReadThorState();
++
+     /** The Display menu: aspect, render scale (480 lines per 1x), FPS counter (DisplaySettings). */
+     static native void nativeApplyDisplaySettings(int aspect, float renderScale, boolean showFps);
+ 
+@@ -69,6 +72,7 @@
+             // Read by runtime/src/platform/host_platform.cpp before anything else starts.
+             Os.setenv("WIICOMPILED_RUNTIME_DIR", AppFiles.runtimeDir(this).getAbsolutePath(), true);
+             Os.setenv("WIICOMPILED_DATA_DIR", AppFiles.dataDir(this).getAbsolutePath(), true);
++            Os.setenv("NSMBW_THOR", BuildConfig.THOR_BUILD ? "1" : "0", true);
+         } catch (Exception e) {
+             Log.e(TAG, "could not prepare the game's files", e);
+             Toast.makeText(this, "Could not prepare the game's files: " + e.getMessage(), Toast.LENGTH_LONG).show();
+@@ -186,8 +190,15 @@
+         if (inSession) {
+             nativePrepareToLeave();  // the host keeps the session's progress
+         }
++        if (BuildConfig.THOR_BUILD && getIntent().getBooleanExtra(ThorLaunchActivity.EXTRA_SESSION, false)
++                && ThorLaunchActivity.returnToLibrary(this)) {
++            finish();
++            return;
++        }
+         startActivity(new Intent(this, LauncherActivity.class)
+                 .putExtra(LauncherActivity.EXTRA_SHOW_START_MENU, true)
++                .putExtra(ThorLaunchActivity.EXTRA_SESSION,
++                        getIntent().getBooleanExtra(ThorLaunchActivity.EXTRA_SESSION, false))
+                 .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP));
+         finish();
+     }
+@@ -216,6 +227,8 @@
+         runOnUiThread(() -> {
+             final Intent intent = new Intent(this, LauncherActivity.class)
+                     .putExtra(LauncherActivity.EXTRA_RESTART_GAME, true)
++                    .putExtra(ThorLaunchActivity.EXTRA_SESSION,
++                            getIntent().getBooleanExtra(ThorLaunchActivity.EXTRA_SESSION, false))
+                     .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP);
+             startActivity(intent);
+             finish();
+@@ -287,14 +300,17 @@
+         touch.release();
+         final boolean inSession = nativeReady && nativeSessionActive();
+         final java.util.List<String> items = new java.util.ArrayList<>();
+-        items.add("Start Menu");
++        final String menuLabel = BuildConfig.THOR_BUILD
++                && getIntent().getBooleanExtra(ThorLaunchActivity.EXTRA_SESSION, false)
++                ? "Main Menu" : "Start Menu";
++        items.add(menuLabel);
+         if (inSession) items.add("Leave LAN Game");
+         items.add("Quit Game");
+         new AlertDialog.Builder(this)
+                 .setTitle("New Super Mario Bros. Wii")
+                 .setItems(items.toArray(new String[0]), (dialog, which) -> {
+                     final String item = items.get(which);
+-                    if (item.equals("Start Menu")) openStartMenu(inSession);
++                    if (item.equals(menuLabel)) openStartMenu(inSession);
+                     else if (item.equals("Leave LAN Game")) leaveSession();
+                     else finish();
+                 })
+diff --git a/android/app/src/main/java/com/wither/nsmbw/LauncherActivity.java b/android/app/src/main/java/com/wither/nsmbw/LauncherActivity.java
+--- a/android/app/src/main/java/com/wither/nsmbw/LauncherActivity.java
++++ b/android/app/src/main/java/com/wither/nsmbw/LauncherActivity.java
+@@ -53,7 +53,7 @@
+     static final String PROJECT_URL = "https://github.com/WitherBlitz/NSMB-Wii-Multiplayer-Recompilation";
+ 
+     private static final String DOLPHIN_STEPS =
+-            "Use your own USA New Super Mario Bros. Wii (SMNE01, revision 1). Easiest: in Dolphin on a "
++            "Use your own USA New Super Mario Bros. Wii (SMNE01, revision " + BuildConfig.DISC_REVISION + "). Easiest: in Dolphin on a "
+             + "computer, right-click the game, choose Properties, Filesystem, then right-click the disc and "
+             + "choose Extract Entire Disc. Copy that folder (or a zip of it) to this phone and tap Import. "
+             + "Dolphin shows the revision under Properties > Info.";
+@@ -65,6 +65,11 @@
+     private Button play;
+     private View steps;
+     private final Handler main = new Handler(Looper.getMainLooper());
++
++    private Intent gameIntent() {
++        return new Intent(this, GameActivity.class).putExtra(ThorLaunchActivity.EXTRA_SESSION,
++                getIntent() != null && getIntent().getBooleanExtra(ThorLaunchActivity.EXTRA_SESSION, false));
++    }
+ 
+     @Override
+     protected void onCreate(Bundle savedInstanceState) {
+@@ -76,7 +81,7 @@
+         final boolean asked = launch != null && (launch.getBooleanExtra(EXTRA_SHOW_START_MENU, false)
+                 || launch.getBooleanExtra(EXTRA_RESTART_GAME, false));
+         if (savedInstanceState == null && !asked && settings.skipStartMenu() && AppFiles.gameReady(this)) {
+-            startActivity(new Intent(this, GameActivity.class));
++            startActivity(gameIntent());
+             overridePendingTransition(0, 0);
+             finish();
+             return;
+@@ -107,7 +112,7 @@
+         column.addView(status);
+ 
+         play = button("Play");
+-        play.setOnClickListener(v -> startActivity(new Intent(this, GameActivity.class)));
++        play.setOnClickListener(v -> startActivity(gameIntent()));
+         column.addView(play);
+ 
+         skip = button("");
+@@ -144,7 +149,7 @@
+                 + "2. Open Filesystem, right-click the disc at the top and choose Extract Entire Disc.\n"
+                 + "3. Copy that folder (or a zip of it) to this phone.\n"
+                 + "4. Tap Import from Extracted Game Data Folder… or Import Game Data Zip… below and choose it.\n\n"
+-                + "Use the USA disc, revision 1 (SMNE01): Dolphin shows the revision under Properties > Info.", 15);
++                + "Use the USA disc, revision " + BuildConfig.DISC_REVISION + " (SMNE01): Dolphin shows the revision under Properties > Info.", 15);
+         stepsText.setGravity(Gravity.START);
+         stepsText.setPadding(0, dp(6), 0, 0);
+         stepsText.setLineSpacing(dp(3), 1f);
+@@ -192,7 +197,7 @@
+         }
+         intent.removeExtra(EXTRA_RESTART_GAME);
+         status.setText("Starting the LAN game...");
+-        main.postDelayed(() -> startActivity(new Intent(this, GameActivity.class)), 700);
++        main.postDelayed(() -> startActivity(gameIntent()), 700);
+     }
+ 
+     @Override
+diff --git a/android/app/src/main/java/com/wither/nsmbw/ThorGameState.java b/android/app/src/main/java/com/wither/nsmbw/ThorGameState.java
+new file mode 100644
+--- /dev/null
++++ b/android/app/src/main/java/com/wither/nsmbw/ThorGameState.java
+@@ -0,0 +1,22 @@
++package com.wither.nsmbw;
++
++/** Read-only lower-display data. Field validity is explicit; unavailable is never a fake zero. */
++public final class ThorGameState {
++    public static final int SCENE = 1, COURSE = 2, PLAYER_ONE = 4, TIMER = 8, STOP_FLAGS = 16;
++    public final long sequence;
++    public final int fields, scene, mode, world, stage, character, lives, coins, seconds;
++    public final boolean gameStopped;
++
++    private ThorGameState(int[] data) {
++        sequence = Integer.toUnsignedLong(data[1]);
++        fields = data[2]; scene = data[3]; mode = data[4]; world = data[5]; stage = data[6];
++        character = data[7]; lives = data[8]; coins = data[9]; seconds = data[10]; gameStopped = data[11] != 0;
++    }
++    public boolean has(int field) { return (fields & field) == field; }
++
++    /** Call after SDL loaded the native library. Data is copied under a short native mutex. */
++    public static ThorGameState read() {
++        final int[] data = GameActivity.nativeReadThorState();
++        return data != null && data.length == 12 && data[0] == 1 ? new ThorGameState(data) : null;
++    }
++}
+diff --git a/android/app/src/main/java/com/wither/nsmbw/ThorLaunchActivity.java b/android/app/src/main/java/com/wither/nsmbw/ThorLaunchActivity.java
+new file mode 100644
+--- /dev/null
++++ b/android/app/src/main/java/com/wither/nsmbw/ThorLaunchActivity.java
+@@ -0,0 +1,53 @@
++package com.wither.nsmbw;
++
++import android.app.Activity;
++import android.content.ActivityNotFoundException;
++import android.content.ComponentName;
++import android.content.Intent;
++import android.os.Bundle;
++import android.widget.Toast;
++
++/** Entry point for the existing Thor Wii launcher. No native library is loaded in this process. */
++public final class ThorLaunchActivity extends Activity {
++    static final String EXTRA_SESSION = "thor_launcher_session";
++    private static final String ACTION_PLAY = "dev.thor.launcher.action.PLAY_GAME";
++    private static final ComponentName HOME = new ComponentName(
++            "com.driftdroid.android.thor", "com.driftdroid.android.ModePickerActivity");
++
++    @Override protected void onCreate(Bundle state) {
++        super.onCreate(state);
++        final Intent request = getIntent();
++        if (!BuildConfig.THOR_BUILD || request == null
++                || !ACTION_PLAY.equals(request.getAction())
++                || request.getIntExtra("thor_protocol", 0) != 1
++                || !"nsmbw".equals(request.getStringExtra("thor_game"))) {
++            finish();
++            return;
++        }
++        // Validation includes hashing main.dol. Do file work before handing off to SDL's :game.
++        new Thread(() -> {
++            final boolean ready = AppFiles.gameReady(this);
++            runOnUiThread(() -> {
++                if (isFinishing() || isDestroyed()) return;
++                final Intent next = new Intent(this, ready ? GameActivity.class : LauncherActivity.class)
++                        .putExtra(EXTRA_SESSION, true);
++                if (!ready) next.putExtra(LauncherActivity.EXTRA_SHOW_START_MENU, true);
++                startActivity(next);
++                finish();
++            });
++        }, "ThorNsmbwLaunch").start();
++    }
++
++    /** The target is fixed: callers cannot request an arbitrary package or component. */
++    static boolean returnToLibrary(Activity activity) {
++        try {
++            activity.startActivity(new Intent(Intent.ACTION_MAIN).setComponent(HOME)
++                    .addCategory(Intent.CATEGORY_LAUNCHER)
++                    .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_REORDER_TO_FRONT | Intent.FLAG_ACTIVITY_SINGLE_TOP));
++            return true;
++        } catch (ActivityNotFoundException | SecurityException unavailable) {
++            Toast.makeText(activity, "The Thor Wii launcher is unavailable.", Toast.LENGTH_LONG).show();
++            return false;
++        }
++    }
++}
+diff --git a/runtime/include/nsmbw_disc_revision.h b/runtime/include/nsmbw_disc_revision.h
+new file mode 100644
+--- /dev/null
++++ b/runtime/include/nsmbw_disc_revision.h
+@@ -0,0 +1,13 @@
++#pragma once
++
++#include <cstdint>
++
++// E1 is the upstream default. Thor E2 must opt in at compile time and translate
++// the matching owner-supplied E2 DOL/REL inputs with recomp-e2.yml.
++#if defined(NSMBW_DISC_REVISION_E2) && NSMBW_DISC_REVISION_E2
++inline constexpr uint32_t kNsmbwDiscRevision = 2;
++inline constexpr uint32_t NsmbwRevisionAddress(uint32_t e1, uint32_t e2) { return e2; }
++#else
++inline constexpr uint32_t kNsmbwDiscRevision = 1;
++inline constexpr uint32_t NsmbwRevisionAddress(uint32_t e1, uint32_t e2) { return e1; }
++#endif
+diff --git a/runtime/include/thor_state.h b/runtime/include/thor_state.h
+new file mode 100644
+--- /dev/null
++++ b/runtime/include/thor_state.h
+@@ -0,0 +1,9 @@
++#pragma once
++#include <array>
++#include <cstdint>
++
++namespace ThorState {
++// Capture on the guest thread only. Android receives a copy, never guest RAM.
++void Capture();
++std::array<int32_t, 12> Read();
++}
+diff --git a/runtime/src/thor_state.cpp b/runtime/src/thor_state.cpp
+new file mode 100644
+--- /dev/null
++++ b/runtime/src/thor_state.cpp
+@@ -0,0 +1,74 @@
++#include "thor_state.h"
++#include "memory.h"
++#include <cstdlib>
++#include <mutex>
++#include <string_view>
++
++namespace ThorState {
++namespace {
++std::mutex mutex;
++std::array<int32_t, 12> published{};
++uint32_t sequence = 0;
++bool Word(uint32_t address, uint32_t& value) { return Memory::TryRead32(address, value); }
++}
++
++void Capture() {
++    static const bool enabled = [] {
++        const char* value = std::getenv("NSMBW_THOR");
++        return value && std::string_view(value) == "1";
++    }();
++    if (!enabled) return;
++    // [schema, sequence, fields, scene, mode, world, stage, character, lives, coins, time, paused]
++    // All optional values start unavailable. This does not change or hide the original Wii HUD.
++    std::array<int32_t, 12> next{1, static_cast<int32_t>(++sequence), 0, -1, -1, -1, -1, -1, -1, -1, -1, 0};
++    uint32_t scene = 0, mode = 0;
++    if (Word(0x80428730u, scene) && (scene & 0xffffu) < 0x300u) {
++        next[2] |= 1;
++        next[3] = static_cast<int32_t>(scene & 0xffffu);
++    }
++    // STAGE (5) is also the title screen. m_startGameInfo.mGameMode 2/3 are title/replay.
++    // Every global below is unchanged in the strict E1 -> E2 map's
++    // 800e0d20-807683f6 +0 range; see build/nsmbw-thor/address-map.txt [E2].
++    // See private owner-generated telemetry evidence for field semantics.
++    const bool stage = next[3] == 5 && Word(0x80315B98u, mode) && mode < 2;
++    if (stage) {
++        next[4] = static_cast<int32_t>(mode);
++        uint32_t course = 0;
++        if (Word(0x80315B9Cu, course) && ((course >> 8) & 0xffu) < 9) {
++            next[2] |= 2;
++            next[5] = static_cast<int32_t>((course >> 8) & 0xffu); // loaded world, +0xE
++            next[6] = static_cast<int32_t>(course & 0xffu);       // loaded stage, +0xF
++        }
++        // getCoinAll (80060200), decRest (80060600): type[player] selects the character arrays.
++        uint32_t character = 0, lives = 0, coins = 0;
++        if (Word(0x80354E60u, character) && character < 4 &&
++            Word(0x80354E90u + character * 4u, lives) && lives <= 99 &&
++            Word(0x80354EA0u + character * 4u, coins) && coins <= 99) {
++            next[2] |= 4;
++            next[7] = static_cast<int32_t>(character);
++            next[8] = static_cast<int32_t>(lives);
++            next[9] = static_cast<int32_t>(coins);
++        }
++        // dTimer: createInstance 800E3870 -> global; execute 800E3930 rounds Q12 up for display.
++        uint32_t timer = 0, remaining = 0;
++        if (Word(0x8042A070u, timer) && timer >= 0x80000000u && timer < 0x817ffff0u &&
++            (timer & 3u) == 0 && Memory::Contains(timer, 12) && Word(timer + 4u, remaining) &&
++            remaining <= (999u << 12)) {
++            next[2] |= 8;
++            next[10] = static_cast<int32_t>((remaining + 4095u) >> 12);
++        }
++        uint32_t stop = 0;
++        if (Word(0x80429F48u, stop)) {
++            next[2] |= 16;
++            next[11] = (stop & 5u) != 0 ? 1 : 0;
++        }
++    }
++    std::lock_guard<std::mutex> lock(mutex);
++    published = next;
++}
++
++std::array<int32_t, 12> Read() {
++    std::lock_guard<std::mutex> lock(mutex);
++    return published;
++}
++}
+diff --git a/runtime/src/android/android_bridge.cpp b/runtime/src/android/android_bridge.cpp
+--- a/runtime/src/android/android_bridge.cpp
++++ b/runtime/src/android/android_bridge.cpp
+@@ -6,6 +6,7 @@
+ #include "runtime_config.h"
+ #include "settings_overlay.h"
+ #include "virtual_remote.h"
++#include "thor_state.h"
+ 
+ #include "netplay/net_socket.h"
+ #include "netplay_session.h"
+@@ -46,6 +47,15 @@
+ } // namespace AndroidBridge
+ 
+ extern "C" {
++
++JNIEXPORT jintArray JNICALL Java_com_wither_nsmbw_GameActivity_nativeReadThorState(JNIEnv* env, jclass)
++{
++    const auto state = ThorState::Read();
++    if (state[0] != 1) return nullptr;
++    jintArray result = env->NewIntArray(static_cast<jsize>(state.size()));
++    if (result) env->SetIntArrayRegion(result, 0, static_cast<jsize>(state.size()), state.data());
++    return result;
++}
+ 
+ // GameActivity.nativeSetTouchState: the on-screen remote (VirtualRemote::TouchButton bits) and the
+ // phone's motion (shake, tilt -1..1) for player 1. Called from the UI thread on every change.
+diff --git a/runtime/src/guest_profiler.cpp b/runtime/src/guest_profiler.cpp
+--- a/runtime/src/guest_profiler.cpp
++++ b/runtime/src/guest_profiler.cpp
+@@ -1,3 +1,4 @@
++#include "nsmbw_disc_revision.h"
+ // NSMBW_PROFILE=<start s>:<length s> (Windows): a sampling profiler for the game thread. From
+ // <start> seconds after the first presented frame, for <length> seconds, the thread that presents
+ // frames is suspended about a thousand times a second and its instruction pointer recorded. At the
+@@ -51,7 +52,7 @@
+             uint32_t total) {
+     // Every translated function's host entry point, sorted, to find which one a sample falls in.
+     std::vector<Entry> entries;
+-    for (const auto& [lo, hi] : {std::pair{0x80004000u, 0x80340000u}, std::pair{0x807684C0u, 0x80B8E340u}}) {
++    for (const auto& [lo, hi] : {std::pair{0x80004000u, 0x80340000u}, std::pair{NsmbwRevisionAddress(0x807684C0u, 0x80768500u), NsmbwRevisionAddress(0x80B8E340u, 0x80B8E360u)}}) {
+         for (uint32_t address = lo; address < hi; address += 4) {
+             if (const TranslatedFunctionInfo* info = TranslatedFunctionRegistry::FindByAddressPtr(address);
+                 info != nullptr && info->entryPoint != nullptr && info->address == address) {
+diff --git a/runtime/src/hle/vi.cpp b/runtime/src/hle/vi.cpp
+--- a/runtime/src/hle/vi.cpp
++++ b/runtime/src/hle/vi.cpp
+@@ -1,3 +1,5 @@
++#include "nsmbw_disc_revision.h"
++#include "thor_state.h"
+ #include "frame_input.h"
+ #include "det_hash.h"
+ #include "timebase_contract.h"
+@@ -420,10 +422,10 @@
+ void LogGuestModulesOnce() {
+     struct ExpectedModule { uint32_t id; const char* name; uint32_t image; uint32_t bss; };
+     static constexpr ExpectedModule kExpected[] = {
+-        {1, "d_profileNP", 0x807684C0u, 0x8076D460u},
+-        {2, "d_basesNP", 0x8076D680u, 0x80990820u},
+-        {3, "d_enemiesNP", 0x809A2CC0u, 0x80B11440u},
+-        {4, "d_en_bossNP", 0x80B1C940u, 0x80B89AC0u},
++        {1, "d_profileNP", NsmbwRevisionAddress(0x807684C0u, 0x80768500u), NsmbwRevisionAddress(0x8076D460u, 0x8076D4A0u)},
++        {2, "d_basesNP", NsmbwRevisionAddress(0x8076D680u, 0x8076D6C0u), NsmbwRevisionAddress(0x80990820u, 0x80990840u)},
++        {3, "d_enemiesNP", NsmbwRevisionAddress(0x809A2CC0u, 0x809A2CE0u), NsmbwRevisionAddress(0x80B11440u, 0x80B11460u)},
++        {4, "d_en_bossNP", NsmbwRevisionAddress(0x80B1C940u, 0x80B1C960u), NsmbwRevisionAddress(0x80B89AC0u, 0x80B89AE0u)},
+     };
+     static uint32_t s_reported = 0;  // one bit per module id
+     if (s_reported == 0x1Eu) {
+@@ -505,6 +507,7 @@
+     StartStallWatchdogOnce();
+     LogGuestModulesOnce();
+     LogSceneChanges();
++    ThorState::Capture();
+ 
+     uint32_t preCb = 0;
+     uint32_t postCb = 0;
+diff --git a/runtime/src/netplay/game_menus.cpp b/runtime/src/netplay/game_menus.cpp
+--- a/runtime/src/netplay/game_menus.cpp
++++ b/runtime/src/netplay/game_menus.cpp
+@@ -1,3 +1,4 @@
++#include "nsmbw_disc_revision.h"
+ #include "netplay/game_menus.h"
+ 
+ #include "memory.h"
+@@ -27,18 +28,18 @@
+ constexpr uint32_t kFileSelectCursor = 0x2A4;
+ 
+ // dSelectPlayer_c::StateID_* (d_basesNP .bss, fixed by the pre-linked layout).
+-constexpr uint32_t kSpStartWait = 0x809953C0u;
+-constexpr uint32_t kSpOnStage = 0x80995400u;
+-constexpr uint32_t kSpInfoOnStage = 0x80995440u;
+-constexpr uint32_t kSpButtonChange = 0x80995480u;
+-constexpr uint32_t kSpSelect = 0x809954C0u;
+-constexpr uint32_t kSpMultiSelect = 0x80995500u;
+-constexpr uint32_t kSpButtonAnime = 0x80995540u;
+-constexpr uint32_t kSpExit = 0x80995580u;
++constexpr uint32_t kSpStartWait = NsmbwRevisionAddress(0x809953C0u, 0x809953E0u);
++constexpr uint32_t kSpOnStage = NsmbwRevisionAddress(0x80995400u, 0x80995420u);
++constexpr uint32_t kSpInfoOnStage = NsmbwRevisionAddress(0x80995440u, 0x80995460u);
++constexpr uint32_t kSpButtonChange = NsmbwRevisionAddress(0x80995480u, 0x809954A0u);
++constexpr uint32_t kSpSelect = NsmbwRevisionAddress(0x809954C0u, 0x809954E0u);
++constexpr uint32_t kSpMultiSelect = NsmbwRevisionAddress(0x80995500u, 0x80995520u);
++constexpr uint32_t kSpButtonAnime = NsmbwRevisionAddress(0x80995540u, 0x80995560u);
++constexpr uint32_t kSpExit = NsmbwRevisionAddress(0x80995580u, 0x809955A0u);
+ // dCourseSelectMenu_c's and Pausewindow_c's current StateID (it names itself at +4).
+ constexpr uint32_t kPauseMenuState = 0x234;
+ // dFileSelect_c::StateID_SelectWait.
+-constexpr uint32_t kFsSelectWait = 0x80992050u;
++constexpr uint32_t kFsSelectWait = NsmbwRevisionAddress(0x80992050u, 0x80992070u);
+ 
+ uint32_t Find(uint16_t profile) {
+     uint32_t node = 0;
+diff --git a/runtime/src/system_bridge.cpp b/runtime/src/system_bridge.cpp
+--- a/runtime/src/system_bridge.cpp
++++ b/runtime/src/system_bridge.cpp
+@@ -1,3 +1,4 @@
++#include "nsmbw_disc_revision.h"
+ #include "system_bridge.h"
+ 
+ #include <cctype>
+@@ -521,7 +522,7 @@
+     // Retro-WFC payload URL, and OSGetAppGamename reads the app code mirrors
+     // at 0x80003180/0x80003194 while building NAS auth fields.
+     entries.push_back({0x80000000u, 0x534D4E45u, "Disc game code"}); // SMNE
+-    entries.push_back({0x80000004u, 0x30310001u, "Disc maker/id"});  // "01", disc 0, version 1 (boot.bin)
++    entries.push_back({0x80000004u, 0x30310000u | kNsmbwDiscRevision, "Disc maker/id"});  // "01", disc 0, selected revision (boot.bin)
+     entries.push_back({0x80003180u, 0x534D4E45u, "OS app game code"}); // SMNE
+     entries.push_back({0x80003194u, 0x534D4E45u, "OS app gamename"});  // SMNE
+     // NSMBW's OSInit (newer SDK than Mario Kart's) compares the running IOS (0x80003140) with the
+diff --git a/runtime/include/fiber_manager.h b/runtime/include/fiber_manager.h
+--- a/runtime/include/fiber_manager.h
++++ b/runtime/include/fiber_manager.h
+@@ -82,6 +82,8 @@
+     
+     // Get the currently running guest thread address (0 if in scheduler)
+     static uint32_t GetCurrentGuestThread();
++    // True once any guest thread is registered; scheduler context alone is not bootstrap.
++    static bool HasRegisteredGuestThreads();
+     
+     // Get fiber info for a guest thread (may be null)
+     static GuestFiber* GetFiber(uint32_t guestThreadAddr);
+diff --git a/runtime/src/fiber_manager.cpp b/runtime/src/fiber_manager.cpp
+--- a/runtime/src/fiber_manager.cpp
++++ b/runtime/src/fiber_manager.cpp
+@@ -456,6 +456,12 @@
+ 
+ uint32_t GuestFiberManager::GetCurrentGuestThread() {
+     return s_currentGuestThread;
++}
++
++bool GuestFiberManager::HasRegisteredGuestThreads() {
++    std::unique_lock<std::mutex> lock(s_mutex, std::try_to_lock);
++    // Contention cannot establish bootstrap, so keep deferred callback timing.
++    return !lock.owns_lock() || !s_fibers.empty();
+ }
+ 
+ GuestFiber* GuestFiberManager::GetFiber(uint32_t guestThreadAddr) {
+diff --git a/runtime/src/hle/ios.cpp b/runtime/src/hle/ios.cpp
+--- a/runtime/src/hle/ios.cpp
++++ b/runtime/src/hle/ios.cpp
+@@ -5,6 +5,7 @@
+ #include "hle_stubs.h"
+ #include "memory.h"
+ #include "hle/net/network.h"
++#include "fiber_manager.h"
+ 
+ #include <cstdint>
+ #include <cstdio>
+@@ -38,6 +39,14 @@
+ {
+     NandQueueIosCallback(callback, result, callbackArg);
+     SetIosReturn(ctx, 0);
++    // Before the guest scheduler/VI exists, SDK callers may busy-poll completion.
++    // There is no alarm/interrupt pump yet. Deliver the backend's actual result
++    // on the existing scratch-context dispatcher instead of stranding the queue.
++    // Once a guest thread exists, retain the normal deferred completion timing.
++    if (Fiber::GuestFiberManager::GetCurrentGuestThread() == 0 &&
++        !Fiber::GuestFiberManager::HasRegisteredGuestThreads()) {
++        NandProcessPendingCallbacks(ctx, 64);
++    }
+ }
+ 
+ // Shared network-fd body of IOS_IoctlAsync / IOS_IoctlvAsync. Returns false when
+diff --git a/runtime/src/main.cpp b/runtime/src/main.cpp
+--- a/runtime/src/main.cpp
++++ b/runtime/src/main.cpp
+@@ -1625,6 +1625,20 @@
+         currentEntryLabel = label;
+         g_lastEntryLabel = currentEntryLabel;
+ 
++#if defined(__ANDROID__)
++        // Opt-in diagnostics for stalls before VI starts its own watchdog.
++        char bootWatch[PROP_VALUE_MAX] = {};
++        if (__system_property_get("debug.nsmbw.bootwatch", bootWatch) > 0 && std::string_view(bootWatch) == "1") {
++            std::thread([] {
++                std::this_thread::sleep_for(std::chrono::seconds(5));
++                RT_LOG(RT_TAG_RUNTIME) << "[bootwatch] persistent boot context (diagnostic sample)" << std::endl;
++                SystemBridge::DumpCpuState(&GetPersistentCpuContext());
++                SystemBridge::DumpGuestStack(std::cerr, &GetPersistentCpuContext());
++                Fiber::GuestFiberManager::DumpGuestThreads(std::cerr);
++            }).detach();
++        }
++#endif
++
+         InvokeIndirectCpu(entry->address, &cpu);
+         const uint32_t result = cpu.gpr[3];
+         RT_LOG(RT_TAG_RUNTIME) << label << " => 0x" << std::hex << result << std::dec << " (" << result << ")" << std::endl;

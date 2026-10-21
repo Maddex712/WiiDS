@@ -1,0 +1,36 @@
+Reason: port: with SMS_WIDESCREEN, fades and wipes cover the whole wide frame: TSMSFader::draw (every fader and caller goes through it) draws with sms_gx's 2D stretched across the frame, since the wipes are tiled and no single draw spans the screen
+--- a/src/GC2D/ScrnFader.cpp
++++ b/src/GC2D/ScrnFader.cpp
+@@ -7,6 +7,12 @@
+ #include <MSound/MSSetSound.hpp>
+ #include <MSound/MSoundBGM.hpp>
+ 
++#ifdef TARGET_PC
++// sms_gx: with widescreen, stretch 2D across the whole frame, so fades and
++// wipes (tiled, no single draw spans the screen) cover all of it.
++extern "C" void GXPC_SetStretch2D(int on);
++#endif
++
+ static const char* dummyMactorStringValue1 = "\0\0\0\0\0\0\0\0\0\0\0";
+ static const char* SMS_NO_MEMORY_MESSAGE   = "メモリが足りません\n";
+ 
+@@ -230,6 +236,9 @@
+ 
+ void TSMSFader::draw(const JDrama::TRect& param_1)
+ {
++#ifdef TARGET_PC
++	GXPC_SetStretch2D(1);
++#endif
+ 	switch (mFadeStatus) {
+ 	case FADE_STATUS_FULLY_FADED_OUT: {
+ 		setupGraphicsFadeinout();
+@@ -245,6 +254,9 @@
+ 	default:
+ 		drawWipe(param_1);
+ 	}
++#ifdef TARGET_PC
++	GXPC_SetStretch2D(0);
++#endif
+ }
+ 
+ void TSMSFader::drawWipe(const JDrama::TRect& param_1)

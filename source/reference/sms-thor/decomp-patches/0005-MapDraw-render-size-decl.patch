@@ -1,0 +1,13 @@
+Reason: g++: local int redeclarations of SMSGetGameRenderWidth/Height conflict with Resolution.hpp's u16; include the header
+--- a/src/Map/MapDraw.cpp
++++ b/src/Map/MapDraw.cpp
+@@ -12,8 +12,7 @@
+ // NOTE: Yes, this is an ODR violation, and I'm pretty sure they had it
+ // in the original code as well, because everywhere else these functions
+ // return a u16, but here they MUST return an int for some reason???
+-int SMSGetGameRenderHeight();
+-int SMSGetGameRenderWidth();
++#include <System/Resolution.hpp>
+ 
+ void TMapDrawWall::perform(u32 cue, JDrama::TGraphics* graphics)
+ {

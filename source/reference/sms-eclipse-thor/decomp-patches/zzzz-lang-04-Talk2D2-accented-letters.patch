@@ -1,0 +1,63 @@
+Reason: Language packs: speech balloons draw accented letters (single bytes from 0x80 up) as one character each, at their own width, instead of as the first half of a Shift-JIS pair
+--- a/src/GC2D/Talk2D2.cpp
++++ b/src/GC2D/Talk2D2.cpp
+@@ -519,6 +519,17 @@
+ 	SMSRumbleMgr->startPause();
+ }
+ 
++#ifdef TARGET_PC
++// Port: whether a text byte starts a two-byte character, as the font
++// says. The game took every byte from 0x80 up as the first of a Shift-JIS
++// pair, which the North American text never has; the European languages'
++// accented letters are single bytes there (á is 0xE1), and were drawn
++// together with the letter after them. The system font is single-byte.
++static inline bool Talk2D2LeadByte(char c) { return gpSystemFont->isLeadByte((u8)c); }
++#else
++static inline bool Talk2D2LeadByte(char c) { return (u8)c >= 0x80; }
++#endif
++
+ // TODO: frame 0x1e8 vs retail 0x288 (retail spills more of the hoisted
+ // int-to-float conversions). Also open: the child link null check is
+ // scheduled before the parent tree address, and the dead
+@@ -548,7 +559,7 @@
+ 			char* dst = mCharBox[idx]->getStringPtr();
+ 			char* p   = &text[src];
+ 			dst[0]    = p[0];
+-			if ((u8)p[0] >= 0x80) {
++			if (Talk2D2LeadByte(p[0])) {
+ 				src += 2;
+ 				dst[1] = p[1];
+ 			} else {
+@@ -562,9 +573,14 @@
+ 		// self-move of the already-loaded byte; presumably the two-byte
+ 		// Shift-JIS code the width lookup wants was assembled there and the
+ 		// expression was lost (or folded).  Reproduced as written.
++#ifdef TARGET_PC
++		// Port: as an unsigned byte; a signed char made á's width 0xFFE1's.
++		u16 code = (u8)str[0];
++#else
+ 		u16 code = str[0];
+ 		if (code >= 0x80)
+ 			code = str[0];
++#endif
+ 		if (code == 0)
+ 			break;
+ 
+@@ -1329,7 +1345,7 @@
+ 			in.skip(-1);
+ 			u8 lead = in.readU8();
+ 			out.write(lead);
+-			if (lead >= 0x80)
++			if (Talk2D2LeadByte(lead))
+ 				out.write(in.readU8());
+ 			break;
+ 		}
+@@ -1400,7 +1416,7 @@
+ 
+ 			in.skip(-1);
+ 			dst[0] = in.readU8();
+-			if ((u8)dst[0] >= 0x80) {
++			if (Talk2D2LeadByte(dst[0])) {
+ 				dst[1] = in.readU8();
+ 			} else {
+ 				dst[1] = '\0';

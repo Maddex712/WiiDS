@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Retro Rewind content questions (tracks, unlocks, online events)
+    url: https://mkwiiki.org/wiki/Retro_Rewind
+    about: If it also happens on Dolphin or a real Wii, it belongs with the Retro Rewind project, not here.
+  - name: Mario Kart Wii on desktop (WiiCompiled)
+    url: https://github.com/patchzyy/Wiicompiled/issues
+    about: DriftDroid is the Android port. Problems with the Windows/Linux/macOS app go to WiiCompiled.

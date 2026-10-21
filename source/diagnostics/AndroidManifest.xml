@@ -1,0 +1,11 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android" package="dev.thor.mkw.screencheck">
+    <uses-sdk android:minSdkVersion="29" android:targetSdkVersion="34" />
+    <application android:label="Thor MKW Screen Check" android:theme="@android:style/Theme.Material.NoActionBar.Fullscreen" android:allowBackup="false" android:debuggable="true">
+        <activity android:name=".ScreenCheckActivity" android:exported="true" android:screenOrientation="sensorLandscape" android:configChanges="orientation|screenSize|keyboardHidden">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+    </application>
+</manifest>

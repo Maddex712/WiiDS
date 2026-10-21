@@ -1,0 +1,33 @@
+Reason: endian: the u16 length prefix of JSU stream strings (read(char*), readString) is read with readData, bypassing 0013's typed reads; convert it too (scene/stageArc .bin names, .prm keys)
+--- a/libs/JSystem/src/JSupport/JSUInputStream.cpp
++++ b/libs/JSystem/src/JSupport/JSUInputStream.cpp
+@@ -21,6 +21,9 @@
+ 		setState(EIoState_EOF);
+ 		return nullptr;
+ 	}
++#ifdef TARGET_PC
++	sp8 = port_be16(&sp8); // length prefix is big-endian like the typed reads (0013)
++#endif
+ 
+ 	s32 len  = readData(str, sp8);
+ 	str[len] = '\0';
+@@ -37,6 +40,9 @@
+ 		setState(EIoState_EOF);
+ 		return nullptr;
+ 	}
++#ifdef TARGET_PC
++	strLen = port_be16(&strLen); // length prefix is big-endian like the typed reads (0013)
++#endif
+ 
+ 	char* buf = new char[strLen + 1];
+ 
+@@ -62,6 +68,9 @@
+ 		setState(EIoState_EOF);
+ 		return nullptr;
+ 	}
++#ifdef TARGET_PC
++	strLen = port_be16(&strLen); // length prefix is big-endian like the typed reads (0013)
++#endif
+ 
+ 	s32 r = 0;
+ 	if ((u32)strLen < len) {

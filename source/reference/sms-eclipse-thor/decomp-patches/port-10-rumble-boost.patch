@@ -1,0 +1,27 @@
+Reason: port: SMS_RUMBLE_STRENGTH above 100 percent (platform/pad/pad.cpp) makes rumble stronger than the console's: the power the game asks of the motor, which it plays by running the motor on that share of frames, is multiplied by port_rumble_boost, so weak rumbles run the motor on more frames. This changes how the console rumbles, so it cannot be a decomp change.
+--- a/src/MarioUtil/RumbleMgr.cpp
++++ b/src/MarioUtil/RumbleMgr.cpp
+@@ -19,13 +19,23 @@
+ // Size needed: 0x28, current: 0x28
+ void RumbleBase::stop() { PADControlMotor(mChan, PAD_MOTOR_STOP_HARD); }
+ 
++#ifdef TARGET_PC
++extern "C" f32 port_rumble_boost;
++#endif
++
+ // Size needed: 0xAC, current: 0xA0
+ void RumbleBase::update(f32 power, bool stopHard)
+ {
+ 	// This function is the likely cause for stack mismatch in
+ 	// RumbleMgr::update() as it's the only one whose size mismatches.
+ 	mPower = power;
++#ifdef TARGET_PC
++	// More frames on for the same rumble; full power stays continuous.
++	f32 boosted = mPower * port_rumble_boost;
++	mAccumulator += boosted < 1.0f ? boosted : 1.0f;
++#else
+ 	mAccumulator += mPower;
++#endif
+ 
+ 	if (mPower <= 0.0f) {
+ 		PADControlMotor(mChan, PAD_MOTOR_STOP_HARD);

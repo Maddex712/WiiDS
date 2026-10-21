@@ -1,0 +1,30 @@
+The DSP reads its voice (DSPBuffer, 0x180 bytes) and FX line (FXBuffer)
+parameter blocks at fixed offsets (platform/audio/PROTOCOL.md). Their s16*
+fields are 8 bytes on 64-bit hosts, which moved endPosition, baseAddress
+and sampleCount and the 0x180 voice stride: every voice started with no
+samples and zero volume, so the 64-bit build played no JAudio sound (THP
+movie audio has its own path). PTR32 keeps them 4-byte slots.
+
+--- a/libs/JSystem/include/JSystem/JAudio/JASystem/JASDSPInterface.hpp
++++ b/libs/JSystem/include/JSystem/JAudio/JASystem/JASDSPInterface.hpp
+@@ -101,9 +101,9 @@
+ 		/* 0x108 */ s16 filterMode;
+ 		/* 0x10A */ u16 endRequested;
+ 		/* 0x10C */ u32 unk10C;
+-		/* 0x110 */ s16* loopAddress;
++		/* 0x110 */ PTR32(s16) loopAddress;
+ 		/* 0x114 */ u32 endPosition;
+-		/* 0x118 */ s16* baseAddress;
++		/* 0x118 */ PTR32(s16) baseAddress;
+ 		/* 0x11C */ int sampleCount;
+ 		/* 0x120 */ s16 variableFirCoeffs[20];
+ 		/* 0x148 */ s16 biquadFilterCoeffs[4];
+@@ -119,7 +119,7 @@
+ 	public:
+ 		/* 0x00 */ u16 unk0;
+ 		/* 0x02 */ u16 unk2;
+-		/* 0x04 */ s16* unk4;
++		/* 0x04 */ PTR32(s16) unk4;
+ 		/* 0x08 */ u16 unk8;
+ 		/* 0x0A */ s16 unkA;
+ 		/* 0x0C */ u16 unkC;

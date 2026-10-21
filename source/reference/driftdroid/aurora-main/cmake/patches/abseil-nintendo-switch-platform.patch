@@ -1,0 +1,66 @@
+--- a/absl/base/internal/sysinfo.cc
++++ b/absl/base/internal/sysinfo.cc
+@@ -30,6 +30,10 @@
+ #include <sys/syscall.h>
+ #endif
+ 
++#ifdef __SWITCH__
++#include <switch.h>
++#endif
++
+ #if defined(__APPLE__) || defined(__FreeBSD__)
+ #include <sys/sysctl.h>
+ #endif
+@@ -461,6 +465,18 @@
+   return reinterpret_cast<pid_t>(thread);
+ }
+ 
++#elif defined(__SWITCH__)
++
++// Nintendo Switch homebrew (devkitA64/libnx): devkitA64's pthread_t is `__pthread_t*` (a pointer
++// to an opaque struct, not arithmetic - same problem the __native_client__ branch above works
++// around), but unlike NaCl, sizeof(pid_t) (4) != sizeof(pthread_t) (8) here, so that branch's
++// same reinterpret_cast + size static_assert doesn't apply unmodified. threadGetCurHandle()
++// (libnx, kernel/thread.h) returns Horizon OS's own small kernel-level thread handle instead - a
++// real, genuinely unique-per-thread identifier, not a truncated/possibly-colliding pointer value.
++pid_t GetTID() {
++  return static_cast<pid_t>(threadGetCurHandle());
++}
++
+ #else
+ 
+ // Fallback implementation of `GetTID` using `pthread_self`.
+--- a/absl/debugging/internal/elf_mem_image.h
++++ b/absl/debugging/internal/elf_mem_image.h
+@@ -35,7 +35,13 @@
+ #if defined(__ELF__) && !defined(__OpenBSD__) && !defined(__QNX__) && \
+     !defined(__native_client__) && !defined(__asmjs__) &&             \
+     !defined(__wasm__) && !defined(__HAIKU__) && !defined(__sun) &&   \
+-    !defined(__VXWORKS__) && !defined(__hexagon__)
++    !defined(__VXWORKS__) && !defined(__hexagon__) &&                 \
++    !defined(__SWITCH__)
++// __SWITCH__ (Nintendo Switch homebrew, devkitA64/libnx): the .nro output is derived from an
++// ELF binary (so __ELF__ is defined), but devkitA64/newlib has no <link.h> - this whole feature
++// is glibc's dynamic-linker ELF introspection API (dl_phdr_info, ElfW macros), which has no
++// meaning at all on a target with no dynamic linking (same reason SDL3's dynapi and sqlite3's
++// extension loading are also disabled for this target - see the SDL3/sqlite3 Switch patches).
+ #define ABSL_HAVE_ELF_MEM_IMAGE 1
+ #endif
+ 
+--- a/absl/time/internal/cctz/src/time_zone_libc.cc
++++ b/absl/time/internal/cctz/src/time_zone_libc.cc
+@@ -61,8 +61,13 @@
+   return tzname[is_dst];
+ }
+ #elif defined(__native_client__) || defined(__myriad2__) || \
+-    defined(__EMSCRIPTEN__)
++    defined(__EMSCRIPTEN__) || defined(__SWITCH__)
+ // Uses the globals: '_timezone' and 'tzname'.
++// __SWITCH__ (Nintendo Switch homebrew, devkitA64/libnx): same fit as the other newlib-based
++// targets already listed here - this newlib configuration never defines __TM_GMTOFF, so struct
++// tm has no tm_gmtoff/__tm_gmtoff member under any name (see the SDL3-nintendo-switch patch for
++// the identical issue hit there), but does declare '_timezone' plus a '#define tzname _tzname'
++// alias, matching exactly what this branch already expects.
+ auto tm_gmtoff(const std::tm& tm) -> decltype(_timezone + 0) {
+   const bool is_dst = tm.tm_isdst > 0;
+   return _timezone + (is_dst ? 60 * 60 : 0);

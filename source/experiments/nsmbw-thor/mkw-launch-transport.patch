@@ -1,0 +1,82 @@
+--- a/android/app/src/main/AndroidManifest.xml
++++ b/android/app/src/main/AndroidManifest.xml
+@@ -1,4 +1,9 @@
+ <manifest xmlns:android="http://schemas.android.com/apk/res/android">
++
++    <!-- Explicit visibility for the separate NSMB runtime used by the shared Thor library. -->
++    <queries>
++        <package android:name="com.wither.nsmbw.thor" />
++    </queries>
+ 
+     <!-- Needed for local (LAN) multiplayer and Retro-WFC: the game's own guest-side network
+          code (in the recompiled binary) opens real UDP/TCP sockets via runtime/src/hle/net/,
+--- a/android/app/src/main/kotlin/com/driftdroid/android/ModePickerActivity.kt
++++ b/android/app/src/main/kotlin/com/driftdroid/android/ModePickerActivity.kt
+@@ -222,6 +222,8 @@
+             val entries = listOf(
+                 ThorLauncherView.Entry("Mario Kart Wii", "Play the original Mario Kart Wii.", { baseButton.isEnabled }) { baseButton.performClick() },
+                 ThorLauncherView.Entry("Retro Rewind", "Race the Retro Rewind course collection.", { retroButton.isEnabled && BuildConfig.THOR_RETRO_REWIND }) { retroButton.performClick() },
++                // Temporary functional entry; Claude owns its eventual case/library presentation.
++                ThorLauncherView.Entry("New Super Mario Bros. Wii", "Open the native NSMB Wii runtime.") { launchNsmbFromLibrary() },
+                 ThorLauncherView.Entry("Graphics", "Choose a renderer before starting the game.") { graphicsButton.performClick() },
+                 ThorLauncherView.Entry("Mii Data", "Import and manage your own Mii data.") { miiDataButton.performClick() },
+                 ThorLauncherView.Entry("Retro Rewind updates", "Check and download compatible Retro Rewind updates.", { BuildConfig.THOR_RETRO_REWIND }) { if (isRetroRewindInstalled()) showRetroRewindMenuDialog() else showInstallRetroRewindDialog() },
+@@ -259,6 +261,16 @@
+     }
+ 
+     // --- DriftDroid updating itself (see AppUpdate; the flow is KartPad's) ---
++
++    private fun launchNsmbFromLibrary() {
++        val message = when (ThorGameLaunch.launchNsmb(this)) {
++            ThorGameLaunch.Result.OPENED -> return
++            ThorGameLaunch.Result.NOT_INSTALLED -> "Install the separate NSMB Wii Thor runtime first."
++            ThorGameLaunch.Result.UNAVAILABLE -> "The NSMB Wii runtime could not be opened."
++        }
++        AlertDialog.Builder(this).setTitle("New Super Mario Bros. Wii")
++            .setMessage(message).setPositiveButton(android.R.string.ok, null).show()
++    }
+ 
+     /** Looks for a newer release in the background and shows the button when there is one.
+      * [force] skips the once-an-hour limit - used when something just said an update is needed. */
+diff --git a/android/app/src/main/kotlin/com/driftdroid/android/ThorGameLaunch.kt b/android/app/src/main/kotlin/com/driftdroid/android/ThorGameLaunch.kt
+new file mode 100644
+--- /dev/null
++++ b/android/app/src/main/kotlin/com/driftdroid/android/ThorGameLaunch.kt
+@@ -0,0 +1,37 @@
++package com.driftdroid.android
++
++import android.app.Activity
++import android.content.ActivityNotFoundException
++import android.content.ComponentName
++import android.content.Context
++import android.content.Intent
++
++/** Launch transport for the shared Wii library. The library's artwork and layout own the UI. */
++internal object ThorGameLaunch {
++    const val NSMB_WII = "nsmbw"
++    const val NSMB_PACKAGE = "com.wither.nsmbw.thor"
++    private const val ACTION_PLAY = "dev.thor.launcher.action.PLAY_GAME"
++    private val nsmbEntry = ComponentName(NSMB_PACKAGE, "com.wither.nsmbw.ThorLaunchActivity")
++
++    enum class Result { OPENED, NOT_INSTALLED, UNAVAILABLE }
++
++    /** Installed means the entry point exists; game-data readiness belongs to the NSMB runtime. */
++    fun nsmbInstalled(context: Context): Boolean =
++        context.packageManager.resolveActivity(Intent(ACTION_PLAY).setComponent(nsmbEntry), 0)
++            ?.activityInfo?.let { it.enabled && it.exported } == true
++
++    fun launchNsmb(activity: Activity): Result {
++        if (!nsmbInstalled(activity)) return Result.NOT_INSTALLED
++        return try {
++            activity.startActivity(Intent(ACTION_PLAY).setComponent(nsmbEntry)
++                .putExtra("thor_protocol", 1)
++                .putExtra("thor_game", NSMB_WII)
++                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP))
++            Result.OPENED
++        } catch (_: ActivityNotFoundException) {
++            Result.NOT_INSTALLED
++        } catch (_: SecurityException) {
++            Result.UNAVAILABLE
++        }
++    }
++}

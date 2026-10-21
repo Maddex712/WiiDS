@@ -1,0 +1,19 @@
+Reason: endian: the HUD (game_6) and pause map (guide) archives are swapped into one buffer from ARAM; convert every file after each remount, since screens keep pointers into the buffer
+--- a/src/System/Application.cpp
++++ b/src/System/Application.cpp
+@@ -179,6 +179,15 @@
+ 		                       EXPAND_SWITCH_DEFAULT, 0, nullptr, -1, nullptr);
+ 	}
+ 	param_1->mountFixed(gpMarDirector->getUnkD4(), MBF_0);
++#ifdef TARGET_PC
++	// The 2D archives (game_6 and guide) take turns in one buffer, and the
++	// screens built from either keep pointers into it. The ARAM copy just
++	// put big-endian bytes back, so convert every file again (conversion is
++	// idempotent) instead of waiting for fetches that will not come.
++	for (u32 i = 0; i < param_1->countFile(); i++)
++		if (param_1->getFileAttribute(i) & 1)
++			param_1->getIdxResource(i);
++#endif
+ }
+ 
+ JKRArchive* SMSSwitch2DArchive(const char* param_1, TARAMBlock& param_2)

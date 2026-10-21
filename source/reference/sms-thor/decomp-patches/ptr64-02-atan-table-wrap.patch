@@ -1,0 +1,19 @@
+Reason: 64-bit: GetAtanTable indexes atntable with (int)(ratio*1024+0.5); a NaN ratio gives INT_MIN, whose element offset wraps to atntable[0] with 32-bit addresses (retail, 32-bit build) but faults on a 64-bit host. Wrap the byte offset to 32 bits there.
+--- a/src/MarioUtil/MathUtil.cpp
++++ b/src/MarioUtil/MathUtil.cpp
+@@ -128,7 +128,15 @@
+ 		return atntable[0];
+ 
+ 	f32 inv = __fres(param_1);
++#if defined(__SIZEOF_POINTER__) && __SIZEOF_POINTER__ == 8
++	// A NaN ratio converts to INT_MIN; with 32-bit addresses the element
++	// offset wraps back to atntable[0] (retail and the 32-bit build read
++	// that), so wrap the byte offset to 32 bits here too.
++	u32 offset = (u32)(int)(param_2 * inv * 1024.0f + 0.5f) * sizeof(u16);
++	return *(const u16*)((const u8*)atntable + offset);
++#else
+ 	return atntable[(int)(param_2 * inv * 1024.0f + 0.5f)];
++#endif
+ }
+ 
+ // TODO: 99.4%, eighteen operand-only differences. The whole instruction stream

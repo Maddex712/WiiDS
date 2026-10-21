@@ -1,0 +1,90 @@
+--- a/android/app/src/main/java/dev/chasem/smslauncher/ThorSunshineScreen.java
++++ b/android/app/src/main/java/dev/chasem/smslauncher/ThorSunshineScreen.java
+@@ -50,6 +50,8 @@
+     private static final float W = 1240, H = 1080;
+     // TApplication::mAppState values (System/Application.hpp).
+     private static final int APP_GAMEPLAY = 5, APP_TITLE = 8, APP_MENU = 9;
++    // BSE application.hxx / Eclipse menu/character_select.hxx, at the pinned mod revisions.
++    private static final int APP_SETTINGS = 10, APP_CHARACTER_SELECT = 11;
+ 
+     static native int nativeSnapshot(int[] out);
+     /** The title's 3D sky as the game drew it (640x360 RGBA, rows top first); 0 when not newer than [have]. */
+@@ -200,6 +202,17 @@
+     static final class Area {
+         final String plate, name; final boolean secret, episodes;
+         Area(String plate, String name, boolean secret, boolean episodes) { this.plate = plate; this.name = name; this.secret = secret; this.episodes = episodes; }
++        static Area from(Snapshot state) {
++            if (state == null) return null;
++            // Eclipse stage.hxx adds stages 61-92. They must never borrow a retail postcard/plate.
++            if (state.stage < 61) {
++                Area retail = of(state.scene);
++                if (retail != null) return retail;
++            }
++            if ((state.scene.isEmpty() && state.areaName.isEmpty()) || "option".equals(state.scene)) return null;
++            String name = state.areaName.isEmpty() ? state.scene.replace('_', ' ') : state.areaName;
++            return new Area(null, name, false, false);
++        }
+         static Area of(String scene) {
+             if (scene == null || scene.isEmpty() || scene.equals("option") || scene.startsWith("test")) return null;
+             String s = scene.toLowerCase(Locale.ROOT);
+@@ -265,7 +278,7 @@
+             c.scale(scale, scale);
+             float t = (SystemClock.uptimeMillis() - born) / 1000f;
+             Snapshot s = shown;
+-            Area area = s == null ? null : Area.of(s.scene);
++            Area area = Area.from(s);
+             // Phases follow the game: black through boot, the Nintendo logo and movies; the title's
+             // sky fading in with the top screen; the logo only once the file select (A/B/C) is up.
+             int state = s == null ? -1 : s.appState;
+@@ -276,7 +289,8 @@
+             boolean pressStart = optionMap && (s.cardScreen < 0 || s.cardScreen == 3 || s.cardScreen == 9 || s.cardScreen == 10);
+             boolean fileSelect = optionMap && !pressStart;
+             boolean inCourse = playing && s.inStage && area != null && !optionMap;
+-            boolean sky = playing || state == APP_TITLE || state == APP_MENU;
++            boolean eclipseMenu = state == APP_SETTINGS || state == APP_CHARACTER_SELECT;
++            boolean sky = playing || state == APP_TITLE || state == APP_MENU || eclipseMenu;
+             float target = sky ? Math.max(0, Math.min(255, s.light)) / 255f : 0;
+             light += (target - light) * 0.4f;
+             if (Math.abs(target - light) < 0.004f) light = target;
+@@ -288,6 +302,8 @@
+                 backdrop(c);
+                 if (inCourse) {
+                     course(c, s, area, t);
++                } else if (eclipseMenu) {
++                    eclipseMenu(c, state);
+                 } else if (fileSelect) {
+                     float appear = Math.min(1f, (now - fileSelectSince) / 1000f);
+                     int layer = c.saveLayerAlpha(0, 0, W, H, (int) (255 * appear * appear * (3 - 2 * appear)));
+@@ -515,6 +531,15 @@
+         }
+ 
+         // ------------------------------------------------------------ screens
++        /** Same Sunshine backdrop and message-window styling for Eclipse's additional contexts. */
++        private void eclipseMenu(Canvas c, int state) {
++            image(c, "game_6-shine_icon", W / 2, 270, 140);
++            window(c, 160, 390, W - 160, 650);
++            label(c, "Super Mario Eclipse", W / 2, 490, 64, 0xffffffff, Paint.Align.CENTER, W - 400);
++            label(c, state == APP_SETTINGS ? "Game settings" : "Character select",
++                W / 2, 590, 46, 0xffffe27a, Paint.Align.CENTER, W - 400);
++        }
++
+         private void title(Canvas c, float t) {
+             Bitmap logo = art.get("option-title_logo");
+             if (logo != null) {
+@@ -578,14 +603,14 @@
+         private void tracker(Canvas c, Snapshot s, Area area, float t) {
+             Bitmap card = cached("card", this::buildCard);
+             if (card != null) c.drawBitmap(card, 34 - 30, 26 - 30, paint);
+-            int stage = s.shineStage >= 0 ? s.shineStage : -1;
++            int stage = s.stage < 61 && s.shineStage >= 0 ? s.shineStage : -1;
+             String picture = postcard(stage);
+             Bitmap post = picture == null ? null : cached("post-" + picture, () -> buildPostcard(picture));
+             if (post != null) {
+                 c.save(); c.rotate(-4, 70 + post.getWidth() / 2f, 52 + post.getHeight() / 2f);
+                 c.drawBitmap(post, 70 - 12, 52 - 12, paint); c.restore();
+             }
+-            boolean slots = s.tracked();
++            boolean slots = s.stage < 61 && s.tracked();
+             String plate = plate(stage, area);
+             Bitmap halo = plate == null ? null : cached("halo-" + plate, () -> buildHalo(plate));
+             float textX = post != null ? 805 : W / 2;

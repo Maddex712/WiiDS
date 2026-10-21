@@ -1,0 +1,18 @@
+Reason: port: Infinite Lives (F9 menu): a missed Mario does not decrement the lives counter (flag 0x20001) while port_cheat_infinite_lives is set (platform/misc/port_cheats.cpp)
+--- a/src/System/MarDirectorDirect.cpp
++++ b/src/System/MarDirectorDirect.cpp
+@@ -936,1 +936,5 @@
+-// TODO: every instruction matches except the saved-register rotation (retail
++#ifdef TARGET_PC
++extern "C" int port_cheat_infinite_lives;
++#endif
++
++// TODO: every instruction matches except the saved-register rotation (retail
+@@ -1101,1 +1105,6 @@
+-		TFlagManager::smInstance->decFlag(0x20001, 1);
++#ifdef TARGET_PC
++		if (!port_cheat_infinite_lives)
++#endif
++		{
++			TFlagManager::smInstance->decFlag(0x20001, 1);
++		}

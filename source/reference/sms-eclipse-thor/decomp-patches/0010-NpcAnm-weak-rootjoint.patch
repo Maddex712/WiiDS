@@ -1,0 +1,12 @@
+Reason: g++: cNpcPartsNameRootJoint is defined in both NpcAnm.cpp and NpcParts.cpp; make NpcAnm's copy weak
+--- a/src/NPC/NpcAnm.cpp
++++ b/src/NPC/NpcAnm.cpp
+@@ -24,7 +24,7 @@
+ // TODO: should be in a header and violate ODR
+ // Defined in both NpcAnm and NpcParts, as retail keeps the string in both; the
+ // linker keeps the first. A PC build must give it internal or weak linkage.
+-const char* cNpcPartsNameRootJoint = "__ROOT_JOINT__";
++__attribute__((weak)) const char* cNpcPartsNameRootJoint = "__ROOT_JOINT__";
+ 
+ f32 CalcJumpVelocityY(f32 height, f32 gravity)
+ {

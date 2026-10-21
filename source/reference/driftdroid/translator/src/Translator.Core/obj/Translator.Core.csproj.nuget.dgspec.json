@@ -1,0 +1,84 @@
+{
+  "format": 1,
+  "restore": {
+    "C:\\Users\\super\\Documents\\ChatGPT\\PORTING\\reference\\driftdroid\\translator\\src\\Translator.Core\\Translator.Core.csproj": {}
+  },
+  "projects": {
+    "C:\\Users\\super\\Documents\\ChatGPT\\PORTING\\reference\\driftdroid\\translator\\src\\Translator.Core\\Translator.Core.csproj": {
+      "version": "1.0.0",
+      "restore": {
+        "projectUniqueName": "C:\\Users\\super\\Documents\\ChatGPT\\PORTING\\reference\\driftdroid\\translator\\src\\Translator.Core\\Translator.Core.csproj",
+        "projectName": "Translator.Core",
+        "projectPath": "C:\\Users\\super\\Documents\\ChatGPT\\PORTING\\reference\\driftdroid\\translator\\src\\Translator.Core\\Translator.Core.csproj",
+        "packagesPath": "C:\\Users\\super\\.nuget\\packages\\",
+        "outputPath": "C:\\Users\\super\\Documents\\ChatGPT\\PORTING\\reference\\driftdroid\\translator\\src\\Translator.Core\\obj\\",
+        "projectStyle": "PackageReference",
+        "configFilePaths": [
+          "C:\\Users\\super\\AppData\\Roaming\\NuGet\\NuGet.Config"
+        ],
+        "originalTargetFrameworks": [
+          "net8.0"
+        ],
+        "sources": {
+          "https://api.nuget.org/v3/index.json": {}
+        },
+        "frameworks": {
+          "net8.0": {
+            "framework": "net8.0",
+            "targetAlias": "net8.0",
+            "projectReferences": {}
+          }
+        },
+        "warningProperties": {
+          "allWarningsAsErrors": true,
+          "warnAsError": [
+            "NU1605"
+          ]
+        },
+        "restoreAuditProperties": {
+          "enableAudit": "true",
+          "auditLevel": "low",
+          "auditMode": "direct"
+        },
+        "SdkAnalysisLevel": "10.0.400"
+      },
+      "frameworks": {
+        "net8.0": {
+          "framework": "net8.0",
+          "targetAlias": "net8.0",
+          "imports": [
+            "net461",
+            "net462",
+            "net47",
+            "net471",
+            "net472",
+            "net48",
+            "net481"
+          ],
+          "assetTargetFallback": true,
+          "warn": true,
+          "downloadDependencies": [
+            {
+              "name": "Microsoft.AspNetCore.App.Ref",
+              "version": "[8.0.31, 8.0.31]"
+            },
+            {
+              "name": "Microsoft.NETCore.App.Ref",
+              "version": "[8.0.31, 8.0.31]"
+            },
+            {
+              "name": "Microsoft.WindowsDesktop.App.Ref",
+              "version": "[8.0.31, 8.0.31]"
+            }
+          ],
+          "frameworkReferences": {
+            "Microsoft.NETCore.App": {
+              "privateAssets": "all"
+            }
+          },
+          "runtimeIdentifierGraphPath": "C:\\Users\\super\\Documents\\Codex\\2026-10-05\\i-want-to-make-a-fnaf\\work\\toolchain\\dotnet\\sdk\\10.0.401/PortableRuntimeIdentifierGraph.json"
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,184 @@
+{
+  "_instructions": "Players see this file in the launcher. Add each player-visible change here in the same commit: launcher changes to beta.launcher, game changes Beta now builds to beta.game. Releases move beta into a new entry (npm run update:game does it). One plain sentence for players per line, no commit hashes or PR numbers. See AGENTS.md.",
+  "beta": {
+    "launcher": [
+      "Fixed the game failing to build on some Windows PCs with \"The C compiler is not able to compile a simple test program\", caused by the build losing the Windows system folders from its search path.",
+      "Added a landscape Android launcher for modern 64-bit handhelds, with disc import, game settings, and save backup import and export.",
+      "Added Android performance hints and a performance overlay switch in Game settings.",
+      "Android Game settings now includes performance headroom and display refresh requests, plus optional timing logs for diagnosing slow gameplay.",
+      "The Android launcher now keeps its version and game build visible at the bottom of the screen and includes them in exported game logs.",
+      "Android launcher panels now keep their headings visible and show scrollbars so game settings are easier to find in landscape.",
+      "Android display refresh and performance headroom requests now start off following reports of slower gameplay, and remain available for testing.",
+      "Android Game settings now has an optional performance CPU cores switch that works independently of performance hints.",
+      "Android now has an Input test screen for connected controllers and wireless keyboards, with live buttons, keys and sticks, a device list and input log export.",
+      "Android Game settings now has controller configuration: assign buttons, sticks and triggers, save a layout for each device, clear controls, or restore defaults.",
+      "AYN Thor: 16:9, 1080p and 60 FPS by default, with 120 FPS in Game settings (the panel switches to 120 Hz).",
+      "AYN Thor: the lower screen shows the area, episode, Shines, blue coins, coins, lives and FLUDD's tank and nozzle.",
+      "The navigation bar stays hidden after returning to the game."
+    ],
+    "game": [
+      "Fixed the water in Bowser's hot tub being invisible in the final fight. Bowser now sits in it, and the duck and Bowser Jr.'s boat float on it.",
+      "Fixed Super Mario Eclipse crashing on Mac when you leave a stage, and Eclipse's Yoshi colours now show on Mac too.",
+      "Fixed the picture breaking up into coloured blocks from the save select onward on some older Intel graphics at Original (1×) picture sharpness.",
+      "Added native 64-bit Android support with controller input, audio, saves, and an OpenGL ES renderer.",
+      "Reduced Android rendering overhead in areas with pollution.",
+      "Fixed an Android loading hang after the opening movies.",
+      "Fixed Android showing a black screen with audio on some Adreno graphics drivers.",
+      "Android now reports frame workloads to help the device schedule the game and renderer.",
+      "Android can request an earlier frame-work deadline to leave performance headroom for smooth gameplay.",
+      "Android now uses its original frame workload deadline unless experimental performance headroom is enabled.",
+      "Android can keep frame production on a detected group of faster CPU cores, with automatic fallback when that group is unclear.",
+      "Android no longer waits for an extra screen refresh after a late frame just to give background loading a turn.",
+      "Reduced the CPU work used to position widescreen HUD elements and menus.",
+      "Fixed an Android startup crash when the system occupies the game's preferred memory address, by relocating its arena and keeping game and graphics addresses consistent.",
+      "Fixed Android reading textures and colour palettes from the wrong memory location after relocation, which could leave the picture black after the intro.",
+      "Added an Android controller mapping for the legacy USB Gamepad adapter that was detected in Input test but ignored by the game.",
+      "Android now applies player-configured controller layouts, including devices without an automatic mapping.",
+      "Android: no longer freezes after the intro when the device relocates the game's memory (draw-sync thread).",
+      "Android: models no longer draw as shredded triangles on relocated memory (J3D vertex array addresses)."
+    ]
+  },
+  "releases": [
+    {
+      "version": "0.1.57",
+      "date": "2026-10-11",
+      "launcher": [
+        "Start the game straight from Steam: add --play to the launcher's launch options and the game opens with your launcher settings, without the launcher's window. The launcher opens instead when the game needs setup or an update.",
+        "On Full HD Windows displays scaled above 125%, the launcher is sized as it is at 125% so it fits on screen.",
+        "Fixed the game failing to build on Macs whose newest macOS SDK is newer than their Command Line Tools can link (\"ld: tapi error: malformed file\"). The launcher now builds with the newest installed SDK that works.",
+        "You can now use the launcher with a game controller: move with the stick or d-pad, A selects, B goes back, Start opens Settings, and LB and RB switch between Settings, Controls and Manage game.",
+        "The portable Windows launcher always sets up in its SMS-Launcher-Portable folder without asking for a location, and the game's shader and HD texture caches now stay in that folder too instead of going to AppData.",
+        "Settings → Visuals has HD texture loading (Before each level, Whole pack, or While playing) and Prepare shaders ahead, to choose when the game loads HD textures and builds its shaders.",
+        "Add to Steam: a banner on the home screen, under the Discord one, adds the launcher to your Steam library as Super Mario Sunshine with artwork, for Big Picture and the Steam Deck. Turn on Skip Launcher when you add it and Steam starts the game straight away.",
+        "On Linux, launcher updates keep the AppImage's name and folder, so Steam shortcuts to it keep working. Re-add it to Steam once after this update.",
+        "Invert camera Y is now on by default for new players. Turn it off under Settings → Gameplay."
+      ],
+      "game": {
+        "version": "2026.10.11.1",
+        "commit": "d205537c5d90c09999715665a99750935d25fd5e",
+        "changes": [
+          "Super Mario Eclipse now runs the code its v1.1.0 release ships, which removes the extra circle and blinking X button behind the FLUDD gauge in every stage.",
+          "Fixed Super Mario Eclipse crashing when you pick a character after unlocking Piantissimo.",
+          "Super Mario Eclipse's menus fill the widescreen frame properly, and its pause menu's Shine and blue coin counts are back on screen. Its own Aspect Ratio setting is hidden, since the game handles widescreen itself.",
+          "Fixed Super Mario Eclipse overwriting game memory at startup and while riding the green Yoshi.",
+          "Super Mario Eclipse's Delfino Plaza title card and pause menu no longer show \"(null)\" under the area's name.",
+          "The arrow under Super Mario Eclipse's B button balloon is red again instead of black.",
+          "Screen wipes, like the iris and warp transitions, run at their original speed at 60 and 120 fps, so warps no longer cut their sound short.",
+          "Fixed white specks on the sea with the High and Ultra graphics presets.",
+          "The goop Piranha Plant's hit voice plays once at 120 fps instead of twice.",
+          "The game ignores the keyboard and controllers while another window has focus, such as the launcher or another game, so they no longer move Mario in the background.",
+          "Entering a level no longer stutters the first time: the game builds the level's shaders and loads its HD textures into video memory while it loads, and HD textures no longer interrupt play while they finish in the background.",
+          "A cheat menu: press F9 in the game for God Mode, Infinite Lives, Infinite FLUDD, Movement Speed, Jump Height and Coin Multiplier.",
+          "Controllers rumble when the game rumbles. Turn it off with the Rumble option in the game's own options.",
+          "Fixed audio crackling and distortion after the game slows down or hitches."
+        ]
+      }
+    },
+    {
+      "version": "0.1.56",
+      "date": "2026-10-09",
+      "launcher": [
+        "If you already have HD textures, the launcher downloads the new HD texture extras on their own (about 65 MB) instead of the whole pack, and again whenever a newer set comes out.",
+        "Show on Discord: while you play, your Discord profile shows where you are in the game, your Shine count and how long you've played. Turn it off under Manage game.",
+        "The launcher keeps its size on Windows displays with high scaling.",
+        "A changelog: see what changed in the launcher and the game with the new button beside Settings. It opens by itself once after an update.",
+        "\"Skip intro movies\" is now \"Skip cutscenes\", since it skips every movie.",
+        "With Super Mario Eclipse turned on in Settings, the home screen shows Eclipse artwork and notes that the launcher isn't affiliated with the Eclipse team."
+      ],
+      "game": {
+        "version": "2026.10.09.2",
+        "commit": "d1ec0cc2973680b50fd852e4cfee0a02da9195bf",
+        "changes": [
+          "HD textures cover 208 more textures the UHD pack lacked, including the Pianta and balloon counters, the pause screen's maps, menus and Peach.",
+          "Heavy scenes like Delfino Plaza run much smoother: the game takes less than half as long on each frame.",
+          "Wiggler's music speeds up when you hit him and powers down when he's defeated, as on the GameCube.",
+          "Petey Piranha, Mecha Bowser and other bosses animate at their original speed at 60 and 120 fps.",
+          "The episode select screen shows its coloured background again instead of black.",
+          "Fixed dark fog bands and shimmering HD textures under the sea in Noki Bay.",
+          "Fixed Shadow Mario never taking Peach in Super Mario Eclipse's Delfino Plaza.",
+          "Portal movies keep playing when Skip cutscenes is on.",
+          "The game reports what you're doing for Discord.",
+          "Super Mario Eclipse downloads from SMS Launcher's own mirror, with GameBanana as the fallback.",
+          "Fixed Super Mario Eclipse crashing when you enter Bianco Hills or Erto Rock.",
+          "Fixed the camera staying tilted in Super Mario Eclipse after Delfino Plaza's opening cutscene plays to the end."
+        ]
+      }
+    },
+    {
+      "version": "0.1.55",
+      "date": "2026-10-08",
+      "launcher": [
+        "HDR settings for Windows: calibration, paper white, peak brightness, contrast, saturation and highlights.",
+        "FSR 1 and NIS upscaling under Settings → Picture → Scaling, with a quality choice.",
+        "The top bar shows how many players are online. Turn off anonymous usage sharing any time under Manage game."
+      ],
+      "game": {
+        "version": "2026.10.09.1",
+        "commit": "abae850416a02478a7864e3ecf2beca8759187dd",
+        "changes": [
+          "HDR output on Windows, and on more graphics cards.",
+          "NIS (NVIDIA Image Scaling) joins FSR 1 as an upscaler.",
+          "Fixed the Eclipse crashes at every stage exit and in the Tutorial on Windows.",
+          "Fixed Puffer self-collisions when firing at Petey at high frame rates.",
+          "Held sound effects, like the Rocket nozzle charge, keep playing at 60 fps.",
+          "Button prompt glyphs draw correctly with the system font."
+        ]
+      }
+    },
+    {
+      "version": "0.1.54",
+      "date": "2026-10-08",
+      "launcher": [
+        "Graphics presets: Low, Medium, High, Ultra and Steam Deck.",
+        "Button prompts: Original, Xbox, PlayStation 5, Steam Deck, keyboard, or Automatic.",
+        "A game source row with only a branch, tag or commit now uses our fork."
+      ],
+      "game": {
+        "version": "2026.10.08.3",
+        "commit": "57a30357ef2da4dfe665db97002661162ec60d64",
+        "changes": [
+          "Button prompts for Xbox, PlayStation, Steam Deck and keyboard.",
+          "Smoother heavy scenes: less time spent in the vertex loader and thread switches.",
+          "A full crash report is written on every platform.",
+          "Fixed the Turbo nozzle writing past its own memory."
+        ]
+      }
+    },
+    {
+      "version": "0.1.53",
+      "date": "2026-10-07",
+      "launcher": [
+        "Controller button remapping on the Controls page, plus Soft L and Soft R bindings.",
+        "The activity log now docks inside the launcher, and Copy log copies the full run.",
+        "A check-for-updates button next to the launcher update status.",
+        "A Heat-wave effect switch under Settings → Picture.",
+        "A note for SteamOS and Steam Deck players about Steam Input."
+      ],
+      "game": {
+        "version": "2026.10.08.2",
+        "commit": "e21c22222f9de3d9bf5a0e9bdb1cb2a2463f9d6b",
+        "changes": [
+          "60 and 120 fps gameplay stays at full speed when the display makes the game wait.",
+          "GameCube controller adapters are supported.",
+          "Controller buttons can be remapped.",
+          "Native crashes now log their code and location."
+        ]
+      }
+    },
+    {
+      "version": "0.1.52",
+      "date": "2026-10-07",
+      "launcher": [],
+      "game": {
+        "version": "2026.10.07.4",
+        "commit": "e39936208a0a91e08a81b5d62f14691cfdce9ece",
+        "changes": [
+          "Fixed Mario's flags in Super Mario Eclipse.",
+          "Fixed the Gelato gatekeeper's goop angles.",
+          "Linux builds use the system graphics driver's own libraries.",
+          "The performance overlay costs less to draw."
+        ]
+      }
+    }
+  ]
+}

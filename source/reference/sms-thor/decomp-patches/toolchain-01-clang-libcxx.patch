@@ -1,0 +1,24 @@
+Apple Clang / libc++ (macOS): fake_tgmath.h float overloads that libc++
+already declares at global scope. Pointer-to-int truncations are handled by
+-fms-extensions in CMakeLists.txt rather than per site. (The template called
+before its declaration in cameralib.hpp is declared first in the decomp now.)
+
+--- a/include/fake_tgmath.h
++++ b/include/fake_tgmath.h
+@@ -19,6 +19,9 @@
+ }
+ #endif
+ 
++/* libc++'s <cmath> already declares these float overloads at global scope
++ * (port_compat.h's using std::sqrt etc.). */
++#ifndef _LIBCPP_VERSION
+ extern inline float sqrt(float x)
+ {
+ 	volatile float y;
+@@ -58,5 +61,6 @@
+ 	// x < 0 -> int conversion of x above rounded toward zero(so decrement)
+ 	return (float)i;
+ }
++#endif
+ 
+ #pragma cplusplus reset

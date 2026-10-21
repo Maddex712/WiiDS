@@ -1,0 +1,15 @@
+Reason: endian: the Delfino Plaza shine-shadow spheres read their s16 positions from tmp_data, retail's big-endian bytes; register it with the GX layer so the volumes stay closed
+--- a/src/Player/ModelWaterManager.cpp
++++ b/src/Player/ModelWaterManager.cpp
+@@ -1798,6 +1798,11 @@
+ 			sphere_glist_p = tmp_data;
+ 			initialized    = 1;
+ 			sphere_pos_t   = (u8*)sphere_glist_p + 0x760;
++#ifdef TARGET_PC
++			// tmp_data is retail's bytes: the s16 sphere positions after the
++			// display list are big-endian, like data loaded from the disc.
++			GXPC_AddBigEndianRange(tmp_data, sizeof(tmp_data));
++#endif
+ 		}
+ 
+ 		Vec shinePos = (Vec) { 0.0f, 3600.0f, -7458.0f };

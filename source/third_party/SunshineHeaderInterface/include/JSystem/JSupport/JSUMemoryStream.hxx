@@ -1,0 +1,55 @@
+#pragma once
+
+#include <Dolphin/types.h>
+#include <JSystem/JSupport/JSUInputStream.hxx>
+#include <JSystem/JSupport/JSUOutputStream.hxx>
+
+class JSUMemoryInputStream : public JSURandomInputStream {
+public:
+    JSUMemoryInputStream(void *buffer, size_t size)
+        : mBuffer(buffer), mLength(size), mPosition(0) {}
+    virtual ~JSUMemoryInputStream();
+
+    virtual void readData(void *, s32) override;
+    virtual size_t getLength() const override;
+    virtual s32 getPosition() const override;
+    virtual s32 seekPos(s32, JSUStreamSeekFrom) override;
+
+    void setBuffer(const void *, s32);
+
+private:
+    void *mBuffer;
+#if __SIZEOF_POINTER__ == 8
+    u32 mLength;
+#else
+    size_t mLength;
+#endif
+  // _C
+    s32 mPosition;   // _10
+};
+
+class JSUMemoryOutputStream : public JSURandomOutputStream {
+public:
+    JSUMemoryOutputStream(void *buffer, size_t size)
+        : mBuffer(buffer), mLength(size), mPosition(0) {}
+    virtual ~JSUMemoryOutputStream();
+
+    virtual void writeData(void *, s32) override;
+    virtual size_t getLength() const override;
+    virtual s32 getPosition() const override;
+    virtual s32 seek(s32, JSUStreamSeekFrom) override;
+    virtual s32 getAvailable() const override;
+    virtual s32 seekPos(s32, JSUStreamSeekFrom) override;
+
+private:
+    void *mBuffer;
+#if __SIZEOF_POINTER__ == 8
+    u32 mLength;
+#else
+    size_t mLength;
+#endif
+  // _C
+    s32 mPosition;   // _10
+};
+
+#define JSU_READ_PARAM(param, stream) stream.read(&param, sizeof(typeof(param)))

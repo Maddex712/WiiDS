@@ -1,0 +1,51 @@
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -55,7 +55,10 @@
+ target_link_libraries(
+     TracyClient
+     PUBLIC
+         Threads::Threads
+-        ${CMAKE_DL_LIBS}
++        # devkitA64/libnx homebrew has no libdl/dlopen at all - CMake still resolves
++        # CMAKE_DL_LIBS to "dl" for this unrecognized CMAKE_SYSTEM_NAME regardless, so linking it
++        # unconditionally is a real "-ldl: No such file" link error on this target.
++        $<$<NOT:$<STREQUAL:${CMAKE_SYSTEM_NAME},NintendoSwitch>>:${CMAKE_DL_LIBS}>
+ )
+ if(rocprofiler-sdk_FOUND)
+--- a/public/common/TracySystem.cpp
++++ b/public/common/TracySystem.cpp
+@@ -40,6 +40,8 @@
+ #elif defined __QNX__
+ #  include <process.h>
+ #  include <sys/neutrino.h>
++#elif defined __SWITCH__
++#  include <switch.h>
+ #endif
+ 
+ #ifdef __MINGW32__
+@@ -95,6 +97,12 @@
+ #elif defined __EMSCRIPTEN__
+     // Not supported, but let it compile.
+     return 0;
++#elif defined __SWITCH__
++    // Nintendo Switch homebrew (devkitA64/libnx): threadGetCurHandle() returns Horizon OS's own
++    // kernel-level thread handle (a real, small, per-thread kernel object handle - the same kind
++    // of identifier gettid()/GetCurrentThreadId() provide elsewhere in this file), not a
++    // library-allocated pthread_t like this comment block above warns against.
++    return (uint32_t)threadGetCurHandle();
+ #else
+     // To add support for a platform, retrieve and return the kernel thread identifier here.
+     //
+@@ -354,6 +362,12 @@
+     const auto user = getlogin();
+     if( user ) return user;
+     return "(?)";
++#elif defined __SWITCH__
++    // Nintendo Switch homebrew: no login/user-account concept getlogin_r() could report on, same
++    // reasoning as the __ANDROID__ case just above (and devkitA64's newlib doesn't declare
++    // getlogin_r() at all, matching how it's missing several other less-common POSIX calls this
++    // porting effort has already hit).
++    return "(?)";
+ #else
+     static char user[1024] = {};
+     getlogin_r( user, sizeof( user ) );
