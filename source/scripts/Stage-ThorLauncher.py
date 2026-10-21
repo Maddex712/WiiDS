@@ -17,6 +17,7 @@ STEMS = ('original-cover', 'retro-rewind-cover', 'original-disc', 'retro-rewind-
 # Later library games are optional, but a manifest carries both of a game's images or neither.
 OPTIONAL = (('nsmbw-cover', 'nsmbw-disc'), ('sunshine-cover', 'sunshine-disc'), ('msmbwii-cover', 'msmbwii-disc'),
             ('eclipse-cover', 'eclipse-disc'))
+SPINES = tuple(game + '-spine' for game in ('original', 'retro-rewind', 'nsmbw', 'sunshine', 'msmbwii', 'eclipse'))
 # Everything else is an owner-provided reference (the NSMB disc scan is squared to 1024 px).
 SOURCES = {'retro-rewind-disc': 'generated-fan-disc', 'msmbwii-cover': 'composed-from-owner-nsmbw-art',
            'msmbwii-disc': 'composed-from-owner-nsmbw-art'}
@@ -26,13 +27,13 @@ def sha(path):
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
-def inspect(path):
+def inspect(path, spine=False):
     if path.is_symlink() or not path.is_file() or path.stat().st_size > 24 * 1024 * 1024:
         raise ValueError(f'Invalid or oversized launcher image: {path.name}')
     with Image.open(path) as image:
         kind, size = image.format, image.size
-        if kind not in ('PNG', 'JPEG') or not all(128 <= n <= 4096 for n in size):
-            raise ValueError(f'Launcher image must be PNG/JPEG, 128..4096 pixels: {path.name}')
+        if kind not in ('PNG', 'JPEG') or not ((16 if spine else 128) <= size[0] <= 4096 and 128 <= size[1] <= 4096):
+            raise ValueError(f'Invalid launcher image dimensions or format: {path.name}')
         image.verify()
     return kind, list(size)
 
@@ -47,16 +48,17 @@ def validate():
     keys = set(data.get('images', {}))
     optional = tuple(stem for pair in OPTIONAL for stem in pair)
     if (data.get('schema') != 1 or data.get('kind') != 'private-launcher-artwork' or not set(STEMS) <= keys
-            or not keys <= set(STEMS + optional) or any(keys & set(pair) and not set(pair) <= keys for pair in OPTIONAL)):
+            or not keys <= set(STEMS + optional + SPINES) or any(keys & set(pair) and not set(pair) <= keys for pair in OPTIONAL)
+            or any(s in keys and not {s.removesuffix('-spine') + '-cover', s.removesuffix('-spine') + '-disc'} <= keys for s in SPINES)):
         raise ValueError('Unexpected launcher artwork manifest')
     files = [manifest]
-    for stem in [s for s in STEMS + optional if s in keys]:
+    for stem in [s for s in STEMS + optional + SPINES if s in keys]:
         entry = data['images'][stem]
         name = entry['file']
         if name not in (stem + '.png', stem + '.jpg'):
             raise ValueError('Unsafe launcher artwork filename')
         path = ASSETS / name
-        kind, size = inspect(path)
+        kind, size = inspect(path, spine=stem in SPINES)
         if path.resolve().parent != ASSETS.resolve() or sha(path) != entry['sha256'] or size != entry['size']:
             raise ValueError(f'Launcher artwork identity mismatch: {name}')
         if (kind == 'PNG') != name.endswith('.png'):
@@ -67,7 +69,7 @@ def validate():
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    for stem in STEMS + tuple(stem for pair in OPTIONAL for stem in pair):
+    for stem in STEMS + tuple(stem for pair in OPTIONAL for stem in pair) + SPINES:
         parser.add_argument('--' + stem, type=Path)
     parser.add_argument('--stage', action='store_true')
     parser.add_argument('--serial')
@@ -84,6 +86,8 @@ def main():
             parser.error('Provide both images of an optional game: ' + ', '.join(pair))
         if all(given.values()):
             extras.update(given)
+    extras.update({stem: getattr(args, stem.replace('-', '_')) for stem in SPINES
+                   if getattr(args, stem.replace('-', '_')) is not None})
     if args.stage and (not args.serial or any(c.isspace() for c in args.serial)):
         parser.error('--stage requires a nonempty --serial without whitespace')
     if any(provided):
@@ -109,7 +113,11 @@ def main():
         if not validate():
             parser.error('Prepare the four base images before adding another game')
         data = json.loads((ASSETS / 'artwork.json').read_text(encoding='utf8'))
-        records = [(stem, source) + inspect(source) for stem, source in extras.items()]
+        prospective = set(data['images']) | set(extras)
+        if any(s in prospective and not {s.removesuffix('-spine') + '-cover', s.removesuffix('-spine') + '-disc'} <= prospective
+               for s in SPINES):
+            parser.error('A spine requires that game\'s cover and disc images')
+        records = [(stem, source) + inspect(source, spine=stem in SPINES) for stem, source in extras.items()]
         for stem, source, kind, size in records:
             target = ASSETS / (stem + ('.png' if kind == 'PNG' else '.jpg'))
             if target.is_symlink():

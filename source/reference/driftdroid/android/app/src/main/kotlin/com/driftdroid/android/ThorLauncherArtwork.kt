@@ -36,13 +36,18 @@ internal object ThorLauncherArtwork {
     private val optional = listOf(setOf("original-cover", "original-disc"), setOf("retro-rewind-cover", "retro-rewind-disc"),
         setOf("nsmbw-cover", "nsmbw-disc"), setOf("sunshine-cover", "sunshine-disc"), setOf("msmbwii-cover", "msmbwii-disc"),
         setOf("eclipse-cover", "eclipse-disc"))
-    private val stems = required + optional.flatten()
+    private val spines = optional.associate { pair -> "${pair.first().removeSuffix("-cover")}-spine" to pair }
+    private val stems = required + optional.flatten() + spines.keys
     private data class Key(val path: String, val modified: Long, val length: Long)
     private data class Cached(val bitmap: Bitmap, val sha256: String, val width: Int, val height: Int, val mime: String)
     private val cache = LinkedHashMap<Key, Cached>()
     private val shaPattern = Regex("[0-9a-fA-F]{64}")
     private const val MAX_MANIFEST = 16 * 1024
     private const val MAX_IMAGE_BYTES = 24L * 1024 * 1024
+
+    /** A scan of a printed spine is naturally narrower than a cover or disc label. */
+    private fun validSize(stem: String, width: Int, height: Int): Boolean =
+        width in (if (stem in spines) 16 else 128)..4096 && height in 128..4096
 
     /** A present manifest is authoritative: bad or missing entries never choose stale alternate files. */
     @Synchronized
@@ -78,7 +83,8 @@ internal object ThorLauncherArtwork {
             val images = metadata.getJSONObject("images")
             val keys = images.keys().asSequence().toSet()
             if (!keys.containsAll(required) || !stems.containsAll(keys) ||
-                optional.any { set -> set.any { it in keys } && !keys.containsAll(set) }) return null
+                optional.any { set -> set.any { it in keys } && !keys.containsAll(set) } ||
+                spines.any { (name, pair) -> name in keys && !keys.containsAll(pair) }) return null
             if (stem !in keys) return null
             // Validate the complete selection table before trusting any one entry.
             for (name in keys) {
@@ -87,7 +93,7 @@ internal object ThorLauncherArtwork {
                 if (declared != "$name.png" && declared != "$name.jpg") return null
                 if (!declaredEntry.getString("sha256").matches(shaPattern)) return null
                 val declaredSize = declaredEntry.getJSONArray("size")
-                if (declaredSize.length() != 2 || declaredSize.getInt(0) !in 128..4096 || declaredSize.getInt(1) !in 128..4096) return null
+                if (declaredSize.length() != 2 || !validSize(name, declaredSize.getInt(0), declaredSize.getInt(1))) return null
             }
             val entry = images.getJSONObject(stem)
             expectedHash = entry.getString("sha256").lowercase()
@@ -96,9 +102,11 @@ internal object ThorLauncherArtwork {
             if (size.length() != 2) return null
             expectedWidth = size.getInt(0)
             expectedHeight = size.getInt(1)
-            if (expectedWidth !in 128..4096 || expectedHeight !in 128..4096) return null
+            if (!validSize(stem, expectedWidth, expectedHeight)) return null
             entry.getString("file")
         } else {
+            // Legacy folders have no table, but a spine must still belong to a valid case pair.
+            if (spines[stem]?.any { load(folder, it) == null } == true) return null
             sequenceOf("$stem.png", "$stem.jpg").firstOrNull { File(folder, it).isFile } ?: return null
         }
         val expectedMime = if (filename.endsWith(".png")) "image/png" else "image/jpeg"
@@ -108,15 +116,14 @@ internal object ThorLauncherArtwork {
         if (canonical.parentFile != parent || canonical.name != filename || source.length() !in 1L..MAX_IMAGE_BYTES) return null
         val key = Key(canonical.path, source.lastModified(), source.length())
         cache[key]?.let { cached ->
-            if (cached.bitmap.isRecycled) return null
+            if (cached.bitmap.isRecycled || !validSize(stem, cached.width, cached.height) || cached.mime != expectedMime) return null
             if (expectedHash != null && (expectedHash != cached.sha256 || expectedWidth != cached.width || expectedHeight != cached.height ||
                 cached.mime != expectedMime)) return null
             return cached.bitmap
         }
         val dimensions = BitmapFactory.Options().apply { inJustDecodeBounds = true }
         BitmapFactory.decodeFile(canonical.path, dimensions)
-        if (dimensions.outWidth !in 128..4096 || dimensions.outHeight !in 128..4096 ||
-            dimensions.outMimeType !in setOf("image/png", "image/jpeg")) return null
+        if (!validSize(stem, dimensions.outWidth, dimensions.outHeight) || dimensions.outMimeType != expectedMime) return null
         if (expectedHash != null && (dimensions.outWidth != expectedWidth || dimensions.outHeight != expectedHeight ||
             dimensions.outMimeType != expectedMime)) return null
         val digest = MessageDigest.getInstance("SHA-256")
@@ -142,7 +149,7 @@ internal object ThorLauncherArtwork {
         // Replacing a file drops only our old reference. Views may still draw it;
         // recycling an evicted bitmap here would invalidate those live displays.
         cache.keys.filter { it.path == key.path }.forEach { cache.remove(it) }
-        if (cache.size >= 8) cache.remove(cache.keys.first())
+        if (cache.size >= stems.size) cache.remove(cache.keys.first())
         cache[key] = Cached(decoded, hash, dimensions.outWidth, dimensions.outHeight, dimensions.outMimeType)
         return decoded
     }

@@ -1,7 +1,7 @@
 {
   "schema": 1,
   "kind": "wiids-bundled-presentation",
-  "revision": "thor-2026-10-20-r2",
+  "revision": "thor-2026-10-20-r3",
   "files": [
     {
       "asset": "presentation/files/eclipse-hud/game_6-balloon_icon.png",
@@ -948,8 +948,8 @@
     {
       "asset": "presentation/files/launcher/artwork.json",
       "target": "launcher/artwork.json",
-      "sha256": "0d5f0e78e7d8bd6063864ad2a704247c2203244c1a1d7df4bf4cb9f72011a20b",
-      "bytes": 3194
+      "sha256": "5f8d045c389d5acca9df11d18cdb73458099ea1ed6664eb5cfeee011902ac92b",
+      "bytes": 5149
     },
     {
       "asset": "presentation/files/launcher/eclipse-cover.png",
@@ -964,6 +964,12 @@
       "bytes": 1575203
     },
     {
+      "asset": "presentation/files/launcher/eclipse-spine.png",
+      "target": "launcher/eclipse-spine.png",
+      "sha256": "448a181fa125e03bcb637e5057bc10f7a9accc390feb4f9ae2575b6c88485226",
+      "bytes": 38249
+    },
+    {
       "asset": "presentation/files/launcher/msmbwii-cover.png",
       "target": "launcher/msmbwii-cover.png",
       "sha256": "2cc7718cf8d1adbbda44798952dcfa9cc21d705961a3cab63427959520f40503",
@@ -974,6 +980,12 @@
       "target": "launcher/msmbwii-disc.png",
       "sha256": "dd7bba49fcb84e554376a000b81c9930b9f7f9b5314d01dfa5b60f7b8693ad90",
       "bytes": 1250176
+    },
+    {
+      "asset": "presentation/files/launcher/msmbwii-spine.png",
+      "target": "launcher/msmbwii-spine.png",
+      "sha256": "d0b55e0a1d13452c00500828996ba50739d75adf5a06f09fcee2aa57e1522073",
+      "bytes": 47696
     },
     {
       "asset": "presentation/files/launcher/nsmbw-cover.jpg",
@@ -988,6 +1000,12 @@
       "bytes": 1176388
     },
     {
+      "asset": "presentation/files/launcher/nsmbw-spine.png",
+      "target": "launcher/nsmbw-spine.png",
+      "sha256": "42ab39044bcf57c4bc607b99585aed931f4babd86e3160da4280456f63b2f4a7",
+      "bytes": 52751
+    },
+    {
       "asset": "presentation/files/launcher/original-cover.jpg",
       "target": "launcher/original-cover.jpg",
       "sha256": "19b632ccb5212b3233f37bbc22a841b3c491eac5e99c23e992c07c4d239d57db",
@@ -998,6 +1016,12 @@
       "target": "launcher/original-disc.jpg",
       "sha256": "42e2f4834e88963db358d553a5a7748b77898a3f65f2d8d647b7ee3660adc9ce",
       "bytes": 26898
+    },
+    {
+      "asset": "presentation/files/launcher/original-spine.png",
+      "target": "launcher/original-spine.png",
+      "sha256": "d7cff5bf38b7ba5bff9be6d8cfe20b1c866fbd2ac35376e8107de7494834257b",
+      "bytes": 16586
     },
     {
       "asset": "presentation/files/launcher/retro-rewind-cover.png",
@@ -1012,6 +1036,12 @@
       "bytes": 2264741
     },
     {
+      "asset": "presentation/files/launcher/retro-rewind-spine.png",
+      "target": "launcher/retro-rewind-spine.png",
+      "sha256": "4983a9162236ab6d69cc7443aed05a3982a634410a2aff9659b48cea22b4589a",
+      "bytes": 31472
+    },
+    {
       "asset": "presentation/files/launcher/sunshine-cover.png",
       "target": "launcher/sunshine-cover.png",
       "sha256": "891d81e742b4c2428f7deb8b7bf4119613b2bd6cc712243414300c3258607aef",
@@ -1022,6 +1052,12 @@
       "target": "launcher/sunshine-disc.png",
       "sha256": "0466b2f56a8f6be74ef41d14de69aef39516dd62ede741e0af92bf7c12ac1367",
       "bytes": 321209
+    },
+    {
+      "asset": "presentation/files/launcher/sunshine-spine.png",
+      "target": "launcher/sunshine-spine.png",
+      "sha256": "0ab8851abe0c38dfa3056aac7198c656f0ea5d0a587eabe2e67a5e405c069e93",
+      "bytes": 51268
     },
     {
       "asset": "presentation/files/msmbwii-hud/character0.png",

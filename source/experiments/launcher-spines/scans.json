@@ -1,0 +1,72 @@
+[
+  {
+    "url": "https://art.gametdb.com/wii/coverfullHQ/US/RMCE01.png",
+    "bytes": 1027275,
+    "sha256": "88496c4c9d6f67725d5c8310e69c4dc7679795b54650211bbceed59fe733677c",
+    "dimensions": [
+      1024,
+      680
+    ],
+    "title": "Mario Kart Wii",
+    "artwork_kind": "retail cover image",
+    "source_page": "https://www.gametdb.com/Wii/RMCE01",
+    "id": "RMCE01",
+    "filename": "RMCE01-coverfullHQ-US.png"
+  },
+  {
+    "url": "https://art.gametdb.com/wii/coverfullHQ/US/SMNE01.png",
+    "bytes": 1128340,
+    "sha256": "632c4393991f7570081525df7df1833283367f2ea13a9cf6bf6819ef0972ab5a",
+    "dimensions": [
+      1024,
+      680
+    ],
+    "title": "New Super Mario Bros. Wii",
+    "artwork_kind": "retail cover image",
+    "source_page": "https://www.gametdb.com/Wii/SMNE01",
+    "id": "SMNE01",
+    "filename": "SMNE01-coverfullHQ-US.png"
+  },
+  {
+    "url": "https://art.gametdb.com/wii/coverfullHQ/US/GMSE01.png",
+    "bytes": 1245495,
+    "sha256": "1ad98fc2d0bd842ab66ee4cb170d74a0b2f46d85fb0189a71767a72285570f31",
+    "dimensions": [
+      1024,
+      680
+    ],
+    "title": "Super Mario Sunshine",
+    "artwork_kind": "retail cover image",
+    "source_page": "https://www.gametdb.com/Wii/GMSE01",
+    "id": "GMSE01",
+    "filename": "GMSE01-coverfullHQ-US.png"
+  },
+  {
+    "url": "https://art.gametdb.com/wii/coverfullHQ/US/RMCETO.png",
+    "bytes": 954929,
+    "sha256": "a82625360d4b885711631f2467a71a1940c0a13b09c6170e09fb4115a89a0db3",
+    "dimensions": [
+      1024,
+      680
+    ],
+    "title": "Retro Rewind",
+    "artwork_kind": "community custom full cover; not Nintendo retail",
+    "source_page": "https://www.gametdb.com/Wii/RMCETO",
+    "id": "RMCETO",
+    "filename": "RMCETO-coverfullHQ-US.png"
+  },
+  {
+    "url": "https://art.gametdb.com/wii/coverfullHQ/US/GMSE04.png",
+    "bytes": 997105,
+    "sha256": "f01cc23e2ae132ffc97a5a9ca48659f6caa9ff52e4034466c17e9ed732f0b6db",
+    "dimensions": [
+      1024,
+      680
+    ],
+    "title": "Super Mario Eclipse",
+    "artwork_kind": "community custom full cover; not Nintendo retail",
+    "source_page": "https://www.gametdb.com/Wii/GMSE04",
+    "id": "GMSE04",
+    "filename": "GMSE04-coverfullHQ-US.png"
+  }
+]

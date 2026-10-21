@@ -87,7 +87,7 @@
   ],
   "missing_roots": [],
   "source_coverage": {
-    "expected_source_files": 6657,
+    "expected_source_files": 6659,
     "roots": {
       "reference/driftdroid": 1507,
       "reference/nsmbw-android-e1": 1203,
@@ -105,6 +105,7 @@
       "experiments/eclipse-thor": 15,
       "experiments/nsmbw-thor": 47,
       "experiments/sunshine-thor": 11,
+      "experiments/launcher-spines": 2,
       "third_party/eclipse": 96,
       "third_party/BetterSunshineEngine": 143,
       "third_party/BetterSunshineMoveset": 20,
@@ -114,10 +115,10 @@
     "omissions": []
   },
   "presentation_assets": {
-    "revision": "thor-2026-10-20-r2",
-    "manifest_sha256": "ab0651929d85ddf07e6d5b67ffa86813a2614749ce5bc1a6bed9d70408f22bab",
-    "files": 1381,
-    "bytes": 555876343,
+    "revision": "thor-2026-10-20-r3",
+    "manifest_sha256": "7dc8ccc464fa7461db185c0c4e45eb023275c74552078a9540b8f8b709cc5a1e",
+    "files": 1387,
+    "bytes": 556116320,
     "source": "Exact owner-approved current presentation snapshot; attribution in WIIDS-NOTICE.md"
   },
   "excluded": "ROMs; disc/game data; translated/generated game code; unlisted extracted assets; saves; keys; native binaries; private logs; other build trees",
@@ -773,8 +774,8 @@
       "bytes": 53700
     },
     "build/wiids-merge/assets/presentation/files/launcher/artwork.json": {
-      "sha256": "0d5f0e78e7d8bd6063864ad2a704247c2203244c1a1d7df4bf4cb9f72011a20b",
-      "bytes": 3194
+      "sha256": "5f8d045c389d5acca9df11d18cdb73458099ea1ed6664eb5cfeee011902ac92b",
+      "bytes": 5149
     },
     "build/wiids-merge/assets/presentation/files/launcher/eclipse-cover.png": {
       "sha256": "1ecfb21ca5d46160ed4d3f661ad480620d1c260c0f1b384b138d9dc1eaeeed10",
@@ -784,6 +785,10 @@
       "sha256": "686a74cb0a548b1a2f1903f8ff868131680c506a078b5a71a28219c0715dd5b4",
       "bytes": 1575203
     },
+    "build/wiids-merge/assets/presentation/files/launcher/eclipse-spine.png": {
+      "sha256": "448a181fa125e03bcb637e5057bc10f7a9accc390feb4f9ae2575b6c88485226",
+      "bytes": 38249
+    },
     "build/wiids-merge/assets/presentation/files/launcher/msmbwii-cover.png": {
       "sha256": "2cc7718cf8d1adbbda44798952dcfa9cc21d705961a3cab63427959520f40503",
       "bytes": 2723582
@@ -791,6 +796,10 @@
     "build/wiids-merge/assets/presentation/files/launcher/msmbwii-disc.png": {
       "sha256": "dd7bba49fcb84e554376a000b81c9930b9f7f9b5314d01dfa5b60f7b8693ad90",
       "bytes": 1250176
+    },
+    "build/wiids-merge/assets/presentation/files/launcher/msmbwii-spine.png": {
+      "sha256": "d0b55e0a1d13452c00500828996ba50739d75adf5a06f09fcee2aa57e1522073",
+      "bytes": 47696
     },
     "build/wiids-merge/assets/presentation/files/launcher/nsmbw-cover.jpg": {
       "sha256": "89cbffcaf3bcad5e5ff50bf3f5d9ad846f301e9ff208eb837229d4531f8dec8a",
@@ -800,6 +809,10 @@
       "sha256": "236b188fb40becaf7c5d0b261ac04fa4b57019f34ed1111ec6add21567a827f9",
       "bytes": 1176388
     },
+    "build/wiids-merge/assets/presentation/files/launcher/nsmbw-spine.png": {
+      "sha256": "42ab39044bcf57c4bc607b99585aed931f4babd86e3160da4280456f63b2f4a7",
+      "bytes": 52751
+    },
     "build/wiids-merge/assets/presentation/files/launcher/original-cover.jpg": {
       "sha256": "19b632ccb5212b3233f37bbc22a841b3c491eac5e99c23e992c07c4d239d57db",
       "bytes": 32086
@@ -807,6 +820,10 @@
     "build/wiids-merge/assets/presentation/files/launcher/original-disc.jpg": {
       "sha256": "42e2f4834e88963db358d553a5a7748b77898a3f65f2d8d647b7ee3660adc9ce",
       "bytes": 26898
+    },
+    "build/wiids-merge/assets/presentation/files/launcher/original-spine.png": {
+      "sha256": "d7cff5bf38b7ba5bff9be6d8cfe20b1c866fbd2ac35376e8107de7494834257b",
+      "bytes": 16586
     },
     "build/wiids-merge/assets/presentation/files/launcher/retro-rewind-cover.png": {
       "sha256": "3c0bceba4bf30c600f9cfcedd17d675892ab28423ad44211feb7b72368952830",
@@ -816,6 +833,10 @@
       "sha256": "d20756528a2325f04414274de2f0d2346e921b8a83abd29f278a44703177f76a",
       "bytes": 2264741
     },
+    "build/wiids-merge/assets/presentation/files/launcher/retro-rewind-spine.png": {
+      "sha256": "4983a9162236ab6d69cc7443aed05a3982a634410a2aff9659b48cea22b4589a",
+      "bytes": 31472
+    },
     "build/wiids-merge/assets/presentation/files/launcher/sunshine-cover.png": {
       "sha256": "891d81e742b4c2428f7deb8b7bf4119613b2bd6cc712243414300c3258607aef",
       "bytes": 535140
@@ -823,6 +844,10 @@
     "build/wiids-merge/assets/presentation/files/launcher/sunshine-disc.png": {
       "sha256": "0466b2f56a8f6be74ef41d14de69aef39516dd62ede741e0af92bf7c12ac1367",
       "bytes": 321209
+    },
+    "build/wiids-merge/assets/presentation/files/launcher/sunshine-spine.png": {
+      "sha256": "0ab8851abe0c38dfa3056aac7198c656f0ea5d0a587eabe2e67a5e405c069e93",
+      "bytes": 51268
     },
     "build/wiids-merge/assets/presentation/files/msmbwii-hud/character0.png": {
       "sha256": "20d8d2e5774b8d1a7fe3fbf8b7e75182b5a98ab9b16db7a90a00be28e5d54a2a",
@@ -5669,8 +5694,8 @@
       "bytes": 5444
     },
     "build/wiids-merge/assets/presentation/manifest.json": {
-      "sha256": "ab0651929d85ddf07e6d5b67ffa86813a2614749ce5bc1a6bed9d70408f22bab",
-      "bytes": 343525
+      "sha256": "7dc8ccc464fa7461db185c0c4e45eb023275c74552078a9540b8f8b709cc5a1e",
+      "bytes": 344939
     },
     "diagnostics/AndroidManifest.xml": {
       "sha256": "03f66006d8a9babb242a2ce2c4317ac0330f8c9f5418d5f350f9294a7d8c6b3f",
@@ -5733,12 +5758,12 @@
       "bytes": 1064
     },
     "docs/release/RELEASE-DRAFT.md": {
-      "sha256": "c039328fcefe8c77e0cf99f99870ea8561b97e6f27343dddbee44b04973094cd",
-      "bytes": 8168
+      "sha256": "2b61ad0e3d6f8e5a93850aac3f19c7a97dabd81995944ac37fb967b232971da4",
+      "bytes": 8310
     },
     "docs/release/SOURCE-RELEASE.md": {
-      "sha256": "9c90c7f59482840e6ef2cdd9243a7cf1b668a46b3bba5f31242b7ec125117a35",
-      "bytes": 6050
+      "sha256": "2a0048e5e5a07d20743d72fb6e02ddf6d56ed9970b530c9d7d9361fcf01d0062",
+      "bytes": 6148
     },
     "docs/release/STEP1-RELEASE-BASICS.md": {
       "sha256": "4068e1abaef7b7b5d8d3ce51a8a3eb8297f77596df0ccf951c994099ce40ec6e",
@@ -5851,6 +5876,22 @@
     "experiments/eclipse-thor/eclipse-thor-native.patch": {
       "sha256": "040ce1b2b32e9c9d1c732ab4221942905df4cd3d270adeea2ddf8b2d75b9d7fb",
       "bytes": 20482
+    },
+    "experiments/launcher-spines/README.md": {
+      "sha256": "8e71f06a7fc5303a63492b82d1607964acde2a9c03f325096ab9f0226cbc17c4",
+      "bytes": 2701
+    },
+    "experiments/launcher-spines/prepare_spines.py": {
+      "sha256": "a3fd19091146ba011b38f3ce4fa558951d6b4d3661d751e2eb8903695247c69a",
+      "bytes": 7010
+    },
+    "experiments/launcher-spines/scans.json": {
+      "sha256": "c1d1c37a270a7de9c26888da7248b4d714e66ab7f491478f571b2f3108bd63e1",
+      "bytes": 2273
+    },
+    "experiments/launcher-spines/test_case_order.py": {
+      "sha256": "27b27a7762e8cc7a31f528ee541da101a2c21d7f88afff5c9aeb6d9c250da29a",
+      "bytes": 6917
     },
     "experiments/nsmbw-thor/Build-CleanE1Translation.ps1": {
       "sha256": "f04a637229da87f189b5fb499eb2b0d016d1c8bba30153ec7eab3d5e6f33e04a",
@@ -6137,8 +6178,8 @@
       "bytes": 608
     },
     "experiments/release/export_release_source.py": {
-      "sha256": "613fe76fe04dc986d94be1b2f018f158d1585b49a881b7891323845dde9889e8",
-      "bytes": 20457
+      "sha256": "feeba2982eb3dca2c99c36248479ff9f21a5cc62e71a1ab31de406cb4643ea3b",
+      "bytes": 20488
     },
     "experiments/release/game-data-test/inc/isa/ppc_isa_context.h": {
       "sha256": "1081ed327c78b524819c7a45517683db37850c4b332fb2faddfb68b8623b8fe5",
@@ -6869,16 +6910,16 @@
       "bytes": 683
     },
     "reference/driftdroid/android/app/src/main/kotlin/com/driftdroid/android/ThorLauncherArtwork.kt": {
-      "sha256": "dcc9f9743f741f5f437b73eefb049620ae509a1b4d3b229c1f85163905699f2c",
-      "bytes": 8605
+      "sha256": "f7b16ff2410bb19e1804192e80843ed958566e31d8f2e8029fde8329d0e4999e",
+      "bytes": 9265
     },
     "reference/driftdroid/android/app/src/main/kotlin/com/driftdroid/android/ThorLauncherAudio.kt": {
       "sha256": "1346a74d0af96832d069794be481069176981a146b53e00f422988ffebed364d",
       "bytes": 14135
     },
     "reference/driftdroid/android/app/src/main/kotlin/com/driftdroid/android/ThorLauncherView.kt": {
-      "sha256": "3087c380052fc2502ad4d880f30d098e39adff7628b6dbdb92f3b3556223b627",
-      "bytes": 68308
+      "sha256": "858852a0f38210c4a7f03a561e47f9a1fa7a8a875ee9837bb902f16504087c2d",
+      "bytes": 70416
     },
     "reference/driftdroid/android/app/src/main/kotlin/com/driftdroid/android/ThorLibraryCompanionView.kt": {
       "sha256": "e13d526ac9392252592110229567bf3034be985e1cbf83011051a34f2521a510",
@@ -28693,11 +28734,11 @@
       "bytes": 2351
     },
     "release/licenses/WIIDS-NOTICE.md": {
-      "sha256": "6345594b9c4f245bd9263a423ad1330109ed579d0797598f0d14aab00fdbf1dc",
-      "bytes": 4503
+      "sha256": "05832d556ee53e6822fd4276afeaa44d33dae6ca4ee563a262bd9c4e1ed9b1ac",
+      "bytes": 5179
     },
     "release/version.properties": {
-      "sha256": "77ea2853a1f5b3b581088cf2f9c0eb0d4b35f376bb5730a3782793eb2c617907",
+      "sha256": "f881b0cc5744d81cd74f8cbe09afa9b7a74ff6f36b284726e3f005bbac04b410",
       "bytes": 129
     },
     "scripts/Bake-ThorCustomMaps.py": {
@@ -28777,8 +28818,8 @@
       "bytes": 2023
     },
     "scripts/Stage-Presentation.py": {
-      "sha256": "d33217be8cc8c08b8604a7e8f0ddbf0808a7b1ad297fd6e94b84ff71cd815bb4",
-      "bytes": 15108
+      "sha256": "12bc40815205b72d036845bb7dd9daace2320b271330ca29dfaa949b1f2b840b",
+      "bytes": 15558
     },
     "scripts/Stage-RetroRewind.py": {
       "sha256": "6d97cb1fb7243dd8ad6834222993fb0d2d507f9f449c485df7a4526c8c3d2e58",
@@ -28789,8 +28830,8 @@
       "bytes": 7578
     },
     "scripts/Stage-ThorLauncher.py": {
-      "sha256": "88d84537497bd044fe9cc4cd4d86aca85006a2844bcb39f23320b2d7bf2079ca",
-      "bytes": 7995
+      "sha256": "282454812c36d813a6fbefb91da3e7f105f2e12d093d31e6410cfa951850287c",
+      "bytes": 8814
     },
     "scripts/Stage-ThorMaps.py": {
       "sha256": "13d8abbd7a0b2e0631f41fba2b2c1083db451074792cc6c666fbc89a1ac39eb7",

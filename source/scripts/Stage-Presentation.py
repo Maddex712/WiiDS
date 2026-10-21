@@ -119,6 +119,7 @@ def main():
     parser.add_argument('--serial')
     parser.add_argument('--adb', type=Path, default=ROOT / '.tools/platform-tools/adb.exe')
     parser.add_argument('--capture-root', type=Path, default=BUILD / 'device-capture')
+    parser.add_argument('--launcher-root', type=Path, help='Use a prepared launcher artwork set instead of a device/captured set')
     parser.add_argument('--thor-map', type=Path, default=ROOT / 'build/thor-map-data')
     parser.add_argument('--retro-maps', type=Path, default=ROOT / 'build/thor-rr-map-data')
     parser.add_argument('--output', type=Path, default=ROOT / 'build/wiids-merge/assets/presentation')
@@ -170,8 +171,11 @@ def main():
                             'nsmbw-hud': 'nsmbw/ThorHud', 'msmbwii-hud': 'msmbwii/ThorHud',
                             'sms-hud': 'sms/ThorHud', 'eclipse-hud': 'eclipse/ThorHud'}
         folder = args.capture_root / (capture_relative[group] if (args.capture_root / 'custom').is_dir() else group)
-        captured = capture(args.adb, args.serial, group, remotes, marker, folder) if args.serial else None
-        if captured:
+        captured = capture(args.adb, args.serial, group, remotes, marker, folder) if args.serial and not (group == 'launcher' and args.launcher_root) else None
+        if group == 'launcher' and args.launcher_root:
+            folder = args.launcher_root.resolve(strict=True)
+            choice = {'source': 'explicit-prepared-launcher', 'files': selected(json.loads((folder / marker).read_text(encoding='utf-8')), marker)}
+        elif captured:
             choice = captured
         elif (folder / marker).is_file():
             choice = {'source': 'existing-capture', 'files': selected(json.loads((folder / marker).read_text(encoding='utf-8')), marker)}

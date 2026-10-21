@@ -84,6 +84,7 @@ internal class ThorLauncherView(
     // Read before the cases load, so a manifest rewritten meanwhile still triggers a reload.
     private var caseStamp = caseArtStamp()
     private val covers = Array(caseCount) { i -> art(i, "cover") }
+    private val spines = Array(caseCount) { i -> art(i, "spine") }
     /** Disc labels masked once to a round disc with its centre hole; never rebuilt per frame. */
     private val labels = Array(caseCount) { i -> discLabel(art(i, "disc"), i) }
     private fun art(i: Int, kind: String) = actions[i].art.takeIf { it.isNotEmpty() }?.let { ThorLauncherArtwork.bitmap(packagingFolder, "$it-$kind") }
@@ -94,7 +95,11 @@ internal class ThorLauncherView(
         val stamp = caseArtStamp()
         if (stamp == caseStamp) return
         caseStamp = stamp
-        for (i in 0 until caseCount) { covers[i] = art(i, "cover"); labels[i] = discLabel(art(i, "disc"), i) }
+        for (i in 0 until caseCount) {
+            covers[i] = art(i, "cover")
+            spines[i] = art(i, "spine")
+            labels[i] = discLabel(art(i, "disc"), i)
+        }
         invalidate()
     }
     // Art built in the background (after an import) can finish while the launcher is showing.
@@ -385,6 +390,11 @@ internal class ThorLauncherView(
     }
 
     private fun drawLibrary(c: Canvas, now: Long) {
+        // A closed stack is one shelf object: do not let a neighbouring bundle's base case
+        // paint over its mod while that stack's own base remains in front. The same order
+        // drives hit targets, so an overlapping visible case wins its matching touch target.
+        val caseOrder = ThorCasePaintOrder.indices(bundles, FloatArray(caseCount) { caseZ(it) },
+            ThorCasePaintOrder.closedShelf(expanded, fan.value, opened))
         // Soft studio light behind the front case, on the original menu backdrop.
         if (selection < caseCount || opened >= 0) {
             paint.shader = RadialGradient(960f, 540f, 700f, intArrayOf(0x52f4f8ff, 0x1fc8dcff, 0x00000000), floatArrayOf(0f, 0.5f, 1f), Shader.TileMode.CLAMP)
@@ -415,7 +425,7 @@ internal class ThorLauncherView(
             }
             // Touch targets follow each projected case, nearest last so it wins an overlap. On the
             // main shelf a stacked mod's case stands for its whole bundle.
-            for (i in (0 until caseCount).sortedByDescending { caseZ(it) }) {
+            for (i in caseOrder) {
                 if (hidden(i) > 0.5f) continue
                 val s = F / (caseZ(i) + D)
                 val x = CX + caseX(i) * s
@@ -427,8 +437,8 @@ internal class ThorLauncherView(
             textAlpha(c, "Options", 960f, 927f, 38f, 400f, labelAlpha)
             bounds.add(optionArea to caseCount)
         }
-        // Painter's order: the cases farther from the camera first.
-        for (i in (0 until caseCount).sortedByDescending { caseZ(it) }) drawCase(c, i)
+        // Back-to-front bundles on the main shelf; individual depths while fanned or opened.
+        for (i in caseOrder) drawCase(c, i)
         // The case recedes into shade while its disc is presented.
         if (dim.value > 0.01f) { paint.color = Color.argb((dim.value * 120).toInt(), 0, 0, 0); c.drawRect(0f, 164f, 1920f, 1000f, paint) }
         if (state == State.EXTRACT || state == State.COMMITTED || state == State.RETURN_DISC) drawFreeDisc(c, now)
@@ -597,11 +607,25 @@ internal class ThorLauncherView(
     private fun spine(c: Canvas, shade: Float, i: Int) {
         rect.set(0f, 0f, T, H)
         paint.color = plastic(i, shade * 0.96f); c.drawRoundRect(rect, 6f, 6f, paint)
-        // Clear outer sleeve over the spine insert; title in the original game font.
-        paint.color = plastic(i, shade, 0xfff7f8f9.toInt()); c.drawRect(5f, 14f, T - 5f, H - 14f, paint)
-        c.save(); c.rotate(-90f, T / 2f, H / 2f)
-        textAlpha(c, actions[i].label, T / 2f, H / 2f - 12f, 22f, H - 80f, (200 * shade).toInt())
-        c.restore()
+        val scan = spines[i]
+        if (scan != null) {
+            // An upright scan maps directly onto the outward-facing spine quad. Its own printed
+            // title and platform marks stay intact, inside the stock-coloured plastic border.
+            rect.set(2f, 12f, T - 2f, H - 12f)
+            art.roundedImage(c, scan, rect, 1.5f)
+            paint.color = Color.argb(((1f - shade) * 190).toInt().coerceIn(0, 200), 10, 14, 22)
+            c.drawRoundRect(rect, 1.5f, 1.5f, paint)
+            // Restrained clear-sleeve reflection, aligned to the thin face rather than its text.
+            paint.color = 0x24ffffff; c.drawRect(2f, 14f, 3.5f, H - 14f, paint)
+            paint.color = 0x24000000; c.drawRect(T - 3.5f, 14f, T - 2f, H - 14f, paint)
+        } else {
+            // Generated cases without a supplied scan retain the original-font label fallback.
+            paint.color = plastic(i, shade, 0xfff7f8f9.toInt()); c.drawRect(5f, 14f, T - 5f, H - 14f, paint)
+            c.save(); c.rotate(-90f, T / 2f, H / 2f)
+            textAlpha(c, actions[i].label, T / 2f, H / 2f - 12f, 22f, H - 80f, (200 * shade).toInt())
+            c.restore()
+        }
+        rect.set(0f, 0f, T, H)
         stroke.color = 0x26000000; stroke.strokeWidth = 1.5f; c.drawRoundRect(rect, 6f, 6f, stroke)
     }
 
@@ -1257,5 +1281,18 @@ internal class ThorLauncherView(
         private fun smooth(x: Float): Float { val t = x.coerceIn(0f, 1f); return t * t * t * (t * (t * 6f - 15f) + 10f) }
         private fun lerp(a: Float, b: Float, t: Float) = a + (b - a) * t
         private fun normalize(v: FloatArray): FloatArray { val l = sqrt(v[0] * v[0] + v[1] * v[1] + v[2] * v[2]); return floatArrayOf(v[0] / l, v[1] / l, v[2] / l) }
+    }
+}
+
+/** Pure ordering shared by the Canvas painter and touch targets, exercised by host regressions. */
+internal object ThorCasePaintOrder {
+    fun closedShelf(expanded: Int, fan: Float, opened: Int): Boolean =
+        expanded < 0 && kotlin.math.abs(fan) < 0.001f && opened < 0
+
+    fun indices(bundles: List<List<Int>>, depths: FloatArray, closedShelf: Boolean): List<Int> {
+        val byDepth = compareByDescending<Int> { depths[it] }.thenBy { it }
+        if (!closedShelf) return depths.indices.sortedWith(byDepth)
+        return bundles.sortedWith(compareByDescending<List<Int>> { depths[it.first()] }.thenBy { it.first() })
+            .flatMap { members -> members.sortedWith(byDepth) }
     }
 }

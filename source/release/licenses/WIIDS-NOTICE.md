@@ -72,3 +72,7 @@ payload terms remain separately applicable.
   build/generation scripts; the project address alone is not a source offer.
 - `THIRD-PARTY-NOTICES-*.md`: every bundled component, its licence and copyright.
 - Further licence texts as named.
+
+## Printed case spines
+
+Mario Kart Wii, New Super Mario Bros. Wii and Super Mario Sunshine spine images are exact crops of retail full-cover artwork archived by GameTDB. Retro Rewind and Eclipse use existing community full covers archived there. The MSMBWii spine adapts the scanned NSMB Wii sleeve and the already approved MSMBWii title artwork. Original game artwork belongs to Nintendo; community artwork belongs to its respective creators. Per-image source pages, pinned file identities, crops and preparation instructions are recorded in experiments/launcher-spines/scans.json and README.md.

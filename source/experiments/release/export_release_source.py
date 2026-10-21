@@ -40,7 +40,7 @@ DEPENDENCIES = {
 }
 LOCAL_ROOTS = ('scripts', 'diagnostics', 'wiids', 'release', 'docs/release', 'experiments/release',
                'experiments/eclipse-thor', 'experiments/nsmbw-thor',
-               'experiments/sunshine-thor')
+               'experiments/sunshine-thor', 'experiments/launcher-spines')
 EXTRA_SOURCE = ('build/nsmbw-thor/rebuild-wiids-names.sh',
                 'build/sunshine-thor/build-wiids-sdl2.sh')
 EXTENSIONS = set('''.c .cc .cpp .cxx .h .hh .hpp .hxx .inl .inc .s .asm

@@ -4,7 +4,7 @@
 
 Reviewed code snapshot: [source/](source/) (runtime, Android frontend, translators and build tools).
 The **complete matching source bundle**, including the large approved presentation payload, is the named
-`WiiDS-0.9.0-beta.2-source.zip` asset in [Releases](https://github.com/Maddex712/WiiDS/releases).
+`WiiDS-0.9.0-beta.3-source.zip` asset in [Releases](https://github.com/Maddex712/WiiDS/releases).
 GitHub's automatic Source code ZIP and this Git tree omit that large media payload; use the named release source ZIP to rebuild the exact package.
 
 Release preparation: [source and rebuild notes](docs/release/SOURCE-RELEASE.md),
@@ -32,32 +32,84 @@ aren't emulated. They run as native Android code through static recompilation an
 
 | Game | How it runs | The second screen | Disc (see below) |
 |---|---|---|---|
-| **Mario Kart Wii** and **Retro Rewind** | Static recompilation (DriftDroid / WiiCompiled) | Live overhead course map with every racer, standings and race timer | Europe/PAL, `RMCP01` revision 0 |
+| **Mario Kart Wii** | The original Wii racer, through DriftDroid / WiiCompiled static recompilation | Independent overhead course map, racer portraits, standings, held items and timer | Europe/PAL, `RMCP01` revision 0 |
+| **Retro Rewind** | The community Mario Kart Wii expansion, in its own launcher entry | The Mario Kart companion with a matching supported-course map cache | Same Mario Kart Wii disc; install the content pack in-app |
 | **New Super Mario Bros. Wii** | Static recompilation (NSMB Wii recompilation) | Course progress, Star Coins, score and an NSMB2-style stored-item box, all in the game's own fonts and art | USA, `SMNE01` revision 1 |
 | **MSMBWii: Just a Little Adventure** | The same engine, with MidiGuyDP's fan level pack | The same companion, with its own case and save | NSMB Wii disc above; mod included |
 | **Super Mario Sunshine** | Decompilation port, built for Android | A "Delfino Tours" episode tracker, the game's own live title sky, and FLUDD's tank | USA, `GMSE01` revision 0 |
 | **Super Mario Eclipse 1.1.0** | Sunshine expansion in its own native runtime processes | The Sunshine companion design, with Eclipse-specific context handling | Uses your USA Sunshine disc; official patch and installer included |
 
+Read the [game guide](docs/GAMES.md) for each game's setup, companion screen and current limitations.
+
+## First launch
+
+1. Download the signed ARM64 APK from [Releases](https://github.com/Maddex712/WiiDS/releases),
+   install it on your Thor and open **WiiDS**. Android may ask you to allow installation from
+   your browser or file manager.
+2. A preparation screen unpacks the bundled cases, music and companion artwork. With no games
+   imported yet, **Your games** opens automatically. Allow storage access to search for your own
+   dumps, or use **Choose file**. The exact supported regions and revisions are listed below.
+3. Import a supported disc and keep WiiDS open while it checks and prepares the game.
+   You can import just the games you own; the six visible cases are not six supplied ROMs.
+4. Add the optional mods: **Install mod** on MSMBWii's card after NSMB Wii is imported;
+   **Install Eclipse** after Sunshine is imported. Both patches are bundled.
+   For Retro Rewind, press **Y** in the library or open **Retro Rewind updates** in Options
+   and download the newest release supported by this APK. Its track pack needs internet access.
+5. Return to the case shelf. Use the Thor's physical controls to browse. Press **A** to choose a
+   game family, choose Original or its mod, then **A** to open the case and **A** again to select
+   its disc and launch. **B** returns one step; **X** opens Options.
+   Gameplay uses physical controls, with each game's companion on the lower screen.
+
+Imports and mod installations need extra free storage beyond the APK itself. Eclipse creates its own
+separate game image. Updating WiiDS in place keeps existing profiles; uninstalling the app can remove them.
+
 ## Highlights
 
 - **The complete presentation:** selected retail/fan covers and discs, Wii Menu music and UI sounds, original HUD/fonts/settings artwork and cached lower-screen maps are bundled. Existing user overrides and saves are preserved.
 - **Six cases with matching plastic colors:** white Mario Kart/Retro Rewind, red NSMB/MSMBWii, black Sunshine/Eclipse.
+- **Printed case spines:** Mario Kart, NSMB Wii and Sunshine use crops from retail full-cover scans;
+  Retro Rewind and Eclipse use community cover artwork. MSMBWii's spine is an explicit custom
+  adaptation. [Artwork sources](docs/GAMES.md#case-artwork).
 - **One APK, separate saves.** Eclipse's official 1.1.0 patch and MSMBWii's pack are bundled; Retro Rewind installs from its official servers. No companion APK is required.
 - **A real game shelf.** A carousel of game cases: open one, and the disc lifts out and spins up as the
   game boots. Wii games sit together on the shelf; Sunshine and Eclipse use black
   GameCube cases with correctly sized 8 cm mini discs.
+- **Stable family stacks.** Each original game and its mod move together when browsing the main
+  shelf. The NSMB/MSMBWii pair keeps its draw order when moving back to Mario Kart, and selecting
+  an exposed case slice opens the matching family.
 - **Bottom screens designed per game**, built from each game's own art (and, for Mario Kart and NSMB, its fonts) rather than a generic overlay.
 - **NSMB2-style item reserve** for New Super Mario Bros. Wii: a spare power-up waits in the box on the
   bottom screen, and pressing R3 drops it from the top of the screen.
-- **Widescreen and high frame rates**: Super Mario Sunshine in 16:9 at 1080p, 60 FPS with a 120 FPS option;
-  Mario Kart Wii and New Super Mario Bros. Wii at 60 FPS with an experimental interpolated 120 FPS mode.
+- **Video options:** 1080p rendering and 60 FPS defaults, with an optional 120 FPS setting.
+  Mario Kart Wii and NSMB Wii use experimental presentation interpolation while their game logic
+  stays at 60 Hz. The Sunshine/Eclipse 120 FPS option is also experimental; it is not a sustained-performance guarantee.
 - **Retro Rewind** 6.13.0–6.13.1, installed and updated in-app from the official servers. Newer versions need a matching engine build first.
 
 ## Screenshots
 
 Genuine captures from an AYN Thor, with a caption bar added. Where both screens are shown, the top screen is above and the bottom screen below.
+Game titles identify Original, Retro Rewind and the other mod entries separately. The existing gameplay
+gallery includes earlier builds; its images document the named game and scene, rather than claiming
+that every course was retested for the current APK. Eclipse gameplay captures below are explicitly from beta.2.
 
-### The launcher
+### Current launcher: WiiDS 0.9.0-beta.3
+
+New captures from the installed beta.3 build, with each complete upper display above its lower display.
+The shelf now keeps original/mod families together during transitions, including NSMB/MSMBWii when
+moving back to Mario Kart. Retail and community scanned spines are visible on the angled cases.
+These are launcher captures; the gameplay gallery further down retains its original build context.
+
+<p align="center">
+  <img src="docs/images/launcher-beta3-shelf.png" width="420" alt="WiiDS 0.9.0-beta.3: main shelf with Original Mario Kart Wii selected, Retro Rewind behind it, red NSMB and MSMBWii cases together, black Sunshine and Eclipse cases together; Original Mario Kart disc and readiness below">
+  <img src="docs/images/launcher-beta3-nsmb-stack.png" width="420" alt="WiiDS 0.9.0-beta.3: New Super Mario Bros. Wii family selection, with Original selected and MSMBWii beside it, both red cases with printed spines; Original NSMB Wii disc and readiness on the lower display">
+</p>
+<p align="center">
+  <img src="docs/images/launcher-beta3-sunshine-stack.png" width="420" alt="WiiDS 0.9.0-beta.3: Super Mario Sunshine family selection, with Original selected and Super Mario Eclipse beside it in black GameCube cases; Original Sunshine mini disc and readiness on the lower display">
+</p>
+
+### Earlier launcher captures
+
+The following case-opening and disc-lift images predate beta.3's scanned spines and family-stack fix.
 
 <p align="center">
   <img src="docs/images/launcher-carousel.jpg" width="420" alt="WiiDS launcher: Mario Kart Wii, Retro Rewind, New Super Mario Bros. Wii and MSMBWii cases side by side, with the Super Mario Sunshine GameCube case selected and its mini disc shown on the bottom screen">
@@ -138,7 +190,7 @@ can also be imported; other images sharing the `GMSE04` header are not accepted 
 **Not supported (yet):** the USA Mario Kart Wii disc (`RMCE01`), other regions, NSMB Wii revisions 0 and 2,
 and PAL or Japanese Super Mario Sunshine.
 
-**Disc-image formats accepted by beta.2:**
+**Supported disc-image formats:**
 
 | Format | Extension | Accepted |
 |---|---|---|
@@ -151,7 +203,7 @@ and PAL or Japanese Super Mario Sunshine.
 **How to check your disc:** in Dolphin, the game list shows the Game ID. Right-click the game, choose
 **Properties → Info**, and look at **Revision**.
 
-## Mods in beta.2
+## Included mods and presentation
 
 All three mod integrations are included in the one APK:
 
@@ -165,9 +217,9 @@ All three mod integrations are included in the one APK:
   on-device installer are bundled. Apply the patch to your own supported Sunshine disc through
   **Your games → Install Eclipse**. No separate Eclipse app or downloaded game image is required.
 
-The complete selected presentation is also bundled: retail/fan covers and discs, Wii Menu music,
-UI sounds, companion HUDs/fonts, menu/settings art, retail maps and the Retro Rewind map cache
-(1,381 files, 555,876,343 bytes). Its manifest records each file's size and SHA-256. This presentation
+The complete selected presentation is also bundled: retail/fan covers and discs, printed case spines, Wii Menu music,
+UI sounds, companion HUDs/fonts, menu/settings art, retail maps and the Retro Rewind map cache.
+Its release manifest records each file's size and SHA-256. This presentation
 does not replace the required game discs or Retro Rewind content installation. Existing valid user
 overrides remain separate and preserved. See the [component notices](docs/release/WIIDS-NOTICE.md)
 for mod and presentation credits and terms.
@@ -183,6 +235,8 @@ WiiDS stands on the work of these projects and people:
 - **MSMBWii: Just a Little Adventure** (MidiGuyDP and Fredo), using **Another Super Mario Bros. Wii** code (Skawo, Treeki)
 - **Super Mario Eclipse** (Eclipse Team / JoshuaMKW), **BetterSunshineEngine**, **BetterSunshineMoveset** and **SunshineHeaderInterface**
 - **Some-Crappy-Edits**: Eclipse fan disc design; the selected Eclipse cover was supplied by the owner and its creator is unverified
+- **GameTDB and its cover contributors**: the retail and community full-cover images used for printed
+  case spines. The [game guide lists the source pages](docs/GAMES.md#case-artwork); MSMBWii is a custom adaptation.
 - **Nintendo**: original game artwork, fonts/UI and the supplied Wii Menu recording; approved generated disc/app-logo artwork is identified in the component notices
 - **Dolphin**, **SDL**, **aurora** and the other open-source libraries each project credits
 
