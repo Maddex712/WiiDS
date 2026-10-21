@@ -23,6 +23,11 @@ aren't emulated. They run as native Android code through static recompilation an
 > [GitHub Releases](https://github.com/Maddex712/WiiDS/releases). Bring your own supported game discs.
 > The APK includes native engines and authorised mod patches, with no original or patched disc images.
 
+> **Bring your own supported base-game dumps; WiiDS handles the rest.**
+> MSMBWii and Eclipse installers are bundled. Retro Rewind downloads directly in-app.
+> **No separate mod files or companion APKs required.** See [First launch](#first-launch)
+> and [supported dump requirements](#what-youll-need).
+
 <p align="center">
   <img src="docs/images/mkw-retro-rewind-peach-circuit.jpg" width="640"
        alt="Retro Rewind Peach Circuit racing on the AYN Thor's top screen, with a live overhead course map, standings and timer on the bottom screen">
@@ -43,6 +48,12 @@ Read the [game guide](docs/GAMES.md) for each game's setup, companion screen and
 
 ## First launch
 
+You need the **WiiDS APK and your own supported base-game dumps**: PAL Mario Kart Wii
+`RMCP01` revision 0, USA NSMB Wii `SMNE01` revision 1, or USA Sunshine `GMSE01` revision 0.
+Import only the games you own. See [What you'll need](#what-youll-need) for the detailed
+revision, format and NSMB disc-metadata requirements. **All three mods are set up inside
+WiiDS; no separate mod APKs or companion apps are needed.**
+
 1. Download the signed ARM64 APK from [Releases](https://github.com/Maddex712/WiiDS/releases),
    install it on your Thor and open **WiiDS**. Android may ask you to allow installation from
    your browser or file manager.
@@ -53,12 +64,14 @@ Read the [game guide](docs/GAMES.md) for each game's setup, companion screen and
    **Choose file** opens only the selected file. Exact supported regions and revisions are listed below.
 3. Import a supported disc and keep WiiDS open while it checks and prepares the game.
    You can import just the games you own; the six visible cases are not six supplied ROMs.
-4. MSMBWii's bundled mod installation starts automatically after importing NSMB Wii. If it was
+4. **MSMBWii:** its bundled mod installation starts automatically after importing NSMB Wii. If it was
    cancelled or did not finish, its card offers **Install mod** or **Retry mod installation**.
-   After importing Sunshine, choose **Install Eclipse**. If cancelled, **Retry Eclipse installation**
-   tries the bundled patch again. Both patches are included in the APK.
-   For Retro Rewind, press **Y** in the library or open **Retro Rewind updates** in Options
-   and download the newest release supported by this APK. Its track pack needs internet access.
+   **Eclipse:** after importing Sunshine, choose **Install Eclipse**. If cancelled,
+   **Retry Eclipse installation** tries the bundled patch again. Both mod patches come with WiiDS;
+   you do not need to find or copy separate mod files.
+   **Retro Rewind:** press **Y** in the library or open **Retro Rewind updates** in Options.
+   WiiDS downloads and installs the newest pack supported by this APK from the official servers;
+   this step needs internet access. Each mod has its own case and separate save profile.
 5. Return to the case shelf. Use the Thor's physical controls to browse. Press **A** to choose a
    game family, choose Original or its mod, then **A** to open the case and **A** again to select
    its disc and launch. **B** returns one step; **X** opens Options.
