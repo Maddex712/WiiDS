@@ -36,8 +36,10 @@ version can run. The currently supported code family covers Retro Rewind 6.13.0â
 ## New Super Mario Bros. Wii
 
 The original side-scrolling Wii adventure. Its companion uses an NSMB2-style arrangement built from
-the game's own art: world route or course progress, lives, coins, score, timer, Star Coin slots and a
-stored-item box. Press **R3** to drop the stored power-up above Mario. The progress marker is an
+the game's own art. In a course, it shows the course name and lives, a progress track ending at the
+Bowser flag, a large Star Coin tray, score and a tall stored-item box. Coins and time stay on the
+upper display. On the world map, the lower screen shows the route and Mario's position above linked
+world bubbles. Press **R3** to drop the stored power-up above Mario. The course progress marker is an
 approximation of horizontal position within the current zone, not an exact checkpoint indicator.
 
 Import your **USA `SMNE01`, revision 1** dump. Revisions 0 and 2 are not interchangeable with this
@@ -48,6 +50,8 @@ runtime. Required disc metadata must come from your own dump.
 MidiGuyDP and Fredo's level pack for New Super Mario Bros. Wii, with its own red case, custom courses
 and separate save profile. It uses the same NSMB companion and stored-item system; starting this mod
 does not replace your regular NSMB Wii save.
+The [current Original NSMB Wii screenshots](../README.md#new-super-mario-bros-wii) show this shared
+companion design; MSMBWii's current gallery image shows its separate case and readiness panel.
 
 Import the **USA revision 1 NSMB Wii disc** above, then choose **Install mod** on MSMBWii's card in
 **Your games**. The authorised level-pack archive and native runtime are bundled in WiiDS, so a
@@ -56,8 +60,10 @@ separate companion APK or game-image download is not needed.
 ## Super Mario Sunshine
 
 Mario's GameCube adventure on Isle Delfino, running through the native Sunshine port. The lower
-screen uses the Sunshine companion design: its live title sky in menus and a Delfino Tours episode
-guide, Shine slots, counters and FLUDD tank information during supported gameplay.
+screen pairs a postcard with a live overhead area map built from the game's collision floor, with
+a moving Mario marker. It also shows the area and episode, original-art Shine/blue-coin/coin counters
+and episode Shine slots in the supported retail areas. The menu companion uses the game's live title
+sky.
 
 Import your **USA `GMSE01`, revision 0** dump. PAL and Japanese Sunshine images are not supported by
 this build. Sunshine keeps its own data and save profile, separate from Eclipse.
@@ -65,9 +71,11 @@ this build. Sunshine keeps its own data and save profile, separate from Eclipse.
 ## Super Mario Eclipse 1.1.0
 
 Eclipse Team's Sunshine expansion, with added areas and its own adventure progression. Its black
-GameCube case launches a separate native runtime and profile. The lower display currently retains
-the Sunshine companion design, with Eclipse-specific handling for menus and custom-area context.
-It is not a newly drawn, exhaustive guide to every Eclipse area.
+GameCube case launches a separate native runtime and profile. Its companion uses the same live
+collision-floor map, Mario marker, postcard/photo and original-art counters as Sunshine, with
+Eclipse-specific handling for menus and custom-area context. Custom stages use their actual area
+name or scene name and do not borrow unrelated retail episode Shine slots. The companion is not an
+exhaustive guide to every Eclipse area.
 
 First import the unchanged **USA `GMSE01`, revision 0** Sunshine disc, then choose **Install Eclipse**
 in **Your games**. The unmodified official 1.1.0 patch and its installer are bundled. WiiDS verifies

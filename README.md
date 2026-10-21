@@ -34,10 +34,10 @@ aren't emulated. They run as native Android code through static recompilation an
 |---|---|---|---|
 | **Mario Kart Wii** | The original Wii racer, through DriftDroid / WiiCompiled static recompilation | Independent overhead course map, racer portraits, standings, held items and timer | Europe/PAL, `RMCP01` revision 0 |
 | **Retro Rewind** | The community Mario Kart Wii expansion, in its own launcher entry | The Mario Kart companion with a matching supported-course map cache | Same Mario Kart Wii disc; install the content pack in-app |
-| **New Super Mario Bros. Wii** | Static recompilation (NSMB Wii recompilation) | Course progress, Star Coins, score and an NSMB2-style stored-item box, all in the game's own fonts and art | USA, `SMNE01` revision 1 |
+| **New Super Mario Bros. Wii** | Static recompilation (NSMB Wii recompilation) | Course progress, Star Coin tray, score, stored-item box and world route with NSMB2-style world bubbles | USA, `SMNE01` revision 1 |
 | **MSMBWii: Just a Little Adventure** | The same engine, with MidiGuyDP's fan level pack | The same companion, with its own case and save | NSMB Wii disc above; mod included |
-| **Super Mario Sunshine** | Decompilation port, built for Android | A "Delfino Tours" episode tracker, the game's own live title sky, and FLUDD's tank | USA, `GMSE01` revision 0 |
-| **Super Mario Eclipse 1.1.0** | Sunshine expansion in its own native runtime processes | The Sunshine companion design, with Eclipse-specific context handling | Uses your USA Sunshine disc; official patch and installer included |
+| **Super Mario Sunshine** | Decompilation port, built for Android | Live area map and Mario marker, postcard, episode Shines and original-art counters; live title sky in menus | USA, `GMSE01` revision 0 |
+| **Super Mario Eclipse 1.1.0** | Sunshine expansion in its own native runtime processes | The same live-map companion, with Eclipse-specific area and menu handling | Uses your USA Sunshine disc; official patch and installer included |
 
 Read the [game guide](docs/GAMES.md) for each game's setup, companion screen and current limitations.
 
@@ -88,16 +88,17 @@ separate game image. Updating WiiDS in place keeps existing profiles; uninstalli
 ## Screenshots
 
 Genuine captures from an AYN Thor, with a caption bar added. Where both screens are shown, the top screen is above and the bottom screen below.
-Game titles identify Original, Retro Rewind and the other mod entries separately. The existing gameplay
-gallery includes earlier builds; its images document the named game and scene, rather than claiming
-that every course was retested for the current APK. Eclipse gameplay captures below are explicitly from beta.2.
+Game titles identify Original, Retro Rewind and the other mod entries separately. Mario Kart and
+Retro Rewind retain their existing gameplay captures because their presentation is unchanged.
+The revised NSMB and Sunshine family screenshots carry explicit WiiDS 0.9.0-beta.3 labels.
+Captures document their named scene, rather than implying every course or stage was retested.
 
 ### Current launcher: WiiDS 0.9.0-beta.3
 
 New captures from the installed beta.3 build, with each complete upper display above its lower display.
 The shelf now keeps original/mod families together during transitions, including NSMB/MSMBWii when
 moving back to Mario Kart. Retail and community scanned spines are visible on the angled cases.
-These are launcher captures; the gameplay gallery further down retains its original build context.
+These are launcher captures; each gameplay section below identifies its game and capture context.
 
 <p align="center">
   <img src="docs/images/launcher-beta3-shelf.png" width="420" alt="WiiDS 0.9.0-beta.3: main shelf with Original Mario Kart Wii selected, Retro Rewind behind it, red NSMB and MSMBWii cases together, black Sunshine and Eclipse cases together; Original Mario Kart disc and readiness below">
@@ -105,18 +106,14 @@ These are launcher captures; the gameplay gallery further down retains its origi
 </p>
 <p align="center">
   <img src="docs/images/launcher-beta3-sunshine-stack.png" width="420" alt="WiiDS 0.9.0-beta.3: Super Mario Sunshine family selection, with Original selected and Super Mario Eclipse beside it in black GameCube cases; Original Sunshine mini disc and readiness on the lower display">
+  <img src="docs/images/launcher-beta3-options.png" width="420" alt="Shared WiiDS 0.9.0-beta.3 Options: Your games, Graphics, Mii Data, Retro Rewind updates, Texture Packs, Diagnostics, App Icon, Server Settings and Menu Music above; library options companion below">
 </p>
 
-### Earlier launcher captures
+### Mario Kart disc launch
 
-The following case-opening and disc-lift images predate beta.3's scanned spines and family-stack fix.
+This earlier Mario Kart capture shows the disc-lift animation; its game and lower-screen design are unchanged.
 
 <p align="center">
-  <img src="docs/images/launcher-carousel.jpg" width="420" alt="WiiDS launcher: Mario Kart Wii, Retro Rewind, New Super Mario Bros. Wii and MSMBWii cases side by side, with the Super Mario Sunshine GameCube case selected and its mini disc shown on the bottom screen">
-  <img src="docs/images/gamecube-case-open.jpg" width="420" alt="Super Mario Sunshine GameCube case opened, with the cover art inside the lid and the 8 cm mini disc in its tray">
-</p>
-<p align="center">
-  <img src="docs/images/gamecube-disc-lift.jpg" width="420" alt="The Super Mario Sunshine mini disc lifting out of its case and spinning">
   <img src="docs/images/mkw-launcher-disc-spin.jpg" width="420" alt="The Mario Kart Wii disc lifted out and spinning while the game loads, with a loading screen on the bottom display">
 </p>
 
@@ -129,39 +126,48 @@ The following case-opening and disc-lift images predate beta.3's scanned spines 
 
 ### New Super Mario Bros. Wii
 
+Fresh WiiDS 0.9.0-beta.3 captures of **Original New Super Mario Bros. Wii**. The World 1-1 companion
+shows lives, goal-flag progress, the Star Coin tray, score and reserve box; coins and time remain above.
+The world-map companion shows Mario on the actual route with linked NSMB2-style world bubbles below.
+
 <p align="center">
-  <img src="docs/images/nsmb-course.jpg" width="420" alt="World 1-1 above; the bottom screen shows World 1-1, lives, course progress with Mario's marker, Star Coins, score, coins and time">
-  <img src="docs/images/nsmb-item-reserve.jpg" width="420" alt="World 1-1 above; a Propeller Mushroom waits in the stored-item box on the bottom screen">
-</p>
-<p align="center">
-  <img src="docs/images/nsmb-item-drop.jpg" width="420" alt="A stored Super Mushroom dropping from the top of the screen toward Mario">
-  <img src="docs/images/nsmb-world-map.jpg" width="420" alt="World 1 map above; the bottom screen shows the world's route graph with Mario's position and the stored item">
+  <img src="docs/images/nsmb-beta3-course.png" width="420" alt="Original New Super Mario Bros. Wii in WiiDS 0.9.0-beta.3: real World 1-1 gameplay above; five lives, goal-flag progress, three empty Star Coin slots, score and an empty reserve box below">
+  <img src="docs/images/nsmb-beta3-world-map.png" width="420" alt="Original New Super Mario Bros. Wii in WiiDS 0.9.0-beta.3: World 1 map above; the live route with Mario marker, linked world bubbles and five lives below">
 </p>
 
 ### MSMBWii: Just a Little Adventure
 
+Fresh WiiDS 0.9.0-beta.3 **library capture** of MSMBWii's red case, mod disc and readiness panel.
+MSMBWii shares the companion design shown in the Original NSMB Wii screenshots above and keeps its
+own save profile.
+
 <p align="center">
-  <img src="docs/images/msmbwii-level.jpg" width="420" alt="MSMBWii's custom World 1-1 above, the course companion below">
+  <img src="docs/images/msmbwii-beta3-open-case.png" width="420" alt="MSMBWii: Just a Little Adventure in WiiDS 0.9.0-beta.3, library screenshot: open red case with mod-labelled cover and disc above, mod disc and readiness below">
 </p>
 
 ### Super Mario Sunshine
 
+Fresh WiiDS 0.9.0-beta.3 captures of **Original Super Mario Sunshine**: the file-selection screen,
+real Delfino Airstrip gameplay and the current black GameCube case. The lower gameplay display
+shows its postcard, live collision-floor map, Mario marker and original-art counters.
+
 <p align="center">
-  <img src="docs/images/sunshine-title.jpg" width="420" alt="Super Mario Sunshine title screen above; the game's own live title sky with sun rays and clouds mirrored on the bottom screen">
-  <img src="docs/images/sunshine-file-select.jpg" width="420" alt="File select above; the Super Mario Sunshine logo over the title sky on the bottom screen">
+  <img src="docs/images/sunshine-beta3-airstrip.png" width="420" alt="Original Super Mario Sunshine in WiiDS 0.9.0-beta.3: Mario, Peach and Toads at Delfino Airstrip above; area postcard, live collision-floor map with Mario marker, Shine, blue-coin and coin counters below">
+  <img src="docs/images/sunshine-beta3-file-select.png" width="420" alt="Original Super Mario Sunshine in WiiDS 0.9.0-beta.3: file selection above; Sunshine logo, live sky and Welcome to Isle Delfino companion below">
 </p>
 <p align="center">
-  <img src="docs/images/sunshine-episode-tracker.jpg" width="420" alt="Bottom screen in Bianco Hills: Delfino Tours postcard, Episode 1 Road to the Big Windmill, Shine slots, counters and FLUDD's water tank with the Spray nozzle">
-  <img src="docs/images/sunshine-gameplay.jpg" width="420" alt="Super Mario Sunshine gameplay in 16:9 on the AYN Thor's top screen">
+  <img src="docs/images/sunshine-beta3-open-case.png" width="420" alt="Original Super Mario Sunshine in WiiDS 0.9.0-beta.3: its black GameCube case open above, with the cover and mini disc; selected disc readiness on the lower display">
 </p>
 
 ### Super Mario Eclipse 1.1.0
 
-WiiDS 0.9.0-beta.2: Eclipse's black GameCube case and tutorial, captured from the combined APK. The Sunshine-style companion is retained below; Eclipse's game data and saves stay separate from regular Sunshine.
+Fresh WiiDS 0.9.0-beta.3 captures of **Super Mario Eclipse 1.1.0**: tutorial trainer dialogue and its
+black GameCube case. The lower screen shows the current purple area map, arrival photo and original-art
+counters. Eclipse's game data and saves stay separate from regular Sunshine.
 
 <p align="center">
-  <img src="docs/images/eclipse-open-case.png" width="420" alt="Super Mario Eclipse 1.1.0 in WiiDS 0.9.0-beta.2: its black GameCube case open above and selected disc details below">
-  <img src="docs/images/eclipse-tutorial.png" width="420" alt="Super Mario Eclipse 1.1.0 tutorial in WiiDS 0.9.0-beta.2: Mario speaking with the training guide above, tutorial companion map and counters below">
+  <img src="docs/images/eclipse-beta3-tutorial.png" width="420" alt="Super Mario Eclipse 1.1.0 in WiiDS 0.9.0-beta.3: Mario speaking with the tutorial trainer above; the purple collision-floor area map, arrival photo and original-art counters below">
+  <img src="docs/images/eclipse-beta3-open-case.png" width="420" alt="Super Mario Eclipse 1.1.0 in WiiDS 0.9.0-beta.3: its black GameCube case open above with cover and mini disc; separate game readiness on the lower display">
 </p>
 
 ## What you'll need
