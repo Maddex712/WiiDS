@@ -6793,8 +6793,8 @@
       "bytes": 2986
     },
     "reference/driftdroid/android/app/src/main/kotlin/com/driftdroid/android/GamesActivity.kt": {
-      "sha256": "d5f9a9853593c055b208ebe013cda4eb4a9f97cf6520b262630e628b1788abe0",
-      "bytes": 22211
+      "sha256": "37ce85fa0858289f2b68054cd7c7de1054dd48bf1836a73d8ea218c77741ac44",
+      "bytes": 22207
     },
     "reference/driftdroid/android/app/src/main/kotlin/com/driftdroid/android/GpuDriverSettings.kt": {
       "sha256": "ea1e79f07fced175d1019a133822f7ad0be88edc1d8a4c1dea7356ec2fa092a4",

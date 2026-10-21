@@ -202,7 +202,7 @@ class GamesActivity : Activity() {
                 val percent = if (mod.total > 0) (mod.done * 100 / mod.total).toInt().coerceIn(0, 100) else 0
                 card.progress.visibility = View.VISIBLE
                 card.progress.progress = percent
-                show(card, "${mod.phase}â€¦ $percent%. Keep WiiDS open. Sunshine and your saves stay separate.", WHITE)
+                show(card, "${mod.phase}... $percent%. Keep WiiDS open. Sunshine and your saves stay separate.", WHITE)
                 button(card, "Cancel", true) { EclipseMod.cancel() }
                 continue
             }
