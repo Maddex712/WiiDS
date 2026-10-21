@@ -163,3 +163,7 @@ WiiDS is an unofficial fan project. It is not affiliated with, endorsed by or sp
 Mario Kart, Super Mario, New Super Mario Bros., Super Mario Sunshine, Wii and GameCube are trademarks of
 Nintendo. No games, ROMs, disc images or extracted game files are distributed here. Please own the games
 you play.
+
+## Development assistance
+
+Development used Claude Code and OpenAI Codex. The owner-approved minimal app icon was generated with OpenAI's built-in image-generation tool. Game and mod creators are credited in the component notices.
