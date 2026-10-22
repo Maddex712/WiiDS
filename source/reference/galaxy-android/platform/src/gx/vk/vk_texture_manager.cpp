@@ -6,6 +6,26 @@ static uint64_t sUploadAttempted = 0;
 static uint64_t sUploadFailed = 0;
 static uint64_t sUploadRecorded = 0;
 static uint64_t sUploadBytes = 0;
+// Recorder caches can retain decoded textures across a window/device rebuild.
+// Track their GPU allocations weakly so shutdown releases every device child
+// without discarding the decoded pixels or extending the texture's lifetime.
+// Access is serialized by VkRenderer::mRenderMutex.
+static std::unordered_map<TexImage*, std::weak_ptr<TexImage>> sResidentTextures;
+
+void destroyResidentVkTextures(VkDevice device) {
+    size_t released = 0;
+    for (auto& entry : sResidentTextures) {
+        auto img = entry.second.lock();
+        if (!img || img->vkGeneration != sVkDeviceGeneration) continue;
+        if (img->vkView) vkDestroyImageView(device, (VkImageView)img->vkView, nullptr);
+        if (img->vkImage) vkDestroyImage(device, (VkImage)img->vkImage, nullptr);
+        if (img->vkMemory) vkFreeMemory(device, (VkDeviceMemory)img->vkMemory, nullptr);
+        img->vkView = img->vkImage = img->vkMemory = img->vkVersion = 0;
+        ++released;
+    }
+    sResidentTextures.clear();
+    LOGI("Released %zu resident texture allocations before device shutdown", released);
+}
 
 void VkRenderer::uploadTextures(VkCommandBuffer cmd, const std::vector<std::shared_ptr<TexImage>>& textures) {
     if (cmd == VK_NULL_HANDLE) return;
@@ -234,6 +254,13 @@ void VkRenderer::uploadTextures(VkCommandBuffer cmd, const std::vector<std::shar
         item.img->vkView = (uint64_t)item.vt.view;
         item.img->vkVersion = item.vt.version;
         item.img->vkGeneration = sVkDeviceGeneration;
+        sResidentTextures[item.img.get()] = item.img;
+        if ((sUploadRecorded & 127) == 0) {
+            for (auto it = sResidentTextures.begin(); it != sResidentTextures.end();) {
+                if (it->second.expired()) it = sResidentTextures.erase(it);
+                else ++it;
+            }
+        }
 
         mStagingBuffersToFree.push_back({item.stagingBuf, item.stagingMem});
         sUploadRecorded++;

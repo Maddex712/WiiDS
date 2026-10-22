@@ -12,6 +12,8 @@ release entries are not restored; their tags remain historical.
   matrices/visibility. HUD/fonts/maps/models are generated from your disc.
 - Galaxy Back menu with Quick Save, Controls > Buttons and Return to WiiDS; old dock removed.
 - Galaxy texgen, retrace-clock, pointer and DSP mailbox lifetime fixes.
+- Galaxy GPU texture allocations are released before device teardown, keeping
+  decoded textures available for window resume and preventing the observed emulator exit crash.
 - NSMB/MSMBWii Controller tab/Thor labels and WiiDS Options > Controller buttons.
 - Galaxy case art, seventh-cover collage and setup card. Existing presentation,
   Sunshine polish, Eclipse/MSMB installers and official Retro Rewind route retained.

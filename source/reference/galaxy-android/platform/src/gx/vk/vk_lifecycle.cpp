@@ -100,6 +100,8 @@ VkRenderer& vkRenderer() {
     return sVkRenderer;
 }
 
+void destroyResidentVkTextures(VkDevice device);
+
 void VkRenderer::shutdown() {
     std::lock_guard<std::recursive_mutex> lock(mRenderMutex);
     mInitialized = false;
@@ -109,6 +111,7 @@ void VkRenderer::shutdown() {
     if (mDevice != VK_NULL_HANDLE) {
         vkDeviceWaitIdle(mDevice);
         thorCaptureDestroy(*this);
+        destroyResidentVkTextures(mDevice);
 
         if (mRenderFence != VK_NULL_HANDLE) {
             vkDestroyFence(mDevice, mRenderFence, nullptr);

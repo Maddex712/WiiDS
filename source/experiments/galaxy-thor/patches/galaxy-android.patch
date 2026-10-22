@@ -2086,7 +2086,7 @@ index b05cc91..3117d71 100644
      if (diagLog) {
          LOGI("VkDrawDiag: frame=%llu draws=%u (hud=%u scSkip=%u setBinds=%u) realTex=%u dummyTex=%u fTextures=%zu copySlot=%u copyHits=%u copyFallbacks=%u copyMisses=%u mruHit=%llu mruMiss=%llu rtNew=%llu rtKnownUid=%llu record=%.2fms",
 diff --git a/platform/src/gx/vk/vk_lifecycle.cpp b/platform/src/gx/vk/vk_lifecycle.cpp
-index 3b8850e..c7e49bc 100644
+index 3b8850e..c9bb8d5 100644
 --- a/platform/src/gx/vk/vk_lifecycle.cpp
 +++ b/platform/src/gx/vk/vk_lifecycle.cpp
 @@ -1,4 +1,5 @@
@@ -2095,11 +2095,21 @@ index 3b8850e..c7e49bc 100644
  
  namespace gpu {
  
-@@ -107,6 +108,7 @@ void VkRenderer::shutdown() {
+@@ -99,6 +100,8 @@ VkRenderer& vkRenderer() {
+     return sVkRenderer;
+ }
+ 
++void destroyResidentVkTextures(VkDevice device);
++
+ void VkRenderer::shutdown() {
+     std::lock_guard<std::recursive_mutex> lock(mRenderMutex);
+     mInitialized = false;
+@@ -107,6 +110,8 @@ void VkRenderer::shutdown() {
  
      if (mDevice != VK_NULL_HANDLE) {
          vkDeviceWaitIdle(mDevice);
 +        thorCaptureDestroy(*this);
++        destroyResidentVkTextures(mDevice);
  
          if (mRenderFence != VK_NULL_HANDLE) {
              vkDestroyFence(mDevice, mRenderFence, nullptr);
@@ -2135,6 +2145,51 @@ index d83075c..191b2a2 100644
  
      flushDeferredDeletes();
      trimFrameCaches(mFrameNumber);
+diff --git a/platform/src/gx/vk/vk_texture_manager.cpp b/platform/src/gx/vk/vk_texture_manager.cpp
+index 3c771b7..eb3179c 100644
+--- a/platform/src/gx/vk/vk_texture_manager.cpp
++++ b/platform/src/gx/vk/vk_texture_manager.cpp
+@@ -6,6 +6,26 @@ static uint64_t sUploadAttempted = 0;
+ static uint64_t sUploadFailed = 0;
+ static uint64_t sUploadRecorded = 0;
+ static uint64_t sUploadBytes = 0;
++// Recorder caches can retain decoded textures across a window/device rebuild.
++// Track their GPU allocations weakly so shutdown releases every device child
++// without discarding the decoded pixels or extending the texture's lifetime.
++// Access is serialized by VkRenderer::mRenderMutex.
++static std::unordered_map<TexImage*, std::weak_ptr<TexImage>> sResidentTextures;
++
++void destroyResidentVkTextures(VkDevice device) {
++    size_t released = 0;
++    for (auto& entry : sResidentTextures) {
++        auto img = entry.second.lock();
++        if (!img || img->vkGeneration != sVkDeviceGeneration) continue;
++        if (img->vkView) vkDestroyImageView(device, (VkImageView)img->vkView, nullptr);
++        if (img->vkImage) vkDestroyImage(device, (VkImage)img->vkImage, nullptr);
++        if (img->vkMemory) vkFreeMemory(device, (VkDeviceMemory)img->vkMemory, nullptr);
++        img->vkView = img->vkImage = img->vkMemory = img->vkVersion = 0;
++        ++released;
++    }
++    sResidentTextures.clear();
++    LOGI("Released %zu resident texture allocations before device shutdown", released);
++}
+ 
+ void VkRenderer::uploadTextures(VkCommandBuffer cmd, const std::vector<std::shared_ptr<TexImage>>& textures) {
+     if (cmd == VK_NULL_HANDLE) return;
+@@ -234,6 +254,13 @@ void VkRenderer::uploadTextures(VkCommandBuffer cmd, const std::vector<std::shar
+         item.img->vkView = (uint64_t)item.vt.view;
+         item.img->vkVersion = item.vt.version;
+         item.img->vkGeneration = sVkDeviceGeneration;
++        sResidentTextures[item.img.get()] = item.img;
++        if ((sUploadRecorded & 127) == 0) {
++            for (auto it = sResidentTextures.begin(); it != sResidentTextures.end();) {
++                if (it->second.expired()) it = sResidentTextures.erase(it);
++                else ++it;
++            }
++        }
+ 
+         mStagingBuffersToFree.push_back({item.stagingBuf, item.stagingMem});
+         sUploadRecorded++;
 diff --git a/platform/src/gx/vk_shader_manifest.cpp b/platform/src/gx/vk_shader_manifest.cpp
 index 882df74..3da5af2 100644
 --- a/platform/src/gx/vk_shader_manifest.cpp

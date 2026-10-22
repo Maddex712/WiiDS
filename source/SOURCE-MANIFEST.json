@@ -5783,8 +5783,8 @@
       "bytes": 1064
     },
     "docs/release/RELEASE-DRAFT.md": {
-      "sha256": "8199f619523a8c370727944fb614b497dbd8a368ad38271ed12ba512263defd2",
-      "bytes": 2815
+      "sha256": "a8eaccef05556b1e4d986f2579e3edc9f1076be5cbe934d7c8e93b56fa1c8405",
+      "bytes": 2991
     },
     "docs/release/SOURCE-RELEASE.md": {
       "sha256": "6f4a569fed776292e6eec8604fc28c3db0922d7ebef44c3769f1a15577066195",
@@ -5811,8 +5811,8 @@
       "bytes": 3901
     },
     "docs/release/V1.0.md": {
-      "sha256": "8199f619523a8c370727944fb614b497dbd8a368ad38271ed12ba512263defd2",
-      "bytes": 2815
+      "sha256": "a8eaccef05556b1e4d986f2579e3edc9f1076be5cbe934d7c8e93b56fa1c8405",
+      "bytes": 2991
     },
     "experiments/eclipse-thor/Build-Native.ps1": {
       "sha256": "e7436211f6ed8b1049cb7c720cc4966cdec0347d7d253ec23d69ac011223bfe5",
@@ -6139,8 +6139,8 @@
       "bytes": 5610
     },
     "experiments/galaxy-thor/patches/galaxy-android.patch": {
-      "sha256": "03bdf1d0681a7541531efe7a63f1759b8bd5df369ec65b3339d7876d6f4746d8",
-      "bytes": 185785
+      "sha256": "7140aab5a2b6314cb36272fbff494877a0faca8ae11c5acaab677f02a95c95c4",
+      "bytes": 188407
     },
     "experiments/galaxy-thor/patches/wiids-galaxy.patch": {
       "sha256": "d5dded60b35bb7bcf5643100c0d0da26ad855e311159dd557abb8517ee6ade3c",
@@ -33359,8 +33359,8 @@
       "bytes": 8218
     },
     "reference/galaxy-android/platform/src/gx/vk/vk_lifecycle.cpp": {
-      "sha256": "14711f56aa3d1e1c3d8de859fac534c7201c37874d27baecadb09d888baf16e3",
-      "bytes": 12020
+      "sha256": "851cf45c508bd2c434687db9f7739f59486f7b053578dd0a143b1b4fca65434a",
+      "bytes": 12117
     },
     "reference/galaxy-android/platform/src/gx/vk/vk_pipeline_blend.h": {
       "sha256": "2b3b81b5861e05f0612a2d9c49bbdb5e3379c878b459d1359bfedcfc6f9ccb78",
@@ -33411,8 +33411,8 @@
       "bytes": 10982
     },
     "reference/galaxy-android/platform/src/gx/vk/vk_texture_manager.cpp": {
-      "sha256": "3c8f752b6bec4509166ffa9e27cc2e3a4c681ec9d36ba582b8ad786561878faa",
-      "bytes": 11360
+      "sha256": "354303283759f2be69c5109ec64be7769b9ab9bd49d8c7477cb76b316ad51dbc",
+      "bytes": 12780
     },
     "reference/galaxy-android/platform/src/gx/vk/vk_texture_presenter.cpp": {
       "sha256": "699a18bead174a5cfc8ea6411739cc847e8ce56e37641100451e727c857b4dc9",
