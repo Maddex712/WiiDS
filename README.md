@@ -28,7 +28,7 @@ and your own [compatible game dump](#exact-game-files-for-each-game). The region
 - **Eclipse:** import the supported Sunshine disc, then choose **Install Eclipse** in **Your games**. The patch is included.
 - **Retro Rewind:** import the supported Mario Kart Wii disc, then press **Y** in the library or open **Options → Retro Rewind updates**. This download needs internet access.
 
-[Check supported discs and formats](#what-youll-need) · [Galaxy setup and storage details](docs/release/GALAXY-SETUP.md) · [Per-game guide](docs/GAMES.md)
+[Check supported discs and formats](#what-youll-need) · [Galaxy setup and storage details](docs/release/GALAXY-SETUP.md) · [Per-game guide](docs/GAMES.md) · [Galaxy gameplay and planet pictures](#super-mario-galaxy)
 
 <p align="center">
   <img src="docs/images/mkw-retro-rewind-peach-circuit.jpg" width="640"
@@ -95,7 +95,7 @@ See [1.0 release/validation notes](docs/release/V1.0.md).
 
 ## Screenshots
 
-Genuine captures from an AYN Thor, with a caption bar added. Where both screens are shown, the top screen is above and the bottom screen below.
+Genuine captures from an AYN Thor, with capture context in the captions. Where both screens are shown, the top screen is above and the bottom screen below.
 Game titles identify Original, Retro Rewind and the other mod entries separately. Mario Kart and
 Retro Rewind retain their existing gameplay captures because their presentation is unchanged.
 Original Sunshine's Airstrip and title-sky images below were captured in **WiiDS 0.9.0-beta.5**.
@@ -103,6 +103,27 @@ The unchanged launcher, NSMB and Eclipse images retain their **beta.3** labels, 
 older file-selection and case captures. Mario Kart images retain their existing capture context.
 Each image identifies the build that actually produced it.
 Captures document their named scene, rather than implying every course or stage was retested.
+
+### Super Mario Galaxy
+
+**Gameplay on the upper screen, a 3D world or planet view on the lower screen.**
+These are genuine Thor development captures from October 22, before the one-APK integration.
+
+**Gateway Galaxy:** the game above, with the textured planet and player marker below.
+
+<p align="center">
+  <img src="docs/images/galaxy-dev-gateway-upper.png" width="640" alt="Super Mario Galaxy gameplay on the upper screen: Luigi in Gateway Galaxy, October 22 Thor development build">
+  <br>
+  <img src="docs/images/galaxy-dev-gateway-lower.png" width="414" alt="Super Mario Galaxy lower screen: textured 3D Gateway Galaxy planet with Luigi's position marker">
+</p>
+
+**Castle Gardens:** Mario's opening area above, with its 3D world overview below.
+
+<p align="center">
+  <img src="docs/images/galaxy-dev-gardens-upper.png" width="640" alt="Super Mario Galaxy upper screen: Mario at the Star Festival in Castle Gardens, earlier October 22 Thor development build">
+  <br>
+  <img src="docs/images/galaxy-dev-gardens-world.png" width="414" alt="Super Mario Galaxy lower screen: 3D Castle Gardens world overview and Mario's position marker">
+</p>
 
 ### Launcher and Options — captured in WiiDS 0.9.0-beta.3
 
@@ -294,13 +315,11 @@ Please own the games you play.
 
 Development assistance: OpenAI Codex. The owner-approved minimal app icon was generated with OpenAI's built-in image-generation tool. Game and mod creators are credited in the component notices.
 
-### Galaxy and controller updates — October 22 development captures
+### Controller and library updates — October 22 development captures
 
 These are genuine Thor captures from the separate-helper development build before
 the one-APK integration. They illustrate the existing presentation, not validation of
 the final ARM64 1.0 APK. Opening/Gateway checks do not establish full-game compatibility.
 
-<p><img src="docs/images/galaxy-dev-gateway-upper.png" width="560" alt="October 22 pre-integration Thor development build: Luigi in Gateway Galaxy">
-<img src="docs/images/galaxy-dev-gateway-lower.png" width="360" alt="Same development build: live lower-screen textured planet and Luigi marker"></p>
 <p><img src="docs/images/wiids-dev-seven-covers.png" width="420" alt="October 22 development build: WiiDS Options companion with seven covers">
 <img src="docs/images/nsmb-dev-controller.png" width="560" alt="October 22 development build: NSMB Controller tab with Thor button labels"></p>
