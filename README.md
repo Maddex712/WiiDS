@@ -311,10 +311,6 @@ The release does include compiled native engines, the specified mod components a
 presentation assets described above. Code licences do not relicense third-party artwork or music.
 Please own the games you play.
 
-## Development assistance
-
-Development assistance: OpenAI Codex. The owner-approved minimal app icon was generated with OpenAI's built-in image-generation tool. Game and mod creators are credited in the component notices.
-
 ### Controller and library updates — October 22 development captures
 
 These are genuine Thor captures from the separate-helper development build before
