@@ -1849,3 +1849,109 @@ void NotifyStrapInputAccepted() noexcept {
 
 void AdvancePresentedFrame() noexcept { ++g_presentedFrame; }
 } // namespace settings_overlay
+
+// --- The settings window's Controller tab (netplay/netplay_ui.cpp) -------------------------------
+namespace settings_overlay {
+
+int ControllerButtonCount() noexcept { return static_cast<int>(kControllerButtons.size()); }
+
+std::string ControllerBindingLabel(int index) {
+    if (index < 0 || index >= ControllerButtonCount()) return "";
+    const uint32_t port = static_cast<uint32_t>(g_controllerPort);
+    uint32_t count = 0, altCount = 0;
+    PADButtonMapping* primary = PADGetButtonMappings(port, &count);
+    if (primary == nullptr || count != PAD_BUTTON_COUNT) return "";
+    PADButtonMapping* alternate = PADGetAltButtonMappings(port, &altCount);
+    const auto bound = [&](PADButtonMapping* list, uint32_t n) -> uint32_t {
+        for (uint32_t i = 0; list != nullptr && i < n; ++i)
+            if (list[i].padButton == kControllerButtons[index].padButton) return list[i].nativeButton;
+        return PAD_NATIVE_BUTTON_INVALID;
+    };
+    const uint32_t first = bound(primary, count), second = bound(alternate, altCount);
+    const auto name = [](uint32_t value) -> std::string {
+        if (value == PAD_NATIVE_BUTTON_INVALID || value == PAD_NATIVE_BUTTON_DISABLED) return "";
+#ifdef __ANDROID__
+        // The AYN Thor's printed names. In its Nintendo layout each printed letter reports the
+        // Android key of that letter (A -> BUTTON_A -> SDL "south"), so the letters follow the key,
+        // not the Xbox position words of the shared table ("West (X / Square)" is the top button here).
+        switch (PADAxisButtonIdentity(value)) {
+        case SDL_GAMEPAD_BUTTON_SOUTH: return "A";
+        case SDL_GAMEPAD_BUTTON_EAST: return "B";
+        case SDL_GAMEPAD_BUTTON_WEST: return "X";
+        case SDL_GAMEPAD_BUTTON_NORTH: return "Y";
+        case SDL_GAMEPAD_BUTTON_LEFT_SHOULDER: return "L1";
+        case SDL_GAMEPAD_BUTTON_RIGHT_SHOULDER: return "R1";
+        case SDL_GAMEPAD_BUTTON_LEFT_STICK: return "L3";
+        case SDL_GAMEPAD_BUTTON_RIGHT_STICK: return "R3";
+        case SDL_GAMEPAD_BUTTON_BACK: return "Select";
+        case SDL_GAMEPAD_BUTTON_START: return "Start";
+        case SDL_GAMEPAD_BUTTON_GUIDE: return "Home";
+        default: break;
+        }
+        if (PADAxisButtonIdentity(value) == PADAxisButtonIdentity(PADEncodeAxisButton(SDL_GAMEPAD_AXIS_LEFT_TRIGGER, false)))
+            return "L2";
+        if (PADAxisButtonIdentity(value) == PADAxisButtonIdentity(PADEncodeAxisButton(SDL_GAMEPAD_AXIS_RIGHT_TRIGGER, false)))
+            return "R2";
+#endif
+        return NativeButtonForValue(value).label;
+    };
+    std::string label = name(first);
+    const std::string other = name(second);
+    if (!other.empty()) label = label.empty() ? other : label + " / " + other;
+    return label.empty() ? "None" : label;
+}
+
+void BeginControllerCapture(int index) noexcept {
+    if (index < 0 || index >= ControllerButtonCount()) return;
+    BeginRebind(RebindKind::Controller, kControllerButtons[index].padButton, kControllerButtons[index].label);
+    g_rebind.openPopup = false;  // the settings window shows the prompt, not the F10 overlay
+}
+
+int ControllerCapturing() noexcept {
+    if (!g_rebind.active || g_rebind.kind != RebindKind::Controller) return -1;
+    for (int i = 0; i < ControllerButtonCount(); ++i)
+        if (kControllerButtons[i].padButton == g_rebind.target) return i;
+    return -1;
+}
+
+void PollControllerCapture() noexcept {
+    if (ControllerCapturing() < 0) return;
+    if (Clock::now() >= g_rebind.deadline) {
+        g_rebind.active = false;  // nothing pressed: the binding stays as it was
+        return;
+    }
+    auto* pad = SDL_GetGamepadFromID(g_rebind.instance);
+    if (pad == nullptr) {
+        g_rebind.active = false;
+        return;
+    }
+    for (int i = 0; i < SDL_GAMEPAD_BUTTON_COUNT && g_rebind.active; ++i) {
+        const bool pressed = SDL_GetGamepadButton(pad, static_cast<SDL_GamepadButton>(i));
+        if (pressed && !g_rebind.buttons[i]) CompleteRebind(i);
+        g_rebind.buttons[i] = pressed;
+    }
+    for (int i = 0; i < SDL_GAMEPAD_AXIS_COUNT && g_rebind.active; ++i) {
+        const int value = SDL_GetGamepadAxis(pad, static_cast<SDL_GamepadAxis>(i));
+        if (std::abs(value) < 8000) g_rebind.axesReady[i] = true;
+        if (g_rebind.axesReady[i] && std::abs(value) >= 16384) CompleteRebind(PADEncodeAxisButton(i, value < 0));
+    }
+}
+
+void ResetControllerMapping() noexcept {
+    // The F10 overlay's "GameCube" preset: aurora's default mapping, written back to Config.toml.
+    const uint32_t port = static_cast<uint32_t>(g_controllerPort);
+    PADRestoreDefaultMapping(port);
+    uint32_t restoredCount = 0;
+    if (PADButtonMapping* restored = PADGetButtonMappings(port, &restoredCount)) {
+        for (size_t i = 0; i < kControllerButtons.size(); ++i) {
+            const auto it = std::find_if(restored, restored + restoredCount, [&](const PADButtonMapping& mapping) {
+                return mapping.padButton == kControllerButtons[i].padButton;
+            });
+            if (it != restored + restoredCount)
+                RuntimeConfigFile::SetControllerButton(i, NativeButtonForValue(it->nativeButton).configName);
+        }
+    }
+    PADSerializeMappings();
+}
+
+} // namespace settings_overlay

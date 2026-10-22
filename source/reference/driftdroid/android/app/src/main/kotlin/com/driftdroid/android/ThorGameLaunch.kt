@@ -15,6 +15,8 @@ internal object ThorGameLaunch {
     const val NSMB_WII = "nsmbw"
     const val SUNSHINE = "sunshine"
     const val ECLIPSE = "eclipse"
+    const val GALAXY = "galaxy"
+    private const val GALAXY_ENTRY = "dev.thor.galaxy.ThorLaunchActivity"
     /** MSMBWii ("Just a Little Adventure"): New Super Mario Bros. Wii with MidiGuyDP's level mod. */
     const val MSMBWII = "msmbwii"
     private const val ACTION_PLAY = "dev.thor.launcher.action.PLAY_GAME"
@@ -33,6 +35,12 @@ internal object ThorGameLaunch {
 
     /** The embedded Eclipse runtime has a separately imported disc and save profile. */
     fun eclipseInstalled(context: Context): Boolean = GameCatalog.isPlayable(context, GameCatalog.Game.ECLIPSE)
+
+    /** The isolated development runtime reports only its own verified data readiness. */
+    fun galaxyInstalled(context: Context): Boolean = android.os.Build.VERSION.SDK_INT >= 32 && dev.thor.galaxy.GalaxyStorage.ready(context)
+
+    fun launchGalaxy(activity: Activity): Result = launch(activity, GALAXY_ENTRY, GALAXY,
+        galaxyInstalled(activity))
 
     fun launchNsmb(activity: Activity): Result = launch(activity, NSMB_ENTRY, NSMB_WII, nsmbInstalled(activity))
 

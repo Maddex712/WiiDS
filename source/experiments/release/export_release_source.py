@@ -19,7 +19,7 @@ ROOT = Path(__file__).resolve().parents[2]
 REPOS = (
     'driftdroid', 'nsmbw-android-e1', 'nsmbw-android-msmbwii',
     'sms-thor', 'sms-launcher-thor', 'sms-eclipse-thor',
-    'eclipse-launcher-thor',
+    'eclipse-launcher-thor', 'galaxy-android',
 )
 DERIVED = {
     'nsmbw-android-e1': 'nsmbw-android',
@@ -40,7 +40,7 @@ DEPENDENCIES = {
 }
 LOCAL_ROOTS = ('scripts', 'diagnostics', 'wiids', 'release', 'docs/release', 'experiments/release',
                'experiments/eclipse-thor', 'experiments/nsmbw-thor',
-               'experiments/sunshine-thor', 'experiments/launcher-spines')
+               'experiments/sunshine-thor', 'experiments/launcher-spines', 'experiments/galaxy-thor')
 EXTRA_SOURCE = ('build/nsmbw-thor/rebuild-wiids-names.sh',
                 'build/sunshine-thor/build-wiids-sdl2.sh')
 EXTENSIONS = set('''.c .cc .cpp .cxx .h .hh .hpp .hxx .inl .inc .s .asm
@@ -109,13 +109,24 @@ def candidates(directory: Path):
     # Deliberately walk only named roots; prune disallowed trees before descent.
     import os
     for parent, dirs, files in os.walk(directory, followlinks=False):
-        dirs[:] = sorted(d for d in dirs if directory_allowed(
+        # Galaxy's decomp is handwritten CC0 source, unlike generated/private
+        # decomp trees in other engines. Keep this exception scoped to that repo.
+        def allowed(relative):
+            if directory.name == 'galaxy-android' and relative.startswith('decomp/'):
+                return directory_allowed(relative.removeprefix('decomp/'))
+            return directory_allowed(relative)
+        dirs[:] = sorted(d for d in dirs if (allowed(
                              (Path(parent) / d).relative_to(directory).as_posix())
+                             or (directory.name == 'galaxy-android' and parent == str(directory) and d == 'decomp'))
                          and not (Path(parent) / d).is_symlink())
         for name in sorted(files):
             path = Path(parent) / name
             relative = path.relative_to(directory).as_posix()
-            if eligible(relative):
+            if directory == ROOT / 'experiments/galaxy-thor' and name in {
+                    'CODEX_HANDOFF.md', 'CLAUDE_BOTTOM_SCREEN_HANDOFF.md'}:
+                continue
+            check = relative.removeprefix('decomp/') if directory.name == 'galaxy-android' else relative
+            if eligible(check):
                 yield relative, path
 
 
@@ -137,7 +148,8 @@ def expected_source_files(directory: Path):
                 continue
             if name.lower().startswith('cmake-build-'):
                 continue
-            if len(parts) == 1 and parts[0] in PRIVATE_ROOTS:
+            if len(parts) == 1 and parts[0] in PRIVATE_ROOTS and not (
+                    directory.name == 'galaxy-android' and parts[0] == 'decomp'):
                 continue
             if parts in PRIVATE_PREFIXES:
                 continue
@@ -325,6 +337,10 @@ def main():
     logo = ROOT / 'build/branding/wiids-thor-minimal-v4.png'
     if logo.is_file():
         entries['build/branding/wiids-thor-minimal-v4.png'] = logo.read_bytes()
+    # Generated shader identifiers/code-cache metadata from the pinned upstream,
+    # not disc content. Keep the exact input for the integrated Galaxy APK.
+    shader=ROOT/'reference/galaxy-android/assets/galaxy_shader_manifest.bin'
+    entries['reference/galaxy-android/assets/galaxy_shader_manifest.bin']=shader.read_bytes()
     presentation = add_presentation(entries)
     coverage = {}
     omitted = []

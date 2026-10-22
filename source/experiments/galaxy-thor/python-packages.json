@@ -1,0 +1,41 @@
+{
+  "python": "3.10",
+  "abi": "arm64-v8a",
+  "wheels": [
+    {
+      "name": "chaquopy_freetype-2.9.1-2-py3-none-android_21_arm64_v8a.whl",
+      "url": "https://chaquo.com/pypi-13.1/chaquopy-freetype/chaquopy_freetype-2.9.1-2-py3-none-android_21_arm64_v8a.whl",
+      "sha256": "7a8262dc69d1bbf7209b3b7576744743670bd5a8cba48c7d8f08c151943ccbc7"
+    },
+    {
+      "name": "chaquopy_libcxx-11000-0-py3-none-android_21_arm64_v8a.whl",
+      "url": "https://chaquo.com/pypi-13.1/chaquopy-libcxx/chaquopy_libcxx-11000-0-py3-none-android_21_arm64_v8a.whl",
+      "sha256": "0f14074f60c73f928abf9e3e40b01dfd0d517bb99f9cf31dae37c39e3d8a3c43"
+    },
+    {
+      "name": "chaquopy_libgfortran-4.9-0-py3-none-android_21_arm64_v8a.whl",
+      "url": "https://chaquo.com/pypi-13.1/chaquopy-libgfortran/chaquopy_libgfortran-4.9-0-py3-none-android_21_arm64_v8a.whl",
+      "sha256": "0b4caed1147f2a19707d4ba730afea57f7b8f2d8c046d8a48cf49377741c4604"
+    },
+    {
+      "name": "chaquopy_libjpeg-1.5.3-1-py3-none-android_21_arm64_v8a.whl",
+      "url": "https://chaquo.com/pypi-13.1/chaquopy-libjpeg/chaquopy_libjpeg-1.5.3-1-py3-none-android_21_arm64_v8a.whl",
+      "sha256": "5555be57a2633fb5a3c0c810e89c8b705c471e3dabd95aa596fc7fdd48322728"
+    },
+    {
+      "name": "chaquopy_openblas-0.2.20-5-py3-none-android_21_arm64_v8a.whl",
+      "url": "https://chaquo.com/pypi-13.1/chaquopy-openblas/chaquopy_openblas-0.2.20-5-py3-none-android_21_arm64_v8a.whl",
+      "sha256": "1e8e67a4f9e2fcde384890678bafbf7ffefe7b2cb4887e5c2996ba7607f4324c"
+    },
+    {
+      "name": "numpy-1.26.2-0-cp310-cp310-android_21_arm64_v8a.whl",
+      "url": "https://chaquo.com/pypi-13.1/numpy/numpy-1.26.2-0-cp310-cp310-android_21_arm64_v8a.whl",
+      "sha256": "faa4bc08359820b2c3ba79bc60545c9bc4cd02f120da9fab5988bd1881865603"
+    },
+    {
+      "name": "Pillow-9.2.0-0-cp310-cp310-android_21_arm64_v8a.whl",
+      "url": "https://chaquo.com/pypi-13.1/pillow/Pillow-9.2.0-0-cp310-cp310-android_21_arm64_v8a.whl",
+      "sha256": "22419f99d8598517b719aad9fe0941fa214f55fa9b5b528db4a99ed397d91bb7"
+    }
+  ]
+}

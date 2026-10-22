@@ -245,6 +245,7 @@ class ModePickerActivity : Activity() {
                 NSMB_CASE -> nsmbInstalled
                 SUNSHINE_CASE -> sunshineInstalled
                 ECLIPSE_CASE -> eclipseInstalled
+                GALAXY_CASE -> galaxyInstalled
                 MSMBWII_CASE -> msmbwiiInstalled
                 else -> true
             }
@@ -301,7 +302,10 @@ class ModePickerActivity : Activity() {
                     art = "sunshine", casePlastic = ThorLauncherView.CasePlastic.GAMECUBE_BLACK, updatesShortcut = false, discScale = ThorLauncherView.GAMECUBE_DISC) { launchSunshineFromLibrary() },
                 ThorLauncherView.Entry("Super Mario Eclipse", "Play the Sunshine expansion with its own saves.", { eclipseInstalled },
                     art = "eclipse", casePlastic = ThorLauncherView.CasePlastic.GAMECUBE_BLACK, updatesShortcut = false, discScale = ThorLauncherView.GAMECUBE_DISC) { launchEclipseFromLibrary() },
+                ThorLauncherView.Entry("Super Mario Galaxy", "Explore the galaxies with Mario.", { galaxyInstalled },
+                    art = "galaxy", updatesShortcut = false) { launchGalaxyFromLibrary() },
                 ThorLauncherView.Entry("Your games", "Find and import your own game discs.") { openGames() },
+                ThorLauncherView.Entry("Controller buttons", "Change what each controller button does, game by game.") { showControllerButtons() },
                 ThorLauncherView.Entry("Graphics", "Choose a renderer before starting the game.") { graphicsButton.performClick() },
                 ThorLauncherView.Entry("Mii Data", "Import and manage your own Mii data.") { miiDataButton.performClick() },
                 ThorLauncherView.Entry("Retro Rewind updates", "Check and download compatible Retro Rewind updates.", { BuildConfig.THOR_RETRO_REWIND }) { if (isRetroRewindInstalled()) showRetroRewindMenuDialog() else showInstallRetroRewindDialog() },
@@ -398,12 +402,25 @@ class ModePickerActivity : Activity() {
 
     /** Package lookups stay off the per-frame drawing path; refreshed on resume and after a failed launch. */
     private var nsmbInstalled = false
+    private fun launchGalaxyFromLibrary() {
+        val message = when (ThorGameLaunch.launchGalaxy(this)) {
+            ThorGameLaunch.Result.OPENED -> return
+            ThorGameLaunch.Result.NOT_INSTALLED -> "Set up Super Mario Galaxy first."
+            ThorGameLaunch.Result.UNAVAILABLE -> "Super Mario Galaxy could not be opened. Try again."
+        }
+        statusText.text = message
+        thorLauncher?.launchFailed(message)
+        updateLowerStatus()
+    }
+
     private var sunshineInstalled = false
+    private var galaxyInstalled = false
     private var eclipseInstalled = false
     private var msmbwiiInstalled = false
     private fun refreshNsmbInstalled() {
         nsmbInstalled = runCatching { ThorGameLaunch.nsmbInstalled(this) }.getOrDefault(false)
         sunshineInstalled = runCatching { ThorGameLaunch.sunshineInstalled(this) }.getOrDefault(false)
+        galaxyInstalled = runCatching { ThorGameLaunch.galaxyInstalled(this) }.getOrDefault(false)
         eclipseInstalled = runCatching { ThorGameLaunch.eclipseInstalled(this) }.getOrDefault(false)
         msmbwiiInstalled = runCatching { ThorGameLaunch.msmbwiiInstalled(this) }.getOrDefault(false)
     }
@@ -860,6 +877,7 @@ class ModePickerActivity : Activity() {
         gameButton("MSMBWii: Just a Little Adventure", Color.rgb(0x7A, 0x5C, 0xE6), Color.rgb(0x4B, 0x34, 0xB4), { msmbwiiInstalled }) { launchMsmbwiiFromLibrary() }
         gameButton("Super Mario Sunshine", Color.rgb(0xF5, 0xA6, 0x23), Color.rgb(0xD9, 0x7A, 0x10), { sunshineInstalled }) { launchSunshineFromLibrary() }
         gameButton("Super Mario Eclipse", Color.rgb(0xA5, 0x7F, 0xD0), Color.rgb(0x55, 0x36, 0x88), { eclipseInstalled }) { launchEclipseFromLibrary() }
+        gameButton("Super Mario Galaxy", Color.rgb(0x48, 0x91, 0xD8), Color.rgb(0x16, 0x43, 0x82), { galaxyInstalled }) { launchGalaxyFromLibrary() }
         root.addView(retroRow, retroRowParams)
         root.addView(miiDataButton, miiDataButtonParams)
         root.addView(progressBar, progressParams)
@@ -904,6 +922,37 @@ class ModePickerActivity : Activity() {
 
     private fun isRomImported(): Boolean =
         com.driftdroid.android.rom.RomImportOverlay.isRomAlreadyImported(File(filesDir, "WiiCompiled/DiscData"))
+
+    /**
+     * Every game's controller layout, from one place. Sunshine and Eclipse have their own
+     * button-assignment screens (captured before SDL, saved per controller); the others change
+     * buttons inside the game, so this says where.
+     */
+    private fun showControllerButtons() {
+        val games = arrayOf("Super Mario Sunshine", "Super Mario Eclipse", "Super Mario Galaxy",
+            "New Super Mario Bros. Wii and MSMBWii", "Mario Kart Wii and Retro Rewind")
+        ThorDialogs.builder(this)
+            .setTitle("Controller buttons")
+            .setItems(games) { _, which ->
+                when (which) {
+                    0 -> startActivity(Intent(this, dev.chasem.smslauncher.ControllerConfigActivity::class.java))
+                    1 -> startActivity(Intent(this, dev.chasem.eclipselauncher.ControllerConfigActivity::class.java))
+                    else -> ThorDialogs.builder(this)
+                        .setTitle(games[which])
+                        .setMessage(when (which) {
+                            2 -> "In Galaxy, press Back to open its settings, then choose Controls and Buttons. " +
+                                "Pick what each button does; Reset returns the standard layout."
+                            3 -> "In the game, choose Settings in the pause menu (the world map's + menu, or a level's pause gear), then the " +
+                                "Controller tab. Choose a button and press the one you want for it."
+                            else -> "In the game, press Back to open its settings, then choose Controller. Choose a " +
+                                "button and press the one you want for it."
+                        })
+                        .setPositiveButton("OK", null)
+                        .show()
+                }
+            }
+            .show()
+    }
 
     private fun showRetroRewindMenuDialog() {
         if (BuildConfig.THOR_BUILD) { openThorRetroRewindUpdates(); return }
@@ -975,6 +1024,10 @@ class ModePickerActivity : Activity() {
      * It never begins a runtime itself. The real launch action still re-checks everything.
      */
     private fun thorLaunchBlocker(product: Int): String? {
+        if (product == GALAXY_CASE) {
+            refreshNsmbInstalled()
+            return if (galaxyInstalled) null else "Set up Super Mario Galaxy first."
+        }
         if (product == ECLIPSE_CASE) {
             refreshNsmbInstalled()
             if (!eclipseInstalled) mainHandler.post { openGames() }
@@ -1729,9 +1782,10 @@ class ModePickerActivity : Activity() {
         private const val REQUEST_CODE_IMPORT_MII_DATA = 0x52520004
         private const val REQUEST_CODE_IMPORT_SINGLE_MII = 0x52520005
         /** Existing shelf order is stable; Eclipse follows Sunshine in its GameCube stack. */
-        private const val LIBRARY_CASES = 6
+        private const val LIBRARY_CASES = 7
         /** Base game first, then its mods: they share one stack on the main shelf. */
-        private val LIBRARY_BUNDLES = listOf(listOf(0, 1), listOf(2, 3), listOf(4, 5))
+        private val LIBRARY_BUNDLES = listOf(listOf(0, 1), listOf(2, 3), listOf(4, 5), listOf(6))
+        private const val GALAXY_CASE = ThorLibraryCompanionView.GALAXY
         private const val NSMB_CASE = ThorLibraryCompanionView.NSMB
         private const val SUNSHINE_CASE = ThorLibraryCompanionView.SUNSHINE
         private const val ECLIPSE_CASE = ThorLibraryCompanionView.ECLIPSE

@@ -1,0 +1,109 @@
+# Actions are pinned to commit SHAs (tags are mutable) with the moved tag kept
+# as a comment; the workflow here only has contents: read, but it still builds
+# and uploads the artifacts users install.  Bump the SHA and comment together.
+name: Build desktop installers
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: Existing release tag whose GalaxyQuest.apk to include
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: windows-latest
+            label: windows-x86_64
+          - runner: ubuntu-22.04
+            label: linux-x86_64
+          - runner: macos-15
+            label: macos-arm64
+          - runner: macos-15-intel
+            label: macos-x86_64
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262  # v4
+      - name: Check out Dolphin 2609 and its dependencies
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262  # v4
+        with:
+          repository: dolphin-emu/dolphin
+          ref: f84df02055ab9610feec48e65648cac5a3c098fa
+          submodules: recursive
+          path: out/dolphin-source
+          persist-credentials: false
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065  # v5
+        with:
+          python-version: '3.12'
+      - name: Install Linux build libraries and Tk
+        if: runner.os == 'Linux'
+        run: >-
+          sudo apt-get update && sudo apt-get install -y python3-tk gcc-12 g++-12
+          pkg-config libgl1-mesa-dev libudev-dev libevdev-dev libusb-1.0-0-dev
+          libxrandr-dev libxi-dev libasound2-dev libpulse-dev libbluetooth-dev
+          libhidapi-dev libcurl4-openssl-dev
+      - name: Install build requirements
+        run: python -m pip install -r tools/installer-requirements.txt "cmake>=3.25,<4"
+      - name: Build Dolphin's command-line extractor
+        shell: python
+        run: |
+          import subprocess, sys
+          configure = ['cmake', '-S', 'out/dolphin-source', '-B', 'out/dolphin-build',
+                       '-DCMAKE_BUILD_TYPE=Release', '-DENABLE_CLI_TOOL=ON',
+                       '-DENABLE_QT=OFF', '-DENABLE_NOGUI=OFF', '-DENABLE_TESTS=OFF',
+                       '-DENABLE_HEADLESS=ON', '-DENABLE_VULKAN=OFF',
+                       '-DENABLE_ANALYTICS=OFF', '-DENABLE_AUTOUPDATE=OFF',
+                       '-DENABLE_SDL=OFF', '-DENABLE_CUBEB=OFF',
+                       '-DUSE_MGBA=OFF', '-DUSE_UPNP=OFF',
+                       '-DUSE_DISCORD_PRESENCE=OFF', '-DUSE_RETRO_ACHIEVEMENTS=OFF',
+                       '-DENCODE_FRAMEDUMPS=OFF', '-DUSE_SYSTEM_LIBS=OFF']
+          if sys.platform.startswith('linux'):
+              configure += ['-DCMAKE_C_COMPILER=gcc-12', '-DCMAKE_CXX_COMPILER=g++-12']
+          subprocess.run(configure, check=True)
+          subprocess.run(['cmake', '--build', 'out/dolphin-build', '--config', 'Release',
+                          '--target', 'dolphin-tool', '--parallel', '3'], check=True)
+      - name: Test installer logic
+        run: python -m unittest discover -s tools/tests -p 'test_installer.py' -v
+      - name: Download matching released APK
+        env:
+          RELEASE_TAG: ${{ inputs.release_tag }}
+          RELEASE_REPO: ${{ github.repository }}
+        shell: python
+        run: |
+          import os, pathlib, urllib.parse, urllib.request
+          target = pathlib.Path('out/GalaxyQuest.apk')
+          target.parent.mkdir(parents=True, exist_ok=True)
+          tag = urllib.parse.quote(os.environ['RELEASE_TAG'], safe='')
+          url = 'https://github.com/%s/releases/download/%s/GalaxyQuest.apk' % (os.environ['RELEASE_REPO'], tag)
+          urllib.request.urlretrieve(url, target)
+      - name: Build and smoke test packaged installer
+        shell: python
+        run: |
+          import subprocess, sys
+          tool = 'DolphinTool.exe' if sys.platform == 'win32' else 'dolphin-tool'
+          subprocess.run([sys.executable, 'tools/build_installer.py', '--apk', 'out/GalaxyQuest.apk',
+                          '--dolphin-tool', 'out/dolphin-build/Binaries/' + tool,
+                          '--dolphin-licenses', 'out/dolphin-source',
+                          '--dolphin-source-url', 'https://github.com/dolphin-emu/dolphin/tree/f84df02055ab9610feec48e65648cac5a3c098fa'], check=True)
+      - name: Package the matching Dolphin source companion
+        shell: python
+        run: |
+          from pathlib import Path
+          import tarfile
+          def include_source(info):
+              return None if '.git' in Path(info.name).parts else info
+          with tarfile.open('out/installers/Dolphin-2609-source.tar.gz', 'w:gz') as archive:
+              archive.add('out/dolphin-source', arcname='dolphin-2609', filter=include_source)
+              archive.add('.github/workflows/desktop-installers.yml', arcname='installer-build-workflow.yml')
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4
+        with:
+          name: GalaxyQuest-Installer-${{ matrix.label }}
+          path: out/installers/*
+          if-no-files-found: error

@@ -4,7 +4,7 @@
 
 Reviewed code snapshot: [source/](source/) (runtime, Android frontend, translators and build tools).
 The **complete matching source bundle**, including the large approved presentation payload, is the named
-`WiiDS-0.9.0-beta.4-source.zip` asset in [Releases](https://github.com/Maddex712/WiiDS/releases).
+`WiiDS-1.0-source.zip` asset in [Releases](https://github.com/Maddex712/WiiDS/releases).
 GitHub's automatic Source code ZIP and this Git tree omit that large media payload; use the named release source ZIP to rebuild the exact package.
 
 Release preparation: [source and rebuild notes](docs/release/SOURCE-RELEASE.md),
@@ -19,13 +19,13 @@ existed: the game runs on the top screen, and the bottom screen gets its own pur
 such as a live course map, a stored-item box, Star Coin slots or an episode guide. The games
 aren't emulated. They run as native Android code through static recompilation and decompilation ports.
 
-> **Status: public beta.** Download the signed Android APK, matching source and checksums from
+> **WiiDS 1.0 — first full release.** Download the signed Android APK, matching source and checksums from
 > [GitHub Releases](https://github.com/Maddex712/WiiDS/releases). Bring your own supported game discs.
-> The APK includes native engines and authorised mod patches, with no original or patched disc images.
+> The single APK includes all seven engines, setup tools and authorised mod patches, with no disc images.
 
 > **Bring your own supported base-game dumps; WiiDS handles the rest.**
 > MSMBWii and Eclipse installers are bundled. Retro Rewind downloads directly in-app.
-> **No separate mod files or companion APKs required.** See [First launch](#first-launch)
+> **Galaxy is now integrated too; no second APK is required.** See [First launch](#first-launch)
 > and [supported dump requirements](#what-youll-need).
 
 <p align="center">
@@ -43,6 +43,9 @@ aren't emulated. They run as native Android code through static recompilation an
 | **MSMBWii: Just a Little Adventure** | The same engine, with MidiGuyDP's fan level pack | The same companion, with its own case and save | NSMB Wii disc above; mod included |
 | **Super Mario Sunshine** | Decompilation port, built for Android | Enlarged area map and Mario marker, moving cloud backdrop, postcard, episode Shines and original-art counters; live title sky in menus | USA, `GMSE01` revision 0 |
 | **Super Mario Eclipse 1.1.0** | Sunshine expansion in its own native runtime processes | The same live-map companion, with Eclipse-specific area and menu handling | Uses your USA Sunshine disc; official patch and installer included |
+| **Super Mario Galaxy 1** | Native Galaxy-Android/Petari port inside WiiDS; own-disc conversion and lower bake are integrated | Live counters, textured GPU planet with matched actor visibility/matrices and player marker; Gardens flat map | USA `RMGE01` revision 0; Android API 32+ |
+
+Galaxy setup automatically generates its private lower-screen art and models from your disc. Read [Galaxy setup/migration and current limits](docs/release/GALAXY-SETUP.md). **The new integration was validated on desktop/Android emulation, not a physical Thor.** Earlier Thor images retain their original development-build scope.
 
 Read the [game guide](docs/GAMES.md) for each game's setup, companion screen and current limitations.
 
@@ -63,7 +66,7 @@ WiiDS; no separate mod APKs or companion apps are needed.**
    (and later numbered) parts together and use **Search again**, which collects the sibling parts.
    **Choose file** opens only the selected file. Exact supported regions and revisions are listed below.
 3. Import a supported disc and keep WiiDS open while it checks and prepares the game.
-   You can import just the games you own; the six visible cases are not six supplied ROMs.
+   You can import just the games you own; the seven visible cases are not supplied ROMs.
 4. **MSMBWii:** its bundled mod installation starts automatically after importing NSMB Wii. If it was
    cancelled or did not finish, its card offers **Install mod** or **Retry mod installation**.
    **Eclipse:** after importing Sunshine, choose **Install Eclipse**. If cancelled,
@@ -80,10 +83,18 @@ WiiDS; no separate mod APKs or companion apps are needed.**
 Imports and mod installations need extra free storage beyond the APK itself. Eclipse creates its own
 separate game image. Updating WiiDS in place keeps existing profiles; uninstalling the app can remove them.
 
+### Super Mario Galaxy setup
+
+Galaxy 1 is in the same APK. Supply a clean **USA RMGE01 revision 0 ISO**, then choose
+**Set up Galaxy** in Your games. Keep setup open while it extracts/cooks and generates
+the lower-screen assets. No helper or PC bake is required. Galaxy needs API 32+ and
+additional free space; see the [setup and legacy-profile migration guide](docs/release/GALAXY-SETUP.md).
+Galaxy 2 is not supported. The other six entries retain their existing imports and saves.
+
 ## Highlights
 
 - **The complete presentation:** selected retail/fan covers and discs, Wii Menu music and UI sounds, original HUD/fonts/settings artwork and cached lower-screen maps are bundled. Existing user overrides and saves are preserved.
-- **Six cases with matching plastic colors:** white Mario Kart/Retro Rewind, red NSMB/MSMBWii, black Sunshine/Eclipse.
+- **Seven cases with matching artwork:** white Mario Kart/Retro Rewind, red NSMB/MSMBWii, black Sunshine/Eclipse.
 - **Printed case spines:** Mario Kart, NSMB Wii and Sunshine use crops from retail full-cover scans;
   Retro Rewind and Eclipse use community cover artwork. MSMBWii's spine is an explicit custom
   adaptation. [Artwork sources](docs/GAMES.md#case-artwork).
@@ -101,6 +112,13 @@ separate game image. Updating WiiDS in place keeps existing profiles; uninstalli
   Mario Kart Wii and NSMB Wii use experimental presentation interpolation while their game logic
   stays at 60 Hz. The Sunshine/Eclipse 120 FPS option is also experimental; it is not a sustained-performance guarantee.
 - **Retro Rewind** 6.13.0–6.13.1, installed and updated in-app from the official servers. Newer versions need a matching engine build first.
+
+## New in 1.0
+
+Galaxy uses relocated native memory inside a non-debuggable WiiDS process, with its own
+NAND/settings/import profile. Its Back menu includes Quick Save and Controls > Buttons.
+WiiDS Options has a controller-button chooser, and NSMB/MSMBWii have a Controller tab.
+See [1.0 release/validation notes](docs/release/V1.0.md).
 
 ## Screenshots
 
@@ -292,3 +310,14 @@ Please own the games you play.
 ## Development assistance
 
 Development assistance: OpenAI Codex. The owner-approved minimal app icon was generated with OpenAI's built-in image-generation tool. Game and mod creators are credited in the component notices.
+
+### Galaxy and controller updates — October 22 development captures
+
+These are genuine Thor captures from the separate-helper development build before
+the one-APK integration. They illustrate the existing presentation, not validation of
+the final ARM64 1.0 APK. Opening/Gateway checks do not establish full-game compatibility.
+
+<p><img src="docs/images/galaxy-dev-gateway-upper.png" width="560" alt="October 22 pre-integration Thor development build: Luigi in Gateway Galaxy">
+<img src="docs/images/galaxy-dev-gateway-lower.png" width="360" alt="Same development build: live lower-screen textured planet and Luigi marker"></p>
+<p><img src="docs/images/wiids-dev-seven-covers.png" width="420" alt="October 22 development build: WiiDS Options companion with seven covers">
+<img src="docs/images/nsmb-dev-controller.png" width="560" alt="October 22 development build: NSMB Controller tab with Thor button labels"></p>

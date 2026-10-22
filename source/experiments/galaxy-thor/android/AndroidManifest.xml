@@ -1,0 +1,30 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="io.github.maddex712.wiids.galaxy" android:versionCode="5" android:versionName="1.0">
+    <uses-sdk android:minSdkVersion="32" android:targetSdkVersion="34" />
+    <uses-feature android:name="android.hardware.vulkan.version" android:version="0x400000" android:required="true" />
+    <uses-feature android:name="android.hardware.touchscreen" android:required="false" />
+    <queries><package android:name="io.github.maddex712.wiids" /></queries>
+    <!-- The on-device import reads the player's disc image wherever it is (GalaxyImportActivity). -->
+    <uses-permission android:name="android.permission.MANAGE_EXTERNAL_STORAGE" />
+    <!-- Development runtime: wrap.sh must exec ART after reserving the low address window. -->
+    <application android:label="WiiDS Galaxy" android:debuggable="true" android:extractNativeLibs="true"
+        android:allowBackup="false" android:theme="@android:style/Theme.Material.NoActionBar">
+        <activity android:name="dev.thor.galaxy.ThorLaunchActivity" android:exported="true" android:screenOrientation="landscape">
+            <intent-filter><action android:name="android.intent.action.MAIN" /><category android:name="android.intent.category.LAUNCHER" /></intent-filter>
+        </activity>
+        <activity android:name="dev.thor.galaxy.GalaxyActivity" android:exported="false" android:process=":game"
+            android:screenOrientation="landscape" android:launchMode="singleTask"
+            android:theme="@android:style/Theme.Black.NoTitleBar.Fullscreen"
+            android:configChanges="density|keyboard|keyboardHidden|navigation|orientation|screenLayout|screenSize|uiMode">
+            <meta-data android:name="android.app.lib_name" android:value="main" />
+        </activity>
+        <!-- Sets the game up from the player's own disc; started by WiiDS (Your games). Own process:
+             the embedded Python converter never shares the game's. -->
+        <activity android:name="dev.thor.galaxy.GalaxyImportActivity" android:exported="true" android:process=":import"
+            android:screenOrientation="landscape" android:theme="@android:style/Theme.Material.NoActionBar">
+            <intent-filter><action android:name="dev.thor.galaxy.action.IMPORT_DISC" /><category android:name="android.intent.category.DEFAULT" /></intent-filter>
+        </activity>
+        <provider android:name="dev.thor.galaxy.StatusProvider" android:exported="true"
+            android:authorities="io.github.maddex712.wiids.galaxy.status" />
+    </application>
+</manifest>

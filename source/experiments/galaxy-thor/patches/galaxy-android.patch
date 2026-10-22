@@ -1,0 +1,4012 @@
+diff --git a/decomp/include/Game/Screen/CoinCounter.hpp b/decomp/include/Game/Screen/CoinCounter.hpp
+index 4b89726..2f908b4 100644
+--- a/decomp/include/Game/Screen/CoinCounter.hpp
++++ b/decomp/include/Game/Screen/CoinCounter.hpp
+@@ -14,6 +14,9 @@ public:
+     virtual void init(const JMapInfoIter& rIter);
+     virtual void appear();
+     virtual void control();
++#ifdef TARGET_MOBILE
++    virtual void draw() const;
++#endif
+ 
+     void forceAppear();
+     void disappear();
+diff --git a/decomp/include/Game/Screen/PurpleCoinCounter.hpp b/decomp/include/Game/Screen/PurpleCoinCounter.hpp
+index a24e51d..3421020 100644
+--- a/decomp/include/Game/Screen/PurpleCoinCounter.hpp
++++ b/decomp/include/Game/Screen/PurpleCoinCounter.hpp
+@@ -12,6 +12,9 @@ public:
+     virtual void init(const JMapInfoIter& rIter);
+     virtual void appear();
+     virtual void control();
++#ifdef TARGET_MOBILE
++    virtual void draw() const;
++#endif
+ 
+     void validate();
+     void updateCounter();
+diff --git a/decomp/include/Game/Screen/StarPieceCounter.hpp b/decomp/include/Game/Screen/StarPieceCounter.hpp
+index f384b10..3e5b59e 100644
+--- a/decomp/include/Game/Screen/StarPieceCounter.hpp
++++ b/decomp/include/Game/Screen/StarPieceCounter.hpp
+@@ -14,6 +14,9 @@ public:
+     virtual void init(const JMapInfoIter& rIter);
+     virtual void appear();
+     virtual void control();
++#ifdef TARGET_MOBILE
++    virtual void draw() const;
++#endif
+ 
+     void forceAppear(bool);
+     void disappear(bool);
+diff --git a/decomp/include/Game/Util/StarPointerUtil.hpp b/decomp/include/Game/Util/StarPointerUtil.hpp
+index de7baca..08b3e65 100644
+--- a/decomp/include/Game/Util/StarPointerUtil.hpp
++++ b/decomp/include/Game/Util/StarPointerUtil.hpp
+@@ -101,6 +101,9 @@ namespace MR {
+     bool isStarPointerModeBlueStarReady();
+ #ifdef TARGET_PC
+     s32 getStarPointerModeForPort();
++#endif
++#ifdef TARGET_MOBILE
++    bool isStarPointerModeMenuForPort();
+ #endif
+     bool isStarPointerModeStarPieceTarget();
+     bool isStarPointerModeMarioLauncher();
+diff --git a/decomp/libs/RVL_SDK/include/revolution/gx/GXTypes.h b/decomp/libs/RVL_SDK/include/revolution/gx/GXTypes.h
+index 47efe82..b9290fb 100644
+--- a/decomp/libs/RVL_SDK/include/revolution/gx/GXTypes.h
++++ b/decomp/libs/RVL_SDK/include/revolution/gx/GXTypes.h
+@@ -10,7 +10,14 @@ extern "C" {
+ #endif
+ 
+ #define PHY_ADDR_MASK ~((~0x3FFF) << 16)
++#ifdef TARGET_PC
++// Host cached addresses are relocated. A console bit mask would encode the
++// wrong texture/TLUT/array/EFB address after relocation.
++uint32_t port_host_to_phys(const void*);
++#define GX_PHY_ADDR(a) port_host_to_phys((const void*)(uintptr_t)(a))
++#else
+ #define GX_PHY_ADDR(a) ((u32)a & PHY_ADDR_MASK)
++#endif
+ 
+ typedef struct _GXData {
+     u16 vNumNot;
+diff --git a/decomp/libs/RVL_SDK/include/revolution/os.h b/decomp/libs/RVL_SDK/include/revolution/os.h
+index fe8f9ea..c58205c 100644
+--- a/decomp/libs/RVL_SDK/include/revolution/os.h
++++ b/decomp/libs/RVL_SDK/include/revolution/os.h
+@@ -19,8 +19,8 @@ u32 __OSBusClock : (0x8000 << 16 | 0x00F8);
+ u32 __MEM2End : (0x8000 << 16 | 0x3128);
+ #else
+ /* OS globals live at fixed addresses in low MEM1, which the port maps at 0x80000000. */
+-#define __OSBusClock (*(volatile u32*)0x800000F8)
+-#define __MEM2End (*(volatile u32*)0x80003128)
++#define __OSBusClock (*(volatile u32*)0xB00000F8)
++#define __MEM2End (*(volatile u32*)0xB0003128)
+ #endif
+ 
+ #define OS_BUS_CLOCK __OSBusClock
+@@ -45,8 +45,8 @@ u32 __MEM2End : (0x8000 << 16 | 0x3128);
+ 
+ void* OSPhysicalToUncached(u32);
+ 
+-#define OS_CACHED_REGION_PREFIX 0x8000
+-#define OS_UNCACHED_REGION_PREFIX 0xC000
++#define OS_CACHED_REGION_PREFIX 0xB000u
++#define OS_UNCACHED_REGION_PREFIX 0xE000u
+ 
+ #define OS_BASE_CACHED (OS_CACHED_REGION_PREFIX << 16)
+ #define OS_BASE_UNCACHED (OS_UNCACHED_REGION_PREFIX << 16)
+@@ -56,8 +56,8 @@ void* OSPhysicalToUncached(u32);
+ #define OSUncachedToPhysical(ucaddr) ((u32)((u32)(ucaddr) & (~OS_BASE_UNCACHED)))
+ #define OSPhysicalToUncached(paddr) ((void*)((u32)(paddr) + OS_BASE_UNCACHED))
+ 
+-#define OSIsMEM1Region(addr) (((u32)(addr)&0x30000000) == 0x00000000)
+-#define OSIsMEM2Region(addr) (((u32)(addr)&0x30000000) == 0x10000000)
++#define OSIsMEM1Region(addr) (((u32)(addr) >= 0xB0000000u && (u32)(addr) < 0xB8000000u) || ((u32)(addr) >= 0xE0000000u && (u32)(addr) < 0xE8000000u))
++#define OSIsMEM2Region(addr) (((u32)(addr) >= 0xC0000000u && (u32)(addr) < 0xC8000000u) || ((u32)(addr) >= 0xF0000000u && (u32)(addr) < 0xF8000000u))
+ 
+ #define OSRoundUp32B(x) (((u32)(x) + 32 - 1) & ~(32 - 1))
+ #define OSRoundDown32B(x) (((u32)(x)) & ~(32 - 1))
+diff --git a/decomp/src/Game/LiveActor/DisplayListMaker.cpp b/decomp/src/Game/LiveActor/DisplayListMaker.cpp
+index d63b100..6c25ebe 100644
+--- a/decomp/src/Game/LiveActor/DisplayListMaker.cpp
++++ b/decomp/src/Game/LiveActor/DisplayListMaker.cpp
+@@ -8,6 +8,7 @@
+ #include <JSystem/J3DGraphBase/J3DMaterial.hpp>
+ #include <JSystem/J3DGraphBase/J3DSys.hpp>
+ #include <algorithm>
++#include "port/port.h"
+ 
+ void DisplayListMaker_FORCE_MATCH_INLINE(J3DTexture* pTexture, const ResTIMG& rTexture) {
+     pTexture->setResTIMG(0, rTexture);
+@@ -23,6 +24,9 @@ DisplayListMaker::DisplayListMaker(J3DModel* pModel, const ResourceHolder* pResH
+ }
+ 
+ void DisplayListMaker::update() {
++    if (mMaterialCtrl.size() < 0 || mMaterialCtrl.size() > mMaterialCtrl.capacity())
++        port_log("Thor material corruption: maker=%p count=%d capacity=%d array=%p", this,
++                 mMaterialCtrl.size(), mMaterialCtrl.capacity(), mMaterialCtrl.begin());
+     std::for_each(mMaterialCtrl.begin(), mMaterialCtrl.end(), std::mem_fun(&MaterialCtrl::update));
+ }
+ 
+diff --git a/decomp/src/Game/LiveActor/ModelManager.cpp b/decomp/src/Game/LiveActor/ModelManager.cpp
+index 892d2a4..cfd0ab9 100644
+--- a/decomp/src/Game/LiveActor/ModelManager.cpp
++++ b/decomp/src/Game/LiveActor/ModelManager.cpp
+@@ -15,6 +15,7 @@
+ #include "Game/Util/ObjUtil.hpp"
+ #include <JSystem/J3DGraphAnimator/J3DModel.hpp>
+ #include <cstdio>
++#include "port/port.h"
+ 
+ ModelManager::ModelManager()
+     : mBtkPlayer(), mBrkPlayer(), mBtpPlayer(), mBpkPlayer(), mBvaPlayer(), mXanimeResourceTable(), mXanimePlayer(), mModel(), mModelResourceHolder(),
+@@ -428,6 +429,7 @@ void ModelManager::init(const char* pModelName, const char* pAnimationName, bool
+ 
+     if (flags & J3DMdlFlag_DifferedDLBuffer) {
+         mDisplayListMaker = new DisplayListMaker(getJ3DModel(), getResourceHolder());
++        port_log("Thor model manager: name=%s manager=%p maker=%p", pModelName, this, mDisplayListMaker);
+         if (!deferDisplayList) {
+             mDisplayListMaker->newDifferedDisplayList();
+         }
+diff --git a/decomp/src/Game/Map/FileSelectCameraController.cpp b/decomp/src/Game/Map/FileSelectCameraController.cpp
+index 4f8923a..b1583b9 100644
+--- a/decomp/src/Game/Map/FileSelectCameraController.cpp
++++ b/decomp/src/Game/Map/FileSelectCameraController.cpp
+@@ -1,4 +1,5 @@
+ #include "Game/Map/FileSelectCameraController.hpp"
++#include "port/port.h"
+ #include "Game/LiveActor/Nerve.hpp"
+ #include "Game/Util/ActorCameraUtil.hpp"
+ #include "Game/Util/LiveActorUtil.hpp"
+@@ -57,6 +58,7 @@ void FileSelectCameraController::goToFarPoint() {
+ }
+ 
+ void FileSelectCameraController::goToNearPoint(const TVec3f& rPoint) {
++    port_log("Galaxy file camera: go-near=(%.1f,%.1f,%.1f)", rPoint.x, rPoint.y, rPoint.z);
+     mNearTarget.set(rPoint + TVec3f(::cNearTargetOffset));
+ 
+     setNerve(GET_NERVE_ANON(FileSelectCameraControllerNrvMoveToNearPoint));
+@@ -108,6 +110,8 @@ void FileSelectCameraController::exeFarPoint() {
+ }
+ 
+ void FileSelectCameraController::exeMoveToNearPoint() {
++    if (getNerveStep() < 240 && getNerveStep() % 60 == 0)
++        port_log("Galaxy file camera: move-near step=%d", getNerveStep());
+     TVec3f nearPoint = mNearTarget + ::cNearPointOffset;
+     f32 squaredTime = getNerveStep() / 60.0f;
+ 
+diff --git a/decomp/src/Game/Map/FileSelector.cpp b/decomp/src/Game/Map/FileSelector.cpp
+index cb099c0..e6d2abe 100644
+--- a/decomp/src/Game/Map/FileSelector.cpp
++++ b/decomp/src/Game/Map/FileSelector.cpp
+@@ -1,4 +1,5 @@
+ #include "Game/Map/FileSelector.hpp"
++#include "port/port.h"
+ #include "Game/LiveActor/Nerve.hpp"
+ #include "Game/Map/FileSelectCameraController.hpp"
+ #include "Game/Map/FileSelectEffect.hpp"
+@@ -138,6 +139,18 @@ FileSelector::FileSelector(const char* pName)
+       mBgmState(), mSelectEffect() {
+ }
+ 
++#ifdef TARGET_MOBILE
++// AYN Thor lower screen (Game/System/ThorLowerState.cpp): set by each update the title ("Press
++// both A and B") runs, and taken once a frame, so it never outlives the title.
++static bool sThorTitleSeen;
++
++bool thorFileSelectorTakeTitle() {
++    const bool seen = sThorTitleSeen;
++    sThorTitleSeen = false;
++    return seen;
++}
++#endif
++
+ void FileSelector::init(const JMapInfoIter& rIter) {
+     MR::connectToScene(this, MR::MovementType_Environment, MR::CalcAnimType_None, MR::DrawBufferType_None, MR::DrawType_None);
+     initHitSensor(1);
+@@ -524,6 +537,7 @@ void FileSelector::onPoint(FileSelectItem* pItem) {
+ }
+ 
+ void FileSelector::onSelect(FileSelectItem* pItem) {
++    port_log("Galaxy file select: onSelect slot=%d new=%d", pItem->_140, pItem->isNew());
+     if (isNerve(GET_NERVE(FileSelector, FileSelectorNrvCopySelect))) {
+         setNerve(GET_NERVE(FileSelector, FileSelectorNrvCopyConfirmStart));
+     } else if (isNerve(GET_NERVE(FileSelector, FileSelectorNrvFileSelect))) {
+@@ -936,10 +950,16 @@ void FileSelector::updateBgm() {
+ }
+ 
+ void FileSelector::exeWaitBind() {
++#ifdef TARGET_MOBILE
++    sThorTitleSeen = true;
++#endif
+     mPosition.set(*MR::getPlayerPos());
+ }
+ 
+ void FileSelector::exeTitle() {
++#ifdef TARGET_MOBILE
++    sThorTitleSeen = true;
++#endif
+     if (MR::isFirstStep(this)) {
+         mTitle->appear();
+         MR::deactivateDefaultGameLayout();
+@@ -1193,6 +1213,8 @@ void FileSelector::exeDemo() {
+ }
+ 
+ void FileSelector::exeCreateConfirmStart() {
++    if (getNerveStep() < 240 && getNerveStep() % 60 == 0)
++        port_log("Galaxy file select: create-confirm-start step=%d near=%d", getNerveStep(), mCameraController->isAtNearPoint());
+     if (MR::isFirstStep(this)) {
+         goToNearPoint();
+         invalidateSelectAll();
+@@ -1207,6 +1229,7 @@ void FileSelector::exeCreateConfirmStart() {
+ }
+ 
+ void FileSelector::exeCreateConfirm() {
++    if (MR::isFirstStep(this)) port_log("Galaxy file select: create-confirm window");
+     if (MR::isFirstStep(this)) {
+         mSysInfoWindow->appear("System_FileSelect001", SysInfoWindow::Type_YesNo, SysInfoWindow::TextPos_Center, SysInfoWindow::MessageType_System);
+         mSysInfoWindow->setYesNoSelectorSE("SE_SY_BUTTON_CURSOR_ON", "SE_SY_FILE_SEL_NEW_FILE", "SE_SY_TALK_SELECT_NO");
+diff --git a/decomp/src/Game/Scene/GameScene.cpp b/decomp/src/Game/Scene/GameScene.cpp
+index 6e8133b..1d04f8f 100644
+--- a/decomp/src/Game/Scene/GameScene.cpp
++++ b/decomp/src/Game/Scene/GameScene.cpp
+@@ -81,6 +81,31 @@ namespace NrvGameScene {
+     NEW_NERVE(GameSceneStaffRoll, GameScene, StaffRoll);
+ };  // namespace NrvGameScene
+ 
++#ifdef TARGET_MOBILE
++#include "port/thor_lower.h"
++
++// AYN Thor lower screen (Game/System/ThorLowerState.cpp): the frame drawn now is the title's.
++bool thorLowerTitleLive();
++
++// AYN Thor lower screen (Game/System/ThorLowerState.cpp): which of the scene's steps runs, as a
++// ThorLowerPhase. Read-only; the nerves are only compared.
++int thorGameScenePhase(const GameScene* pScene) {
++    if (pScene->isNerve(GET_NERVE(GameScene, GameSceneAction))) return THOR_PHASE_PLAY;
++    if (pScene->isNerve(GET_NERVE(GameScene, GameScenePauseMenu))) return THOR_PHASE_PAUSE;
++    if (pScene->isNerve(GET_NERVE(GameScene, GameScenePowerStarGet)) || pScene->isNerve(GET_NERVE(GameScene, GameSceneGrandStarGet)))
++        return THOR_PHASE_STAR_GET;
++    if (pScene->isNerve(GET_NERVE(GameScene, GameSceneScenarioOpeningCamera)) || pScene->isNerve(GET_NERVE(GameScene, GameSceneScenarioStarter)) ||
++        pScene->isNerve(GET_NERVE(GameScene, GameScenePlayMovie)))
++        return THOR_PHASE_CUTSCENE;
++    if (pScene->isNerve(GET_NERVE(GameScene, GameSceneGameOver)) || pScene->isNerve(GET_NERVE(GameScene, GameSceneCometRetryAfterMiss)) ||
++        pScene->isNerve(GET_NERVE(GameScene, GameSceneSaveAfterGameOver)) || pScene->isNerve(GET_NERVE(GameScene, GameSceneTimeUp)))
++        return THOR_PHASE_MISS;
++    if (pScene->isNerve(GET_NERVE(GameScene, GameSceneGalaxyMap))) return THOR_PHASE_MAP;
++    if (pScene->isNerve(GET_NERVE(GameScene, GameSceneStaffRoll))) return THOR_PHASE_CREDITS;
++    return THOR_PHASE_NONE;
++}
++#endif
++
+ GameScene::GameScene()
+     : Scene("GameScene"), _14(0), mScenarioCamera(nullptr), mPauseCtrl(nullptr), mPauseSeq(nullptr), mStageClearSeq(nullptr), mDraw3D(true), _29(1) {
+ }
+@@ -385,6 +410,10 @@ void GameScene::draw() const {
+     drawMirror();
+     draw3D();
+ #ifdef TARGET_PC
++#ifdef TARGET_MOBILE
++    // The lower screen's live space: the title's whole 3D picture, before its logo (2D).
++    if (thorLowerTitleLive()) port_gx_marker(PORT_GX_MARK_THOR_SPACE);
++#endif
+     port_gx_marker(PORT_GX_MARK_HUD_BEGIN);
+ #endif
+     draw2D();
+diff --git a/decomp/src/Game/Scene/PlacementInfoOrdered.cpp b/decomp/src/Game/Scene/PlacementInfoOrdered.cpp
+index a8a644a..81a642e 100644
+--- a/decomp/src/Game/Scene/PlacementInfoOrdered.cpp
++++ b/decomp/src/Game/Scene/PlacementInfoOrdered.cpp
+@@ -7,6 +7,11 @@
+ #include "Game/Util/MemoryUtil.hpp"
+ #include "Game/Util/SceneUtil.hpp"
+ 
++#ifdef TARGET_MOBILE
++// The Thor lower screen's live world pieces (Game/System/ThorWorldState.cpp).
++void thorWorldRegister(NameObj* pObj, const JMapInfoIter& rIter);
++#endif
++
+ namespace {
+     CreationFuncPtr getCreator(const PlacementInfoOrdered::Identifier& rIdentifier) {
+         if (rIdentifier.mShapeId != -1) {
+@@ -97,6 +102,9 @@ void PlacementInfoOrdered::initPlacement() {
+                 pObj = creator(pName);
+                 MR::initLiveActorSystemInfo(rIter);
+                 pObj->init(rIter);
++#ifdef TARGET_MOBILE
++                thorWorldRegister(pObj, rIter);
++#endif
+                 MR::initLiveActorSystemInfo(rIter);
+                 MR::clearCurrentPlacementZoneId();
+             }
+diff --git a/decomp/src/Game/Screen/CoinCounter.cpp b/decomp/src/Game/Screen/CoinCounter.cpp
+index c6a9ad0..c5b3544 100644
+--- a/decomp/src/Game/Screen/CoinCounter.cpp
++++ b/decomp/src/Game/Screen/CoinCounter.cpp
+@@ -1,4 +1,7 @@
+ #include "Game/Screen/CoinCounter.hpp"
++#ifdef TARGET_MOBILE
++#include "port/thor_lower.h"
++#endif
+ #include "Game/LiveActor/Nerve.hpp"
+ #include "Game/Screen/CountUpPaneRumbler.hpp"
+ #include "Game/Screen/CounterLayoutAppearer.hpp"
+@@ -162,3 +165,13 @@ void CoinCounter::exeDisappear() {
+         setNerve(GET_NERVE(CoinCounter, CoinCounterNrvHide));
+     }
+ }
++
++#ifdef TARGET_MOBILE
++// AYN Thor: coins are shown on the lower screen, so the upper HUD leaves them to it while it is up.
++void CoinCounter::draw() const {
++    if (port_thor_lower_visible()) {
++        return;
++    }
++    LayoutActor::draw();
++}
++#endif
+diff --git a/decomp/src/Game/Screen/ProloguePictureBook.cpp b/decomp/src/Game/Screen/ProloguePictureBook.cpp
+index f4f51b3..bd9f5bd 100644
+--- a/decomp/src/Game/Screen/ProloguePictureBook.cpp
++++ b/decomp/src/Game/Screen/ProloguePictureBook.cpp
+@@ -101,6 +101,21 @@ bool ProloguePictureBook::isEnd() const {
+     return isNerve(GET_NERVE(ProloguePictureBook, ProloguePictureBookEnd));
+ }
+ 
++#ifdef TARGET_MOBILE
++// AYN Thor lower screen (Game/System/ThorLowerState.cpp): set by each update the picture book runs,
++// taken once a frame, so it never outlives the book.
++static bool sThorStorybookSeen;
++
++bool thorStorybookTake() {
++    const bool seen = sThorStorybookSeen;
++    sThorStorybookSeen = false;
++    return seen;
++}
++#endif
++
+ void ProloguePictureBook::control() {
++#ifdef TARGET_MOBILE
++    sThorStorybookSeen = true;
++#endif
+     MR::setLayoutScalePosAtPaneScaleTrans(mIconAButton, this, "AButtonPosition");
+ }
+diff --git a/decomp/src/Game/Screen/PurpleCoinCounter.cpp b/decomp/src/Game/Screen/PurpleCoinCounter.cpp
+index 6f3b9d9..436af79 100644
+--- a/decomp/src/Game/Screen/PurpleCoinCounter.cpp
++++ b/decomp/src/Game/Screen/PurpleCoinCounter.cpp
+@@ -1,4 +1,7 @@
+ #include "Game/Screen/PurpleCoinCounter.hpp"
++#ifdef TARGET_MOBILE
++#include "port/thor_lower.h"
++#endif
+ #include "Game/LiveActor/Nerve.hpp"
+ #include "Game/Screen/CountUpPaneRumbler.hpp"
+ #include "Game/Screen/CounterLayoutAppearer.hpp"
+@@ -105,3 +108,13 @@ void PurpleCoinCounter::exeAppear() {
+ 
+ void PurpleCoinCounter::exeWait() {
+ }
++
++#ifdef TARGET_MOBILE
++// AYN Thor: purple coins are shown on the lower screen, so the upper HUD leaves them to it while it is up.
++void PurpleCoinCounter::draw() const {
++    if (port_thor_lower_visible()) {
++        return;
++    }
++    LayoutActor::draw();
++}
++#endif
+diff --git a/decomp/src/Game/Screen/StarPieceCounter.cpp b/decomp/src/Game/Screen/StarPieceCounter.cpp
+index fd06f13..d1c9119 100644
+--- a/decomp/src/Game/Screen/StarPieceCounter.cpp
++++ b/decomp/src/Game/Screen/StarPieceCounter.cpp
+@@ -1,4 +1,7 @@
+ #include "Game/Screen/StarPieceCounter.hpp"
++#ifdef TARGET_MOBILE
++#include "port/thor_lower.h"
++#endif
+ #include "Game/LiveActor/Nerve.hpp"
+ #include "Game/Screen/CountUpPaneRumbler.hpp"
+ #include "Game/Screen/CounterLayoutAppearer.hpp"
+@@ -308,3 +311,13 @@ void StarPieceCounter::exeDisappear() {
+         setNerve(GET_NERVE(StarPieceCounter, StarPieceCounterNrvHide));
+     }
+ }
++
++#ifdef TARGET_MOBILE
++// AYN Thor: Star Bits are shown on the lower screen, so the upper HUD leaves them to it while it is up.
++void StarPieceCounter::draw() const {
++    if (port_thor_lower_visible()) {
++        return;
++    }
++    LayoutActor::draw();
++}
++#endif
+diff --git a/decomp/src/Game/System/GameSystem.cpp b/decomp/src/Game/System/GameSystem.cpp
+index e454600..3b7458b 100644
+--- a/decomp/src/Game/System/GameSystem.cpp
++++ b/decomp/src/Game/System/GameSystem.cpp
+@@ -38,6 +38,15 @@
+ 
+ #define GX_FIFO_SIZE 0x80000
+ 
++#ifdef TARGET_MOBILE
++#include "Game/Util/StarPointerUtil.hpp"
++#include "port/input.h"
++
++// AYN Thor lower screen: samples this frame's state after the scene moved (ThorLowerState.cpp).
++void thorLowerPublish();
++void thorWorldPublish();
++#endif
++
+ #define INIT_AUDIO_KEY "\x83\x49\x81\x5b\x83\x66\x83\x42\x83\x49\x8f\x89\x8a\xfa\x89\xbb"  // "Audio Initialization"
+ 
+ namespace NrvGameSystem {
+@@ -304,6 +313,12 @@ void GameSystem::frameLoop() {
+ 
+     update();
+     calcAnim();
++#ifdef TARGET_MOBILE
++    thorLowerPublish();
++    thorWorldPublish();
++    // A gamepad's left stick moves the pointer in menus (platform/mobile/input/GamepadInput.cpp).
++    port_input_set_menu_pointer(MR::isStarPointerModeMenuForPort() ? 1 : 0);
++#endif
+     mObjHolder->captureIfAllowForScreenPreserver();
+     MainLoopFramework::sManager->endFrame();
+ #ifdef TARGET_PC
+diff --git a/decomp/src/Game/System/GameSystemSceneController.cpp b/decomp/src/Game/System/GameSystemSceneController.cpp
+index bb5cffb..4d2f27d 100644
+--- a/decomp/src/Game/System/GameSystemSceneController.cpp
++++ b/decomp/src/Game/System/GameSystemSceneController.cpp
+@@ -149,7 +149,15 @@ void GameSystemSceneController::initializeScene() {
+     SingletonHolder< HeapMemoryWatcher >::get()->checkRestMemory();
+ }
+ 
++#ifdef TARGET_MOBILE
++// The Thor lower screen's live world pieces (Game/System/ThorWorldState.cpp).
++void thorWorldClear();
++#endif
++
+ void GameSystemSceneController::destroyScene() {
++#ifdef TARGET_MOBILE
++    thorWorldClear();  // before any actor is freed: the game thread reads them under the same lock
++#endif
+     bool stopSound = isStopSound();
+ 
+     Scene* pScene = mScene;
+diff --git a/decomp/src/Game/Util/StarPointerUtil.cpp b/decomp/src/Game/Util/StarPointerUtil.cpp
+index e2876d1..f7a21e2 100644
+--- a/decomp/src/Game/Util/StarPointerUtil.cpp
++++ b/decomp/src/Game/Util/StarPointerUtil.cpp
+@@ -903,6 +903,51 @@ namespace MR {
+     }
+ #endif
+ 
++#ifdef TARGET_MOBILE
++    // The modes in which the player picks from a menu with the finger cursor; Mario cannot move in
++    // any of them. Title, Logo, HOME and the error windows hide the pointer; every other mode is
++    // play or a cutscene.
++    static bool isMenuPointerModeForPort(s32 mode) {
++        switch (mode) {
++        case StarPointerMode_FileSelect:                 // file select, Mii select, Mario/Luigi, manual
++        case StarPointerMode_ScenarioSelectScene:        // star select
++        case StarPointerMode_PauseMenu:                  // pause, star list, galaxy map, comet retry, game-over save
++        case StarPointerMode_ChooseYesNo:                // yes/no in a talk
++        case StarPointerMode_PictureBook:                // storybook, while its close button shows
++        case StarPointerMode_DemoWithHandPointerFinger:  // the save after a story event or the staff roll
++        case StarPointerMode_SphereSelectorOnReaction:   // the observatory dome's galaxy selector
++        case StarPointerMode_SphereSelectorFinger:
++            return true;
++        default:
++            return false;
++        }
++    }
++
++    // Whether the pointer is choosing from a menu rather than aiming in play, for a gamepad's left
++    // stick (platform/mobile/input/GamepadInput.cpp). Called once a frame on the game thread. False
++    // until the sequence that owns the pointer modes exists.
++    bool isStarPointerModeMenuForPort() {
++        GameSystem* pSystem = SingletonHolder< GameSystem >::get();
++        if (pSystem == nullptr || pSystem->mSequenceDirector == nullptr || pSystem->mSequenceDirector->mGameSequenceProgress == nullptr ||
++            pSystem->mSequenceDirector->mGameSequenceProgress->mStarPointerOnOffController == nullptr) {
++            return false;
++        }
++        const StarPointerOnOffController* pController = ::getStarPointerOnOffController();
++        if (pController->mMode != StarPointerMode_SaveLoad) {
++            return isMenuPointerModeForPort(pController->mMode);
++        }
++        // SaveLoad sits on top of whatever asked for the save. Its windows are menus, but the port's
++        // quick save (and the mail-size save) runs over play, where the stick stays Mario's: judge by
++        // the mode underneath. Nothing underneath is a save window at boot.
++        for (s32 mode = 0; mode < StarPointerMode_Count; mode++) {
++            if (mode != StarPointerMode_SaveLoad && (pController->mModeCounter[mode] > 0 || pController->mRequested[mode])) {
++                return mode < StarPointerMode_DemoWithStarPointer || isMenuPointerModeForPort(mode);
++            }
++        }
++        return true;
++    }
++#endif
++
+     bool isStarPointerModeBlueStarReady() {
+         return ::getStarPointerOnOffController()->compareMode(StarPointerMode_BlueStarReady);
+     }
+diff --git a/decomp/src/JSystem/J3DGraphBase/J3DShape.cpp b/decomp/src/JSystem/J3DGraphBase/J3DShape.cpp
+index edb695d..4252b9c 100644
+--- a/decomp/src/JSystem/J3DGraphBase/J3DShape.cpp
++++ b/decomp/src/JSystem/J3DGraphBase/J3DShape.cpp
+@@ -6,6 +6,7 @@
+ #include "JSystem/J3DGraphBase/J3DVertex.hpp"
+ #include <revolution/gd.h>
+ #include <stdint.h>
++#include "port/port.h"
+ 
+ void J3DShape::initialize() {
+     mMaterial = nullptr;
+@@ -123,7 +124,7 @@ void J3DLoadCPCmd(u8 addr, u32 val) {
+ 
+ static void J3DLoadArrayBasePtr(GXAttr attr, void* data) {
+     u32 idx = (attr == GX_VA_NBT) ? 1 : (attr - GX_VA_POS);
+-    J3DLoadCPCmd(0xA0 + idx, ((uintptr_t)data & 0x7FFFFFFF));
++    J3DLoadCPCmd(0xA0 + idx, port_host_to_phys(data));
+ }
+ 
+ void J3DShape::loadVtxArray() const {
+diff --git a/decomp/src/JSystem/JKernel/JKRHeap.cpp b/decomp/src/JSystem/JKernel/JKRHeap.cpp
+index 8746ae1..6f8cd58 100644
+--- a/decomp/src/JSystem/JKernel/JKRHeap.cpp
++++ b/decomp/src/JSystem/JKernel/JKRHeap.cpp
+@@ -16,7 +16,7 @@ void* JKRHeap::mUserRamEnd;
+ u32 JKRHeap::mMemorySize;
+ 
+ static bool byte_806B26D8 = true;
+-u32 ARALT_AramStartAdr = 0x90000000;
++u32 ARALT_AramStartAdr = 0xC0000000;
+ 
+ JKRHeap::JKRHeap(void* data, u32 size, JKRHeap* parent, bool error) : JKRDisposer(), mChildTree(this), mDisposerList() {
+     OSInitMutex(&mMutex);
+@@ -305,6 +305,12 @@ JKRErrorHandler JKRHeap::setErrorHandler(JKRErrorHandler errorHandler) {
+ #include "port/heap_routing.h"
+ 
+ static inline void* gameAlloc(size_t size, int align, JKRHeap* pHeap) {
++    // A 64-bit C++ allocation must meet max_align_t (16), even though the
++    // original PowerPC allocator default was 4. x86's aligned SIMD stores
++    // expose this contract; AArch64 also requires it for valid C++ objects.
++    // Preserve the requested front/back direction and larger alignments.
++    if (align >= 0 && align < 16) align = 16;
++    else if (align < 0 && align > -16) align = -16;
+     if (!port_use_game_heap() || (pHeap == nullptr && JKRHeap::getCurrentHeap() == nullptr)) {
+         return port_host_alloc(size, align < 0 ? -align : align);
+     }
+diff --git a/decomp/src/JSystem/JUtility/JUTException.cpp b/decomp/src/JSystem/JUtility/JUTException.cpp
+index 9a5aad0..6bda9ff 100644
+--- a/decomp/src/JSystem/JUtility/JUTException.cpp
++++ b/decomp/src/JSystem/JUtility/JUTException.cpp
+@@ -234,7 +234,7 @@ bool JUTException::searchPartialModule(u32 address, u32* module_id, u32* section
+         return false;
+     }
+ 
+-    OSModuleInfo* module = *(OSModuleInfo**)0x800030C8;
++    OSModuleInfo* module = *(OSModuleInfo**)0xB00030C8;
+     while (module) {
+         OSSectionInfo* section = reinterpret_cast< OSSectionInfo* >(module->sectionInfoOffset);
+         for (u32 i = 0; i < module->numSections; section = section + 1, i++) {
+@@ -379,7 +379,7 @@ static void search_name_part(u8* src, u8* dst, int dst_length) {
+ }
+ 
+ bool JUTException::showMapInfo_subroutine(u32 address, bool begin_with_newline) {
+-    if ((address < 0x80000000) || (0x82ffffff < address)) {
++    if ((address < 0xB0000000) || (0x82ffffff < address)) {
+         return false;
+     }
+ 
+@@ -434,7 +434,7 @@ void JUTException::showGPRMap(OSContext* context) {
+     for (int i = 0; i < 31; i++) {
+         u32 address = context->gpr[i];
+ 
+-        if (address >= 0x80000000 && address <= 0x83000000 - 1) {
++        if (address >= 0xB0000000 && address <= 0x83000000 - 1) {
+             found_address_register = true;
+ 
+             sConsole->print_f("R%02d: %08XH", i, address);
+@@ -458,7 +458,7 @@ void JUTException::showSRR0Map(OSContext* context) {
+ 
+     sConsole->print("-------------------------------- SRR0MAP\n");
+     u32 address = context->srr0;
+-    if (address >= 0x80000000 && address <= 0x83000000 - 1) {
++    if (address >= 0xB0000000 && address <= 0x83000000 - 1) {
+         sConsole->print_f("SRR0: %08XH", address);
+         if (showMapInfo_subroutine(address, true) == false) {
+             sConsole->print("  no information\n");
+diff --git a/decomp/src/RVL_SDK/aralt/aralt.c b/decomp/src/RVL_SDK/aralt/aralt.c
+index a88eda6..3f7cb8e 100644
+--- a/decomp/src/RVL_SDK/aralt/aralt.c
++++ b/decomp/src/RVL_SDK/aralt/aralt.c
+@@ -17,7 +17,7 @@ static u32 __ARQChunkSize;
+ static s32 __ARQ_init_flag;
+ static u32 __AR_init_flag;
+ 
+-static u32 __ARH_MemoryTop = 0x90000000;
++static u32 __ARH_MemoryTop = 0xC0000000;
+ 
+ void ARStartDMA(u32 type, u32 ram_addr, u32 aram_addr, u32 len) {
+     OSDisableScheduler();
+diff --git a/decomp/src/RVL_SDK/gx/GXFifo.c b/decomp/src/RVL_SDK/gx/GXFifo.c
+index 22d1f58..3df4768 100644
+--- a/decomp/src/RVL_SDK/gx/GXFifo.c
++++ b/decomp/src/RVL_SDK/gx/GXFifo.c
+@@ -8,7 +8,7 @@
+ #include "revolution/gx/GXRegs.h"
+ #include <mem.h>
+ 
+-#define TOPHYSICAL(a) (((u32)a) & 0x3FFFFFFF)
++#define TOPHYSICAL(a) OSCachedToPhysical(a)
+ 
+ static __GXFifoObj CPUFifo;
+ static __GXFifoObj GPFifo;
+diff --git a/installer-mobile/jni/py_bridge.cpp b/installer-mobile/jni/py_bridge.cpp
+index e9526da..2dd650b 100644
+--- a/installer-mobile/jni/py_bridge.cpp
++++ b/installer-mobile/jni/py_bridge.cpp
+@@ -158,15 +158,19 @@ Java_com_galaxy_installer_CookerEngine_runCooker(
+ 
+     sendLogToJava("[Native] Initializing embedded Python engine...");
+ 
+-    PyImport_AppendInittab("android_bridge", PyInit_android_bridge);
+-
+-    wchar_t* wHome = Py_DecodeLocale(pythonHome, nullptr);
+-    if (wHome) {
+-        Py_SetPythonHome(wHome);
++    // NumPy extensions cannot safely be finalized and reinitialized. Keep one
++    // interpreter in the dedicated import process and release its GIL per call.
++    const bool first = !Py_IsInitialized();
++    PyGILState_STATE gil{};
++    if (first) {
++        PyImport_AppendInittab("android_bridge", PyInit_android_bridge);
++        wchar_t* wHome = Py_DecodeLocale(pythonHome, nullptr);
++        if (wHome) Py_SetPythonHome(wHome); // CPython retains this for its lifetime.
++        Py_Initialize();
++    } else {
++        gil = PyGILState_Ensure();
+     }
+ 
+-    Py_Initialize();
+-
+     sendLogToJava("[Native] Python engine initialized.");
+ 
+     if (!setPythonGlobals(scriptsDir, inputDir, outputDir, withMovies)) {
+@@ -212,6 +216,12 @@ Java_com_galaxy_installer_CookerEngine_runCooker(
+         "    if ret != 0:\n"
+         "        raise RuntimeError(f'cook.convert returned non-zero code {ret}')\n"
+         "    print('[Engine] Cooking completed successfully!')\n"
++        "    import importlib.util\n"
++        "    lower_path = os.path.join(_port_scripts, 'experiments/galaxy-thor/LowerAssets.py')\n"
++        "    spec = importlib.util.spec_from_file_location('wiids_lower', lower_path)\n"
++        "    lower = importlib.util.module_from_spec(spec)\n"
++        "    spec.loader.exec_module(lower)\n"
++        "    lower.build(os.path.join(_port_input, 'files'), os.path.join(_port_output, 'files'), os.path.join(_port_output, 'ThorHud'), _port_scripts)\n"
+         "except BaseException as e:\n"
+         "    import traceback\n"
+         "    print('[ERROR] ' + str(e))\n"
+@@ -224,10 +234,8 @@ Java_com_galaxy_installer_CookerEngine_runCooker(
+         reportPythonException();
+     }
+ 
+-    Py_Finalize();
+-    if (wHome) {
+-        PyMem_RawFree(wHome);
+-    }
++    if (first) PyEval_SaveThread();
++    else PyGILState_Release(gil);
+ 
+     env->ReleaseStringUTFChars(jPythonHome, pythonHome);
+     env->ReleaseStringUTFChars(jScriptsDir, scriptsDir);
+diff --git a/installer-mobile/jni/wii_extractor.cpp b/installer-mobile/jni/wii_extractor.cpp
+index 82815b6..266a5a8 100644
+--- a/installer-mobile/jni/wii_extractor.cpp
++++ b/installer-mobile/jni/wii_extractor.cpp
+@@ -61,6 +61,12 @@ bool extractWiiDisc(
+         if (logCb) logCb("[Error] Failed to read decrypted boot.bin header.");
+         return false;
+     }
++    // The integrated importer validates disc ID and revision from this header.
++    // Keep the built-in ISO/WBFS path equivalent to nodtool's sys/ extraction.
++    if (!session.extractFileToDisk(0, sizeof(bootBin), "sys/boot.bin", safeRoot)) {
++        if (logCb) logCb("[Error] Failed to extract sys/boot.bin.");
++        return false;
++    }
+ 
+     uint64_t dolOffset = (uint64_t)read_be32_val(bootBin + 0x420) << 2;
+     uint64_t fstOffset = (uint64_t)read_be32_val(bootBin + 0x424) << 2;
+diff --git a/platform/android/launcher.c b/platform/android/launcher.c
+index e9b1387..1ab7b42 100644
+--- a/platform/android/launcher.c
++++ b/platform/android/launcher.c
+@@ -1,15 +1,15 @@
+ // Tiny NativeActivity launcher.
+ //
+ // The game code assumes a 32-bit address space (it stores pointers in u32
+-// fields and uses Wii memory addresses directly).  Reserve 0x80000000-
+-// 0xE0010000 and load libgame.so into the 0x98000000 slot with
+-// android_dlopen_ext, then hand control to it.  In the app process the window
+-// is normally reserved already, by libreserve.so (see wrap.sh and reserve.c).
++// fields and uses Wii memory addresses directly). Reserve an unused B0000000-
++// E0000000 window and load libgame.so at C8000000. No preloader is used, and
++// an occupied window is always refused without replacing Android mappings.
+ #include <android/dlext.h>
+ #include <android/log.h>
+ #include <android_native_app_glue.h>
+ #include <dlfcn.h>
+ #include <errno.h>
++#include <fcntl.h>
+ #include <stdint.h>
+ #include <stdio.h>
+ #include <stdlib.h>
+@@ -29,72 +29,36 @@
+         abort();                                                                                                                                     \
+     } while (0)
+ 
+-static const uintptr_t kWindowBase = 0x80000000u;
+-static const size_t kWindowSize = 0x60010000u;  // up to 0xE0010000 (locked cache)
+-static const uintptr_t kLibBase = 0x98000000u;
++static const uintptr_t kWindowBase = 0xB0000000u;
++static const size_t kWindowSize = 0x30000000u;
++static const uintptr_t kLibBase = 0xC8000000u;
+ static const size_t kLibSize = 0x08000000u;
+ 
+ typedef void (*PortAndroidMain)(struct android_app* app, uintptr_t windowBase, size_t windowSize);
+ 
+-// True when the whole window is one untouched PROT_NONE reservation (the one
+-// libreserve.so makes); otherwise logs the mappings that are in the way.
+-static int windowPreReserved(void) {
+-    FILE* f = fopen("/proc/self/maps", "r");
+-    if (!f) {
+-        return 0;
+-    }
+-    int reserved = 0;
+-    char line[4352];
+-    while (fgets(line, sizeof(line), f)) {
+-        unsigned long long lo, hi;
+-        char perms[8];
+-        if (sscanf(line, "%llx-%llx %7s", &lo, &hi, perms) != 3 || hi <= kWindowBase || lo >= kWindowBase + kWindowSize) {
+-            continue;
+-        }
+-        if (lo <= kWindowBase && hi >= kWindowBase + kWindowSize && !strcmp(perms, "---p")) {
+-            reserved = 1;
+-        } else if (lo >= kWindowBase && hi <= kWindowBase + kWindowSize && !strcmp(perms, "---p")) {
+-            reserved = 1;
+-        } else {
+-            line[strcspn(line, "\n")] = 0;
+-            __android_log_print(ANDROID_LOG_WARN, "PetariVR", "in the game address window: %s", line);
+-        }
+-    }
+-    fclose(f);
+-    return reserved;
+-}
+-
+ void android_main(struct android_app* app) {
+-    void* win = mmap((void*)kWindowBase, kWindowSize, PROT_NONE, MAP_PRIVATE | MAP_ANONYMOUS | MAP_NORESERVE | MAP_FIXED_NOREPLACE, -1, 0);
++    // Serialize play against the package's importer/migration FileChannel lock.
++    // Keep the descriptor for the lifetime of the game process.
++    char lockPath[1024];
++    snprintf(lockPath, sizeof(lockPath), "%s/.galaxy-runtime.lock", app->activity->internalDataPath);
++    int lockFd = open(lockPath, O_CREAT | O_RDWR | O_CLOEXEC, 0600);
++    struct flock guard;
++    memset(&guard, 0, sizeof(guard));
++    guard.l_type = F_WRLCK;
++    guard.l_whence = SEEK_SET;
++    if (lockFd < 0 || fcntl(lockFd, F_SETLK, &guard) != 0) {
++        LOG("Galaxy data is busy; close the importer before playing");
++        if (lockFd >= 0) close(lockFd);
++        ANativeActivity_finish(app->activity);
++        return;
++    }
++    void* win = mmap((void*)kWindowBase, kWindowSize, PROT_NONE,
++        MAP_PRIVATE | MAP_ANONYMOUS | MAP_NORESERVE | MAP_FIXED_NOREPLACE, -1, 0);
+     if (win != (void*)kWindowBase) {
+-        int err = errno;
+-        if (win != MAP_FAILED) {
+-            munmap(win, kWindowSize);  // placed elsewhere: the kernel ignored MAP_FIXED_NOREPLACE
+-        }
+-        if (!windowPreReserved()) {
+-            __android_log_print(ANDROID_LOG_WARN, "PetariVR",
+-                  "cannot reserve the full 1.5GB game address window at %p (errno %d); attempting piece-wise reservation",
+-                  (void*)kWindowBase, err);
+-            // Reserve the critical ranges individually:
+-            // MEM1 (0x80000000, 32MB), MEM2 (0x90000000, 64MB), libgame (0x98000000, 128MB),
+-            // MEM1 uncached (0xC0000000, 32MB), MEM2 uncached (0xD0000000, 64MB), locked cache (0xE0000000, 64KB)
+-            struct { uintptr_t addr; size_t sz; } pieces[] = {
+-                { 0x80000000u, 0x02000000u },
+-                { 0x90000000u, 0x04000000u },
+-                { 0x98000000u, 0x08000000u },
+-                { 0xC0000000u, 0x02000000u },
+-                { 0xD0000000u, 0x04000000u },
+-                { 0xE0000000u, 0x00010000u },
+-            };
+-            for (size_t i = 0; i < sizeof(pieces)/sizeof(pieces[0]); i++) {
+-                void* p = mmap((void*)pieces[i].addr, pieces[i].sz, PROT_NONE, MAP_PRIVATE | MAP_ANONYMOUS | MAP_NORESERVE | MAP_FIXED, -1, 0);
+-                if (p == MAP_FAILED) {
+-                    LOG("Warning: piece-wise reservation failed at %p: %s", (void*)pieces[i].addr, strerror(errno));
+-                }
+-            }
+-        }
+-        LOG("game address window ready");
++        if (win != MAP_FAILED) munmap(win, kWindowSize);
++        FATAL("Galaxy memory window is occupied; safely refusing to replace Android mappings");
+     }
++    LOG("complete Galaxy address window safely reserved");
+ 
+     // libgame.so lives next to us, unless a developer build was pushed to the
+     // app's private files directory (must be read-only for dlopen on Android 14).
+diff --git a/platform/android/reserve.c b/platform/android/reserve.c
+index f3114af..d0891fb 100644
+--- a/platform/android/reserve.c
++++ b/platform/android/reserve.c
+@@ -54,9 +54,9 @@ __attribute__((constructor)) static void reserveGameWindow(void) {
+ // ---------------------------------------------------------------------------
+ static int getActiveCustomDriverPath(char* outPath, size_t maxLen) {
+     const char* candidates[] = {
+-        "/data/user/0/com.openport.galaxyandroid/files/custom_driver/active_driver.txt",
+-        "/data/data/com.openport.galaxyandroid/files/custom_driver/active_driver.txt",
+-        "/sdcard/GalaxyData/custom_driver/active_driver.txt"
++        "/data/user/0/io.github.maddex712.wiids/files/galaxy/custom_driver/active_driver.txt",
++        "/data/data/io.github.maddex712.wiids/files/galaxy/custom_driver/active_driver.txt",
++        "/sdcard/Android/data/io.github.maddex712.wiids/files/galaxy/GalaxyData/custom_driver/active_driver.txt"
+     };
+ 
+     for (size_t i = 0; i < sizeof(candidates) / sizeof(candidates[0]); i++) {
+diff --git a/platform/include/port/compat.h b/platform/include/port/compat.h
+index 72f4b16..a8cc366 100644
+--- a/platform/include/port/compat.h
++++ b/platform/include/port/compat.h
+@@ -79,6 +79,7 @@ void port_input_use_tilt(float neutralPitchDeg);
+ #define PORT_GX_MARK_SCENE_DEPTH 7  // the 3D scene's depth is complete (image effects and a Z clear follow)
+ #define PORT_GX_MARK_POINTER_BEGIN 8  // the pointer's 2D cursor (inside the HUD markers)
+ #define PORT_GX_MARK_POINTER_END 9
++#define PORT_GX_MARK_THOR_SPACE 10  // AYN Thor lower screen: this frame's 3D is the title's space (before HUD_BEGIN)
+ #define PORT_GX_CAMERA_WORDS 33
+ // Word 25 of the camera record: presentation hints.
+ #define PORT_GX_CAMERA_DIORAMA 1     // gameplay: show the scene as a VR diorama
+diff --git a/platform/include/port/input.h b/platform/include/port/input.h
+index 9e6cc6b..1a26f6e 100644
+--- a/platform/include/port/input.h
++++ b/platform/include/port/input.h
+@@ -36,6 +36,13 @@ void port_input_get_right_stick(int chan, float* x, float* y);
+ // Rumble requested by the game (0/1) for a channel; read by the input layer.
+ int port_input_rumble(int chan);
+ 
++// Whether the game is in a pointer menu (file select, star select, pause and the galaxy map,
++// yes/no, the storybook, the save windows, the observatory dome's galaxy selector;
++// MR::isStarPointerModeMenuForPort): set by the game thread once a frame, read by the input layer
++// (any thread). A gamepad's left stick then moves the pointer instead of Mario.
++void port_input_set_menu_pointer(int on);
++int port_input_menu_pointer(void);
++
+ #ifdef __cplusplus
+ }
+ #endif
+diff --git a/platform/include/port/port.h b/platform/include/port/port.h
+index 3671e01..a43fdf4 100644
+--- a/platform/include/port/port.h
++++ b/platform/include/port/port.h
+@@ -25,17 +25,17 @@ int port_get_recent_logs(char* out, int maxBytes);
+ //   game library image loaded at 0x98000000 by the launcher
+ //   low pool (thread stacks etc) at 0xA0000000
+ // ---------------------------------------------------------------------------
+-#define PORT_MEM1_BASE 0x80000000u
++#define PORT_MEM1_BASE 0xB0000000u
+ #define PORT_MEM1_SIZE 0x08000000u /* 128 MiB (Wii: 24 MiB) */
+-#define PORT_MEM2_BASE 0x90000000u
++#define PORT_MEM2_BASE 0xC0000000u
+ #define PORT_MEM2_SIZE 0x08000000u /* 128 MiB (Wii: 64 MiB) */
+-#define PORT_MEM1_UNCACHED 0xC0000000u
+-#define PORT_MEM2_UNCACHED 0xD0000000u
+-#define PORT_LIB_BASE 0x98000000u
++#define PORT_MEM1_UNCACHED 0xE0000000u
++#define PORT_MEM2_UNCACHED 0xF0000000u
++#define PORT_LIB_BASE 0xC8000000u
+ #define PORT_LIB_SIZE 0x08000000u
+-#define PORT_LOWPOOL_BASE 0xA0000000u
++#define PORT_LOWPOOL_BASE 0xD0000000u
+ #define PORT_LOWPOOL_SIZE 0x10000000u
+-#define PORT_LOCKED_CACHE 0xE0000000u
++#define PORT_LOCKED_CACHE 0xE8000000u
+ 
+ int port_mem_init(void);
+ // The disc's ID (game code + maker, 6 characters), which the console's
+diff --git a/platform/mobile/core/GameBooter.cpp b/platform/mobile/core/GameBooter.cpp
+index 5ed0c97..c76386f 100644
+--- a/platform/mobile/core/GameBooter.cpp
++++ b/platform/mobile/core/GameBooter.cpp
+@@ -45,7 +45,7 @@ void GameBooter::pollAndBoot(bool& gameBooted, std::string& dataRoot, const std:
+         if (now - lastLog > 2000000000ll) {
+             lastLog = now;
+             missingCount++;
+-            LOGI("Waiting for game files in /sdcard/GalaxyData or %s/game (attempt %d)", extDir.c_str(), missingCount);
++            LOGI("Waiting for game files in /sdcard/Android/data/io.github.maddex712.wiids/files/galaxy/GalaxyData or %s/game (attempt %d)", extDir.c_str(), missingCount);
+             dataRoot = mobile_system::StorageManager::findGameData(extDir);
+             if (dataRoot.empty() && missingCount >= 2) {
+                 mobile_system::SystemManager::returnToLauncher(app);
+diff --git a/platform/mobile/core/MobileApp.cpp b/platform/mobile/core/MobileApp.cpp
+index b00cf4a..fd5a973 100644
+--- a/platform/mobile/core/MobileApp.cpp
++++ b/platform/mobile/core/MobileApp.cpp
+@@ -1,6 +1,7 @@
+ #include "MobileApp.h"
+ 
+ #include <android/log.h>
++#include <android/keycodes.h>
+ #include <atomic>
+ #include <ctype.h>
+ #include <math.h>
+@@ -14,6 +15,8 @@
+ #include "../render/VulkanLifecycle.h"
+ #include "../system/StorageManager.h"
+ #include "../system/SystemManager.h"
++#include "../thor/ThorLowerBridge.h"
++#include "../thor/ThorSettingsBridge.h"
+ #include "../ui/UIOverlay.h"
+ #include "port/port.h"
+ 
+@@ -76,8 +79,11 @@ void MobileApp::handleAppCmd(int32_t cmd) {
+         break;
+     case APP_CMD_RESUME:
+         LOGI("APP_CMD_RESUME");
+-        port_audio_resume();
+-        port_set_paused(0);
++        // The settings menu keeps the game frozen until it closes.
++        if (!mobile_thor::settingsMenuOpen()) {
++            port_audio_resume();
++            port_set_paused(0);
++        }
+         break;
+     case APP_CMD_PAUSE:
+         LOGI("APP_CMD_PAUSE");
+@@ -130,6 +136,16 @@ int32_t MobileApp::handleInputEvent(AInputEvent* event) {
+             return 1;
+         }
+     } else if (eventType == AINPUT_EVENT_TYPE_KEY) {
++        const int key = AKeyEvent_getKeyCode(event);
++        if (key == AKEYCODE_BACK || key == AKEYCODE_ESCAPE) {
++            // AYN Thor: Back opens the Galaxy settings menu (its own row returns to WiiDS); without
++            // the helper's menu it returns to WiiDS as before.
++            if (AKeyEvent_getAction(event) == AKEY_EVENT_ACTION_UP && AKeyEvent_getRepeatCount(event) == 0) {
++                if (!mobile_thor::showSettingsMenu(mAndroid->activity))
++                    mobile_system::SystemManager::returnToLauncher(mAndroid);
++            }
++            return 1;
++        }
+         if (mGamepad.handleKeyEvent(event, mPad, mSpinFrames)) {
+             updateInputState();
+             return 1;
+@@ -138,6 +154,44 @@ int32_t MobileApp::handleInputEvent(AInputEvent* event) {
+     return 0;
+ }
+ 
++// AYN Thor settings menu requests from Java (platform/mobile/thor/ThorSettingsBridge.cpp), on this
++// thread. Opening freezes the game and its audio and hands the game a neutral pad (the menu's own
++// window takes the controls); closing resumes it with no button or stick carried over.
++void MobileApp::applyThorMenuRequests() {
++    mobile_thor::ThorMenuRequest request;
++    while (mobile_thor::takeMenuRequest(request)) {
++        if (request.kind == mobile_thor::THOR_MENU_SET) {
++            mobile_thor::applySetting(request.key, request.value);
++            continue;
++        }
++        const bool open = request.kind == mobile_thor::THOR_MENU_OPEN;
++        if (open == mobile_thor::settingsMenuOpen()) continue;
++        mGamepad.reset();
++        mSpinFrames = 0;
++        mPad.buttons = 0;
++        mPad.stickX = mPad.stickY = 0.0f;
++        mPad.rightStickX = mPad.rightStickY = 0.0f;
++        port_input_set(0, &mPad);
++        if (open) {
++            mobile_thor::setSettingsMenuOpen(true);
++            port_audio_pause();
++            port_set_paused(1);
++            LOGI("settings menu open: game frozen");
++        } else {
++            mobile_ui::UIOverlay::get().saveSettings();
++            mobile_thor::setSettingsMenuOpen(false);
++            port_audio_resume();
++            port_set_paused(0);
++            LOGI("settings menu closed: game resumed");
++        }
++    }
++    // Quick Save from the menu: once the game runs again (the save happens in the game's frame).
++    if (!mobile_thor::settingsMenuOpen() && mobile_thor::takeQuickSave()) {
++        mobile_ui::UIOverlay::get().triggerSaveAnywhere();
++        LOGI("settings menu: quick save requested");
++    }
++}
++
+ void MobileApp::updateInputState() {
+     if (mobile_ui::UIOverlay::get().isStickActive()) {
+         mPad.stickX = mobile_ui::UIOverlay::get().getTouchStickX();
+@@ -171,16 +225,19 @@ void MobileApp::run(android_app* app, uintptr_t windowBase, size_t windowSize) {
+ 
+     mobile_input::Sensors::get().init(app);
+     port_mem_set_reserved_window(windowBase, windowSize);
++    // AYN Thor lower screen: lets GalaxyActivity copy the game's state snapshot.
++    mobile_thor::registerLowerBridge(app->activity);
++    mobile_thor::registerSettingsBridge(app->activity);
+ 
+     mPad.connected = 1;
+     port_input_set(0, &mPad);
+     port_skip_set_hold_seconds(0.0f);
+ 
+-    std::string internalPath = app->activity->internalDataPath ? app->activity->internalDataPath : "/data/data/com.openport.galaxyandroid/files";
++    std::string internalPath = app->activity->internalDataPath ? app->activity->internalDataPath : "/data/data/io.github.maddex712.wiids/files/galaxy";
+     bool isPlus = (internalPath.find("plus") != std::string::npos);
+     mobile_ui::UIOverlay::get().setPlusEdition(isPlus);
+ 
+-    std::string ext = app->activity->externalDataPath ? app->activity->externalDataPath : "/sdcard/Android/data/com.openport.galaxyandroid/files";
++    std::string ext = app->activity->externalDataPath ? app->activity->externalDataPath : "/sdcard/Android/data/io.github.maddex712.wiids/files/galaxy";
+     mSaveRoot = internalPath + "/nand";
+     mkdir(mSaveRoot.c_str(), 0770);
+     mobile_ui::UIOverlay::get().setSavePath(mSaveRoot + (isPlus ? "/touch_settings_plus.ini" : "/touch_settings.ini"));
+@@ -189,7 +246,7 @@ void MobileApp::run(android_app* app, uintptr_t windowBase, size_t windowSize) {
+     if (mobile_ui::UIOverlay::get().settings().batterySaver) initialFps = 30;
+     mobile_system::SystemManager::setPreferredRefreshRate(app, (float)initialFps);
+ 
+-    std::string primaryLog = "/sdcard/GalaxyData/galaxy_log.txt";
++    std::string primaryLog = "/sdcard/Android/data/io.github.maddex712.wiids/files/galaxy/GalaxyData/galaxy_log.txt";
+     FILE* tst = fopen(primaryLog.c_str(), "a");
+     if (tst) {
+         fclose(tst);
+@@ -206,6 +263,7 @@ void MobileApp::run(android_app* app, uintptr_t windowBase, size_t windowSize) {
+     }
+ 
+     bool running = true;
++    int64_t previousInputTime = port_host_time_ns();
+     while (running && !app->destroyRequested) {
+         int events;
+         android_poll_source* source = nullptr;
+@@ -225,14 +283,19 @@ void MobileApp::run(android_app* app, uintptr_t windowBase, size_t windowSize) {
+             timeout = 0;
+         }
+ 
++        applyThorMenuRequests();
++
+         if (!mWindowReady || port_is_paused()) {
+-            usleep(25000);
++            usleep(mobile_thor::settingsMenuOpen() ? 8000 : 25000);
+             continue;
+         }
+ 
+         mobile_core::GameBooter::pollAndBoot(mGameBooted, mDataRoot, mSaveRoot, ext, mAndroid);
+ 
+         mobile_ui::UIOverlay::get().update(mPad, mSpinFrames);
++        const int64_t inputTime = port_host_time_ns();
++        mGamepad.updatePointer(mPad, (float)(inputTime - previousInputTime) * 1e-9f, mTouchscreenDown);
++        previousInputTime = inputTime;
+         if (mSpinFrames > 0) {
+             float s = (mSpinFrames & 1) ? 2.5f : -2.5f;
+             mPad.accX = s;
+diff --git a/platform/mobile/core/MobileApp.h b/platform/mobile/core/MobileApp.h
+index a9cfd86..68830bc 100644
+--- a/platform/mobile/core/MobileApp.h
++++ b/platform/mobile/core/MobileApp.h
+@@ -34,6 +34,7 @@ private:
+     MobileApp() = default;
+ 
+     void updateInputState();
++    void applyThorMenuRequests();
+ 
+     android_app* mAndroid = nullptr;
+     gpu::VkTarget mVkTarget{};
+diff --git a/platform/mobile/display/FramePacer.cpp b/platform/mobile/display/FramePacer.cpp
+index 9c1b4a2..4026cf2 100644
+--- a/platform/mobile/display/FramePacer.cpp
++++ b/platform/mobile/display/FramePacer.cpp
+@@ -50,7 +50,11 @@ void FramePacer::sync(android_app* app, int targetFps, float gameSpeed) {
+                 sched_yield();
+             } else {
+ #if defined(__aarch64__) || defined(__arm__)
++#if defined(__aarch64__)
+                 asm volatile("yield" ::: "memory");
++#elif defined(__x86_64__)
++                asm volatile("pause" ::: "memory");
++#endif
+ #endif
+             }
+         }
+diff --git a/platform/mobile/input/GamepadInput.cpp b/platform/mobile/input/GamepadInput.cpp
+index 09fd18d..b672f77 100644
+--- a/platform/mobile/input/GamepadInput.cpp
++++ b/platform/mobile/input/GamepadInput.cpp
+@@ -1,6 +1,7 @@
+ #include "GamepadInput.h"
+ 
+ #include <android/keycodes.h>
++#include <android/log.h>
+ #include <algorithm>
+ #include <math.h>
+ 
+@@ -29,11 +30,15 @@ bool GamepadInput::handleMotionEvent(AInputEvent* event, PortPadState& pad, int&
+     if (stickMag <= kDeadzone) {
+         mPhysicalStickX = 0.0f;
+         mPhysicalStickY = 0.0f;
++        mMenuStickX = mMenuStickY = 0.0f;
++        mStickLatched = false;  // let go: the stick reaches the game again
+     } else {
+         float norm = (stickMag - kDeadzone) / (1.0f - kDeadzone);
+         float sens = mobile_ui::UIOverlay::get().settings().stickSensitivity;
+         mPhysicalStickX = (rawX / stickMag) * std::min(1.0f, norm * sens);
+         mPhysicalStickY = -(rawY / stickMag) * std::min(1.0f, norm * sens); // Invert Y for Wii convention
++        mMenuStickX = (rawX / stickMag) * std::min(1.0f, norm);
++        mMenuStickY = -(rawY / stickMag) * std::min(1.0f, norm);
+     }
+ 
+     // D-Pad Hat axes
+@@ -56,10 +61,10 @@ bool GamepadInput::handleMotionEvent(AInputEvent* event, PortPadState& pad, int&
+     float rawGas = std::max(0.0f, AMotionEvent_getAxisValue(event, AMOTION_EVENT_AXIS_GAS, 0));
+     float rTrig = std::max(rawR, rawGas);
+ 
+-    if (lTrig > 0.4f) mPhysicalAxisButtons |= 0x2000; // Z button (Crouch / Ground Pound)
+-    else mPhysicalAxisButtons &= ~0x2000;
++    // The triggers are buttons L2 and R2 of the layout table.
++    if ((lTrig > 0.4f) != mHeld[BTN_L2]) press(BTN_L2, lTrig > 0.4f, pad, spinFrames);
+ 
+-    if (rTrig > 0.4f) spinFrames = 6; // Spin shake
++    if ((rTrig > 0.4f) != mHeld[BTN_R2]) press(BTN_R2, rTrig > 0.4f, pad, spinFrames);
+ 
+     // Right Stick (Orbital camera & Star Pointer)
+     float rightX = AMotionEvent_getAxisValue(event, AMOTION_EVENT_AXIS_Z, 0);
+@@ -83,13 +88,8 @@ bool GamepadInput::handleMotionEvent(AInputEvent* event, PortPadState& pad, int&
+     } else {
+         pad.rightStickX = 0.0f;
+         pad.rightStickY = 0.0f;
+-        if ((fabsf(rStickX) > 0.01f || fabsf(rStickY) > 0.01f) && !touchscreenDown) {
+-            float speed = 0.035f * starSens;
+-            pad.pointerX = std::max(-1.0f, std::min(1.0f, pad.pointerX + rStickX * speed));
+-            pad.pointerY = std::max(-1.0f, std::min(1.0f, pad.pointerY - rStickY * speed));
+-            pad.pointerValid = 1;
+-            mobile_ui::UIOverlay::get().setPointerPos(pad.pointerX, pad.pointerY);
+-        }
++        mPointerStickX = rStickX;
++        mPointerStickY = rStickY;
+     }
+ 
+     pad.connected = 1;
+@@ -109,95 +109,36 @@ bool GamepadInput::handleKeyEvent(AInputEvent* event, PortPadState& pad, int& sp
+ 
+     int32_t keyAction = AKeyEvent_getAction(event);
+     bool down = (keyAction == AKEY_EVENT_ACTION_DOWN);
++    if (keyCode == AKEYCODE_BUTTON_A || keyCode == AKEYCODE_BUTTON_THUMBR)
++        __android_log_print(ANDROID_LOG_INFO, "GalaxyInput", "key=%d action=%d pointer=(%.3f,%.3f) velocity=(%.3f,%.3f)",
++            keyCode, keyAction, mPointerX, mPointerY, mPointerStickX, mPointerStickY);
+ 
++    int physical = -1;
+     switch (keyCode) {
+-    case AKEYCODE_BUTTON_A:
+-    case AKEYCODE_BUTTON_1:
+-    case AKEYCODE_DPAD_CENTER:
+-    case AKEYCODE_ENTER:
+-    case AKEYCODE_NUMPAD_ENTER:
+-        pad.connected = 1;
+-        if (down) mPhysicalButtons |= 0x0800;  // Switch A: Jump / Confirm
+-        else mPhysicalButtons &= ~0x0800;
+-        break;
+-    case AKEYCODE_BUTTON_B:
+-    case AKEYCODE_BUTTON_2:
+-    case AKEYCODE_BUTTON_C:
+-        pad.connected = 1;
+-        if (down) {
+-            mPhysicalButtons |= 0x0800; // Jump
+-            mPhysicalButtons |= 0x0400; // Cancel/Shoot
+-        } else {
+-            mPhysicalButtons &= ~0x0800;
+-            mPhysicalButtons &= ~0x0400;
+-        }
+-        break;
+-    case AKEYCODE_BUTTON_X:
+-    case AKEYCODE_BUTTON_3:
+-    case AKEYCODE_BUTTON_Y:
+-    case AKEYCODE_BUTTON_4:
+-        pad.connected = 1;
+-        if (down) spinFrames = 6;  // Spin Attack
+-        break;
+-    case AKEYCODE_BUTTON_L1:
+-    case AKEYCODE_BUTTON_5:
+-        pad.connected = 1;
+-        if (down) mPhysicalButtons |= 0x1000;  // Switch L: Camera snap behind Mario (C button)
+-        else mPhysicalButtons &= ~0x1000;
+-        break;
+-    case AKEYCODE_BUTTON_R1:
+-    case AKEYCODE_BUTTON_6:
+-        pad.connected = 1;
+-        if (down) {
+-            pad.pointerX = 0.0f;
+-            pad.pointerY = 0.0f;
+-            pad.pointerValid = 1;
+-            mobile_ui::UIOverlay::get().setPointerPos(0.0f, 0.0f);
+-            mPhysicalButtons |= 0x1000;
+-        } else {
+-            mPhysicalButtons &= ~0x1000;
+-        }
+-        break;
+-    case AKEYCODE_BUTTON_L2:
+-    case AKEYCODE_BUTTON_7:
+-    case AKEYCODE_BUTTON_Z:
+-    case AKEYCODE_BUTTON_THUMBL:
+-    case AKEYCODE_BUTTON_11:
+-        pad.connected = 1;
+-        if (down) mPhysicalButtons |= 0x2000;  // Crouch / Ground Pound
+-        else mPhysicalButtons &= ~0x2000;
+-        break;
+-    case AKEYCODE_BUTTON_R2:
+-    case AKEYCODE_BUTTON_8:
+-        pad.connected = 1;
+-        if (down) {
+-            mPhysicalButtons |= 0x0400;
+-            mPhysicalButtons |= 0x2000;
+-        } else {
+-            mPhysicalButtons &= ~0x0400;
+-            mPhysicalButtons &= ~0x2000;
+-        }
+-        break;
+-    case AKEYCODE_BUTTON_THUMBR:
+-    case AKEYCODE_BUTTON_12:
+-        pad.connected = 1;
+-        if (down) {
+-            pad.pointerX = 0.0f;
+-            pad.pointerY = 0.0f;
+-            pad.pointerValid = 1;
+-            mobile_ui::UIOverlay::get().setPointerPos(0.0f, 0.0f);
+-        }
+-        break;
+-    case AKEYCODE_BUTTON_START:
+-    case AKEYCODE_BUTTON_10:
+-    case AKEYCODE_BUTTON_SELECT:
+-    case AKEYCODE_BUTTON_9:
+-    case AKEYCODE_BUTTON_MODE:
+-    case AKEYCODE_MENU:
++    case AKEYCODE_BUTTON_A: case AKEYCODE_BUTTON_1: case AKEYCODE_DPAD_CENTER: case AKEYCODE_ENTER:
++    case AKEYCODE_NUMPAD_ENTER: physical = BTN_A; break;
++    case AKEYCODE_BUTTON_B: case AKEYCODE_BUTTON_2: case AKEYCODE_BUTTON_C: physical = BTN_B; break;
++    case AKEYCODE_BUTTON_X: case AKEYCODE_BUTTON_3: physical = BTN_X; break;
++    case AKEYCODE_BUTTON_Y: case AKEYCODE_BUTTON_4: physical = BTN_Y; break;
++    case AKEYCODE_BUTTON_L1: case AKEYCODE_BUTTON_5: physical = BTN_L1; break;
++    case AKEYCODE_BUTTON_R1: case AKEYCODE_BUTTON_6: physical = BTN_R1; break;
++    case AKEYCODE_BUTTON_L2: case AKEYCODE_BUTTON_7: case AKEYCODE_BUTTON_Z: physical = BTN_L2; break;
++    case AKEYCODE_BUTTON_R2: case AKEYCODE_BUTTON_8: physical = BTN_R2; break;
++    case AKEYCODE_BUTTON_THUMBL: case AKEYCODE_BUTTON_11: physical = BTN_L3; break;
++    case AKEYCODE_BUTTON_THUMBR: case AKEYCODE_BUTTON_12: physical = BTN_R3; break;
++    case AKEYCODE_BUTTON_START: case AKEYCODE_BUTTON_10: case AKEYCODE_BUTTON_MODE: case AKEYCODE_MENU:
++        physical = BTN_START; break;
++    case AKEYCODE_BUTTON_SELECT: case AKEYCODE_BUTTON_9: physical = BTN_SELECT; break;
++    default: break;
++    }
++    if (physical >= 0) {
+         pad.connected = 1;
+-        if (down) mPhysicalButtons |= 0x0010;  // Plus / Pause
+-        else mPhysicalButtons &= ~0x0010;
+-        break;
++        // Key repeats are not new presses.
++        if (!down || AKeyEvent_getRepeatCount(event) == 0) press(physical, down, pad, spinFrames);
++        return true;
++    }
++
++    switch (keyCode) {
+     case AKEYCODE_DPAD_UP:
+         pad.connected = 1;
+         if (down) mPhysicalButtons |= 0x0008;
+@@ -237,9 +178,107 @@ bool GamepadInput::handleKeyEvent(AInputEvent* event, PortPadState& pad, int& sp
+     return true;
+ }
+ 
++namespace {
++    int sButtonMap[BTN_COUNT] = {ACT_JUMP, ACT_SHOOT, ACT_SPIN, ACT_SPIN, ACT_CAMERA, ACT_SPIN,
++        ACT_CROUCH, ACT_SHOOT, ACT_CROUCH, ACT_CENTER_POINTER, ACT_PAUSE, ACT_PAUSE};
++    // The Wii button an action holds (0: a one-shot action, or none).
++    uint32_t heldBits(int action) {
++        switch (action) {
++        case ACT_JUMP: return 0x0800;    // A: jump / confirm
++        case ACT_SHOOT: return 0x0400;   // B: shoot Star Bits / cancel
++        case ACT_CROUCH: return 0x2000;  // Nunchuk Z: crouch / ground pound
++        case ACT_CAMERA: return 0x4000;  // Nunchuk C: camera behind Mario
++        case ACT_PAUSE: return 0x0010;   // Plus: pause
++        default: return 0;
++        }
++    }
++}  // namespace
++
++void setButtonMap(const int* map) {
++    for (int i = 0; i < BTN_COUNT; i++) {
++        const int action = map != nullptr ? map[i] : kDefaultButtonMap[i];
++        sButtonMap[i] = action >= 0 && action < ACT_COUNT ? action : ACT_NONE;
++    }
++}
++
++void GamepadInput::press(int button, bool down, PortPadState& pad, int& spinFrames) {
++    const bool was = mHeld[button];
++    mHeld[button] = down;
++    if (down && !was) {
++        const int action = sButtonMap[button];
++        if (action == ACT_SPIN) spinFrames = 6;  // a shake of the Wii Remote
++        else if (action == ACT_CENTER_POINTER) centerPointer(pad);
++    }
++    uint32_t bits = 0;
++    for (int i = 0; i < BTN_COUNT; i++) if (mHeld[i]) bits |= heldBits(sButtonMap[i]);
++    mActionButtons = bits;
++}
++
++void GamepadInput::centerPointer(PortPadState& pad) {
++    mPointerX = mPointerY = 0.0f;
++    pad.pointerX = 0.0f;
++    pad.pointerY = 0.0f;
++    pad.pointerValid = 1;
++    mobile_ui::UIOverlay::get().setPointerPos(0.0f, 0.0f);
++}
++
+ void GamepadInput::reset() {
++    for (bool& held : mHeld) held = false;
++    mActionButtons = 0;
+     mPhysicalButtons = 0;
+     mPhysicalAxisButtons = 0;
++    mPhysicalStickX = mPhysicalStickY = 0.0f;
++    mPointerStickX = mPointerStickY = 0.0f;
++    mMenuStickX = mMenuStickY = 0.0f;
++    mStickLatched = false;
++}
++
++void GamepadInput::updatePointer(PortPadState& pad, float seconds, bool touchscreenDown) {
++    auto& overlay = mobile_ui::UIOverlay::get();
++    const auto& settings = overlay.settings();
++    // In the game's pointer menus (MR::isStarPointerModeMenuForPort) the left stick steers the
++    // pointer too, and the game reads the Nunchuk stick as centred (stickX/stickY), so a menu that
++    // pages by stick does not also turn while the cursor moves.
++    const bool menu = mGamepadDetected && port_input_menu_pointer() != 0;
++    const bool rightPointer = settings.rightStickMode == 1;
++    if (menu != mMenuPointer) {
++        __android_log_print(ANDROID_LOG_INFO, "GalaxyInput", "menu pointer %s", menu ? "on" : "off");
++        if (menu) {
++            // Nothing showed the pointer (right stick on the camera, no touch): start mid-screen.
++            if (!pad.pointerValid) overlay.setPointerPos(0.0f, 0.0f);
++        } else {
++            // Back in play: a stick still held from steering reaches Mario once it is let go.
++            mStickLatched = mMenuStickX != 0.0f || mMenuStickY != 0.0f;
++            // With the right stick on the camera nothing steers the pointer in play: hide it now,
++            // not when the menu's last setPointerPos runs out 120 frames later.
++            if (!rightPointer && !touchscreenDown) {
++                overlay.releasePointer();
++                pad.pointerValid = 0;
++            }
++        }
++        mMenuPointer = menu;
++    }
++    if (!mGamepadDetected || (!rightPointer && !menu) || touchscreenDown) return;
++    if (menu) {
++        // Carry on from the shared pointer, so where a touch left it is kept.
++        mPointerX = overlay.getPointerX();
++        mPointerY = overlay.getPointerY();
++    }
++    const float dt = std::max(0.0f, std::min(0.05f, seconds));
++    const float speed = 2.1f * settings.starStickSensitivity;
++    float vx = rightPointer ? mPointerStickX : 0.0f;
++    float vy = rightPointer ? mPointerStickY : 0.0f;
++    if (menu) {
++        vx = std::max(-1.0f, std::min(1.0f, vx + mMenuStickX));
++        vy = std::max(-1.0f, std::min(1.0f, vy + mMenuStickY));
++    }
++    mPointerX = std::max(-1.0f, std::min(1.0f, mPointerX + vx * speed * dt));
++    mPointerY = std::max(-1.0f, std::min(1.0f, mPointerY - vy * speed * dt));
++    pad.pointerX = mPointerX;
++    pad.pointerY = mPointerY;
++    pad.pointerValid = 1;
++    pad.pointerDist = 2.0f;
++    overlay.setPointerPos(mPointerX, mPointerY);
+ }
+ 
+ }  // namespace mobile_input
+diff --git a/platform/mobile/input/GamepadInput.h b/platform/mobile/input/GamepadInput.h
+index fd88e4f..69d67c2 100644
+--- a/platform/mobile/input/GamepadInput.h
++++ b/platform/mobile/input/GamepadInput.h
+@@ -6,6 +6,18 @@
+ 
+ namespace mobile_input {
+ 
++// AYN Thor: Galaxy's controller layout is a table (Settings::buttonMap): each physical button
++// does one action, changeable in the Galaxy settings menu (Controls > Buttons). The D-pad, the
++// sticks and Back keep their own jobs.
++enum PhysicalButton { BTN_A, BTN_B, BTN_X, BTN_Y, BTN_L1, BTN_R1, BTN_L2, BTN_R2, BTN_L3, BTN_R3, BTN_START, BTN_SELECT,
++    BTN_COUNT };
++enum ButtonAction { ACT_NONE, ACT_JUMP, ACT_SHOOT, ACT_SPIN, ACT_CROUCH, ACT_CAMERA, ACT_PAUSE, ACT_CENTER_POINTER, ACT_COUNT };
++// The standard layout (also Settings::buttonMap's default).
++constexpr int kDefaultButtonMap[BTN_COUNT] = {ACT_JUMP, ACT_SHOOT, ACT_SPIN, ACT_SPIN, ACT_CAMERA, ACT_SPIN,
++    ACT_CROUCH, ACT_SHOOT, ACT_CROUCH, ACT_CENTER_POINTER, ACT_PAUSE, ACT_PAUSE};
++// Replaces the layout (BTN_COUNT actions); out-of-range values mean ACT_NONE.
++void setButtonMap(const int* map);
++
+ class GamepadInput {
+ public:
+     GamepadInput() = default;
+@@ -18,23 +30,38 @@ public:
+ 
+     // Resets held buttons on pause
+     void reset();
++    // Restore physical pointer state after the touch updater and integrate a
++    // held stick once per frame, rather than once per Android motion event.
++    void updatePointer(PortPadState& pad, float seconds, bool touchscreenDown);
+ 
+     // Returns whether a physical controller has been detected
+     bool isGamepadDetected() const { return mGamepadDetected; }
+ 
+-    // Physical analog stick values
+-    float stickX() const { return mPhysicalStickX; }
+-    float stickY() const { return mPhysicalStickY; }
++    // Physical analog stick values (zero while the left stick steers the pointer in a menu, and
++    // after a menu closes until the stick is let go)
++    float stickX() const { return (mMenuPointer || mStickLatched) ? 0.0f : mPhysicalStickX; }
++    float stickY() const { return (mMenuPointer || mStickLatched) ? 0.0f : mPhysicalStickY; }
+ 
+     // Combined physical button masks
+-    uint32_t buttons() const { return mPhysicalButtons | mPhysicalAxisButtons; }
++    uint32_t buttons() const { return mPhysicalButtons | mPhysicalAxisButtons | mActionButtons; }
+ 
+ private:
++    // A physical button went down or up: updates the held actions and fires the one-shot ones.
++    void press(int button, bool down, PortPadState& pad, int& spinFrames);
++    void centerPointer(PortPadState& pad);
++
+     bool mGamepadDetected = false;
++    bool mHeld[BTN_COUNT] = {};
++    uint32_t mActionButtons = 0;  // Wii buttons held through the layout table
+     uint32_t mPhysicalButtons = 0;
+     uint32_t mPhysicalAxisButtons = 0;
+     float mPhysicalStickX = 0.0f;
+     float mPhysicalStickY = 0.0f;
++    float mPointerStickX = 0.0f, mPointerStickY = 0.0f;
++    float mMenuStickX = 0.0f, mMenuStickY = 0.0f;  // left stick, for the pointer in menus
++    float mPointerX = 0.0f, mPointerY = 0.0f;
++    bool mMenuPointer = false;  // the left stick is steering the pointer
++    bool mStickLatched = false;  // a stick held when a menu closed: centred for the game until let go
+ };
+ 
+ }  // namespace mobile_input
+diff --git a/platform/mobile/render/VulkanLifecycle.cpp b/platform/mobile/render/VulkanLifecycle.cpp
+index 5c8c8fe..bcae9b1 100644
+--- a/platform/mobile/render/VulkanLifecycle.cpp
++++ b/platform/mobile/render/VulkanLifecycle.cpp
+@@ -86,7 +86,7 @@ bool VulkanLifecycle::handleDeviceLoss(ANativeWindow* window, int& screenW, int&
+ void VulkanLifecycle::initCaches(const std::string& internalPath) {
+     gpu::setVkPipelineCachePath((internalPath + "/vk_pipeline_cache.bin").c_str());
+     gpu::setVulkanShaderCachePath((internalPath + "/vk_shaders.bin").c_str());
+-    gpu::ShaderInventory::get().init(internalPath, "/sdcard/GalaxyData");
++    gpu::ShaderInventory::get().init(internalPath, "/sdcard/Android/data/io.github.maddex712.wiids/files/galaxy/GalaxyData");
+     // Stage A: Compile missing SPIR-V shaders before device bringup with bounded workers (4 threads)
+     gpu::ShaderInventory::get().compileAllSpirv(4);
+ }
+diff --git a/platform/mobile/system/StorageManager.cpp b/platform/mobile/system/StorageManager.cpp
+index d6a5da9..80d7a25 100644
+--- a/platform/mobile/system/StorageManager.cpp
++++ b/platform/mobile/system/StorageManager.cpp
+@@ -40,78 +40,10 @@ bool StorageManager::checkGameFolder(const std::string& dir, bool* ready) {
+ }
+ 
+ std::string StorageManager::findGameData(const std::string& extDir) {
+-    std::vector<std::string> candidates = {
+-        "/sdcard/GalaxyData",
+-        "/sdcard/GalaxyData/game",
+-        "/storage/emulated/0/GalaxyData",
+-        "/storage/emulated/0/GalaxyData/game",
+-        extDir + "/game",
+-        extDir + "/GalaxyData",
+-        extDir,
+-        "/sdcard/Android/data/com.openport.galaxyandroid/files/game",
+-        "/sdcard/Android/data/com.openport.galaxyandroid/files/GalaxyData",
+-        "/sdcard/Android/data/com.galaxy.mobile.plus/files/game",
+-        "/sdcard/Android/data/com.galaxy.mobile/files/game",
+-        "/sdcard/Android/data/com.galaxy.quest/files/game",
+-        "/sdcard/Galaxy/game",
+-        "/sdcard/GalaxyQuest",
+-        "/sdcard/GalaxyQuest/game",
+-        "/sdcard/Download/game",
+-        "/sdcard/Download/cooked",
+-        "/sdcard/Download/GalaxyQuest",
+-        "/sdcard/Documents/game",
+-        "/sdcard/Documents/cooked",
+-        "/sdcard/game",
+-        "/sdcard/cooked",
+-        "/data/local/tmp/petari/game"
+-    };
+-
+-    if (const char* envRoot = getenv("PETARI_GAME_ROOT")) {
+-        candidates.insert(candidates.begin(), envRoot);
+-    }
+-
+-    // Discover external MicroSD card mount points (/storage/XXXX-XXXX)
+-    DIR* storageDir = opendir("/storage");
+-    if (storageDir) {
+-        struct dirent* entry;
+-        while ((entry = readdir(storageDir)) != nullptr) {
+-            if (entry->d_name[0] != '.' && strcmp(entry->d_name, "emulated") != 0 && strcmp(entry->d_name, "self") != 0) {
+-                std::string sd = std::string("/storage/") + entry->d_name;
+-                candidates.push_back(sd + "/GalaxyData");
+-                candidates.push_back(sd + "/GalaxyData/game");
+-                candidates.push_back(sd + "/Android/data/com.openport.galaxyandroid/files/GalaxyData");
+-                candidates.push_back(sd + "/Android/data/com.openport.galaxyandroid/files/game");
+-                candidates.push_back(sd + "/game");
+-                candidates.push_back(sd + "/cooked");
+-            }
+-        }
+-        closedir(storageDir);
+-    }
+-
+-    DIR* mediaDir = opendir("/mnt/media_rw");
+-    if (mediaDir) {
+-        struct dirent* entry;
+-        while ((entry = readdir(mediaDir)) != nullptr) {
+-            if (entry->d_name[0] != '.') {
+-                std::string sd = std::string("/mnt/media_rw/") + entry->d_name;
+-                candidates.push_back(sd + "/GalaxyData");
+-                candidates.push_back(sd + "/GalaxyData/game");
+-                candidates.push_back(sd + "/Android/data/com.openport.galaxyandroid/files/GalaxyData");
+-                candidates.push_back(sd + "/Android/data/com.openport.galaxyandroid/files/game");
+-                candidates.push_back(sd + "/game");
+-            }
+-        }
+-        closedir(mediaDir);
+-    }
+-
+-    for (const auto& path : candidates) {
+-        bool ready = false;
+-        if (checkGameFolder(path, &ready) && ready) {
+-            LOGI("Found valid game data at: %s", path.c_str());
+-            return path;
+-        }
+-    }
+-    return "";
++    // Only this runtime's own converted disc may be selected automatically.
++    const std::string root = extDir + "/GalaxyData";
++    bool ready = false;
++    return checkGameFolder(root, &ready) && ready ? root : "";
+ }
+ 
+ void StorageManager::promptStoragePermissionIfMissing(ANativeActivity* activity) {
+diff --git a/platform/mobile/system/SystemManager.cpp b/platform/mobile/system/SystemManager.cpp
+index 675b9a0..af633b0 100644
+--- a/platform/mobile/system/SystemManager.cpp
++++ b/platform/mobile/system/SystemManager.cpp
+@@ -11,6 +11,7 @@
+ #include <sys/resource.h>
+ #include <time.h>
+ #include <unistd.h>
++#include <ucontext.h>
+ 
+ #define LOGI(...) __android_log_print(ANDROID_LOG_INFO, "GalaxySystem", __VA_ARGS__)
+ #define LOGE(...) __android_log_print(ANDROID_LOG_ERROR, "GalaxySystem", __VA_ARGS__)
+@@ -20,7 +21,6 @@ namespace mobile_system {
+ namespace {
+ 
+ static void crashSignalHandler(int sig, siginfo_t* info, void* ucontext) {
+-    (void)ucontext;
+     const char* sigName = "UNKNOWN";
+     if (sig == SIGSEGV) sigName = "SIGSEGV (Segmentation Fault)";
+     else if (sig == SIGBUS) sigName = "SIGBUS (Bus Error / Alignment)";
+@@ -30,8 +30,25 @@ static void crashSignalHandler(int sig, siginfo_t* info, void* ucontext) {
+ 
+     LOGE("================ FATAL NATIVE CRASH ================");
+     LOGE("Signal: %d (%s) at address %p", sig, sigName, info ? info->si_addr : nullptr);
++#if defined(__aarch64__)
++    if (ucontext) {
++        const auto& ctx = static_cast<ucontext_t*>(ucontext)->uc_mcontext;
++        Dl_info module{};
++        dladdr(reinterpret_cast<void*>(ctx.pc), &module);
++        LOGE("Thor crash pc=%llx offset=%llx module=%s lr=%llx sp=%llx",
++             static_cast<unsigned long long>(ctx.pc),
++             static_cast<unsigned long long>(ctx.pc - reinterpret_cast<uintptr_t>(module.dli_fbase)),
++             module.dli_fname ? module.dli_fname : "?",
++             static_cast<unsigned long long>(ctx.regs[30]), static_cast<unsigned long long>(ctx.sp));
++        for (int i = 0; i < 30; i += 3)
++            LOGE("Thor crash x%d=%llx x%d=%llx x%d=%llx", i,
++                 static_cast<unsigned long long>(ctx.regs[i]), i + 1,
++                 static_cast<unsigned long long>(ctx.regs[i + 1]), i + 2,
++                 static_cast<unsigned long long>(ctx.regs[i + 2]));
++    }
++#endif
+ 
+-    FILE* f = fopen("/sdcard/GalaxyData/galaxy_crash.log", "a");
++    FILE* f = fopen("/sdcard/Android/data/io.github.maddex712.wiids/files/galaxy/GalaxyData/galaxy_crash.log", "a");
+     if (f) {
+         time_t t = time(nullptr);
+         char* ct = ctime(&t);
+diff --git a/platform/mobile/ui/OverlayRenderer.cpp b/platform/mobile/ui/OverlayRenderer.cpp
+index 15a5f46..98a956c 100644
+--- a/platform/mobile/ui/OverlayRenderer.cpp
++++ b/platform/mobile/ui/OverlayRenderer.cpp
+@@ -54,8 +54,9 @@ void OverlayRenderer::generateVertices(int screenW, int screenH,
+         renderSpeedrunHud(vb, settings, uiScale);
+     }
+ 
+-    // 4. Settings Cogwheel Tab Dock & Quick Save Button
+-    if (drawerAnim < 0.95f) {
++    // 4. Settings Cogwheel Tab Dock & Quick Save Button. Not on the AYN Thor: its Back button opens
++    // the Galaxy settings menu, which has Quick Save (platform/mobile/thor/ThorSettingsBridge.h).
++    if (!kThorHidesDock && drawerAnim < 0.95f) {
+         float tabW = 52.0f * uiScale;
+         float tabH = 44.0f * uiScale;
+         float tabY = 20.0f * uiScale;
+diff --git a/platform/mobile/ui/SaveManager.cpp b/platform/mobile/ui/SaveManager.cpp
+index 273f6d7..139f3d9 100644
+--- a/platform/mobile/ui/SaveManager.cpp
++++ b/platform/mobile/ui/SaveManager.cpp
+@@ -157,7 +157,7 @@ std::string SaveManager::triggerLoadSlot(int slot, bool haptics) {
+     std::string slotDir = nandDir + slotSuffix;
+ 
+     if (!validateSaveDir(slotDir)) {
+-        std::string pubSlot = "/sdcard/GalaxyData/saves/" + ((slot == 4) ? std::string("quick") : ("slot" + std::to_string(slot)));
++        std::string pubSlot = "/sdcard/Android/data/io.github.maddex712.wiids/files/galaxy/GalaxyData/saves/" + ((slot == 4) ? std::string("quick") : ("slot" + std::to_string(slot)));
+         if (validateSaveDir(pubSlot)) {
+             slotDir = pubSlot;
+         } else {
+@@ -201,11 +201,11 @@ bool SaveManager::update(std::string& outToastMsg) {
+     if (lastSlash == std::string::npos) return false;
+ 
+     std::string nandDir = mSavePath.substr(0, lastSlash);
+-    mkdir("/sdcard/GalaxyData", 0775);
+-    mkdir("/sdcard/GalaxyData/saves", 0775);
++    mkdir("/sdcard/Android/data/io.github.maddex712.wiids/files/galaxy/GalaxyData", 0775);
++    mkdir("/sdcard/Android/data/io.github.maddex712.wiids/files/galaxy/GalaxyData/saves", 0775);
+ 
+     if (slot == 0) {
+-        copyDirVerified(nandDir, "/sdcard/GalaxyData/saves/current");
++        copyDirVerified(nandDir, "/sdcard/Android/data/io.github.maddex712.wiids/files/galaxy/GalaxyData/saves/current");
+         outToastMsg = "Progress Saved Anywhere! (Verified)";
+         return true;
+     } else {
+@@ -218,9 +218,9 @@ bool SaveManager::update(std::string& outToastMsg) {
+             rename(slotDir.c_str(), slotOld.c_str());
+             rename(slotStaging.c_str(), slotDir.c_str());
+ 
+-            std::string pubSlot = "/sdcard/GalaxyData/saves/" + ((slot == 4) ? std::string("quick") : ("slot" + std::to_string(slot)));
++            std::string pubSlot = "/sdcard/Android/data/io.github.maddex712.wiids/files/galaxy/GalaxyData/saves/" + ((slot == 4) ? std::string("quick") : ("slot" + std::to_string(slot)));
+             copyDirVerified(slotDir, pubSlot);
+-            copyDirVerified(slotDir, "/sdcard/GalaxyData/saves/current");
++            copyDirVerified(slotDir, "/sdcard/Android/data/io.github.maddex712.wiids/files/galaxy/GalaxyData/saves/current");
+ 
+             char msg[96];
+             snprintf(msg, sizeof(msg), (slot == 4) ? "Quick Saved Anywhere! (Verified)" : "Saved to Slot %d! (Verified)", slot);
+diff --git a/platform/mobile/ui/SaveSyncManager.cpp b/platform/mobile/ui/SaveSyncManager.cpp
+index 3f09959..b265cff 100644
+--- a/platform/mobile/ui/SaveSyncManager.cpp
++++ b/platform/mobile/ui/SaveSyncManager.cpp
+@@ -48,7 +48,7 @@ bool SaveSyncManager::exportSave(const std::string& savePath, std::string& outTo
+         }
+     }
+     if (!in) {
+-        std::string extCandidate = "/sdcard/GalaxyData/saves/GameData.bin";
++        std::string extCandidate = "/sdcard/Android/data/io.github.maddex712.wiids/files/galaxy/GalaxyData/saves/GameData.bin";
+         in = fopen(extCandidate.c_str(), "rb");
+     }
+     if (!in) {
+@@ -96,8 +96,8 @@ bool SaveSyncManager::importSave(const std::string& savePath, std::string& outTo
+         "/sdcard/dolphin-emu/Wii/title/00010000/524d4750/data/GameData.bin",
+         "/sdcard/dolphin-emu/Wii/title/00010000/524d474a/data/GameData.bin",
+         "/sdcard/dolphin-emu/Wii/title/00010000/524d474b/data/GameData.bin",
+-        "/sdcard/GalaxyData/saves/GameData.bin",
+-        "/sdcard/GalaxyData/saves/GameData_Dolphin.bin"
++        "/sdcard/Android/data/io.github.maddex712.wiids/files/galaxy/GalaxyData/saves/GameData.bin",
++        "/sdcard/Android/data/io.github.maddex712.wiids/files/galaxy/GalaxyData/saves/GameData_Dolphin.bin"
+     };
+ 
+     FILE* in = nullptr;
+@@ -150,9 +150,9 @@ bool SaveSyncManager::importSave(const std::string& savePath, std::string& outTo
+         writeAtomic(dir + "/save.bin", data.data(), data.size());
+     }
+ 
+-    mkdir("/sdcard/GalaxyData", 0770);
+-    mkdir("/sdcard/GalaxyData/saves", 0770);
+-    writeAtomic("/sdcard/GalaxyData/saves/GameData.bin", data.data(), data.size());
++    mkdir("/sdcard/Android/data/io.github.maddex712.wiids/files/galaxy/GalaxyData", 0770);
++    mkdir("/sdcard/Android/data/io.github.maddex712.wiids/files/galaxy/GalaxyData/saves", 0770);
++    writeAtomic("/sdcard/Android/data/io.github.maddex712.wiids/files/galaxy/GalaxyData/saves/GameData.bin", data.data(), data.size());
+ 
+     if (!anySuccess) {
+         outToastMsg = "Failed to write save data to storage!";
+diff --git a/platform/mobile/ui/Settings.cpp b/platform/mobile/ui/Settings.cpp
+index 82e324f..f5d4df6 100644
+--- a/platform/mobile/ui/Settings.cpp
++++ b/platform/mobile/ui/Settings.cpp
+@@ -2,6 +2,7 @@
+ 
+ #include <android/log.h>
+ #include <stdio.h>
++#include <stdlib.h>
+ #include <string.h>
+ #include <algorithm>
+ 
+@@ -78,6 +79,13 @@ void Settings::load(const std::string& path) {
+             else if (!strcmp(key, "full_touch_mode")) fullTouchMode = (val > 0.5f);
+             else if (!strcmp(key, "screen_orientation")) screenOrientationChoice = std::max(0, std::min(2, (int)val));
+             else if (!strcmp(key, "speedrun_hud")) speedrunHud = (val > 0.5f);
++            else if (!strcmp(key, "post_process")) postProcess = std::max(-1, std::min(1, (int)val));
++            else if (!strcmp(key, "camera_inverted")) cameraInverted = (val > 0.5f);
++            else if (!strncmp(key, "button_map_", 11)) {
++                const int i = atoi(key + 11);
++                if (i >= 0 && i < 12) buttonMap[i] = std::max(0, std::min(7, (int)val));
++            }
++            else if (!strcmp(key, "haptics")) haptics = (val > 0.5f);
+         }
+     }
+     fclose(f);
+@@ -143,6 +151,9 @@ void Settings::save(const std::string& path) const {
+     fprintf(f, "target_fps=%d\n", targetFps);
+     fprintf(f, "adaptive_fps=%d\n", adaptiveFps ? 1 : 0);
+     fprintf(f, "speedrun_hud=%d\n", speedrunHud ? 1 : 0);
++    fprintf(f, "post_process=%d\n", postProcess);
++    fprintf(f, "camera_inverted=%d\n", cameraInverted ? 1 : 0);
++    for (int i = 0; i < 12; i++) fprintf(f, "button_map_%d=%d\n", i, buttonMap[i]);
+     fclose(f);
+     LOGI("Saved settings to %s", path.c_str());
+ }
+diff --git a/platform/mobile/ui/Settings.h b/platform/mobile/ui/Settings.h
+index 42079c3..2baa89c 100644
+--- a/platform/mobile/ui/Settings.h
++++ b/platform/mobile/ui/Settings.h
+@@ -5,7 +5,7 @@
+ namespace mobile_ui {
+ 
+ struct Settings {
+-    bool showControls = true;
++    bool showControls = false;
+     bool fullscreen = true;
+     float opacity = 0.65f;
+     float scale = 1.0f;
+@@ -24,16 +24,16 @@ struct Settings {
+     float btnSpinOffsetY = 0.0f;
+     float starStickOffsetX = 0.0f;
+     float starStickOffsetY = 0.0f;
+-    bool showDpad = true;
++    bool showDpad = false;
+     bool dpadOnRight = false;
+     float dpadOffsetX = 0.0f;
+     float dpadOffsetY = 0.0f;
+ 
+     // NVIDIA Shield and Remaster Mods
+-    bool modShieldTextures = true;
+-    bool modShieldCutscenes = true;
+-    bool modShieldControls = true;
+-    bool modClassicGamepadUI = true;
++    bool modShieldTextures = false;
++    bool modShieldCutscenes = false;
++    bool modShieldControls = false;
++    bool modClassicGamepadUI = false;
+     bool modRiivolution = true;
+ 
+     // Advanced Gameplay Mods
+@@ -51,7 +51,7 @@ struct Settings {
+     bool haptics = false;
+     int targetFps = 60;
+     int preferredRefreshRate = 60;
+-    bool adaptiveFps = true;
++    bool adaptiveFps = false;
+     bool batterySaver = false;
+     bool gyroAiming = false;
+     bool gyroInvertX = false;
+@@ -60,15 +60,23 @@ struct Settings {
+     bool starStick = false;
+     float stickSensitivity = 1.0f;
+     float starStickSensitivity = 1.0f;
+-    int rightStickMode = 0;
++    int rightStickMode = 1;
+     bool touchCamera = true;
+ 
+-    bool fullTouchMode = true;
++    bool fullTouchMode = false;
+     int perfHudMode = 0;
+     int graphicsBackend = 1;
+     bool relativePointer = false;
+     int screenOrientationChoice = 0;
+ 
++    // AYN Thor settings menu (platform/mobile/thor/ThorSettingsBridge.cpp).
++    int postProcess = -1;       // anti-aliasing and bloom: -1 never chosen (engine default), 0 off, 1 on
++    bool cameraInverted = false;
++    // AYN Thor: what each controller button does in Galaxy (mobile_input::ButtonAction), in
++    // mobile_input::PhysicalButton order: A B X Y L1 R1 L2 R2 L3 R3 Start Select. The standard
++    // layout is the one the port shipped with.
++    int buttonMap[12] = {1, 2, 3, 3, 5, 3, 4, 2, 4, 7, 6, 6};
++
+     void load(const std::string& path);
+     void save(const std::string& path) const;
+ };
+diff --git a/platform/mobile/ui/SettingsDrawerRender.cpp b/platform/mobile/ui/SettingsDrawerRender.cpp
+index 413b277..a26acf0 100644
+--- a/platform/mobile/ui/SettingsDrawerRender.cpp
++++ b/platform/mobile/ui/SettingsDrawerRender.cpp
+@@ -217,7 +217,7 @@ void SettingsMenuHandler::renderDrawer(VertexBatcher& vb, int screenW, int scree
+                 vb.drawText(apiLine, rowX0 + 12.0f * uiScale, drawY + 54.0f * uiScale, 0.24f * uiScale, rgba(0.55f, 0.60f, 0.68f, 0.80f), 0);
+             } else if (r.action == ACT_STORAGE_INFO_CARD) {
+                 vb.drawText("NAND SAVE SYSTEM & STORAGE", rowX0 + 12.0f * uiScale, drawY + 18.0f * uiScale, 0.30f * uiScale, rgba(1.0f, 0.78f, 0.25f, 0.95f), 0);
+-                vb.drawText("Directory: /sdcard/GalaxyData/saves (Dolphin compatible)", rowX0 + 12.0f * uiScale, drawY + 36.0f * uiScale, 0.25f * uiScale, rgba(0.85f, 0.88f, 0.94f, 0.90f), 0);
++                vb.drawText("Directory: /sdcard/Android/data/io.github.maddex712.wiids/files/galaxy/GalaxyData/saves (Dolphin compatible)", rowX0 + 12.0f * uiScale, drawY + 36.0f * uiScale, 0.25f * uiScale, rgba(0.85f, 0.88f, 0.94f, 0.90f), 0);
+                 vb.drawText("TESTERS: Report bugs & logs on Discord:", rowX0 + 12.0f * uiScale, drawY + 54.0f * uiScale, 0.25f * uiScale, rgba(0.20f, 0.85f, 1.0f, 1.0f), 0);
+                 vb.drawText("https://discord.gg/H3qdNWYu2", rowX0 + 12.0f * uiScale, drawY + 72.0f * uiScale, 0.26f * uiScale, rgba(0.40f, 0.75f, 1.0f, 1.0f), 0);
+             }
+diff --git a/platform/mobile/ui/SettingsMenuDefs.cpp b/platform/mobile/ui/SettingsMenuDefs.cpp
+index e8c7dde..7e96f9e 100644
+--- a/platform/mobile/ui/SettingsMenuDefs.cpp
++++ b/platform/mobile/ui/SettingsMenuDefs.cpp
+@@ -58,8 +58,8 @@ static const MenuRowDef kModsRows[] = {
+     {ACT_INFINITE_LIVES, ROW_SWITCH, 50.0f, "Infinite Lives (99)", "Lock Mario life pouch to 99 lives", 0, {}, 0.0f, 0.0f, 0.0f, nullptr},
+     {ACT_INFINITE_STARBITS, ROW_SWITCH, 50.0f, "Infinite Star Bits (999)", "Max out Star Bits pouch to 999", 0, {}, 0.0f, 0.0f, 0.0f, nullptr},
+     {ACT_SECTION_HEADER, ROW_SECTION, 36.0f, "RIIVOLUTION MODDING", "SD card patches and game replacements", 0, {}, 0.0f, 0.0f, 0.0f, nullptr},
+-    {ACT_RIIVOLUTION, ROW_SWITCH, 50.0f, "Enable Riivolution Mods", "Load XML patch files from /sdcard/GalaxyData/mods", 0, {}, 0.0f, 0.0f, 0.0f, nullptr},
+-    {ACT_RELOAD_MODS, ROW_SINGLE_BTN, 48.0f, "Scan & Reload Mod Directory", "Scans /sdcard/GalaxyData/mods", 0, {}, 0.0f, 0.0f, 0.0f, nullptr},
++    {ACT_RIIVOLUTION, ROW_SWITCH, 50.0f, "Enable Riivolution Mods", "Load XML patch files from /sdcard/Android/data/io.github.maddex712.wiids/files/galaxy/GalaxyData/mods", 0, {}, 0.0f, 0.0f, 0.0f, nullptr},
++    {ACT_RELOAD_MODS, ROW_SINGLE_BTN, 48.0f, "Scan & Reload Mod Directory", "Scans /sdcard/Android/data/io.github.maddex712.wiids/files/galaxy/GalaxyData/mods", 0, {}, 0.0f, 0.0f, 0.0f, nullptr},
+ };
+ 
+ static const MenuRowDef kSaveRows[] = {
+diff --git a/platform/mobile/ui/SettingsMenuModActions.cpp b/platform/mobile/ui/SettingsMenuModActions.cpp
+index 9708e9d..cdcb4cd 100644
+--- a/platform/mobile/ui/SettingsMenuModActions.cpp
++++ b/platform/mobile/ui/SettingsMenuModActions.cpp
+@@ -116,10 +116,10 @@ bool SettingsMenuModActions::dispatch(MenuActionId action, float px, float midX,
+         return true;
+     case ACT_RIIVOLUTION:
+         settings.modRiivolution = !settings.modRiivolution;
+-        outToastMsg = settings.modRiivolution ? "Riivolution Mods: ON (/sdcard/GalaxyData/mods)" : "Riivolution Mods: OFF";
++        outToastMsg = settings.modRiivolution ? "Riivolution Mods: ON (/sdcard/Android/data/io.github.maddex712.wiids/files/galaxy/GalaxyData/mods)" : "Riivolution Mods: OFF";
+         return true;
+     case ACT_RELOAD_MODS:
+-        outToastMsg = "Scanned /sdcard/GalaxyData/mods: Active!";
++        outToastMsg = "Scanned /sdcard/Android/data/io.github.maddex712.wiids/files/galaxy/GalaxyData/mods: Active!";
+         return true;
+     case ACT_QUICK_CARDS:
+         outToastMsg = (px < midX) ? saveMgr.triggerSaveSlot(4, settings.haptics)
+diff --git a/platform/mobile/ui/TouchInputHandler.cpp b/platform/mobile/ui/TouchInputHandler.cpp
+index 6398de6..7f15a2d 100644
+--- a/platform/mobile/ui/TouchInputHandler.cpp
++++ b/platform/mobile/ui/TouchInputHandler.cpp
+@@ -110,7 +110,8 @@ bool TouchInputHandler::handleTouch(const AInputEvent* event, PortPadState& pad,
+     float qsX = tabW + 16.0f * uiScale;
+     float qsW = 58.0f * uiScale;
+ 
+-    if (action == AMOTION_EVENT_ACTION_DOWN || action == AMOTION_EVENT_ACTION_POINTER_DOWN) {
++    // The dock is not drawn on the AYN Thor (OverlayRenderer.cpp), so it takes no touches either.
++    if (!kThorHidesDock && (action == AMOTION_EVENT_ACTION_DOWN || action == AMOTION_EVENT_ACTION_POINTER_DOWN)) {
+         float px = AMotionEvent_getX(event, pointerIndex);
+         float py = AMotionEvent_getY(event, pointerIndex);
+         if (px >= 0.0f && px <= tabW + 8.0f * uiScale && py >= tabY - 8.0f * uiScale && py <= tabY + tabH + 8.0f * uiScale) {
+diff --git a/platform/mobile/ui/TouchInputHandler.h b/platform/mobile/ui/TouchInputHandler.h
+index b05626c..1dadc74 100644
+--- a/platform/mobile/ui/TouchInputHandler.h
++++ b/platform/mobile/ui/TouchInputHandler.h
+@@ -1,5 +1,9 @@
+ #pragma once
+ 
++// AYN Thor: the top-left gear and SAVE dock is hidden (Back opens the Galaxy settings menu, which
++// has Quick Save); OverlayRenderer.cpp and TouchInputHandler.cpp both honour it.
++constexpr bool kThorHidesDock = true;
++
+ #include "UICommon.h"
+ #include "Settings.h"
+ #include "LayoutManager.h"
+@@ -26,6 +30,8 @@ public:
+     float getTouchStarStickY() const { return (mStarStickPointerId >= 0) ? mStarStickY : 0.0f; }
+ 
+     void setPointerPos(float x, float y) { mPointerX = x; mPointerY = y; mPointerActiveFrames = 120; }
++    // Ends the 120-frame hold from the last setPointerPos (a held star stick still holds the pointer).
++    void releasePointer() { mPointerActiveFrames = 0; }
+     float getPointerX() const { return mPointerX; }
+     float getPointerY() const { return mPointerY; }
+     bool isPointerActive() const { return mPointerActiveFrames > 0 || mStarStickPointerId >= 0; }
+diff --git a/platform/mobile/ui/UIOverlay.cpp b/platform/mobile/ui/UIOverlay.cpp
+index 433d0ea..8b5d3f6 100644
+--- a/platform/mobile/ui/UIOverlay.cpp
++++ b/platform/mobile/ui/UIOverlay.cpp
+@@ -1,4 +1,7 @@
+ #include "UIOverlay.h"
++#include "../core/MobileApp.h"
++#include "../thor/ThorSettingsBridge.h"
++#include "../input/GamepadInput.h"
+ 
+ #include <android/log.h>
+ #include <sys/system_properties.h>
+@@ -14,6 +17,8 @@ void port_set_skip_cutscenes(int enabled);
+ void port_set_infinite_health(int enabled);
+ void port_set_infinite_lives(int enabled);
+ void port_set_infinite_starbits(int enabled);
++void port_set_post_processing_enabled(int enabled);
++void port_input_set_camera_inverted(int inverted);
+ }
+ 
+ namespace mobile_ui {
+@@ -50,6 +55,9 @@ void UIOverlay::setSavePath(const std::string& path) {
+     port_set_infinite_health(mSettings.modInfiniteHealth ? 1 : 0);
+     port_set_infinite_lives(mSettings.modInfiniteLives ? 1 : 0);
+     port_set_infinite_starbits(mSettings.modInfiniteStarBits ? 1 : 0);
++    if (mSettings.postProcess >= 0) port_set_post_processing_enabled(mSettings.postProcess);
++    port_input_set_camera_inverted(mSettings.cameraInverted ? 1 : 0);
++    mobile_input::setButtonMap(mSettings.buttonMap);
+ }
+ 
+ void UIOverlay::update(PortPadState& pad, int& spinFrames) {
+@@ -139,7 +147,10 @@ bool UIOverlay::handleInput(const AInputEvent* event, PortPadState& pad, int& sp
+                                  vpX, vpY, vpW, vpH, mSettings, mLayout,
+                                  openSettings, quickSave);
+     if (openSettings) {
+-        mMenu.openSettings();
++        // AYN Thor: the gear opens the Galaxy settings menu (the helper's own window); the port's
++        // drawer remains for builds without it.
++        android_app* app = mobile_core::MobileApp::get().androidApp();
++        if (app == nullptr || !mobile_thor::showSettingsMenu(app->activity)) mMenu.openSettings();
+         mDirty = true;
+     }
+     if (quickSave) {
+diff --git a/platform/mobile/ui/UIOverlay.h b/platform/mobile/ui/UIOverlay.h
+index 6108224..bdc1167 100644
+--- a/platform/mobile/ui/UIOverlay.h
++++ b/platform/mobile/ui/UIOverlay.h
+@@ -64,6 +64,8 @@ public:
+ 
+     Settings& settings() { return mSettings; }
+     const Settings& settings() const { return mSettings; }
++    void saveSettings() const { mSettings.save(mSave.savePath()); }
++    SaveManager& saveManager() { return mSave; }
+ 
+     void setActiveBackend(int b) { mActiveBackend = b; }
+     int activeBackend() const { return mActiveBackend; }
+@@ -74,6 +76,7 @@ public:
+     bool isPlusEdition() const { return mPlusEdition; }
+ 
+     void setPointerPos(float x, float y) { mTouch.setPointerPos(x, y); }
++    void releasePointer() { mTouch.releasePointer(); }
+     float getPointerX() const { return mTouch.getPointerX(); }
+     float getPointerY() const { return mTouch.getPointerY(); }
+ 
+diff --git a/platform/src/audio/ai_dsp.cpp b/platform/src/audio/ai_dsp.cpp
+index 6a3a2cc..67f0e97 100644
+--- a/platform/src/audio/ai_dsp.cpp
++++ b/platform/src/audio/ai_dsp.cpp
+@@ -32,7 +32,8 @@ extern "C" int64_t __attribute__((weak)) port_audio_queued_ns(void) { return -1;
+ extern "C" int __attribute__((weak)) port_audio_underruns(void) { return 0; }
+ 
+ static inline const u8* memPtr(u32 addr) {
+-    if (addr >= 0x80000000u) {
++    if ((addr >= PORT_MEM1_BASE && addr < PORT_LOWPOOL_BASE + PORT_LOWPOOL_SIZE) ||
++        (addr >= PORT_MEM1_UNCACHED && addr < PORT_MEM2_UNCACHED + PORT_MEM2_SIZE)) {
+         return (const u8*)(uintptr_t)addr;
+     }
+     return (const u8*)port_phys_to_host(addr);
+diff --git a/platform/src/audio/dsp_mailbox.cpp b/platform/src/audio/dsp_mailbox.cpp
+index cca3f25..7d389e3 100644
+--- a/platform/src/audio/dsp_mailbox.cpp
++++ b/platform/src/audio/dsp_mailbox.cpp
+@@ -5,6 +5,7 @@
+ #include <mutex>
+ 
+ #include "port/port.h"
++#include "port/heap_routing.h"
+ #include "revolution/dsp.h"
+ #include "revolution/os.h"
+ 
+@@ -30,6 +31,9 @@ static u16 sMixerLevel = 0x4000;
+ extern "C" u32 port_dsp_varam_base(void) { return sVaramBase; }
+ 
+ static void queueMail(u32 a, u32 b) {
++    // This process-wide queue outlives scene heaps. DSP calls run on game
++    // threads too, so deque growth must explicitly use the host allocator.
++    PortHostAllocScope hostAlloc;
+     std::lock_guard<std::mutex> lk(sMailMutex);
+     sMailFromDsp.push_back(a);
+     sMailFromDsp.push_back(b);
+diff --git a/platform/src/gx/gpu_cp.cpp b/platform/src/gx/gpu_cp.cpp
+index 90c885c..3f51bea 100644
+--- a/platform/src/gx/gpu_cp.cpp
++++ b/platform/src/gx/gpu_cp.cpp
+@@ -16,7 +16,8 @@ void setBackend(Backend* b) { sBackend = b; }
+ Backend* backend() { return sBackend; }
+ 
+ const u8* memPtr(u32 addr) {
+-    if (addr >= 0x80000000u) {
++    if ((addr >= PORT_MEM1_BASE && addr < PORT_LOWPOOL_BASE + PORT_LOWPOOL_SIZE) ||
++        (addr >= PORT_MEM1_UNCACHED && addr < PORT_MEM2_UNCACHED + PORT_MEM2_SIZE)) {
+         return (const u8*)(uintptr_t)addr;  // cached/uncached virtual
+     }
+     return (const u8*)port_phys_to_host(addr);
+diff --git a/platform/src/gx/gx_record.h b/platform/src/gx/gx_record.h
+index 2e23e5d..32a305f 100644
+--- a/platform/src/gx/gx_record.h
++++ b/platform/src/gx/gx_record.h
+@@ -111,6 +111,7 @@ enum Marker : uint32_t {
+     MARK_SCENE_DEPTH = 7,
+     MARK_POINTER_BEGIN = 8,
+     MARK_POINTER_END = 9,
++    MARK_THOR_SPACE = 10,
+ };
+ 
+ struct Frame {
+diff --git a/platform/src/gx/gx_recorder_tex.cpp b/platform/src/gx/gx_recorder_tex.cpp
+index 086d2f1..4b59e3e 100644
+--- a/platform/src/gx/gx_recorder_tex.cpp
++++ b/platform/src/gx/gx_recorder_tex.cpp
+@@ -154,14 +154,14 @@ void Recorder::decode(TexImage& img, const u8* src, const TexKey& key) {
+     if (!sCustomTexChecked) {
+         sCustomTexChecked = true;
+         struct stat st;
+-        sCustomTexFolderExists = (stat("/sdcard/GalaxyData/textures", &st) == 0 && S_ISDIR(st.st_mode));
++        sCustomTexFolderExists = (stat("/sdcard/Android/data/io.github.maddex712.wiids/files/galaxy/GalaxyData/textures", &st) == 0 && S_ISDIR(st.st_mode));
+         if (sCustomTexFolderExists) {
+-            port_log("textures: Custom texture overrides enabled from /sdcard/GalaxyData/textures");
++            port_log("textures: Custom texture overrides enabled from /sdcard/Android/data/io.github.maddex712.wiids/files/galaxy/GalaxyData/textures");
+         }
+     }
+     if (sCustomTexFolderExists) {
+         char customPath[128];
+-        snprintf(customPath, sizeof(customPath), "/sdcard/GalaxyData/textures/tex_%08x_%dx%d.rgba", key.addr, key.width, key.height);
++        snprintf(customPath, sizeof(customPath), "/sdcard/Android/data/io.github.maddex712.wiids/files/galaxy/GalaxyData/textures/tex_%08x_%dx%d.rgba", key.addr, key.width, key.height);
+         FILE* cf = fopen(customPath, "rb");
+         if (cf) {
+             fseek(cf, 0, SEEK_END);
+diff --git a/platform/src/gx/vk/vk_draw_dispatch.cpp b/platform/src/gx/vk/vk_draw_dispatch.cpp
+index b05cc91..3117d71 100644
+--- a/platform/src/gx/vk/vk_draw_dispatch.cpp
++++ b/platform/src/gx/vk/vk_draw_dispatch.cpp
+@@ -1,4 +1,5 @@
+ #include "gx/vk/vk_common.h"
++#include "gx/vk/vk_thor_capture.h"
+ 
+ namespace gpu {
+ 
+@@ -44,8 +45,16 @@ void VkRenderer::executeDrawPass(VkCommandBuffer cmd, const Frame& f, const Prep
+     DrawTexStats texStats;
+     bool diagLog = (mFrameNumber % 300 == 0);
+ 
++    // AYN Thor lower screen (vk_thor_capture.cpp): the game's own space, taken at a marker.
++    bool thorDone = !thorCaptureArmed(*this);
++
+     for (const Item& it : items) {
+         if (it.type == IT_MARKER) {
++            if (!thorDone && it.marker == MARK_THOR_SPACE) {
++                // The title's whole 3D picture, before the 2D layer (its logo) is drawn.
++                thorCaptureRecord(*this, cmd, target, inRenderPass);
++                thorDone = true;
++            }
+             inHudSection = (it.marker == MARK_HUD_BEGIN);
+             continue;
+         }
+@@ -216,6 +225,9 @@ void VkRenderer::executeDrawPass(VkCommandBuffer cmd, const Frame& f, const Prep
+         vkCmdPipelineBarrier(cmd, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, 0, 0, nullptr, 0, nullptr, 1, &barrier);
+         target.colorLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+     }
++    // AYN Thor lower screen: how bright the finished picture is (its fades follow this one's).
++    thorProbeRecord(*this, cmd, target);
++
+ 
+     if (diagLog) {
+         LOGI("VkDrawDiag: frame=%llu draws=%u (hud=%u scSkip=%u setBinds=%u) realTex=%u dummyTex=%u fTextures=%zu copySlot=%u copyHits=%u copyFallbacks=%u copyMisses=%u mruHit=%llu mruMiss=%llu rtNew=%llu rtKnownUid=%llu record=%.2fms",
+diff --git a/platform/src/gx/vk/vk_lifecycle.cpp b/platform/src/gx/vk/vk_lifecycle.cpp
+index 3b8850e..c7e49bc 100644
+--- a/platform/src/gx/vk/vk_lifecycle.cpp
++++ b/platform/src/gx/vk/vk_lifecycle.cpp
+@@ -1,4 +1,5 @@
+ #include "gx/vk/vk_common.h"
++#include "gx/vk/vk_thor_capture.h"
+ 
+ namespace gpu {
+ 
+@@ -107,6 +108,7 @@ void VkRenderer::shutdown() {
+ 
+     if (mDevice != VK_NULL_HANDLE) {
+         vkDeviceWaitIdle(mDevice);
++        thorCaptureDestroy(*this);
+ 
+         if (mRenderFence != VK_NULL_HANDLE) {
+             vkDestroyFence(mDevice, mRenderFence, nullptr);
+diff --git a/platform/src/gx/vk/vk_pipeline_cache_manager.cpp b/platform/src/gx/vk/vk_pipeline_cache_manager.cpp
+index 2b94e4e..6be1d00 100644
+--- a/platform/src/gx/vk/vk_pipeline_cache_manager.cpp
++++ b/platform/src/gx/vk/vk_pipeline_cache_manager.cpp
+@@ -13,7 +13,7 @@ void setVkPipelineCachePath(const char* path) {
+ 
+ static const char* getPipelineCachePath() {
+     if (!sPipelineCachePath[0]) {
+-        snprintf(sPipelineCachePath, sizeof(sPipelineCachePath), "/data/data/com.openport.galaxyandroid/files/vk_pipeline_cache.bin");
++        snprintf(sPipelineCachePath, sizeof(sPipelineCachePath), "/data/data/io.github.maddex712.wiids/files/galaxy/vk_pipeline_cache.bin");
+     }
+     return sPipelineCachePath;
+ }
+diff --git a/platform/src/gx/vk/vk_render.cpp b/platform/src/gx/vk/vk_render.cpp
+index d83075c..191b2a2 100644
+--- a/platform/src/gx/vk/vk_render.cpp
++++ b/platform/src/gx/vk/vk_render.cpp
+@@ -1,4 +1,5 @@
+ #include "gx/vk/vk_common.h"
++#include "gx/vk/vk_thor_capture.h"
+ 
+ namespace gpu {
+ 
+@@ -47,6 +48,8 @@ bool VkRenderer::render(VkTarget& target, const EyeView* eye, VkTarget* hud, Hud
+     if (!waitInFlightSubmissions("render")) {
+         return false;
+     }
++    // The previous submission is complete: its lower-screen capture, if any, can be published.
++    thorCapturePublish(*this);
+ 
+     flushDeferredDeletes();
+     trimFrameCaches(mFrameNumber);
+diff --git a/platform/src/gx/vk_shader_manifest.cpp b/platform/src/gx/vk_shader_manifest.cpp
+index 882df74..3da5af2 100644
+--- a/platform/src/gx/vk_shader_manifest.cpp
++++ b/platform/src/gx/vk_shader_manifest.cpp
+@@ -23,7 +23,7 @@ std::vector<std::string> getManifestCandidates(const std::string& cacheDir,
+         cacheDir + "/galaxy_shader_manifest.bin",
+         filesDir + "/galaxy_shader_manifest.bin",
+         dataRoot + "/galaxy_shader_manifest.bin",
+-        "/sdcard/GalaxyData/galaxy_shader_manifest.bin",
++        "/sdcard/Android/data/io.github.maddex712.wiids/files/galaxy/GalaxyData/galaxy_shader_manifest.bin",
+         "assets/galaxy_shader_manifest.bin"
+     };
+ }
+diff --git a/platform/src/gx/vk_shadergen_vs.cpp b/platform/src/gx/vk_shadergen_vs.cpp
+index 321e4ef..dd2af7a 100644
+--- a/platform/src/gx/vk_shadergen_vs.cpp
++++ b/platform/src/gx/vk_shadergen_vs.cpp
+@@ -78,7 +78,9 @@ std::string genVulkanVertexShader(const ShaderUid& u) {
+         o.w("    }\n");
+     }
+     o.w("    clipPos = vec4(c.x, c.y, depth * 2.0 * 1.0 - c.w, c.w);\n");
+-    o.w("    if ((fetch_recs(rb + %uu) & 2u) != 0u) {\n", (unsigned)kRecFlags);
++    // Skies keep the game's own depth on a flat screen, as on GX: their layers (a sun glow over the
++    // planet it lights, the horizon band) are ordered by it. Only stereo pushes them to the far plane.
++    o.w("    if (stereoDraw && (fetch_recs(rb + %uu) & 2u) != 0u) {\n", (unsigned)kRecFlags);
+     o.w("      clipPos.z = clipPos.w * 0.99999;\n");
+     o.w("    }\n");
+     if (u.cutaway) o.w("    v_eye = vec3(0.0, 0.0, 1.0e6);\n");
+@@ -144,11 +146,15 @@ std::string genVulkanVertexShader(const ShaderUid& u) {
+         uint32_t form = (info >> 2) & 3;
+         const char* in = "vec4(0.0, 0.0, 1.0, 1.0)";
+         char uvBuf[64];
+-        if (src == 0) in = "vec4(pos, 1.0)";
+-        else if (src == 1) in = "vec4(nrm, 1.0)";
++        // GX feeds texgens the vertex's own (object-space) position and normal, not the transformed
++        // ones: the game's texture matrices already hold the model-view (J3D env maps, projection
++        // maps, the indirect glass of capsules and crystals). Transformed inputs apply it twice and
++        // smear those materials.
++        if (src == 0) in = "vec4(a_pos, 1.0)";
++        else if (src == 1) in = (f & VF_NRM) ? "vec4(a_nrm, 1.0)" : "vec4(0.0, 0.0, 1.0, 1.0)";
+         else if (src == 2) in = (f & VF_CLR0) ? "vec4(a_clr0.rgb, 1.0)" : "vec4(1.0)";
+-        else if (src == 3) in = "vec4(bin, 1.0)";
+-        else if (src == 4) in = "vec4(tan, 1.0)";
++        else if (src == 3) in = (f & VF_NBT) ? "vec4(a_bin, 1.0)" : "vec4(0.0, 1.0, 0.0, 1.0)";
++        else if (src == 4) in = (f & VF_NBT) ? "vec4(a_tan, 1.0)" : "vec4(1.0, 0.0, 0.0, 1.0)";
+         else if (src >= 5 && src <= 12) {
+             int texIdx = src - 5;
+             if (f & (VF_TEX0 << texIdx)) {
+diff --git a/platform/src/input/wpad.cpp b/platform/src/input/wpad.cpp
+index acb6de5..ddca2a7 100644
+--- a/platform/src/input/wpad.cpp
++++ b/platform/src/input/wpad.cpp
+@@ -45,6 +45,12 @@ extern "C" void port_input_get_right_stick(int chan, float* x, float* y) {
+ 
+ extern "C" int port_input_rumble(int chan) { return (chan >= 0 && chan < 4) ? sRumble[chan] : 0; }
+ 
++static std::atomic<int> sMenuPointer{0};
++
++extern "C" void port_input_set_menu_pointer(int on) { sMenuPointer.store(on ? 1 : 0, std::memory_order_relaxed); }
++
++extern "C" int port_input_menu_pointer(void) { return sMenuPointer.load(std::memory_order_relaxed); }
++
+ extern "C" int port_input_real_a(void) {
+     std::lock_guard<std::mutex> lk(sInputMutex);
+     return sPad[0].connected && (sPad[0].buttons & 0x0800) ? 1 : 0;
+diff --git a/platform/src/nand/nand.cpp b/platform/src/nand/nand.cpp
+index d1316d0..5aa0b36 100644
+--- a/platform/src/nand/nand.cpp
++++ b/platform/src/nand/nand.cpp
+@@ -156,13 +156,13 @@ s32 NANDClose(NANDFileInfo* info) {
+     if (info->fileDescriptor >= 0) {
+         if (info->accType != NAND_ACCESS_READ) {
+             fsync(info->fileDescriptor);
+-            // Auto-mirror GameData.bin to persistent external storage (/sdcard/GalaxyData/saves) atomically
++            // Auto-mirror GameData.bin to persistent external storage (/sdcard/Android/data/io.github.maddex712.wiids/files/galaxy/GalaxyData/saves) atomically
+             if (strstr(info->origPath, "GameData.bin")) {
+                 std::string hp = hostPath(info->origPath);
+-                mkdir("/sdcard/GalaxyData", 0770);
+-                mkdir("/sdcard/GalaxyData/saves", 0770);
+-                if (atomicMirrorFile(hp, "/sdcard/GalaxyData/saves/GameData.bin")) {
+-                    port_log("nand: atomically mirrored %s -> /sdcard/GalaxyData/saves/GameData.bin", hp.c_str());
++                mkdir("/sdcard/Android/data/io.github.maddex712.wiids/files/galaxy/GalaxyData", 0770);
++                mkdir("/sdcard/Android/data/io.github.maddex712.wiids/files/galaxy/GalaxyData/saves", 0770);
++                if (atomicMirrorFile(hp, "/sdcard/Android/data/io.github.maddex712.wiids/files/galaxy/GalaxyData/saves/GameData.bin")) {
++                    port_log("nand: atomically mirrored %s -> /sdcard/Android/data/io.github.maddex712.wiids/files/galaxy/GalaxyData/saves/GameData.bin", hp.c_str());
+                 } else {
+                     port_log("nand: warning - atomic save mirror failed for %s", hp.c_str());
+                 }
+diff --git a/platform/src/os/os_diag_heap.cpp b/platform/src/os/os_diag_heap.cpp
+index 5a37e52..bcee5ad 100644
+--- a/platform/src/os/os_diag_heap.cpp
++++ b/platform/src/os/os_diag_heap.cpp
+@@ -74,8 +74,8 @@ extern "C" void port_debug_dump_threads(void) {
+         int n = 0;
+         for (int k = 0; k < sBtCount && n < 1000; k++) {
+             uintptr_t pc = sBtPcs[k];
+-            if (pc >= 0x98000000u && pc < 0xA0000000u) {
+-                n += snprintf(line + n, sizeof(line) - n, " g:%lx", (unsigned long)(pc - 0x98000000u));
++            if (pc >= PORT_LIB_BASE && pc < PORT_LIB_BASE + PORT_LIB_SIZE) {
++                n += snprintf(line + n, sizeof(line) - n, " g:%lx", (unsigned long)(pc - PORT_LIB_BASE));
+             } else {
+                 n += snprintf(line + n, sizeof(line) - n, " %lx", (unsigned long)pc);
+             }
+diff --git a/platform/src/os/os_mem.cpp b/platform/src/os/os_mem.cpp
+index 0d33394..41385aa 100644
+--- a/platform/src/os/os_mem.cpp
++++ b/platform/src/os/os_mem.cpp
+@@ -145,16 +145,17 @@ extern "C" int port_is_game_memory(const void* p) {
+ extern "C" void* port_phys_to_host(uint32_t phys) {
+     // MEM1, MEM2, the game library image and the low pool are all laid out
+     // at 0x80000000 + physical address.
+-    return (void*)(uintptr_t)(0x80000000u + (phys & 0x3FFFFFFFu));
++    return (void*)(uintptr_t)(PORT_MEM1_BASE + phys);
+ }
+ 
+ extern "C" uint32_t port_host_to_phys(const void* p) {
+     uintptr_t a = (uintptr_t)p;
+-    if (a >= 0x80000000u && a < 0xB0000000u) {
+-        return (uint32_t)(a - 0x80000000u);
++    if (a < 0x30000000u) return (uint32_t)a; // some SDK callers already pass physical addresses
++    if (a >= PORT_MEM1_BASE && a < PORT_LOWPOOL_BASE + PORT_LOWPOOL_SIZE) {
++        return (uint32_t)(a - PORT_MEM1_BASE);
+     }
+-    if (a >= 0xC0000000u && a < 0xE0000000u) {
+-        return (uint32_t)(a - 0xC0000000u);
++    if (a >= PORT_MEM1_UNCACHED && a < PORT_MEM2_UNCACHED + PORT_MEM2_SIZE) {
++        return (uint32_t)(a - PORT_MEM1_UNCACHED);
+     }
+     port_log("port_host_to_phys: %p is outside the game address space", p);
+     return (uint32_t)a;
+diff --git a/platform/src/port/boot.cpp b/platform/src/port/boot.cpp
+index ff4cc51..e9c1845 100644
+--- a/platform/src/port/boot.cpp
++++ b/platform/src/port/boot.cpp
+@@ -48,7 +48,7 @@ extern "C" void port_boot(const char* dataRoot, const char* saveRoot) {
+         bool internalValid = (stat(internalSave.c_str(), &stInternal) == 0 && stInternal.st_size >= 512);
+ 
+         if (!internalValid) {
+-            std::string mirrorPath = "/sdcard/GalaxyData/saves/GameData.bin";
++            std::string mirrorPath = "/sdcard/Android/data/io.github.maddex712.wiids/files/galaxy/GalaxyData/saves/GameData.bin";
+             struct stat stMirror;
+             if (stat(mirrorPath.c_str(), &stMirror) == 0 && stMirror.st_size >= 512) {
+                 std::string dir = std::string(saveRoot) + "/title/00010000/" + t + "/data";
+diff --git a/platform/src/vi/vi.cpp b/platform/src/vi/vi.cpp
+index d723511..9bfac4e 100644
+--- a/platform/src/vi/vi.cpp
++++ b/platform/src/vi/vi.cpp
+@@ -28,13 +28,17 @@ static bool sInited;
+ static std::atomic<int> sPaused{0};
+ static std::atomic<int64_t> sExternalAt{0};  // host time of the last display-timed retrace
+ static std::atomic<int64_t> sRaisedAt{0};    // host time of the last retrace raised
++static std::atomic<int64_t> sDisplayRaisedAt{0};  // ... of the last one the display raised itself
+ static std::atomic<int> sDisplayRefreshRate{60};
++// Diagnostics: where retraces come from (logged every 10 s with the perf line's cadence).
++static std::atomic<int> sFromDisplay{0}, sFromClock{0}, sRefused{0}, sRaised{0};
++static std::atomic<int64_t> sDiagAt{0};
+ 
+ // Raises the retrace interrupt, unless one was raised less than 8 ms ago: as
+ // on the console, retraces are a field apart. When the display takes the
+ // retraces back from the fallback clock, the two could otherwise land a
+ // millisecond apart, and the game drew two frames within one retrace.
+-static void raiseRetrace() {
++static bool raiseRetrace() {
+     int64_t now = port_host_time_ns();
+     int64_t last = sRaisedAt.load();
+     int hz = sDisplayRefreshRate.load();
+@@ -44,9 +48,20 @@ static void raiseRetrace() {
+     if (minInterval < 2000000LL) minInterval = 2000000LL;
+ 
+     if (now - last < minInterval || !sRaisedAt.compare_exchange_strong(last, now)) {
+-        return;
++        sRefused++;
++        return false;
+     }
++    sRaised++;
+     port_irq_raise(PORT_IRQ_VI);
++    int64_t at = sDiagAt.load();
++    if (at == 0) sDiagAt.store(now);
++    else if (now - at > 10000000000LL && sDiagAt.compare_exchange_strong(at, now)) {
++        // Only when the game is not getting its 59.94 Hz (like the perf line's 58 fps rule).
++        const double rate = sRaised.exchange(0) / ((now - at) / 1e9);
++        const int display = sFromDisplay.exchange(0), clock = sFromClock.exchange(0), refused = sRefused.exchange(0);
++        if (rate < 58.0) port_log("vi: %.1f retraces/s (display %d, fallback clock %d, refused %d)", rate, display, clock, refused);
++    }
++    return true;
+ }
+ 
+ // Implemented by the renderer: show the frame the game copied to `xfb`.
+@@ -92,13 +107,14 @@ static void viClock() {
+         if (sPaused.load()) {
+             continue;  // no retrace: the game stays in VIWaitForRetrace
+         }
+-        // If the display/presenter recently raised a retrace within this cadence window,
+-        // let the display drive retrace pacing. The fallback clock should ONLY intervene
+-        // when the display has missed its deadline (more than 1 full period has elapsed).
+-        int64_t lastRaised = sRaisedAt.load();
+-        if (now - lastRaised < (int64_t)(period * 1.05)) {
++        // If the display/presenter recently raised a retrace itself, let it drive the pacing;
++        // the clock steps in only when the display has missed a period. (Comparing with any
++        // retrace, the clock's own included, made it skip every other tick: a period is shorter
++        // than 1.05 periods, so on its own it ran at 30 Hz and the game at half speed.)
++        if (now - sDisplayRaisedAt.load() < (int64_t)(period * 1.05)) {
+             continue;
+         }
++        sFromClock++;
+         raiseRetrace();
+     }
+ }
+@@ -108,7 +124,8 @@ extern "C" {
+ void port_vi_retrace(void) {
+     sExternalAt.store(port_host_time_ns());
+     if (!sPaused.load()) {
+-        raiseRetrace();
++        sFromDisplay++;
++        if (raiseRetrace()) sDisplayRaisedAt.store(port_host_time_ns());
+     }
+ }
+ 
+diff --git a/tools/cook/cook.py b/tools/cook/cook.py
+index 87415ff..2130b39 100644
+--- a/tools/cook/cook.py
++++ b/tools/cook/cook.py
+@@ -22,6 +22,7 @@ import struct
+ import sys
+ import time
+ 
++
+ HERE = os.path.dirname(os.path.abspath(__file__))
+ sys.path.insert(0, HERE)
+ sys.path.insert(0, os.path.dirname(HERE))
+@@ -133,7 +134,6 @@ def is_converted_kind(stats_before, stats_after):
+ 
+ 
+ 
+-from cook_archive import cook_rarc, cook_archive, cook_dol_data
+ 
+ def plan(data_dir, out_dir, args):
+     jobs = []
+@@ -175,6 +175,9 @@ def convert(data_dir, out_dir, jobs=None, only=None, no_audio=False,
+     progress(completed, total) is called in the parent process, never in
+     the conversion workers. A nonzero return means files were not converted.
+     """
++    # Helpers import the shared blob converters above. Import them only once
++    # this module is initialized, including in Windows spawn workers.
++    from cook_archive import cook_dol_data, process
+     args = argparse.Namespace(data_dir=data_dir, out_dir=out_dir,
+                               jobs=jobs or os.cpu_count(), only=only,
+                               no_audio=no_audio, with_movies=with_movies)
+diff --git a/tools/cook/cook_archive.py b/tools/cook/cook_archive.py
+index 716332e..b8fcd13 100644
+--- a/tools/cook/cook_archive.py
++++ b/tools/cook/cook_archive.py
+@@ -1,5 +1,11 @@
+ import os
+ import collections
++import shutil
++import j3d
++import lyt
++import jpa
++import jaudio
++import thp
+ import rarc_swap
+ import collision
+ import dol_data
+diff --git a/tools/cook/j3d.py b/tools/cook/j3d.py
+index 3b9da96..5a7ef17 100644
+--- a/tools/cook/j3d.py
++++ b/tools/cook/j3d.py
+@@ -237,7 +237,7 @@ def swap_model(b):
+ # ---------------------------------------------------------------------------
+ # Animations
+ # ---------------------------------------------------------------------------
+-from j3d_anim import swap_anim
++from j3d_anim import swap_anim, swap_sound_anim
+ 
+ def is_model(b):
+     return len(b) >= 0x20 and bytes(b[0:4]) in (b'J3D2',)
+diff --git a/tools/cook/j3d_anim.py b/tools/cook/j3d_anim.py
+index 3b7ddb8..6e10b06 100644
+--- a/tools/cook/j3d_anim.py
++++ b/tools/cook/j3d_anim.py
+@@ -1,5 +1,5 @@
+ import struct
+-from util import u32, s16, sw32, sw16, sw_range, extents, swap_ntab
++from util import u16, u32, s16, sw32, sw16, sw_range, extents, swap_ntab
+ from j3d import warn, swap_records
+ def anm_tables(b, o, end, offs_at, kinds):
+     """kinds: list of (kind) per u32 offset starting at o+offs_at."""
+diff --git a/tools/cook/kcl_builder.py b/tools/cook/kcl_builder.py
+index 0ddb766..6eee7e4 100644
+--- a/tools/cook/kcl_builder.py
++++ b/tools/cook/kcl_builder.py
+@@ -1,6 +1,6 @@
+ import math
+ import struct
+-from collision import sub, cross, dot
++from collision import sub, cross, dot, f32, normalize
+ 
+ def _prism_box(tri, normal, depth, center, half):
+     """Does the prism a triangle sweeps `depth` behind its face (the volume
+diff --git a/decomp/src/Game/System/ThorLowerState.cpp b/decomp/src/Game/System/ThorLowerState.cpp
+new file mode 100644
+index 0000000..80d6db0
+--- /dev/null
++++ b/decomp/src/Game/System/ThorLowerState.cpp
+@@ -0,0 +1,305 @@
++// AYN Thor lower screen: samples Super Mario Galaxy's state on the game thread, once a frame
++// after the scene's update (GameSystem::frameLoop), into a ThorLowerState and hands it to the
++// platform (port_thor_lower_commit, platform/mobile/thor/ThorLowerBridge.cpp). Read-only: only
++// the game's own query functions are called, and only in the scene states where they are valid;
++// nothing here changes progression, inventory, camera or saves. No heap allocation: the state
++// lives in a static buffer (scene heaps come and go under this thread).
++#ifdef TARGET_MOBILE
++
++#include "Game/Scene/GameScene.hpp"
++#include "Game/Scene/ScenarioSelectScene.hpp"
++#include "Game/Scene/SceneObjHolder.hpp"
++#include "Game/System/GalaxyStatusAccessor.hpp"
++#include "Game/System/GameDataConst.hpp"
++#include "Game/System/GameSystem.hpp"
++#include "Game/System/GameSystemSceneController.hpp"
++#include "Game/System/ScenarioDataParser.hpp"
++#include "Game/Util/DemoUtil.hpp"
++#include "Game/Util/EventUtil.hpp"
++#include "Game/Util/MessageUtil.hpp"
++#include "Game/Util/PlayerUtil.hpp"
++#include "Game/Util/SceneUtil.hpp"
++#include "Game/Util/SingletonHolder.hpp"
++#include "port/port.h"
++#include "port/thor_lower.h"
++
++#include <stdio.h>
++#include <string.h>
++
++// GameScene's step (GameScene.cpp, beside its nerves): a ThorLowerPhase.
++int thorGameScenePhase(const GameScene* pScene);
++// Whether the title ran in this update (FileSelector.cpp); taking it clears it.
++bool thorFileSelectorTakeTitle();
++// Whether the prologue's picture book ran in this update (ProloguePictureBook.cpp); taking it clears it.
++bool thorStorybookTake();
++
++extern "C" __attribute__((weak)) void port_thor_lower_commit(const ThorLowerState* state);
++
++namespace {
++    bool sTitleLive;
++    s32 sStorybookHold;  // frames the picture book still counts as open (bridges a skipped update)
++    ThorLowerState sState;
++    char sLastStage[32];
++    s32 sLastScenario = -1;
++    s32 sLastPhase = -1;
++    s32 sLastTotalStars = -1;
++    s32 sGeneration;
++    s32 sFrame;
++    s32 sLedgerAge = 1 << 20;
++
++    // Game text (UTF-16 with -fshort-wchar) without its control tags: a tag is 0x001A, then a
++    // unit whose high byte is the tag's whole size in bytes.
++    void copyText(uint16_t* pOut, s32 capacity, const wchar_t* pText) {
++        s32 n = 0;
++        if (pText != nullptr) {
++            for (s32 i = 0; pText[i] != 0 && n + 1 < capacity && i < 512; i++) {
++                const uint16_t unit = static_cast< uint16_t >(pText[i]);
++                if (unit == 0x001A) {
++                    const s32 size = static_cast< uint16_t >(pText[i + 1]) >> 8;
++                    if (size < 4) {
++                        break;
++                    }
++                    i += size / 2 - 1;
++                    continue;
++                }
++                if (unit == 0x000A) {
++                    if (n > 0 && pOut[n - 1] != 0x20) {
++                        pOut[n++] = 0x20;
++                    }
++                    continue;
++                }
++                pOut[n++] = unit;
++            }
++        }
++        while (n > 0 && pOut[n - 1] == 0x20) {
++            n--;
++        }
++        pOut[n] = 0;
++        for (s32 i = n + 1; i < capacity; i++) {
++            pOut[i] = 0;
++        }
++    }
++
++    bool isScene(const GameSystemSceneController* pController, const char* pName) {
++        return strcmp(pController->mCurrSceneControlInfo.mScene, pName) == 0;
++    }
++
++    s32 phaseOf(GameSystemSceneController* pController) {
++        if (pController->isChangingScene()) {
++            return THOR_PHASE_LOADING;
++        }
++        if (pController->mScenarioSelectScene != nullptr && pController->mScenarioSelectScene->isActive() &&
++            pController->mScenarioSelectScene->isScenarioSelecting()) {
++            return THOR_PHASE_MISSION_SELECT;
++        }
++        if (isScene(pController, "Logo")) {
++            return THOR_PHASE_LOGO;
++        }
++        if (isScene(pController, "Intermission") || isScene(pController, "PlayTimer")) {
++            return THOR_PHASE_INTERMISSION;
++        }
++        if (!isScene(pController, "Game") || pController->mScene == nullptr) {
++            return THOR_PHASE_NONE;
++        }
++        if (strcmp(pController->mCurrSceneControlInfo.mStage, "FileSelect") == 0) {
++            return THOR_PHASE_FILE_SELECT;
++        }
++        if (!pController->isSceneInitializeState(SceneInitializeState_End)) {
++            return THOR_PHASE_LOADING;
++        }
++        s32 phase = thorGameScenePhase(static_cast< const GameScene* >(pController->mScene));
++        if (phase == THOR_PHASE_PLAY && MR::isDemoActive()) {
++            phase = THOR_PHASE_CUTSCENE;
++        }
++        return phase;
++    }
++
++    // This galaxy's Power Stars and the selected mission's name.
++    void sampleGalaxy(const char* pStage, s32 selected) {
++        GalaxyStatusAccessor accessor = MR::makeGalaxyStatusAccessor(pStage);
++        if (accessor.mScenarioData == nullptr) {
++            return;
++        }
++        const s32 stars = accessor.getPowerStarNum();
++        if (stars <= 0 || stars > THOR_LOWER_STARS) {
++            return;
++        }
++        sState.galaxyStars = stars;
++        sState.galaxyStarsOwned = accessor.getPowerStarNumOwned();
++        for (s32 i = 0; i < THOR_LOWER_STARS; i++) {
++            s32 flags = 0;
++            const s32 scenario = i + 1;
++            if (scenario <= stars) {
++                if (accessor.hasPowerStar(scenario)) flags |= THOR_STAR_OWNED;
++                if (accessor.isValidNormalComet(scenario)) flags |= THOR_STAR_COMET;
++                if (accessor.isHiddenStar(scenario)) flags |= THOR_STAR_HIDDEN;
++                if (accessor.isValidCoin100(scenario)) flags |= THOR_STAR_PURPLE;
++                if (GameDataConst::isGrandStar(pStage, scenario)) flags |= THOR_STAR_GRAND;
++                if ((flags & THOR_STAR_OWNED) && MR::isPowerStarGreen(pStage, scenario)) flags |= THOR_STAR_GREEN;
++                if (scenario == selected) flags |= THOR_STAR_SELECTED;
++            }
++            sState.starFlags[i] = flags;
++            // Names only for missions the player has earned or is playing (the game reveals no more).
++            const bool named = scenario <= stars && (flags & (THOR_STAR_OWNED | THOR_STAR_SELECTED)) != 0;
++            copyText(sState.starNames[i], THOR_LOWER_NAME, named ? MR::getScenarioNameOnCurrentLanguage(pStage, scenario) : nullptr);
++        }
++        sState.valid |= THOR_VALID_STARS;
++    }
++
++    // The Observatory ledger: open galaxies with stars, as the game's Power Star list builds it.
++    void sampleLedger(const char* pStage) {
++        s32 count = 0;
++        for (ScenarioDataIter iter = MR::makeBeginScenarioDataIter(); !iter.isEnd() && count < THOR_LOWER_GALAXIES; iter.goNext()) {
++            GalaxyStatusAccessor accessor = iter.makeAccessor();
++            if (accessor.getPowerStarNum() == 0 || !MR::isOnGameEventFlagGalaxyOpen(accessor.getName())) {
++                continue;
++            }
++            sState.galaxyOwned[count] = accessor.getPowerStarNumOwned();
++            sState.galaxyTotal[count] = accessor.getPowerStarNum();
++            sState.galaxyFlags[count] = (accessor.isCompleted() ? THOR_GALAXY_COMPLETED : 0) |
++                                        (strcmp(accessor.getName(), pStage) == 0 ? THOR_GALAXY_CURRENT : 0);
++            copyText(sState.galaxyNames[count], THOR_LOWER_SHORT, MR::getGalaxyNameShortOnCurrentLanguage(accessor.getName()));
++            count++;
++        }
++        for (s32 i = count; i < THOR_LOWER_GALAXIES; i++) {
++            sState.galaxyOwned[i] = sState.galaxyTotal[i] = sState.galaxyFlags[i] = 0;
++            sState.galaxyNames[i][0] = 0;
++        }
++        sState.galaxyCount = count;
++        sState.valid |= THOR_VALID_LEDGER;
++    }
++}  // namespace
++
++// The title is space itself (its logo is 2D, drawn after HUD_BEGIN), so GameScene::draw marks
++// the frames it draws for the lower screen's live space (PORT_GX_MARK_THOR_SPACE). The file
++// screens add 3D file planets and heads, which the lower screen does not mirror, and a galaxy's
++// sky is drawn among its planets: there nothing is marked and the last title picture stays.
++// Decided after this update, for the frame drawn from it, so the camera cut into the file screens
++// is never taken.
++bool thorLowerTitleLive() {
++    return sTitleLive;
++}
++
++void thorLowerPublish() {
++    const bool title = thorFileSelectorTakeTitle();
++    if (thorStorybookTake()) sStorybookHold = 10;
++    else if (sStorybookHold > 0) sStorybookHold--;
++    if (port_thor_lower_commit == nullptr) {
++        sTitleLive = false;
++        return;
++    }
++    sFrame++;
++    GameSystem* pSystem = SingletonHolder< GameSystem >::get();
++    GameSystemSceneController* pController = pSystem != nullptr ? pSystem->mSceneController : nullptr;
++    const s32 phase = pController != nullptr ? phaseOf(pController) : THOR_PHASE_NONE;
++    sTitleLive = title && phase == THOR_PHASE_FILE_SELECT;
++    const char* pStage = pController != nullptr ? pController->mCurrSceneControlInfo.mStage : "";
++    const s32 scenario = pController != nullptr ? pController->getCurrentScenarioNo() : 0;
++    const s32 selected = pController != nullptr ? pController->getCurrentSelectedScenarioNo() : 0;
++
++    // Anything that changes what the screen describes starts a new generation; the UI drops the old
++    // picture rather than showing a previous galaxy as live.
++    const bool newStage = strncmp(pStage, sLastStage, sizeof sLastStage) != 0;
++    if (newStage || scenario != sLastScenario || (phase == THOR_PHASE_LOADING) != (sLastPhase == THOR_PHASE_LOADING)) {
++        sGeneration++;
++        strncpy(sLastStage, pStage, sizeof sLastStage - 1);
++        sLastScenario = scenario;
++        sLedgerAge = 1 << 20;
++    }
++    sLastPhase = phase;
++
++
++    sState.version = THOR_LOWER_VERSION;
++    sState.phase = phase;
++    sState.generation = sGeneration;
++    sState.frame = sFrame;
++    sState.valid = 0;
++    sState.flags = 0;
++
++    const bool inGalaxy = phase == THOR_PHASE_MISSION_SELECT || phase == THOR_PHASE_PLAY || phase == THOR_PHASE_PAUSE ||
++                          phase == THOR_PHASE_STAR_GET || phase == THOR_PHASE_CUTSCENE || phase == THOR_PHASE_MISS ||
++                          phase == THOR_PHASE_MAP;
++    if (!inGalaxy || pStage[0] == 0) {
++        // Diagnostics only (never shown to the player): "scene/stage".
++        memset(sState.stage, 0, sizeof sState.stage);
++        if (pController != nullptr)
++            snprintf(sState.stage, sizeof sState.stage, "%.15s/%.15s", pController->mCurrSceneControlInfo.mScene, pStage);
++        port_thor_lower_commit(&sState);
++        return;
++    }
++
++    strncpy(sState.stage, pStage, sizeof sState.stage - 1);
++    sState.stage[sizeof sState.stage - 1] = 0;
++    copyText(sState.galaxyName, THOR_LOWER_NAME, MR::getGalaxyNameOnCurrentLanguage(pStage));
++    sState.valid |= THOR_VALID_STAGE;
++
++    const bool astro = MR::isStageAstroLocation();
++    if (astro) sState.flags |= THOR_FLAG_ASTRO;
++    if (MR::isPlayerLuigi()) sState.flags |= THOR_FLAG_LUIGI;
++    if (port_is_infinite_starbits()) sState.flags |= THOR_FLAG_INFINITE_BITS;
++    if (pController->isScenarioDecided()) sState.flags |= THOR_FLAG_SCENARIO_DECIDED;
++    if (sStorybookHold > 0) sState.flags |= THOR_FLAG_STORYBOOK;
++
++    // Where Mario is, for the lower screen's map.
++    if (MR::isExistMario()) {
++        const TVec3f* pPos = MR::getPlayerPos();
++        TVec3f up(0.0f, 1.0f, 0.0f);
++        MR::getPlayerUpVec(&up);
++        sState.marioPos[0] = pPos->x; sState.marioPos[1] = pPos->y; sState.marioPos[2] = pPos->z;
++        sState.marioUp[0] = up.x; sState.marioUp[1] = up.y; sState.marioUp[2] = up.z;
++        sState.valid |= THOR_VALID_MARIO;
++    }
++
++    const s32 mission = selected > 0 ? selected : scenario;
++    sState.scenarioNo = scenario;
++    sState.selectedScenarioNo = selected;
++    if (!astro && mission > 0) {
++        copyText(sState.scenarioName, THOR_LOWER_NAME, MR::getScenarioNameOnCurrentLanguage(pStage, mission));
++        sState.valid |= THOR_VALID_SCENARIO;
++    } else {
++        sState.scenarioName[0] = 0;
++    }
++
++    // Counters exist only while the stage's own result holder does (not on the mission select).
++    const bool counters = phase != THOR_PHASE_MISSION_SELECT && MR::isExistSceneObj(SceneObj_ScenePlayingResult);
++    if (counters) {
++        sState.totalStars = MR::getPowerStarNum();
++        sState.starBitsRun = MR::getStarPieceNum();
++        sState.starBitsBanked = MR::getStockedStarPieceNum();
++        sState.coins = MR::getCoinNum();
++        sState.lives = MR::getPlayerLeft();
++        sState.purpleCoins = MR::getPurpleCoinNum();
++        sState.valid |= THOR_VALID_COUNTERS;
++    } else {
++        sState.totalStars = MR::getPowerStarNum();
++        sState.starBitsBanked = MR::getStockedStarPieceNum();
++        sState.lives = MR::getPlayerLeft();
++    }
++
++    // Stars and the ledger change rarely: re-read on a new generation, a new star, or twice a second.
++    if (sState.totalStars != sLastTotalStars) {
++        sLastTotalStars = sState.totalStars;
++        sLedgerAge = 1 << 20;
++    }
++    if (++sLedgerAge >= 30) {
++        sLedgerAge = 0;
++        if (astro) {
++            sampleLedger(pStage);
++            sState.galaxyStars = sState.galaxyStarsOwned = 0;
++        } else {
++            sampleGalaxy(pStage, mission);
++            sState.galaxyCount = 0;
++        }
++    } else {
++        // Unchanged since the last read: keep the earlier result's validity.
++        if (sState.galaxyStars > 0 && !astro) sState.valid |= THOR_VALID_STARS;
++        if (sState.galaxyCount > 0 && astro) sState.valid |= THOR_VALID_LEDGER;
++    }
++    if (!astro && sState.galaxyStars > 0 && mission > 0 && mission <= sState.galaxyStars &&
++        (sState.starFlags[mission - 1] & THOR_STAR_PURPLE) && counters) {
++        sState.valid |= THOR_VALID_PURPLE;
++    }
++    port_thor_lower_commit(&sState);
++}
++
++#endif  // TARGET_MOBILE
+diff --git a/decomp/src/Game/System/ThorWorldState.cpp b/decomp/src/Game/System/ThorWorldState.cpp
+new file mode 100644
+index 0000000..c2b7af8
+--- /dev/null
++++ b/decomp/src/Game/System/ThorWorldState.cpp
+@@ -0,0 +1,183 @@
++// AYN Thor lower screen: the live state of the stage's placed world pieces (port/thor_world.h).
++//
++// Every object the placement files create (PlacementInfoOrdered::initPlacement) is noted with its
++// zone and l_id when it is a LiveActor; once a frame, after the scene's update and calcAnim
++// (GameSystem::frameLoop), each noted actor's state is copied out: whether it is alive, whether
++// its model is hidden, and its model's base matrix and scale. The lower screen draws its baked
++// copy of each piece from that, so pieces appear, move and vanish as the game's do.
++//
++// Read-only: only the actors' own fields and getBaseMtx are read; nothing is changed. The scene is
++// destroyed on another thread (GameSystemSceneController::destroyScene, run asynchronously), so
++// the table is cleared under a lock before the scene is deleted and every read holds that lock.
++// No heap allocation: static buffers only.
++#ifdef TARGET_MOBILE
++
++#include "Game/LiveActor/AllLiveActorGroup.hpp"
++#include "Game/LiveActor/LiveActor.hpp"
++#include "Game/MapObj/PlantGroup.hpp"
++#include "Game/Util/JMapUtil.hpp"
++#include "Game/Util/SceneUtil.hpp"
++#include "Game/Util/StringUtil.hpp"
++#include "port/thor_world.h"
++
++#include <string.h>
++
++extern "C" __attribute__((weak)) void port_thor_world_commit(const ThorWorldHeader* pHeader, const ThorWorldPiece* pPieces,
++                                                             uint32_t count);
++
++namespace {
++    struct Entry {
++        LiveActor* mActor;
++        s16 mZone;
++        s16 mChild;
++        s32 mLinkId;
++    };
++
++    Entry sEntries[THOR_WORLD_PIECES];
++    s32 sCount;
++    s32 sZoneIds[THOR_WORLD_ZONES];
++    ThorWorldHeader sHeader;
++    ThorWorldPiece sPieces[THOR_WORLD_PIECES];
++    u32 sGeneration;
++    bool sChanged;
++    int sLock;
++
++    // Held for microseconds by the game thread and the scene loader / destroyer threads.
++    struct Guard {
++        Guard() {
++            while (__atomic_exchange_n(&sLock, 1, __ATOMIC_ACQUIRE) != 0) {
++            }
++        }
++        ~Guard() { __atomic_store_n(&sLock, 0, __ATOMIC_RELEASE); }
++    };
++
++    // Whether [pObj] is a LiveActor: every LiveActor joins the scene's all-actor group as it is
++    // built, so a just-created object sits near the group's end (after its own sub-actors).
++    LiveActor* asLiveActor(NameObj* pObj) {
++        AllLiveActorGroup* pGroup = MR::getAllLiveActorGroup();
++        if (pGroup == nullptr) {
++            return nullptr;
++        }
++        const s32 n = pGroup->getObjNum();
++        for (s32 i = n - 1; i >= 0 && i >= n - 1024; i--) {
++            if (pGroup->getObj(i) == pObj) {
++                return static_cast< LiveActor* >(pObj);
++            }
++        }
++        return nullptr;
++    }
++
++    s32 zoneSlot(s32 zoneId) {
++        for (u32 i = 0; i < sHeader.zoneCount; i++) {
++            if (sZoneIds[i] == zoneId) {
++                return static_cast< s32 >(i);
++            }
++        }
++        if (sHeader.zoneCount >= THOR_WORLD_ZONES) {
++            return -1;
++        }
++        const s32 slot = static_cast< s32 >(sHeader.zoneCount++);
++        sZoneIds[slot] = zoneId;
++        const char* pName = MR::getZoneNameFromZoneId(zoneId);
++        memset(sHeader.zones[slot], 0, THOR_WORLD_ZONE_NAME);
++        if (pName != nullptr) {
++            strncpy(sHeader.zones[slot], pName, THOR_WORLD_ZONE_NAME - 1);
++        }
++        return slot;
++    }
++}  // namespace
++
++// PlacementInfoOrdered::initPlacement, after each placed object's init.
++void thorWorldRegister(NameObj* pObj, const JMapInfoIter& rIter) {
++    if (port_thor_world_commit == nullptr || pObj == nullptr) {
++        return;
++    }
++    LiveActor* pActor = asLiveActor(pObj);
++    s32 linkId = -1;
++    if (pActor == nullptr || !MR::getJMapInfoLinkID(rIter, &linkId)) {
++        return;
++    }
++    const s32 zoneId = MR::getPlacedZoneId(rIter);
++    Guard guard;
++    if (sCount >= THOR_WORLD_PIECES) {
++        return;
++    }
++    const s32 slot = zoneSlot(zoneId);
++    if (slot < 0) {
++        return;
++    }
++    Entry& rEntry = sEntries[sCount++];
++    rEntry.mActor = pActor;
++    rEntry.mZone = static_cast< s16 >(slot);
++    rEntry.mChild = 0;
++    rEntry.mLinkId = linkId;
++    // A plant group lays its flowers or bushes out itself (on the ground around it, at init): its
++    // members are drawn from their own live matrices, as the group's children.
++    const char* pName = nullptr;
++    MR::getObjectName(&pName, rIter);
++    if (pName != nullptr && (MR::isEqualString(pName, "FlowerGroup") || MR::isEqualString(pName, "FlowerBlueGroup") ||
++                             MR::isEqualString(pName, "CutBushGroup"))) {
++        PlantGroup* pGroup = static_cast< PlantGroup* >(pActor);
++        for (s32 i = 0; i < pGroup->mMemberCount && sCount < THOR_WORLD_PIECES; i++) {
++            if (pGroup->mMembers == nullptr || pGroup->mMembers[i] == nullptr) {
++                continue;
++            }
++            Entry& rMember = sEntries[sCount++];
++            rMember.mActor = pGroup->mMembers[i];
++            rMember.mZone = static_cast< s16 >(slot);
++            rMember.mChild = static_cast< s16 >(i + 1);
++            rMember.mLinkId = linkId;
++        }
++    }
++    sChanged = true;
++}
++
++// GameSystemSceneController::destroyScene, before the scene is deleted.
++void thorWorldClear() {
++    Guard guard;
++    sCount = 0;
++    sHeader.zoneCount = 0;
++    sChanged = true;
++}
++
++// GameSystem::frameLoop, after thorLowerPublish.
++void thorWorldPublish() {
++    if (port_thor_world_commit == nullptr) {
++        return;
++    }
++    Guard guard;
++    if (sChanged) {
++        sGeneration++;
++        sChanged = false;
++    }
++    for (s32 i = 0; i < sCount; i++) {
++        const LiveActor* pActor = sEntries[i].mActor;
++        ThorWorldPiece& rPiece = sPieces[i];
++        rPiece.zone = sEntries[i].mZone;
++        rPiece.linkId = sEntries[i].mLinkId;
++        rPiece.child = sEntries[i].mChild;
++        rPiece.reserved = 0;
++        u16 flags = 0;
++        if (!pActor->mFlag.mIsDead) flags |= THOR_PIECE_ALIVE;
++        if (pActor->mFlag.mIsHiddenModel) flags |= THOR_PIECE_HIDDEN;
++        if (pActor->mFlag.mIsClipped) flags |= THOR_PIECE_CLIPPED;
++        MtxPtr pMtx = pActor->mModelManager != nullptr ? pActor->getBaseMtx() : nullptr;
++        if (pMtx != nullptr) {
++            flags |= THOR_PIECE_MATRIX;
++            memcpy(rPiece.mtx, pMtx, sizeof rPiece.mtx);
++        } else {
++            // No model matrix: position and rotation (degrees), as the placement gives them.
++            memset(rPiece.mtx, 0, sizeof rPiece.mtx);
++            rPiece.mtx[0] = pActor->mRotation.x; rPiece.mtx[1] = pActor->mRotation.y; rPiece.mtx[2] = pActor->mRotation.z;
++            rPiece.mtx[3] = pActor->mPosition.x; rPiece.mtx[7] = pActor->mPosition.y; rPiece.mtx[11] = pActor->mPosition.z;
++        }
++        rPiece.scale[0] = pActor->mScale.x; rPiece.scale[1] = pActor->mScale.y; rPiece.scale[2] = pActor->mScale.z;
++        rPiece.flags = flags;
++    }
++    sHeader.version = THOR_WORLD_VERSION;
++    sHeader.generation = sGeneration;
++    sHeader.count = static_cast< u32 >(sCount);
++    port_thor_world_commit(&sHeader, sPieces, static_cast< u32 >(sCount));
++}
++
++#endif  // TARGET_MOBILE
+diff --git a/platform/include/port/thor_lower.h b/platform/include/port/thor_lower.h
+new file mode 100644
+index 0000000..6a3f3ac
+--- /dev/null
++++ b/platform/include/port/thor_lower.h
+@@ -0,0 +1,135 @@
++// AYN Thor lower screen: one read-only snapshot of Super Mario Galaxy's state.
++//
++// Sampled on the game thread after each frame's update (decomp/src/Game/System/ThorLowerState.cpp,
++// called from GameSystem::frameLoop), published under a seqlock by the platform
++// (platform/mobile/thor/ThorLowerBridge.cpp) and copied by the Java lower screen as raw bytes
++// (GalaxyActivity.nativeLowerState, little-endian, this exact layout). No game pointers leave the
++// game thread; strings are copied. Nothing here writes game state.
++#pragma once
++
++#include <stdint.h>
++
++#ifdef __cplusplus
++extern "C" {
++#endif
++
++enum {
++    THOR_LOWER_VERSION = 2,
++    THOR_LOWER_STARS = 24,      // Power Stars per galaxy (Galaxy 1's largest has 7; bounded)
++    THOR_LOWER_GALAXIES = 48,   // open galaxies in the Observatory ledger (Galaxy 1 has 42)
++    THOR_LOWER_NAME = 48,       // UTF-16 code units, NUL-terminated
++    THOR_LOWER_SHORT = 32,
++};
++
++// What the game is doing, from the scene controller and GameScene's own steps.
++enum ThorLowerPhase {
++    THOR_PHASE_NONE = 0,           // no scene yet / unknown
++    THOR_PHASE_LOGO = 1,           // LogoScene (boot logos)
++    THOR_PHASE_FILE_SELECT = 2,    // the FileSelect stage (title and file select)
++    THOR_PHASE_LOADING = 3,        // scene change under way, or the stage still initializing
++    THOR_PHASE_MISSION_SELECT = 4, // ScenarioSelectScene choosing a mission
++    THOR_PHASE_PLAY = 5,           // GameScene action
++    THOR_PHASE_PAUSE = 6,          // GameScene pause menu
++    THOR_PHASE_STAR_GET = 7,       // Power Star / Grand Star get
++    THOR_PHASE_CUTSCENE = 8,       // opening camera, scenario starter, event demo, movie
++    THOR_PHASE_MISS = 9,           // game over, retry after a miss, save after game over, time up
++    THOR_PHASE_MAP = 10,           // the galaxy map
++    THOR_PHASE_CREDITS = 11,       // staff roll
++    THOR_PHASE_INTERMISSION = 12,  // IntermissionScene / PlayTimerScene
++};
++
++// Per-field validity (ThorLowerState.valid).
++enum {
++    THOR_VALID_STAGE = 1 << 0,     // stage, galaxyName
++    THOR_VALID_SCENARIO = 1 << 1,  // scenarioNo, selectedScenarioNo, scenarioName
++    THOR_VALID_STARS = 1 << 2,     // galaxyStars, galaxyStarsOwned, starFlags, starNames
++    THOR_VALID_COUNTERS = 1 << 3,  // totalStars, starBitsRun, starBitsBanked, coins, lives
++    THOR_VALID_LEDGER = 1 << 4,    // galaxyCount, galaxy* arrays (Observatory)
++    THOR_VALID_PURPLE = 1 << 5,    // purpleCoins (a 100-purple-coin mission)
++    THOR_VALID_MARIO = 1 << 6,     // marioPos, marioUp (the player is in the scene)
++};
++
++// ThorLowerState.flags
++enum {
++    THOR_FLAG_ASTRO = 1 << 0,          // MR::isStageAstroLocation (Observatory, dome, library)
++    THOR_FLAG_LUIGI = 1 << 1,          // MR::isPlayerLuigi
++    THOR_FLAG_INFINITE_BITS = 1 << 2,  // port setting: Star Bits read 999
++    THOR_FLAG_SCENARIO_DECIDED = 1 << 3,
++    THOR_FLAG_STORYBOOK = 1 << 4,      // the prologue's picture book is open (the lower screen stays black)
++};
++
++// starFlags[i] (scenario i + 1)
++enum {
++    THOR_STAR_OWNED = 1 << 0,     // GalaxyStatusAccessor::hasPowerStar
++    THOR_STAR_COMET = 1 << 1,     // isValidNormalComet (Prankster Comet mission)
++    THOR_STAR_HIDDEN = 1 << 2,    // isHiddenStar
++    THOR_STAR_GREEN = 1 << 3,     // MR::isPowerStarGreen
++    THOR_STAR_PURPLE = 1 << 4,    // isValidCoin100 (100 purple coins)
++    THOR_STAR_GRAND = 1 << 5,     // GameDataConst::isGrandStar
++    THOR_STAR_SELECTED = 1 << 6,  // the mission being played / chosen
++};
++
++// galaxyFlags[i]
++enum {
++    THOR_GALAXY_COMPLETED = 1 << 0,  // isCompleted
++    THOR_GALAXY_CURRENT = 1 << 1,
++};
++
++typedef struct ThorLowerState {
++    int32_t version;               // THOR_LOWER_VERSION
++    int32_t phase;                 // ThorLowerPhase
++    int32_t valid;                 // THOR_VALID_*
++    int32_t flags;                 // THOR_FLAG_*
++    int32_t generation;            // changes with the stage/scenario (and on every scene change)
++    int32_t frame;                 // game frames since boot, as sampled
++    int32_t scenarioNo;            // MR::getCurrentScenarioNo (1-based; 0 none)
++    int32_t selectedScenarioNo;    // MR::getCurrentSelectedScenarioNo
++    int32_t galaxyStars;           // GalaxyStatusAccessor::getPowerStarNum
++    int32_t galaxyStarsOwned;      // getPowerStarNumOwned
++    int32_t totalStars;            // MR::getPowerStarNum (the save's Power Stars)
++    int32_t starBitsRun;           // MR::getStarPieceNum (this run; in the Observatory the bank)
++    int32_t starBitsBanked;        // MR::getStockedStarPieceNum
++    int32_t coins;                 // MR::getCoinNum
++    int32_t purpleCoins;           // MR::getPurpleCoinNum
++    int32_t lives;                 // MR::getPlayerLeft
++    int32_t galaxyCount;           // entries in the Observatory ledger
++    int32_t starFlags[THOR_LOWER_STARS];
++    int32_t galaxyOwned[THOR_LOWER_GALAXIES];
++    int32_t galaxyTotal[THOR_LOWER_GALAXIES];
++    int32_t galaxyFlags[THOR_LOWER_GALAXIES];
++    char stage[32];                // internal stage name: diagnostics only
++    uint16_t galaxyName[THOR_LOWER_NAME];    // MR::getGalaxyNameOnCurrentLanguage
++    uint16_t scenarioName[THOR_LOWER_NAME];  // the selected mission's name
++    uint16_t starNames[THOR_LOWER_STARS][THOR_LOWER_NAME];  // only owned or selected missions
++    uint16_t galaxyNames[THOR_LOWER_GALAXIES][THOR_LOWER_SHORT];  // short names
++    float marioPos[3];             // MR::getPlayerPos, world units (version 2: the lower screen's map)
++    float marioUp[3];              // MR::getPlayerUpVec
++} ThorLowerState;
++
++// Byte offsets the Java reader uses (GalaxyLowerScreen.java); checked at compile time.
++#define THOR_LOWER_OFF_STAR_FLAGS 68
++#define THOR_LOWER_OFF_GALAXY_OWNED (THOR_LOWER_OFF_STAR_FLAGS + 4 * THOR_LOWER_STARS)
++#define THOR_LOWER_OFF_GALAXY_TOTAL (THOR_LOWER_OFF_GALAXY_OWNED + 4 * THOR_LOWER_GALAXIES)
++#define THOR_LOWER_OFF_GALAXY_FLAGS (THOR_LOWER_OFF_GALAXY_TOTAL + 4 * THOR_LOWER_GALAXIES)
++#define THOR_LOWER_OFF_STAGE (THOR_LOWER_OFF_GALAXY_FLAGS + 4 * THOR_LOWER_GALAXIES)
++#define THOR_LOWER_OFF_GALAXY_NAME (THOR_LOWER_OFF_STAGE + 32)
++#define THOR_LOWER_OFF_SCENARIO_NAME (THOR_LOWER_OFF_GALAXY_NAME + 2 * THOR_LOWER_NAME)
++#define THOR_LOWER_OFF_STAR_NAMES (THOR_LOWER_OFF_SCENARIO_NAME + 2 * THOR_LOWER_NAME)
++#define THOR_LOWER_OFF_GALAXY_NAMES (THOR_LOWER_OFF_STAR_NAMES + 2 * THOR_LOWER_STARS * THOR_LOWER_NAME)
++#define THOR_LOWER_OFF_MARIO (THOR_LOWER_OFF_GALAXY_NAMES + 2 * THOR_LOWER_GALAXIES * THOR_LOWER_SHORT)
++#define THOR_LOWER_SIZE (THOR_LOWER_OFF_MARIO + 24)
++
++// Published by the game thread (platform side; absent on non-Thor builds).
++void port_thor_lower_commit(const ThorLowerState* state);
++// Whether the lower screen is up and polling (platform/src/gx/vk/vk_thor_capture.cpp). While it is,
++// coins and Star Bits are shown there, and the upper HUD leaves them out (Sunshine's split).
++int port_thor_lower_visible(void);
++
++#ifdef __cplusplus
++}
++static_assert(sizeof(ThorLowerState) == THOR_LOWER_SIZE, "ThorLowerState layout");
++static_assert(__builtin_offsetof(ThorLowerState, starFlags) == THOR_LOWER_OFF_STAR_FLAGS, "starFlags offset");
++static_assert(__builtin_offsetof(ThorLowerState, stage) == THOR_LOWER_OFF_STAGE, "stage offset");
++static_assert(__builtin_offsetof(ThorLowerState, galaxyNames) == THOR_LOWER_OFF_GALAXY_NAMES, "galaxyNames offset");
++static_assert(__builtin_offsetof(ThorLowerState, marioPos) == THOR_LOWER_OFF_MARIO, "marioPos offset");
++#endif
+diff --git a/platform/include/port/thor_world.h b/platform/include/port/thor_world.h
+new file mode 100644
+index 0000000..f57bdd3
+--- /dev/null
++++ b/platform/include/port/thor_world.h
+@@ -0,0 +1,53 @@
++#pragma once
++// AYN Thor lower screen: the live state of the stage's placed world pieces (planets, map parts,
++// scenery), so the lower screen's 3D diorama shows what the game shows: a piece that a cutscene
++// or switch makes appear appears there too, moving and rotating parts move, broken parts go.
++//
++// Written by the game thread once a frame (decomp/src/Game/System/ThorWorldState.cpp) and read by
++// the helper app through GalaxyActivity.nativeWorldState (platform/mobile/thor/ThorLowerBridge.cpp).
++// Pieces are keyed as the placement files key them: the zone's name and the object's l_id, which
++// is what Bake-LowerPlanets.py records for each baked piece; the members a group object lays out
++// itself (a flower group's flowers) follow it with child 1, 2, ... Little-endian, packed as declared.
++#include <stdint.h>
++
++#define THOR_WORLD_VERSION 1
++#define THOR_WORLD_PIECES 4096
++#define THOR_WORLD_ZONES 64
++#define THOR_WORLD_ZONE_NAME 48
++
++enum {
++    THOR_PIECE_ALIVE = 1,    // the actor exists in the scene now (not dead)
++    THOR_PIECE_HIDDEN = 2,   // alive, but its model is hidden
++    THOR_PIECE_MATRIX = 4,   // mtx holds its model's base matrix (else its position and rotation)
++    THOR_PIECE_CLIPPED = 8,  // outside the upper camera's view (still drawn on the lower screen)
++};
++
++typedef struct ThorWorldPiece {
++    int16_t zone;        // index into ThorWorldHeader.zones
++    uint16_t flags;      // THOR_PIECE_*
++    int32_t linkId;      // the placement's l_id
++    int16_t child;       // 0: the placed object itself; k: its k-th member
++    int16_t reserved;
++    float mtx[12];       // world matrix, row-major 3x4, without scale
++    float scale[3];
++} ThorWorldPiece;        // 72 bytes
++
++typedef struct ThorWorldHeader {
++    uint32_t version;
++    uint32_t generation;  // changes whenever the set of pieces does (a new scene)
++    uint32_t count;       // pieces that follow the header
++    uint32_t zoneCount;
++    char zones[THOR_WORLD_ZONES][THOR_WORLD_ZONE_NAME];
++} ThorWorldHeader;        // 16 + 3072 bytes
++
++#define THOR_WORLD_SIZE (sizeof(ThorWorldHeader) + THOR_WORLD_PIECES * sizeof(ThorWorldPiece))
++
++#ifdef __cplusplus
++extern "C" {
++#endif
++// Copies the latest published world state into [out] (at most [size] bytes); returns its
++// sequence number (0 when there is none yet) and leaves [out] untouched when it is unchanged.
++uint32_t port_thor_world_copy(uint8_t* out, int size, uint32_t have);
++#ifdef __cplusplus
++}
++#endif
+diff --git a/platform/mobile/thor/ThorLowerBridge.cpp b/platform/mobile/thor/ThorLowerBridge.cpp
+new file mode 100644
+index 0000000..a3c9991
+--- /dev/null
++++ b/platform/mobile/thor/ThorLowerBridge.cpp
+@@ -0,0 +1,163 @@
++// AYN Thor lower screen: the platform half of the Galaxy state bridge.
++//
++// The game thread commits one ThorLowerState per frame (decomp/src/Game/System/ThorLowerState.cpp)
++// into a seqlocked static buffer; the Java lower screen copies it out through
++// GalaxyActivity.nativeLowerState, registered here with RegisterNatives because libgame.so is
++// loaded RTLD_LOCAL into its reserved window (platform/android/launcher.c), where the VM's own
++// JNI symbol lookup cannot see it. No heap allocation, no game pointers cross to Java.
++#include "ThorLowerBridge.h"
++
++#include <android/log.h>
++#include <string.h>
++
++#include "port/thor_lower.h"
++#include "port/thor_world.h"
++
++#define LOGI(...) __android_log_print(ANDROID_LOG_INFO, "GalaxyThorLower", __VA_ARGS__)
++#define LOGW(...) __android_log_print(ANDROID_LOG_WARN, "GalaxyThorLower", __VA_ARGS__)
++
++// The live space picture and the upper screen's bright level (platform/src/gx/vk/vk_thor_capture.cpp).
++extern "C" uint32_t port_thor_space_copy(uint8_t* out, int size, uint32_t have, int* mode);
++extern "C" int port_thor_top_level(void);
++
++namespace {
++    ThorLowerState sPublished;
++
++    // 620x540 RGBA, rows top first; returns its sequence (0 when nothing newer than `have`),
++    // with its kind in mode[0] (1, the title: the only picture taken). mode[1], every call: the
++    // upper screen's bright level (0..255, -1 before the first measurement).
++    jint JNICALL nativeSpace(JNIEnv* env, jclass, jobject buffer, jint have, jintArray mode) {
++        if (buffer == nullptr) return 0;
++        void* out = env->GetDirectBufferAddress(buffer);
++        if (out == nullptr) return 0;
++        int captured = 0;
++        const uint32_t seq = port_thor_space_copy(static_cast<uint8_t*>(out), (int)env->GetDirectBufferCapacity(buffer),
++                                                  static_cast<uint32_t>(have), &captured);
++        if (seq != 0 && mode != nullptr && env->GetArrayLength(mode) >= 1) {
++            jint m = captured;
++            env->SetIntArrayRegion(mode, 0, 1, &m);
++        }
++        if (mode != nullptr && env->GetArrayLength(mode) >= 2) {
++            jint level = port_thor_top_level();
++            env->SetIntArrayRegion(mode, 1, 1, &level);
++        }
++        return static_cast<jint>(seq);
++    }
++    uint32_t sSeq;  // odd while the game thread writes
++
++    jint JNICALL nativeLowerState(JNIEnv* env, jclass, jobject buffer) {
++        if (buffer == nullptr) return 0;
++        void* out = env->GetDirectBufferAddress(buffer);
++        if (out == nullptr || env->GetDirectBufferCapacity(buffer) < (jlong)sizeof(ThorLowerState)) return 0;
++        for (int tries = 0; tries < 8; tries++) {
++            const uint32_t before = __atomic_load_n(&sSeq, __ATOMIC_ACQUIRE);
++            if (before == 0 || (before & 1)) continue;
++            memcpy(out, &sPublished, sizeof(ThorLowerState));
++            __atomic_thread_fence(__ATOMIC_ACQUIRE);
++            if (__atomic_load_n(&sSeq, __ATOMIC_ACQUIRE) == before) return (jint)(before >> 1);
++        }
++        return 0;
++    }
++}  // namespace
++
++// The stage's live world pieces (decomp/src/Game/System/ThorWorldState.cpp), seqlocked as above.
++namespace {
++    alignas(8) uint8_t sWorld[THOR_WORLD_SIZE];
++    uint32_t sWorldBytes;
++    uint32_t sWorldSeq;  // odd while the game thread writes
++}  // namespace
++
++extern "C" void port_thor_world_commit(const ThorWorldHeader* header, const ThorWorldPiece* pieces, uint32_t count) {
++    if (header == nullptr) return;
++    if (count > THOR_WORLD_PIECES) count = THOR_WORLD_PIECES;
++    const uint32_t seq = __atomic_load_n(&sWorldSeq, __ATOMIC_RELAXED);
++    __atomic_store_n(&sWorldSeq, seq + 1, __ATOMIC_RELEASE);
++    __atomic_thread_fence(__ATOMIC_RELEASE);
++    memcpy(sWorld, header, sizeof(ThorWorldHeader));
++    reinterpret_cast<ThorWorldHeader*>(sWorld)->count = count;
++    if (count > 0) memcpy(sWorld + sizeof(ThorWorldHeader), pieces, count * sizeof(ThorWorldPiece));
++    sWorldBytes = static_cast<uint32_t>(sizeof(ThorWorldHeader) + count * sizeof(ThorWorldPiece));
++    __atomic_thread_fence(__ATOMIC_RELEASE);
++    __atomic_store_n(&sWorldSeq, seq + 2, __ATOMIC_RELEASE);
++}
++
++extern "C" uint32_t port_thor_world_copy(uint8_t* out, int size, uint32_t have) {
++    if (out == nullptr || size < (int)sizeof(ThorWorldHeader)) return 0;
++    for (int tries = 0; tries < 8; tries++) {
++        const uint32_t before = __atomic_load_n(&sWorldSeq, __ATOMIC_ACQUIRE);
++        if (before == 0) return 0;
++        if (before & 1) continue;
++        if ((before >> 1) == have) return 0;  // nothing newer
++        uint32_t bytes = sWorldBytes;
++        if (bytes > (uint32_t)size)
++            bytes = (uint32_t)(sizeof(ThorWorldHeader) + (size - sizeof(ThorWorldHeader)) / sizeof(ThorWorldPiece) * sizeof(ThorWorldPiece));
++        memcpy(out, sWorld, bytes);
++        __atomic_thread_fence(__ATOMIC_ACQUIRE);
++        if (__atomic_load_n(&sWorldSeq, __ATOMIC_ACQUIRE) == before) {
++            ThorWorldHeader* h = reinterpret_cast<ThorWorldHeader*>(out);
++            const uint32_t fits = (bytes - sizeof(ThorWorldHeader)) / sizeof(ThorWorldPiece);
++            if (h->count > fits) h->count = fits;
++            return before >> 1;
++        }
++    }
++    return 0;
++}
++
++namespace {
++    // The world state into a direct buffer; its sequence, or 0 when nothing is newer than `have`.
++    jint JNICALL nativeWorldState(JNIEnv* env, jclass, jobject buffer, jint have) {
++        if (buffer == nullptr) return 0;
++        void* out = env->GetDirectBufferAddress(buffer);
++        if (out == nullptr) return 0;
++        return static_cast<jint>(port_thor_world_copy(static_cast<uint8_t*>(out), (int)env->GetDirectBufferCapacity(buffer),
++                                                      static_cast<uint32_t>(have)));
++    }
++}  // namespace
++
++extern "C" void port_thor_lower_commit(const ThorLowerState* state) {
++    if (state == nullptr) return;
++    const uint32_t seq = __atomic_load_n(&sSeq, __ATOMIC_RELAXED);
++    __atomic_store_n(&sSeq, seq + 1, __ATOMIC_RELEASE);
++    __atomic_thread_fence(__ATOMIC_RELEASE);
++    memcpy(&sPublished, state, sizeof(ThorLowerState));
++    __atomic_thread_fence(__ATOMIC_RELEASE);
++    __atomic_store_n(&sSeq, seq + 2, __ATOMIC_RELEASE);
++}
++
++namespace mobile_thor {
++
++void registerLowerBridge(ANativeActivity* activity) {
++    if (activity == nullptr || activity->vm == nullptr || activity->clazz == nullptr) return;
++    JNIEnv* env = nullptr;
++    bool attached = false;
++    jint got = activity->vm->GetEnv((void**)&env, JNI_VERSION_1_6);
++    if (got == JNI_EDETACHED) {
++        if (activity->vm->AttachCurrentThread(&env, nullptr) != JNI_OK || env == nullptr) return;
++        attached = true;
++    } else if (got != JNI_OK || env == nullptr) {
++        return;
++    }
++    jclass clazz = env->GetObjectClass(activity->clazz);
++    if (clazz != nullptr) {
++        static const JNINativeMethod methods[] = {
++            {"nativeLowerState", "(Ljava/nio/ByteBuffer;)I", (void*)nativeLowerState},
++            {"nativeSpace", "(Ljava/nio/ByteBuffer;I[I)I", (void*)nativeSpace},
++            {"nativeWorldState", "(Ljava/nio/ByteBuffer;I)I", (void*)nativeWorldState},
++        };
++        // One at a time: an older helper without a declaration loses only that method.
++        for (const JNINativeMethod& method : methods) {
++            if (env->RegisterNatives(clazz, &method, 1) == JNI_OK) {
++                LOGI("lower screen bridge: %s registered (state %zu bytes, version %d)", method.name, sizeof(ThorLowerState),
++                     THOR_LOWER_VERSION);
++            } else {
++                if (env->ExceptionCheck()) env->ExceptionClear();
++                LOGW("lower screen bridge: %s not registered", method.name);
++            }
++        }
++        env->DeleteLocalRef(clazz);
++    }
++    if (env->ExceptionCheck()) env->ExceptionClear();
++    if (attached) activity->vm->DetachCurrentThread();
++}
++
++}  // namespace mobile_thor
+diff --git a/platform/mobile/thor/ThorLowerBridge.h b/platform/mobile/thor/ThorLowerBridge.h
+new file mode 100644
+index 0000000..9b554dd
+--- /dev/null
++++ b/platform/mobile/thor/ThorLowerBridge.h
+@@ -0,0 +1,12 @@
++#pragma once
++
++#include <android/native_activity.h>
++#include <jni.h>
++
++namespace mobile_thor {
++
++// Registers GalaxyActivity.nativeLowerState (the Thor lower screen's state copy) on the activity's
++// class. Call once from the native activity thread before the game boots.
++void registerLowerBridge(ANativeActivity* activity);
++
++}  // namespace mobile_thor
+diff --git a/platform/mobile/thor/ThorSettingsBridge.cpp b/platform/mobile/thor/ThorSettingsBridge.cpp
+new file mode 100644
+index 0000000..0563062
+--- /dev/null
++++ b/platform/mobile/thor/ThorSettingsBridge.cpp
+@@ -0,0 +1,211 @@
++#include "ThorSettingsBridge.h"
++
++#include <android/log.h>
++#include <algorithm>
++#include <atomic>
++#include <mutex>
++#include <vector>
++
++#include "../input/GamepadInput.h"
++#include "../ui/UIOverlay.h"
++#include "../ui/SettingsMenuActions.h"
++#include "port/port.h"
++
++#define LOGI(...) __android_log_print(ANDROID_LOG_INFO, "GalaxyThorMenu", __VA_ARGS__)
++#define LOGW(...) __android_log_print(ANDROID_LOG_WARN, "GalaxyThorMenu", __VA_ARGS__)
++
++namespace mobile_thor {
++
++namespace {
++    std::mutex sQueueMutex;
++    std::vector<ThorMenuRequest> sQueue;
++    std::atomic<bool> sOpen{false};
++
++    void push(ThorMenuRequest request) {
++        std::lock_guard<std::mutex> lock(sQueueMutex);
++        if (sQueue.size() < 64) sQueue.push_back(request);
++    }
++
++    void JNICALL nativeMenuState(JNIEnv*, jclass, jboolean open) {
++        push({open ? THOR_MENU_OPEN : THOR_MENU_CLOSE, 0, 0});
++    }
++
++    void JNICALL nativeMenuSet(JNIEnv*, jclass, jint key, jint value) {
++        push({THOR_MENU_SET, key, value});
++    }
++
++    // The current value of every ThorSetting, in order. Read from the UI thread: the fields are plain
++    // ints and bools written only on the native thread while the game is frozen.
++    void JNICALL nativeMenuValues(JNIEnv* env, jclass, jintArray out) {
++        if (out == nullptr || env->GetArrayLength(out) < THOR_SET_COUNT) return;
++        const mobile_ui::Settings& s = mobile_ui::UIOverlay::get().settings();
++        jint v[THOR_SET_COUNT];
++        v[THOR_SET_RESOLUTION] = s.renderScale;
++        v[THOR_SET_FRAME_RATE] = s.batterySaver || s.targetFps <= 30 ? 30 : 60;
++        v[THOR_SET_SMOOTHING] = port_is_post_processing_enabled() ? 1 : 0;
++        v[THOR_SET_SHOW_FPS] = s.perfHudMode;
++        v[THOR_SET_RIGHT_STICK] = s.rightStickMode;
++        v[THOR_SET_POINTER_SPEED] = (jint)(s.starStickSensitivity * 100.0f + 0.5f);
++        v[THOR_SET_STICK_RESPONSE] = (jint)(s.stickSensitivity * 100.0f + 0.5f);
++        v[THOR_SET_INVERT_CAMERA] = s.cameraInverted ? 1 : 0;
++        v[THOR_SET_LANGUAGE] = s.languageChoice;
++        v[THOR_SET_SKIP_MOVIES] = s.modSkipCutscenes ? 1 : 0;
++        v[THOR_SET_INFINITE_LIVES] = s.modInfiniteLives ? 1 : 0;
++        v[THOR_SET_INFINITE_HEALTH] = s.modInfiniteHealth ? 1 : 0;
++        v[THOR_SET_INFINITE_STAR_BITS] = s.modInfiniteStarBits ? 1 : 0;
++        v[THOR_SET_QUICK_SAVE] = 0;
++        for (int i = 0; i < mobile_input::BTN_COUNT; i++) v[THOR_SET_BUTTON_BASE + i] = s.buttonMap[i];
++        v[THOR_SET_BUTTONS_RESET] = 0;
++        env->SetIntArrayRegion(out, 0, THOR_SET_COUNT, v);
++    }
++
++    bool attach(ANativeActivity* activity, JNIEnv*& env, bool& attached) {
++        env = nullptr;
++        attached = false;
++        if (activity == nullptr || activity->vm == nullptr) return false;
++        jint got = activity->vm->GetEnv((void**)&env, JNI_VERSION_1_6);
++        if (got == JNI_EDETACHED) {
++            if (activity->vm->AttachCurrentThread(&env, nullptr) != JNI_OK || env == nullptr) return false;
++            attached = true;
++        } else if (got != JNI_OK || env == nullptr) {
++            return false;
++        }
++        return true;
++    }
++}  // namespace
++
++void registerSettingsBridge(ANativeActivity* activity) {
++    JNIEnv* env;
++    bool attached;
++    if (!attach(activity, env, attached)) return;
++    jclass clazz = env->GetObjectClass(activity->clazz);
++    if (clazz != nullptr) {
++        static const JNINativeMethod methods[] = {
++            {"nativeMenuState", "(Z)V", (void*)nativeMenuState},
++            {"nativeMenuSet", "(II)V", (void*)nativeMenuSet},
++            {"nativeMenuValues", "([I)V", (void*)nativeMenuValues},
++        };
++        for (const JNINativeMethod& method : methods) {
++            if (env->RegisterNatives(clazz, &method, 1) == JNI_OK) {
++                LOGI("settings menu bridge: %s registered", method.name);
++            } else {
++                if (env->ExceptionCheck()) env->ExceptionClear();
++                LOGW("settings menu bridge: %s not registered", method.name);
++            }
++        }
++        env->DeleteLocalRef(clazz);
++    }
++    if (env->ExceptionCheck()) env->ExceptionClear();
++    if (attached) activity->vm->DetachCurrentThread();
++}
++
++bool takeMenuRequest(ThorMenuRequest& out) {
++    std::lock_guard<std::mutex> lock(sQueueMutex);
++    if (sQueue.empty()) return false;
++    out = sQueue.front();
++    sQueue.erase(sQueue.begin());
++    return true;
++}
++
++bool settingsMenuOpen() { return sOpen.load(); }
++void setSettingsMenuOpen(bool open) { sOpen.store(open); }
++
++namespace {
++    bool sQuickSave;  // native main thread only
++}  // namespace
++
++bool takeQuickSave() {
++    const bool wanted = sQuickSave;
++    sQuickSave = false;
++    return wanted;
++}
++
++void applySetting(int key, int value) {
++    mobile_ui::Settings& s = mobile_ui::UIOverlay::get().settings();
++    std::string toast;
++    if (key >= THOR_SET_BUTTON_BASE && key < THOR_SET_BUTTON_BASE + mobile_input::BTN_COUNT) {
++        s.buttonMap[key - THOR_SET_BUTTON_BASE] = std::max(0, std::min(mobile_input::ACT_COUNT - 1, value));
++        mobile_input::setButtonMap(s.buttonMap);
++        return;
++    }
++    switch (key) {
++    case THOR_SET_RESOLUTION:
++        s.renderScale = std::max(0, std::min(3, value));
++        break;
++    case THOR_SET_FRAME_RATE:
++        mobile_ui::SettingsMenuActions::applySliderValue(mobile_ui::ACT_TARGET_FPS, value <= 30 ? 30.0f : 60.0f, s, toast);
++        break;
++    case THOR_SET_SMOOTHING:
++        s.postProcess = value ? 1 : 0;
++        port_set_post_processing_enabled(s.postProcess);
++        break;
++    case THOR_SET_SHOW_FPS:
++        s.perfHudMode = std::max(0, std::min(2, value));
++        break;
++    case THOR_SET_RIGHT_STICK:
++        s.rightStickMode = value ? 1 : 0;
++        break;
++    case THOR_SET_POINTER_SPEED:
++        s.starStickSensitivity = std::max(0.5f, std::min(2.5f, value / 100.0f));
++        break;
++    case THOR_SET_STICK_RESPONSE:
++        s.stickSensitivity = std::max(0.5f, std::min(2.0f, value / 100.0f));
++        break;
++    case THOR_SET_INVERT_CAMERA:
++        s.cameraInverted = value != 0;
++        port_input_set_camera_inverted(s.cameraInverted ? 1 : 0);
++        break;
++    case THOR_SET_LANGUAGE:
++        mobile_ui::SettingsMenuActions::applyDropdownSelection(mobile_ui::ACT_LANGUAGE, std::max(0, std::min(5, value)), s,
++                                                              mobile_ui::UIOverlay::get().saveManager(), toast);
++        break;
++    case THOR_SET_SKIP_MOVIES:
++        s.modSkipCutscenes = value != 0;
++        port_set_skip_cutscenes(s.modSkipCutscenes ? 1 : 0);
++        break;
++    case THOR_SET_INFINITE_LIVES:
++        s.modInfiniteLives = value != 0;
++        port_set_infinite_lives(s.modInfiniteLives ? 1 : 0);
++        break;
++    case THOR_SET_INFINITE_HEALTH:
++        s.modInfiniteHealth = value != 0;
++        port_set_infinite_health(s.modInfiniteHealth ? 1 : 0);
++        break;
++    case THOR_SET_QUICK_SAVE:
++        sQuickSave = true;
++        return;
++    case THOR_SET_BUTTONS_RESET:
++        for (int i = 0; i < mobile_input::BTN_COUNT; i++) s.buttonMap[i] = mobile_input::kDefaultButtonMap[i];
++        mobile_input::setButtonMap(s.buttonMap);
++        break;
++    case THOR_SET_INFINITE_STAR_BITS:
++        s.modInfiniteStarBits = value != 0;
++        port_set_infinite_starbits(s.modInfiniteStarBits ? 1 : 0);
++        break;
++    default:
++        return;
++    }
++    mobile_ui::UIOverlay::get().saveSettings();
++    LOGI("setting %d = %d", key, value);
++}
++
++bool showSettingsMenu(ANativeActivity* activity) {
++    JNIEnv* env;
++    bool attached;
++    if (!attach(activity, env, attached)) return false;
++    bool shown = false;
++    jclass clazz = env->GetObjectClass(activity->clazz);
++    if (clazz != nullptr) {
++        jmethodID mid = env->GetStaticMethodID(clazz, "openSettingsMenu", "()Z");
++        if (mid != nullptr) {
++            shown = env->CallStaticBooleanMethod(clazz, mid) == JNI_TRUE;
++        }
++        if (env->ExceptionCheck()) env->ExceptionClear();
++        env->DeleteLocalRef(clazz);
++    }
++    if (env->ExceptionCheck()) env->ExceptionClear();
++    if (attached) activity->vm->DetachCurrentThread();
++    return shown;
++}
++
++}  // namespace mobile_thor
+diff --git a/platform/mobile/thor/ThorSettingsBridge.h b/platform/mobile/thor/ThorSettingsBridge.h
+new file mode 100644
+index 0000000..c857282
+--- /dev/null
++++ b/platform/mobile/thor/ThorSettingsBridge.h
+@@ -0,0 +1,54 @@
++#pragma once
++
++#include <android/native_activity.h>
++#include <jni.h>
++
++// AYN Thor: the Galaxy settings menu (the helper's GalaxySettingsMenu.java), drawn by Java over the
++// frozen game. Java talks to it from its UI thread; everything that touches the game or the settings
++// is queued here and applied on the native main thread (MobileApp::run drains it every iteration).
++namespace mobile_thor {
++
++// The values the menu shows and changes (GalaxySettingsMenu.java mirrors these numbers).
++enum ThorSetting {
++    THOR_SET_RESOLUTION = 0,      // 0 480p, 1 720p, 2 1080p, 3 1440p
++    THOR_SET_FRAME_RATE = 1,      // 60 or 30
++    THOR_SET_SMOOTHING = 2,       // anti-aliasing and bloom (the present pass's post-process)
++    THOR_SET_SHOW_FPS = 3,        // 0 off, 1 FPS, 2 full stats
++    THOR_SET_RIGHT_STICK = 4,     // 0 camera, 1 Star Pointer
++    THOR_SET_POINTER_SPEED = 5,   // percent
++    THOR_SET_STICK_RESPONSE = 6,  // percent
++    THOR_SET_INVERT_CAMERA = 7,
++    THOR_SET_LANGUAGE = 8,        // 0 auto, 1 English, 2 Spanish, 3 French, 4 German, 5 Italian (next launch)
++    THOR_SET_SKIP_MOVIES = 9,
++    THOR_SET_INFINITE_LIVES = 10,
++    THOR_SET_INFINITE_HEALTH = 11,
++    THOR_SET_INFINITE_STAR_BITS = 12,
++    THOR_SET_QUICK_SAVE = 13,     // an action: saves once the menu has closed and the game runs
++    THOR_SET_BUTTON_BASE = 14,    // 14..25: what each Thor button does (mobile_input::ButtonAction)
++    THOR_SET_BUTTONS_RESET = 26,  // an action: the standard layout
++    THOR_SET_COUNT
++};
++
++enum ThorMenuRequestKind { THOR_MENU_OPEN, THOR_MENU_CLOSE, THOR_MENU_SET };
++
++struct ThorMenuRequest {
++    ThorMenuRequestKind kind;
++    int key;
++    int value;
++};
++
++// Registers GalaxyActivity.nativeMenuState/nativeMenuSet/nativeMenuValues on the activity's class.
++void registerSettingsBridge(ANativeActivity* activity);
++// Native main thread: the next queued request, if any.
++bool takeMenuRequest(ThorMenuRequest& out);
++// Whether the menu has the game frozen (native main thread's view).
++bool settingsMenuOpen();
++void setSettingsMenuOpen(bool open);
++// Applies one value to the settings and the engine (native main thread).
++void applySetting(int key, int value);
++// Whether a Quick Save was chosen in the menu; taking it clears it (native main thread).
++bool takeQuickSave();
++// Asks Java to show the menu (Back, the gear). False when the helper cannot (an older APK).
++bool showSettingsMenu(ANativeActivity* activity);
++
++}  // namespace mobile_thor
+diff --git a/platform/src/gx/vk/vk_thor_capture.cpp b/platform/src/gx/vk/vk_thor_capture.cpp
+new file mode 100644
+index 0000000..7b724c0
+--- /dev/null
++++ b/platform/src/gx/vk/vk_thor_capture.cpp
+@@ -0,0 +1,372 @@
++// AYN Thor lower screen: the game's own space, live.
++//
++// The Super Mario Sunshine companion showed the game's own title sky by capturing the frame just
++// before the 2D layer. Galaxy does the same through Vulkan, without ever waiting:
++//  - the draw pass, when the lower screen is asking, blits the 3D picture (the matching region,
++//    the lower screen's own shape) into a small image at the game's MARK_THOR_SPACE, copies it into
++//    one of two persistently mapped host buffers, and resumes drawing, exactly like the game's EFB
++//    copies;
++//  - the next render already waits for the previous submission's fence (waitInFlightSubmissions),
++//    so its buffer is complete then and is published into a double-buffered result;
++//  - the Java lower screen copies the newest result (GalaxyActivity.nativeSpace).
++// A second, tiny readback (the probe) measures how bright the finished upper picture is, so the
++// lower screen goes black whenever the upper one does (fades, loading, logos), as in the Sunshine
++// and NSMB companions.
++// The game marks only the title's frames (GameScene::draw, just before the 2D layer, so the logo is
++// excluded); the marker travels with the frame, so a camera cut is never taken. Elsewhere nothing
++// new is taken and the last title picture stays. At most one capture every kIntervalNs, and none
++// while the lower screen is not polling.
++#include "gx/vk/vk_thor_capture.h"
++
++#include "gx/vk/vk_common.h"
++
++#include <atomic>
++#include <string.h>
++
++namespace {
++
++constexpr int kW = 620, kH = 540;  // half the lower panel (1240x1080), its exact shape
++constexpr VkDeviceSize kBytes = (VkDeviceSize)kW * kH * 4;
++constexpr int64_t kIntervalNs = 30000000ll;  // ~30 pictures a second at most: the sky turns slowly
++
++struct Slot {
++    VkBuffer buffer = VK_NULL_HANDLE;
++    VkDeviceMemory memory = VK_NULL_HANDLE;
++    void* mapped = nullptr;
++    bool coherent = true;
++};
++
++struct Capture {
++    VkDevice device = VK_NULL_HANDLE;
++    VkImage image = VK_NULL_HANDLE;
++    VkDeviceMemory imageMemory = VK_NULL_HANDLE;
++    Slot slots[2];
++    int next = 0;
++    int pending = -1;  // slot recorded into the last submission
++    bool failed = false;
++};
++Capture sCap;
++
++// The probe: the whole finished picture shrunk to kPW x kPH at the end of each draw pass.
++constexpr int kPW = 64, kPH = 36;
++constexpr VkDeviceSize kPBytes = (VkDeviceSize)kPW * kPH * 4;
++struct Probe {
++    VkImage image = VK_NULL_HANDLE;
++    VkDeviceMemory imageMemory = VK_NULL_HANDLE;
++    Slot slots[2];
++    int next = 0;
++    int pending = -1;
++    bool failed = false;
++};
++Probe sProbe;
++// The upper picture's bright level: the luma (0..255) its brightest 0.5% of samples reach, so one
++// stray pixel does not count; -1 until measured.
++std::atomic<int> sTopLevel{-1};
++
++// Published pictures (render thread writes, UI thread reads): no torn reads, no waiting.
++uint8_t sPublished[2][kW * kH * 4];
++std::atomic<int> sLatest{-1};
++std::atomic<int> sReading{-1};
++std::atomic<uint32_t> sSeq{0};
++
++std::atomic<int64_t> sLastAsk{0};
++int64_t sLastCapture = 0;  // render thread only
++
++bool createImage(gpu::VkRenderer& r, int w, int h, VkImage& image, VkDeviceMemory& memory) {
++    VkImageCreateInfo ici{};
++    ici.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
++    ici.imageType = VK_IMAGE_TYPE_2D;
++    ici.format = VK_FORMAT_R8G8B8A8_UNORM;
++    ici.extent = {(uint32_t)w, (uint32_t)h, 1};
++    ici.mipLevels = 1;
++    ici.arrayLayers = 1;
++    ici.samples = VK_SAMPLE_COUNT_1_BIT;
++    ici.tiling = VK_IMAGE_TILING_OPTIMAL;
++    ici.usage = VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
++    ici.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
++    ici.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
++    if (vkCreateImage(r.mDevice, &ici, nullptr, &image) != VK_SUCCESS) return false;
++    VkMemoryRequirements req;
++    vkGetImageMemoryRequirements(r.mDevice, image, &req);
++    VkMemoryAllocateInfo ai{};
++    ai.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
++    ai.allocationSize = req.size;
++    ai.memoryTypeIndex = r.findMemoryType(req.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
++    return vkAllocateMemory(r.mDevice, &ai, nullptr, &memory) == VK_SUCCESS &&
++           vkBindImageMemory(r.mDevice, image, memory, 0) == VK_SUCCESS;
++}
++
++bool createReadback(gpu::VkRenderer& r, VkDeviceSize bytes, Slot& s) {
++    // Host-cached when available (the CPU reads it); coherent either way.
++    bool ok = r.createBuffer(bytes, VK_BUFFER_USAGE_TRANSFER_DST_BIT,
++                             VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT |
++                                 VK_MEMORY_PROPERTY_HOST_CACHED_BIT,
++                             s.buffer, s.memory);
++    s.coherent = true;
++    if (!ok) {
++        ok = r.createBuffer(bytes, VK_BUFFER_USAGE_TRANSFER_DST_BIT,
++                            VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, s.buffer, s.memory);
++    }
++    return ok && vkMapMemory(r.mDevice, s.memory, 0, bytes, 0, &s.mapped) == VK_SUCCESS;
++}
++
++bool ensure(gpu::VkRenderer& r) {
++    if (sCap.failed) return false;
++    if (sCap.image != VK_NULL_HANDLE) return true;
++    sCap.device = r.mDevice;
++    if (!createImage(r, kW, kH, sCap.image, sCap.imageMemory) || !createReadback(r, kBytes, sCap.slots[0]) ||
++        !createReadback(r, kBytes, sCap.slots[1])) {
++        sCap.failed = true;
++        return false;
++    }
++    LOGI("Thor lower screen: space capture ready (%dx%d)", kW, kH);
++    return true;
++}
++
++bool ensureProbe(gpu::VkRenderer& r) {
++    if (sProbe.failed) return false;
++    if (sProbe.image != VK_NULL_HANDLE) return true;
++    sCap.device = r.mDevice;
++    if (!createImage(r, kPW, kPH, sProbe.image, sProbe.imageMemory) || !createReadback(r, kPBytes, sProbe.slots[0]) ||
++        !createReadback(r, kPBytes, sProbe.slots[1])) {
++        sProbe.failed = true;
++        return false;
++    }
++    LOGI("Thor lower screen: brightness probe ready (%dx%d)", kPW, kPH);
++    return true;
++}
++
++bool asking() {
++    const int64_t asked = sLastAsk.load(std::memory_order_relaxed);
++    return asked != 0 && port_host_time_ns() - asked <= 1500000000ll;
++}
++
++// The luma its brightest 0.5% of samples reach (RGBA rows).
++int brightLevel(const uint8_t* px) {
++    uint32_t histogram[256] = {};
++    for (int i = 0; i < kPW * kPH; i++, px += 4) histogram[(px[0] * 54 + px[1] * 183 + px[2] * 19) >> 8]++;
++    const uint32_t top = kPW * kPH / 200;
++    uint32_t seen = 0;
++    for (int level = 255; level > 0; level--) {
++        seen += histogram[level];
++        if (seen > top) return level;
++    }
++    return 0;
++}
++
++void imageBarrier(VkCommandBuffer cmd, VkImage image, VkImageLayout from, VkImageLayout to, VkAccessFlags srcAccess,
++                  VkAccessFlags dstAccess, VkPipelineStageFlags srcStage, VkPipelineStageFlags dstStage) {
++    VkImageMemoryBarrier b{};
++    b.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
++    b.srcAccessMask = srcAccess;
++    b.dstAccessMask = dstAccess;
++    b.oldLayout = from;
++    b.newLayout = to;
++    b.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
++    b.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
++    b.image = image;
++    b.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
++    b.subresourceRange.levelCount = 1;
++    b.subresourceRange.layerCount = 1;
++    vkCmdPipelineBarrier(cmd, srcStage, dstStage, 0, 0, nullptr, 0, nullptr, 1, &b);
++}
++
++}  // namespace
++
++namespace gpu {
++
++bool thorCaptureArmed(const VkRenderer& r) {
++    if (sCap.failed || r.mCopySlot != 0) return false;  // flat rendering only, never a VR eye
++    if (sCap.pending >= 0) return false;                 // one capture in flight at a time
++    if (!asking()) return false;  // nobody is looking
++    return port_host_time_ns() - sLastCapture >= kIntervalNs;
++}
++
++void thorProbeRecord(VkRenderer& r, VkCommandBuffer cmd, VkTarget& t) {
++    if (sProbe.failed || r.mCopySlot != 0 || sProbe.pending >= 0 || !asking()) return;
++    if (t.colorImage == VK_NULL_HANDLE || t.width <= 0 || t.height <= 0 || t.colorLayout != VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL ||
++        !ensureProbe(r)) {
++        return;
++    }
++    const int slot = sProbe.next;
++    // The draw pass's colour writes (and its move to SHADER_READ_ONLY) come first.
++    imageBarrier(cmd, t.colorImage, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
++                 VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT | VK_ACCESS_SHADER_READ_BIT, VK_ACCESS_TRANSFER_READ_BIT,
++                 VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT | VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT);
++    imageBarrier(cmd, sProbe.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 0, VK_ACCESS_TRANSFER_WRITE_BIT,
++                 VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT);
++    VkImageBlit blit{};
++    blit.srcSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
++    blit.srcSubresource.layerCount = 1;
++    blit.srcOffsets[1] = {t.width, t.height, 1};
++    blit.dstSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
++    blit.dstSubresource.layerCount = 1;
++    blit.dstOffsets[1] = {kPW, kPH, 1};
++    vkCmdBlitImage(cmd, t.colorImage, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, sProbe.image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &blit,
++                   VK_FILTER_LINEAR);
++    // Back to how the present pass samples it.
++    imageBarrier(cmd, t.colorImage, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_ACCESS_TRANSFER_READ_BIT,
++                 VK_ACCESS_SHADER_READ_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT);
++    imageBarrier(cmd, sProbe.image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, VK_ACCESS_TRANSFER_WRITE_BIT,
++                 VK_ACCESS_TRANSFER_READ_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT);
++    VkBufferImageCopy region{};
++    region.imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
++    region.imageSubresource.layerCount = 1;
++    region.imageExtent = {(uint32_t)kPW, (uint32_t)kPH, 1};
++    vkCmdCopyImageToBuffer(cmd, sProbe.image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, sProbe.slots[slot].buffer, 1, &region);
++    VkBufferMemoryBarrier hostRead{};
++    hostRead.sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER;
++    hostRead.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
++    hostRead.dstAccessMask = VK_ACCESS_HOST_READ_BIT;
++    hostRead.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
++    hostRead.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
++    hostRead.buffer = sProbe.slots[slot].buffer;
++    hostRead.size = VK_WHOLE_SIZE;
++    vkCmdPipelineBarrier(cmd, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_HOST_BIT, 0, 0, nullptr, 1, &hostRead, 0, nullptr);
++    sProbe.pending = slot;
++    sProbe.next = slot ^ 1;
++}
++
++void thorCaptureRecord(VkRenderer& r, VkCommandBuffer cmd, VkTarget& t, bool& inRenderPass) {
++    if (!ensure(r) || t.colorImage == VK_NULL_HANDLE || t.width <= 0 || t.height <= 0) return;
++    const int slot = sCap.next;
++    if (inRenderPass) {
++        vkCmdEndRenderPass(cmd);
++        inRenderPass = false;
++        t.colorLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
++    }
++    const bool fromAttachment = t.colorLayout == VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
++    imageBarrier(cmd, t.colorImage, t.colorLayout, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
++                 fromAttachment ? VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT : VK_ACCESS_SHADER_READ_BIT, VK_ACCESS_TRANSFER_READ_BIT,
++                 fromAttachment ? VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT : VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
++                 VK_PIPELINE_STAGE_TRANSFER_BIT);
++    t.colorLayout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
++    imageBarrier(cmd, sCap.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 0, VK_ACCESS_TRANSFER_WRITE_BIT,
++                 VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT);
++
++    // The middle of the picture in the lower panel's shape (1240:1080), the full height.
++    int cropW = (int)((float)t.height * kW / kH);
++    int cropH = t.height;
++    if (cropW > t.width) {
++        cropW = t.width;
++        cropH = (int)((float)t.width * kH / kW);
++    }
++    const int x0 = (t.width - cropW) / 2, y0 = (t.height - cropH) / 2;
++    VkImageBlit blit{};
++    blit.srcSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
++    blit.srcSubresource.layerCount = 1;
++    blit.srcOffsets[0] = {x0, y0, 0};
++    blit.srcOffsets[1] = {x0 + cropW, y0 + cropH, 1};
++    blit.dstSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
++    blit.dstSubresource.layerCount = 1;
++    blit.dstOffsets[0] = {0, 0, 0};
++    blit.dstOffsets[1] = {kW, kH, 1};
++    vkCmdBlitImage(cmd, t.colorImage, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, sCap.image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &blit,
++                   VK_FILTER_LINEAR);
++
++    imageBarrier(cmd, sCap.image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, VK_ACCESS_TRANSFER_WRITE_BIT,
++                 VK_ACCESS_TRANSFER_READ_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT);
++    VkBufferImageCopy region{};
++    region.imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
++    region.imageSubresource.layerCount = 1;
++    region.imageExtent = {(uint32_t)kW, (uint32_t)kH, 1};
++    vkCmdCopyImageToBuffer(cmd, sCap.image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, sCap.slots[slot].buffer, 1, &region);
++    VkBufferMemoryBarrier hostRead{};
++    hostRead.sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER;
++    hostRead.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
++    hostRead.dstAccessMask = VK_ACCESS_HOST_READ_BIT;
++    hostRead.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
++    hostRead.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
++    hostRead.buffer = sCap.slots[slot].buffer;
++    hostRead.size = VK_WHOLE_SIZE;
++    vkCmdPipelineBarrier(cmd, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_HOST_BIT, 0, 0, nullptr, 1, &hostRead, 0, nullptr);
++
++    // The game's picture goes back to being drawn into.
++    imageBarrier(cmd, t.colorImage, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_ACCESS_TRANSFER_READ_BIT,
++                 VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT | VK_ACCESS_COLOR_ATTACHMENT_READ_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT,
++                 VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT);
++    t.colorLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
++    sCap.pending = slot;
++    sLastCapture = port_host_time_ns();
++    sCap.next = slot ^ 1;
++}
++
++void thorCapturePublish(VkRenderer& r) {
++    (void)r;
++    const int probe = sProbe.pending;
++    if (probe >= 0) {
++        sProbe.pending = -1;
++        if (sProbe.slots[probe].mapped != nullptr)
++            sTopLevel.store(brightLevel(static_cast<const uint8_t*>(sProbe.slots[probe].mapped)), std::memory_order_relaxed);
++    }
++    const int slot = sCap.pending;
++    if (slot < 0) return;
++    sCap.pending = -1;
++    const Slot& s = sCap.slots[slot];
++    if (s.mapped == nullptr) return;
++    // Both sides store then load (sLatest here, sReading in the copy): sequentially consistent, or a
++    // torn picture is possible.
++    const int latest = sLatest.load();
++    const int target = latest == 0 ? 1 : 0;
++    if (sReading.load() == target) return;  // the UI is copying it: skip, never wait
++    uint8_t* out = sPublished[target];
++    memcpy(out, s.mapped, (size_t)kBytes);
++    // The EFB's alpha is the game's destination alpha, not coverage: the picture is opaque.
++    for (size_t i = 3; i < (size_t)kBytes; i += 4) out[i] = 0xFF;
++    sLatest.store(target);
++    sSeq.fetch_add(1);
++}
++
++void thorCaptureDestroy(VkRenderer& r) {
++    VkDevice device = sCap.device != VK_NULL_HANDLE ? sCap.device : r.mDevice;
++    if (device == VK_NULL_HANDLE) {
++        sCap = Capture{};
++        return;
++    }
++    for (Slot& s : sCap.slots) {
++        if (s.mapped) vkUnmapMemory(device, s.memory);
++        if (s.buffer != VK_NULL_HANDLE) vkDestroyBuffer(device, s.buffer, nullptr);
++        if (s.memory != VK_NULL_HANDLE) vkFreeMemory(device, s.memory, nullptr);
++    }
++    if (sCap.image != VK_NULL_HANDLE) vkDestroyImage(device, sCap.image, nullptr);
++    if (sCap.imageMemory != VK_NULL_HANDLE) vkFreeMemory(device, sCap.imageMemory, nullptr);
++    for (Slot& s : sProbe.slots) {
++        if (s.mapped) vkUnmapMemory(device, s.memory);
++        if (s.buffer != VK_NULL_HANDLE) vkDestroyBuffer(device, s.buffer, nullptr);
++        if (s.memory != VK_NULL_HANDLE) vkFreeMemory(device, s.memory, nullptr);
++    }
++    if (sProbe.image != VK_NULL_HANDLE) vkDestroyImage(device, sProbe.image, nullptr);
++    if (sProbe.imageMemory != VK_NULL_HANDLE) vkFreeMemory(device, sProbe.imageMemory, nullptr);
++    sCap = Capture{};
++    sProbe = Probe{};
++}
++
++}  // namespace gpu
++
++// Whether the lower screen is up (it polled within the last 1.5 s).
++extern "C" int port_thor_lower_visible(void) { return asking() ? 1 : 0; }
++
++// The upper picture's bright level (0..255; -1 before the first measurement).
++extern "C" int port_thor_top_level(void) { return sTopLevel.load(std::memory_order_relaxed); }
++
++// The UI's copy (620x540 RGBA, rows top first): the newest picture when newer than `have`.
++// Returns its sequence (0 when nothing new); *mode is 1, the title (the only picture taken).
++// Each call also tells the renderer the lower screen is still looking.
++extern "C" uint32_t port_thor_space_copy(uint8_t* out, int size, uint32_t have, int* mode) {
++    sLastAsk.store(port_host_time_ns(), std::memory_order_relaxed);
++    if (out == nullptr || size < (int)kBytes) return 0;
++    const uint32_t seq = sSeq.load(std::memory_order_acquire);
++    if (seq == 0 || seq == have) return 0;
++    for (int tries = 0; tries < 4; tries++) {
++        const int latest = sLatest.load();
++        if (latest < 0) return 0;
++        sReading.store(latest);
++        if (sLatest.load() != latest) continue;
++        memcpy(out, sPublished[latest], (size_t)kBytes);
++        if (mode) *mode = 1;
++        sReading.store(-1, std::memory_order_release);
++        return sSeq.load(std::memory_order_acquire);
++    }
++    sReading.store(-1, std::memory_order_release);
++    return 0;
++}
+diff --git a/platform/src/gx/vk/vk_thor_capture.h b/platform/src/gx/vk/vk_thor_capture.h
+new file mode 100644
+index 0000000..b654f9c
+--- /dev/null
++++ b/platform/src/gx/vk/vk_thor_capture.h
+@@ -0,0 +1,27 @@
++#pragma once
++
++// AYN Thor lower screen: the game's own space, captured from the 3D picture without blocking.
++// See vk_thor_capture.cpp.
++
++#include <vulkan/vulkan.h>
++
++namespace gpu {
++
++class VkRenderer;
++struct VkTarget;
++
++// Whether this frame's draw pass may capture at a MARK_THOR_SPACE (the lower screen is asking,
++// none is in flight, and the last one is old enough).
++bool thorCaptureArmed(const VkRenderer& renderer);
++// Records the capture into the draw pass's command buffer (ends the render pass; the draw loop
++// resumes it with the load pass, as after the game's own EFB copies).
++void thorCaptureRecord(VkRenderer& renderer, VkCommandBuffer cmd, VkTarget& target, bool& inRenderPass);
++// Records the brightness probe of the finished picture (2D and wipes included) at the end of the
++// draw pass, while the lower screen is asking; the target stays ready for presenting.
++void thorProbeRecord(VkRenderer& renderer, VkCommandBuffer cmd, VkTarget& target);
++// Called after the previous submission's fence has signalled: publishes its capture and probe, if any.
++void thorCapturePublish(VkRenderer& renderer);
++// Releases the capture resources (device shutdown or loss).
++void thorCaptureDestroy(VkRenderer& renderer);
++
++}  // namespace gpu

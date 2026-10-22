@@ -1,0 +1,294 @@
+package com.galaxy.installer;
+
+import android.app.Activity;
+import android.content.Intent;
+import android.database.Cursor;
+import android.net.Uri;
+import android.os.Build;
+import android.os.Bundle;
+import android.os.Environment;
+import android.os.Handler;
+import android.os.Looper;
+import android.provider.OpenableColumns;
+import android.provider.Settings;
+import android.text.method.ScrollingMovementMethod;
+import android.view.View;
+import android.widget.Button;
+import android.widget.CheckBox;
+import android.widget.ProgressBar;
+import android.widget.TextView;
+import android.widget.Toast;
+
+import java.io.File;
+
+public class MainActivity extends Activity {
+    private static final int REQ_PICK_DISC = 1001;
+    private static final int REQ_PICK_FOLDER = 1002;
+
+    private TextView txtSourcePath;
+    private CheckBox chkIncludeMovies;
+    private Button btnSelectDisc;
+    private Button btnSelectFolder;
+    private Button btnAutoDetect;
+    private Button btnStartCooking;
+    private Button btnLaunchGame;
+    private ProgressBar progressBar;
+    private TextView txtProgressStatus;
+    private TextView txtLogOutput;
+
+    private String mSelectedSourcePath = "";
+    private final Handler mHandler = new Handler(Looper.getMainLooper());
+    private boolean mIsCooking = false;
+
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        setContentView(R.layout.activity_main);
+
+        txtSourcePath = findViewById(R.id.txtSourcePath);
+        chkIncludeMovies = findViewById(R.id.chkIncludeMovies);
+        btnSelectDisc = findViewById(R.id.btnSelectDisc);
+        btnSelectFolder = findViewById(R.id.btnSelectFolder);
+        btnAutoDetect = findViewById(R.id.btnAutoDetect);
+        btnStartCooking = findViewById(R.id.btnStartCooking);
+        btnLaunchGame = findViewById(R.id.btnLaunchGame);
+        progressBar = findViewById(R.id.progressBar);
+        txtProgressStatus = findViewById(R.id.txtProgressStatus);
+        txtLogOutput = findViewById(R.id.txtLogOutput);
+        txtLogOutput.setMovementMethod(new ScrollingMovementMethod());
+
+        checkStoragePermissions();
+        autoDetectSource();
+
+        btnSelectDisc.setOnClickListener(v -> openFilePicker());
+        btnSelectFolder.setOnClickListener(v -> openFolderPicker());
+        btnAutoDetect.setOnClickListener(v -> autoDetectSource());
+
+        btnStartCooking.setOnClickListener(v -> {
+            if (mSelectedSourcePath.isEmpty()) {
+                Toast.makeText(this, "Please select a game disc or extracted folder first", Toast.LENGTH_SHORT).show();
+                return;
+            }
+            startCookingProcess();
+        });
+
+        btnLaunchGame.setOnClickListener(v -> launchGalaxyMobile());
+    }
+
+    private void checkStoragePermissions() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            if (!Environment.isExternalStorageManager()) {
+                appendLog("[Permission] Requesting All Files Access for reading game dumps...");
+                Intent intent = new Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION);
+                intent.setData(Uri.parse("package:" + getPackageName()));
+                try {
+                    startActivity(intent);
+                } catch (Exception e) {
+                    Intent generic = new Intent(Settings.ACTION_MANAGE_ALL_FILES_ACCESS_PERMISSION);
+                    startActivity(generic);
+                }
+            }
+        }
+    }
+
+    private void autoDetectSource() {
+        appendLog("[Scan] Checking for GalaxyData folder and game dumps...");
+
+        File galaxyData = new File(Environment.getExternalStorageDirectory(), "GalaxyData");
+        if (galaxyData.exists() && new File(galaxyData, "files").exists()) {
+            appendLog("[Found] Existing cooked GalaxyData folder found at: " + galaxyData.getAbsolutePath());
+            selectSource(galaxyData.getAbsolutePath(), "Ready: Cooked Game Data");
+            btnLaunchGame.setVisibility(View.VISIBLE);
+            return;
+        }
+
+        File[] searchDirs = new File[] {
+            Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS),
+            Environment.getExternalStorageDirectory(),
+            new File(Environment.getExternalStorageDirectory(), "Wii"),
+            new File(Environment.getExternalStorageDirectory(), "Games")
+        };
+
+        for (File dir : searchDirs) {
+            if (!dir.exists() || !dir.isDirectory()) continue;
+            File[] files = dir.listFiles();
+            if (files == null) continue;
+            for (File f : files) {
+                String name = f.getName().toLowerCase();
+                if (f.isFile() && (name.contains("galaxy") || name.contains("rmg") || name.contains("sb4")) &&
+                    (name.endsWith(".rvz") || name.endsWith(".wbfs") || name.endsWith(".iso") || name.endsWith(".wia") || name.endsWith(".ciso") || name.endsWith(".zip"))) {
+                    appendLog("[Found] Detected disc/archive: " + f.getAbsolutePath());
+                    selectSource(f.getAbsolutePath(), "Detected: " + f.getName());
+                    return;
+                }
+            }
+        }
+
+        appendLog("[Scan] No game dump automatically detected. Please use 'Select Disc' or 'Select Folder'.");
+    }
+
+    private void selectSource(String path, String label) {
+        mSelectedSourcePath = path;
+        txtSourcePath.setText(label);
+        txtSourcePath.setSelected(true);
+        btnStartCooking.setEnabled(true);
+    }
+
+    private void openFilePicker() {
+        Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT);
+        intent.addCategory(Intent.CATEGORY_OPENABLE);
+        intent.setType("*/*");
+        String[] mimes = {"application/octet-stream", "application/zip", "application/x-iso9660-image"};
+        intent.putExtra(Intent.EXTRA_MIME_TYPES, mimes);
+        try {
+            startActivityForResult(intent, REQ_PICK_DISC);
+        } catch (Exception e) {
+            Toast.makeText(this, "Failed to open file picker: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    private void openFolderPicker() {
+        Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT_TREE);
+        intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION | Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION);
+        try {
+            startActivityForResult(intent, REQ_PICK_FOLDER);
+        } catch (Exception e) {
+            Toast.makeText(this, "Failed to open folder picker: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+        if (resultCode != RESULT_OK || data == null) return;
+
+        Uri uri = data.getData();
+        if (uri == null) return;
+
+        String resolvedPath = resolvePathFromUri(uri);
+        if (resolvedPath != null && !resolvedPath.isEmpty()) {
+            selectSource(resolvedPath, "Selected: " + new File(resolvedPath).getName());
+        } else {
+            selectSource(uri.toString(), "Selected: " + uri.getLastPathSegment());
+        }
+    }
+
+    private String resolvePathFromUri(Uri uri) {
+        if ("file".equalsIgnoreCase(uri.getScheme())) {
+            return uri.getPath();
+        }
+
+        String path = uri.getPath();
+        if (path != null && path.contains(":")) {
+            String[] parts = path.split(":");
+            if (parts.length > 1) {
+                String subPath = parts[1];
+                File direct = new File(Environment.getExternalStorageDirectory(), subPath);
+                if (direct.exists()) return direct.getAbsolutePath();
+                File downloadDirect = new File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS), subPath);
+                if (downloadDirect.exists()) return downloadDirect.getAbsolutePath();
+                return "/sdcard/" + subPath;
+            }
+        }
+
+        try (Cursor cursor = getContentResolver().query(uri, null, null, null, null)) {
+            if (cursor != null && cursor.moveToFirst()) {
+                int nameIndex = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME);
+                if (nameIndex != -1) {
+                    String displayName = cursor.getString(nameIndex);
+                    File dl = new File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS), displayName);
+                    if (dl.exists()) {
+                        return dl.getAbsolutePath();
+                    }
+                }
+            }
+        } catch (Exception ignored) {}
+
+        return uri.getPath();
+    }
+
+    private void startCookingProcess() {
+        if (mIsCooking) return;
+        mIsCooking = true;
+
+        btnStartCooking.setEnabled(false);
+        btnSelectDisc.setEnabled(false);
+        btnSelectFolder.setEnabled(false);
+        btnAutoDetect.setEnabled(false);
+        progressBar.setVisibility(View.VISIBLE);
+        txtProgressStatus.setText(R.string.status_cooking);
+
+        final String sourcePath = mSelectedSourcePath;
+        File galaxyDataDir = new File(Environment.getExternalStorageDirectory(), "GalaxyData");
+        if (!galaxyDataDir.exists()) {
+            galaxyDataDir.mkdirs();
+        }
+        final String outputDir = galaxyDataDir.getAbsolutePath();
+        final boolean withMovies = chkIncludeMovies.isChecked();
+
+        appendLog("==============================================");
+        appendLog("[Pipeline] Starting PC-less on-device preparation");
+        appendLog("[Pipeline] Source: " + sourcePath);
+        appendLog("[Pipeline] Target: " + outputDir);
+        appendLog("==============================================");
+
+        CookingTask.runAsync(this, mHandler, sourcePath, outputDir, withMovies, getFilesDir(), new CookingTask.Listener() {
+            @Override public void onLog(String line) { appendLog(line); }
+            @Override public void onProgress(int percent, String message) {
+                mHandler.post(() -> {
+                    if (percent >= 0) {
+                        progressBar.setIndeterminate(false);
+                        progressBar.setProgress(percent);
+                    }
+                    if (message != null) txtProgressStatus.setText(message);
+                });
+            }
+            @Override public void onFinished(boolean success, String message) {
+                mHandler.post(() -> onCookingCompleted(success, message));
+            }
+        });
+    }
+
+    private void onCookingCompleted(boolean success, String message) {
+        mIsCooking = false;
+        progressBar.setVisibility(View.GONE);
+        btnStartCooking.setEnabled(true);
+        btnSelectDisc.setEnabled(true);
+        btnSelectFolder.setEnabled(true);
+        btnAutoDetect.setEnabled(true);
+
+        if (success) {
+            txtProgressStatus.setText(R.string.status_done);
+            appendLog("[SUCCESS] " + (message != null ? message : "Conversion complete!"));
+            btnLaunchGame.setVisibility(View.VISIBLE);
+            Toast.makeText(this, "Game data ready! You can now launch GalaxyMobile.", Toast.LENGTH_LONG).show();
+        } else {
+            txtProgressStatus.setText(R.string.status_error);
+            appendLog("[FAILURE] " + (message != null ? message : "Error during conversion."));
+            Toast.makeText(this, "Preparation failed. Check terminal log.", Toast.LENGTH_LONG).show();
+        }
+    }
+
+    private void launchGalaxyMobile() {
+        Intent launchIntent = getPackageManager().getLaunchIntentForPackage("com.galaxy.mobile.plus");
+        if (launchIntent == null) {
+            launchIntent = getPackageManager().getLaunchIntentForPackage("com.galaxy.mobile");
+        }
+        if (launchIntent != null) {
+            startActivity(launchIntent);
+        } else {
+            Toast.makeText(this, "Neither GalaxyMobile nor GalaxyMobile+ is installed yet!", Toast.LENGTH_LONG).show();
+        }
+    }
+
+    private void appendLog(String line) {
+        mHandler.post(() -> {
+            txtLogOutput.append(line + "\n");
+            final int scrollAmount = txtLogOutput.getLayout() != null ?
+                    txtLogOutput.getLayout().getLineTop(txtLogOutput.getLineCount()) - txtLogOutput.getHeight() : 0;
+            if (scrollAmount > 0) {
+                txtLogOutput.scrollTo(0, scrollAmount);
+            }
+        });
+    }
+}

@@ -2,6 +2,7 @@
 
     <!-- Explicit visibility for the separate game runtimes used by the shared Thor library. -->
     <queries>
+        <provider android:authorities="io.github.maddex712.wiids.galaxy.status" />
         <package android:name="com.wither.sms.eclipse.thor" />
     </queries>
 
@@ -156,6 +157,13 @@
             android:exported="false"
             android:foregroundServiceType="dataSync" />
 
+        <!-- Galaxy is package-internal and non-debuggable. Native memory is relocated below 4 GB. -->
+        <activity android:name="dev.thor.galaxy.ThorLaunchActivity" android:exported="false" android:process=":galaxy" android:screenOrientation="landscape" />
+        <activity android:name="dev.thor.galaxy.GalaxyActivity" android:exported="false" android:process=":galaxy_game" android:screenOrientation="landscape" android:launchMode="singleTask" android:theme="@android:style/Theme.Black.NoTitleBar.Fullscreen" android:configChanges="density|keyboard|keyboardHidden|navigation|orientation|screenLayout|screenSize|uiMode">
+            <meta-data android:name="android.app.lib_name" android:value="main" />
+        </activity>
+        <activity android:name="dev.thor.galaxy.GalaxyImportActivity" android:exported="false" android:process=":galaxy_import" android:screenOrientation="landscape" android:theme="@android:style/Theme.Material.NoActionBar" />
+        <activity android:name="dev.thor.galaxy.GalaxyBackupActivity" android:exported="false" android:process=":galaxy_import" android:screenOrientation="landscape" />
     </application>
 
 </manifest>

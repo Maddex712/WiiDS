@@ -1,0 +1,290 @@
+--- a/android/app/src/main/AndroidManifest.xml
++++ b/android/app/src/main/AndroidManifest.xml
+@@ -2,6 +2,7 @@
+ 
+     <!-- Explicit visibility for the separate game runtimes used by the shared Thor library. -->
+     <queries>
++        <provider android:authorities="io.github.maddex712.wiids.galaxy.status" />
+         <package android:name="com.wither.sms.eclipse.thor" />
+     </queries>
+ 
+@@ -156,6 +157,13 @@
+             android:exported="false"
+             android:foregroundServiceType="dataSync" />
+ 
++        <!-- Galaxy is package-internal and non-debuggable. Native memory is relocated below 4 GB. -->
++        <activity android:name="dev.thor.galaxy.ThorLaunchActivity" android:exported="false" android:process=":galaxy" android:screenOrientation="landscape" />
++        <activity android:name="dev.thor.galaxy.GalaxyActivity" android:exported="false" android:process=":galaxy_game" android:screenOrientation="landscape" android:launchMode="singleTask" android:theme="@android:style/Theme.Black.NoTitleBar.Fullscreen" android:configChanges="density|keyboard|keyboardHidden|navigation|orientation|screenLayout|screenSize|uiMode">
++            <meta-data android:name="android.app.lib_name" android:value="main" />
++        </activity>
++        <activity android:name="dev.thor.galaxy.GalaxyImportActivity" android:exported="false" android:process=":galaxy_import" android:screenOrientation="landscape" android:theme="@android:style/Theme.Material.NoActionBar" />
++        <activity android:name="dev.thor.galaxy.GalaxyBackupActivity" android:exported="false" android:process=":galaxy_import" android:screenOrientation="landscape" />
+     </application>
+ 
+ </manifest>
+--- a/android/app/src/main/kotlin/com/driftdroid/android/ThorGameLaunch.kt
++++ b/android/app/src/main/kotlin/com/driftdroid/android/ThorGameLaunch.kt
+@@ -15,6 +15,8 @@
+     const val NSMB_WII = "nsmbw"
+     const val SUNSHINE = "sunshine"
+     const val ECLIPSE = "eclipse"
++    const val GALAXY = "galaxy"
++    private const val GALAXY_ENTRY = "dev.thor.galaxy.ThorLaunchActivity"
+     /** MSMBWii ("Just a Little Adventure"): New Super Mario Bros. Wii with MidiGuyDP's level mod. */
+     const val MSMBWII = "msmbwii"
+     private const val ACTION_PLAY = "dev.thor.launcher.action.PLAY_GAME"
+@@ -33,6 +35,12 @@
+ 
+     /** The embedded Eclipse runtime has a separately imported disc and save profile. */
+     fun eclipseInstalled(context: Context): Boolean = GameCatalog.isPlayable(context, GameCatalog.Game.ECLIPSE)
++
++    /** The isolated development runtime reports only its own verified data readiness. */
++    fun galaxyInstalled(context: Context): Boolean = android.os.Build.VERSION.SDK_INT >= 32 && dev.thor.galaxy.GalaxyStorage.ready(context)
++
++    fun launchGalaxy(activity: Activity): Result = launch(activity, GALAXY_ENTRY, GALAXY,
++        galaxyInstalled(activity))
+ 
+     fun launchNsmb(activity: Activity): Result = launch(activity, NSMB_ENTRY, NSMB_WII, nsmbInstalled(activity))
+ 
+--- a/android/app/src/main/kotlin/com/driftdroid/android/ModePickerActivity.kt
++++ b/android/app/src/main/kotlin/com/driftdroid/android/ModePickerActivity.kt
+@@ -245,6 +245,7 @@
+                 NSMB_CASE -> nsmbInstalled
+                 SUNSHINE_CASE -> sunshineInstalled
+                 ECLIPSE_CASE -> eclipseInstalled
++                GALAXY_CASE -> galaxyInstalled
+                 MSMBWII_CASE -> msmbwiiInstalled
+                 else -> true
+             }
+@@ -301,7 +302,10 @@
+                     art = "sunshine", casePlastic = ThorLauncherView.CasePlastic.GAMECUBE_BLACK, updatesShortcut = false, discScale = ThorLauncherView.GAMECUBE_DISC) { launchSunshineFromLibrary() },
+                 ThorLauncherView.Entry("Super Mario Eclipse", "Play the Sunshine expansion with its own saves.", { eclipseInstalled },
+                     art = "eclipse", casePlastic = ThorLauncherView.CasePlastic.GAMECUBE_BLACK, updatesShortcut = false, discScale = ThorLauncherView.GAMECUBE_DISC) { launchEclipseFromLibrary() },
++                ThorLauncherView.Entry("Super Mario Galaxy", "Explore the galaxies with Mario.", { galaxyInstalled },
++                    art = "galaxy", updatesShortcut = false) { launchGalaxyFromLibrary() },
+                 ThorLauncherView.Entry("Your games", "Find and import your own game discs.") { openGames() },
++                ThorLauncherView.Entry("Controller buttons", "Change what each controller button does, game by game.") { showControllerButtons() },
+                 ThorLauncherView.Entry("Graphics", "Choose a renderer before starting the game.") { graphicsButton.performClick() },
+                 ThorLauncherView.Entry("Mii Data", "Import and manage your own Mii data.") { miiDataButton.performClick() },
+                 ThorLauncherView.Entry("Retro Rewind updates", "Check and download compatible Retro Rewind updates.", { BuildConfig.THOR_RETRO_REWIND }) { if (isRetroRewindInstalled()) showRetroRewindMenuDialog() else showInstallRetroRewindDialog() },
+@@ -398,12 +402,25 @@
+ 
+     /** Package lookups stay off the per-frame drawing path; refreshed on resume and after a failed launch. */
+     private var nsmbInstalled = false
++    private fun launchGalaxyFromLibrary() {
++        val message = when (ThorGameLaunch.launchGalaxy(this)) {
++            ThorGameLaunch.Result.OPENED -> return
++            ThorGameLaunch.Result.NOT_INSTALLED -> "Set up Super Mario Galaxy first."
++            ThorGameLaunch.Result.UNAVAILABLE -> "Super Mario Galaxy could not be opened. Try again."
++        }
++        statusText.text = message
++        thorLauncher?.launchFailed(message)
++        updateLowerStatus()
++    }
++
+     private var sunshineInstalled = false
++    private var galaxyInstalled = false
+     private var eclipseInstalled = false
+     private var msmbwiiInstalled = false
+     private fun refreshNsmbInstalled() {
+         nsmbInstalled = runCatching { ThorGameLaunch.nsmbInstalled(this) }.getOrDefault(false)
+         sunshineInstalled = runCatching { ThorGameLaunch.sunshineInstalled(this) }.getOrDefault(false)
++        galaxyInstalled = runCatching { ThorGameLaunch.galaxyInstalled(this) }.getOrDefault(false)
+         eclipseInstalled = runCatching { ThorGameLaunch.eclipseInstalled(this) }.getOrDefault(false)
+         msmbwiiInstalled = runCatching { ThorGameLaunch.msmbwiiInstalled(this) }.getOrDefault(false)
+     }
+@@ -860,6 +877,7 @@
+         gameButton("MSMBWii: Just a Little Adventure", Color.rgb(0x7A, 0x5C, 0xE6), Color.rgb(0x4B, 0x34, 0xB4), { msmbwiiInstalled }) { launchMsmbwiiFromLibrary() }
+         gameButton("Super Mario Sunshine", Color.rgb(0xF5, 0xA6, 0x23), Color.rgb(0xD9, 0x7A, 0x10), { sunshineInstalled }) { launchSunshineFromLibrary() }
+         gameButton("Super Mario Eclipse", Color.rgb(0xA5, 0x7F, 0xD0), Color.rgb(0x55, 0x36, 0x88), { eclipseInstalled }) { launchEclipseFromLibrary() }
++        gameButton("Super Mario Galaxy", Color.rgb(0x48, 0x91, 0xD8), Color.rgb(0x16, 0x43, 0x82), { galaxyInstalled }) { launchGalaxyFromLibrary() }
+         root.addView(retroRow, retroRowParams)
+         root.addView(miiDataButton, miiDataButtonParams)
+         root.addView(progressBar, progressParams)
+@@ -904,6 +922,37 @@
+ 
+     private fun isRomImported(): Boolean =
+         com.driftdroid.android.rom.RomImportOverlay.isRomAlreadyImported(File(filesDir, "WiiCompiled/DiscData"))
++
++    /**
++     * Every game's controller layout, from one place. Sunshine and Eclipse have their own
++     * button-assignment screens (captured before SDL, saved per controller); the others change
++     * buttons inside the game, so this says where.
++     */
++    private fun showControllerButtons() {
++        val games = arrayOf("Super Mario Sunshine", "Super Mario Eclipse", "Super Mario Galaxy",
++            "New Super Mario Bros. Wii and MSMBWii", "Mario Kart Wii and Retro Rewind")
++        ThorDialogs.builder(this)
++            .setTitle("Controller buttons")
++            .setItems(games) { _, which ->
++                when (which) {
++                    0 -> startActivity(Intent(this, dev.chasem.smslauncher.ControllerConfigActivity::class.java))
++                    1 -> startActivity(Intent(this, dev.chasem.eclipselauncher.ControllerConfigActivity::class.java))
++                    else -> ThorDialogs.builder(this)
++                        .setTitle(games[which])
++                        .setMessage(when (which) {
++                            2 -> "In Galaxy, press Back to open its settings, then choose Controls and Buttons. " +
++                                "Pick what each button does; Reset returns the standard layout."
++                            3 -> "In the game, choose Settings in the pause menu (the world map's + menu, or a level's pause gear), then the " +
++                                "Controller tab. Choose a button and press the one you want for it."
++                            else -> "In the game, press Back to open its settings, then choose Controller. Choose a " +
++                                "button and press the one you want for it."
++                        })
++                        .setPositiveButton("OK", null)
++                        .show()
++                }
++            }
++            .show()
++    }
+ 
+     private fun showRetroRewindMenuDialog() {
+         if (BuildConfig.THOR_BUILD) { openThorRetroRewindUpdates(); return }
+@@ -975,6 +1024,10 @@
+      * It never begins a runtime itself. The real launch action still re-checks everything.
+      */
+     private fun thorLaunchBlocker(product: Int): String? {
++        if (product == GALAXY_CASE) {
++            refreshNsmbInstalled()
++            return if (galaxyInstalled) null else "Set up Super Mario Galaxy first."
++        }
+         if (product == ECLIPSE_CASE) {
+             refreshNsmbInstalled()
+             if (!eclipseInstalled) mainHandler.post { openGames() }
+@@ -1729,9 +1782,10 @@
+         private const val REQUEST_CODE_IMPORT_MII_DATA = 0x52520004
+         private const val REQUEST_CODE_IMPORT_SINGLE_MII = 0x52520005
+         /** Existing shelf order is stable; Eclipse follows Sunshine in its GameCube stack. */
+-        private const val LIBRARY_CASES = 6
++        private const val LIBRARY_CASES = 7
+         /** Base game first, then its mods: they share one stack on the main shelf. */
+-        private val LIBRARY_BUNDLES = listOf(listOf(0, 1), listOf(2, 3), listOf(4, 5))
++        private val LIBRARY_BUNDLES = listOf(listOf(0, 1), listOf(2, 3), listOf(4, 5), listOf(6))
++        private const val GALAXY_CASE = ThorLibraryCompanionView.GALAXY
+         private const val NSMB_CASE = ThorLibraryCompanionView.NSMB
+         private const val SUNSHINE_CASE = ThorLibraryCompanionView.SUNSHINE
+         private const val ECLIPSE_CASE = ThorLibraryCompanionView.ECLIPSE
+--- a/android/app/src/main/kotlin/com/driftdroid/android/ThorLauncherArtwork.kt
++++ b/android/app/src/main/kotlin/com/driftdroid/android/ThorLauncherArtwork.kt
+@@ -35,7 +35,7 @@
+     private val required = emptySet<String>()
+     private val optional = listOf(setOf("original-cover", "original-disc"), setOf("retro-rewind-cover", "retro-rewind-disc"),
+         setOf("nsmbw-cover", "nsmbw-disc"), setOf("sunshine-cover", "sunshine-disc"), setOf("msmbwii-cover", "msmbwii-disc"),
+-        setOf("eclipse-cover", "eclipse-disc"))
++        setOf("eclipse-cover", "eclipse-disc"), setOf("galaxy-cover", "galaxy-disc"))
+     private val spines = optional.associate { pair -> "${pair.first().removeSuffix("-cover")}-spine" to pair }
+     private val stems = required + optional.flatten() + spines.keys
+     private data class Key(val path: String, val modified: Long, val length: Long)
+--- a/android/app/src/main/kotlin/com/driftdroid/android/ThorLibraryCompanionView.kt
++++ b/android/app/src/main/kotlin/com/driftdroid/android/ThorLibraryCompanionView.kt
+@@ -173,10 +173,10 @@
+ 
+     /** Separate games validate their own data and never inherit Mario Kart update/video state. */
+     private fun separateGame() = (selection.product == NSMB || selection.product == SUNSHINE ||
+-        selection.product == MSMBWII || selection.product == ECLIPSE) && !selection.options
++        selection.product == MSMBWII || selection.product == ECLIPSE || selection.product == GALAXY) && !selection.options
+     /** MSMBWii's disc is there but its mod isn't (yet). */
+     private fun modPending() = selection.product == MSMBWII && nsmbDiscImported && !selection.available
+-    private fun separateGameName() = when (selection.product) { SUNSHINE -> "Sunshine"; ECLIPSE -> "Eclipse"; MSMBWII -> "MSMBWii"; else -> "NSMB Wii" }
++    private fun separateGameName() = when (selection.product) { GALAXY -> "Galaxy"; SUNSHINE -> "Sunshine"; ECLIPSE -> "Eclipse"; MSMBWII -> "MSMBWii"; else -> "NSMB Wii" }
+ 
+     private fun updateGated() = BuildConfig.THOR_RETRO_REWIND && !separateGame() &&
+         (snapshot.running || pendingUpdate || recoveryRequired)
+@@ -220,6 +220,7 @@
+         NSMB -> "New Super Mario Bros. Wii"
+         SUNSHINE -> "Super Mario Sunshine"
+         ECLIPSE -> "Super Mario Eclipse"
++        GALAXY -> "Super Mario Galaxy"
+         MSMBWII -> "MSMBWii: Just a Little Adventure"
+         else -> "Mario Kart Wii"
+     }
+@@ -229,6 +230,7 @@
+         NSMB -> "nsmbw"
+         SUNSHINE -> "sunshine"
+         ECLIPSE -> "eclipse"
++        GALAXY -> "galaxy"
+         MSMBWII -> "msmbwii"
+         else -> "original"
+     }
+@@ -275,15 +277,22 @@
+     private fun drawOptions(c: Canvas, image: (String, Float, Float, Float, Float, Boolean, Int) -> Unit,
+                             text: (String, Float, Float, Float, Float, Boolean) -> Unit) {
+         image("panel", 54f, 276f, 1226f, 810f, true, 255)
+-        val later = listOf("msmbwii", "sunshine", "eclipse").filter { artwork?.images?.containsKey("$it-cover") == true }
++        val later = listOf("msmbwii", "sunshine", "eclipse", "galaxy").filter { artwork?.images?.containsKey("$it-cover") == true }
+         if (later.isNotEmpty()) {
+-            // Four or five cases share the collection area (x 96..582) without moving its panels.
++            // The cases share the collection area (x 96..582, y 286..624) without moving its panels:
++            // one row of up to six, then two rows.
+             val games = listOf("original", "retro-rewind", "nsmbw") + later
+-            val w = (486f - (games.size - 1) * 10f) / games.size
++            val rows = if (games.size > 6) 2 else 1
++            val perRow = (games.size + rows - 1) / rows
++            val w = minOf((486f - (perRow - 1) * 10f) / perRow, (338f - (rows - 1) * 12f) / rows * 112f / 160f)
+             val h = w * 160f / 112f
++            val top = 455f - (rows * h + (rows - 1) * 12f) / 2
+             for ((i, game) in games.withIndex()) {
+-                val x = 96f + i * (w + 10f)
+-                image("$game-cover", x, 455f - h / 2, x + w, 455f + h / 2, false, 255)
++                val row = i / perRow
++                val inRow = minOf(perRow, games.size - row * perRow)
++                val x = 96f + (486f - (inRow * w + (inRow - 1) * 10f)) / 2 + (i % perRow) * (w + 10f)
++                val y = top + row * (h + 12f)
++                image("$game-cover", x, y, x + w, y + h, false, 255)
+             }
+         } else if (artwork?.images?.containsKey("nsmbw-cover") == true) {
+             // Three games: the same covers, smaller, in the same space.
+@@ -327,12 +336,14 @@
+         if (separateGame()) {
+             // Only what the library actually knows: the disc is (or is not) imported.
+             line(when {
++                selection.product == GALAXY -> if (selection.available) "Galaxy ready" else "Set up Galaxy first"
+                 selection.product == ECLIPSE -> if (selection.available) "Eclipse app installed" else "Install the Eclipse Thor app"
+                 selection.available -> "Disc imported"
+                 modPending() -> "Finish it on Your games"
+                 else -> "Import it on Your games"
+             }, 36f)
+             line(when (selection.product) {
++                GALAXY -> "USA Wii disc"
+                 SUNSHINE -> "USA GameCube disc"
+                 ECLIPSE -> "Separate game data and saves"
+                 MSMBWII -> "Mod included, on your NSMB Wii disc"
+@@ -372,6 +383,7 @@
+             !selection.available -> when {
+                 modPending() -> "Open Your games to set up MSMBWii"
+                 selection.product == ECLIPSE -> "Install the Eclipse Thor app to play"
++                selection.product == GALAXY -> "Set up Super Mario Galaxy to play"
+                 else -> "Import your ${if (selection.product == MSMBWII) "NSMB Wii" else separateGameName()} disc to play"
+             } to "Left / Right  Choose a game     X  Options"
+             else -> (selection.status.trim().ifEmpty { "Left / Right  Choose a game" }) to "A  Open case     X  Options"
+@@ -403,7 +415,7 @@
+         }
+         text("The game is loading.", 640f, 800f, 40f, 1100f, true)
+         if (separateGame()) {
+-            footerHints(text, "Main Menu in the game brings you back here.")
++            footerHints(text, if (selection.product == GALAXY) "Back returns to your WiiDS library." else "Main Menu in the game brings you back here.")
+             return
+         }
+         val video = videoSettings
+@@ -421,6 +433,7 @@
+         const val MSMBWII = 3
+         const val SUNSHINE = 4
+         const val ECLIPSE = 5
++        const val GALAXY = 6
+         private val main = Handler(Looper.getMainLooper())
+         private val worker = Executors.newSingleThreadExecutor { task ->
+             Thread(task, "ThorLibraryArtwork").apply { isDaemon = true }
+@@ -442,12 +455,12 @@
+                         runCatching { font.bitmap(roles.getJSONObject(role).getString("texture")) }
+                             .getOrNull()?.let { images[role] = it }
+                     }
+-                    for (game in listOf("original", "retro-rewind", "nsmbw", "msmbwii", "sunshine", "eclipse")) for (kind in listOf("cover", "disc")) {
++                    for (game in listOf("original", "retro-rewind", "nsmbw", "msmbwii", "sunshine", "eclipse", "galaxy")) for (kind in listOf("cover", "disc")) {
+                         ThorLauncherArtwork.bitmap(cases, "$game-$kind")?.let { images["$game-$kind"] = it }
+                     }
+                     // Round, hole-punched discs prepared once here (the supplied original disc
+                     // is a square JPEG; drawing it raw showed a white box on the lower screen).
+-                    for (name in listOf("original-disc", "retro-rewind-disc", "nsmbw-disc", "msmbwii-disc", "sunshine-disc", "eclipse-disc")) images[name]?.let {
++                    for (name in listOf("original-disc", "retro-rewind-disc", "nsmbw-disc", "msmbwii-disc", "sunshine-disc", "eclipse-disc", "galaxy-disc")) images[name]?.let {
+                         images["$name-round"] = roundDisc(it, discScale(name.removeSuffix("-disc")))
+                     }
+                     Artwork(font, images)

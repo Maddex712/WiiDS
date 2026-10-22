@@ -23,7 +23,7 @@ of the snapshot, rather than merely links to unmodified upstream repositories.
    notes. Stage merged libraries and licence notices, then package the Android
    release. Create your own signing key; the owner's key is never included.
 
-For the exact prepared one-APK beta.4 packaging command, see
+For the exact prepared one-APK 1.0 packaging command, see
 `docs/release/RELEASE-DRAFT.md` and `scripts/Package-PublicRelease.ps1`. The wrapper
 uses an explicit or environment-configured JDK/SDK and already-staged runtimes.
 It stages the embedded Eclipse host/bootstrap and verified official patch, then
@@ -96,3 +96,15 @@ No SZS course archive or playable mod pack is part of that presentation snapshot
 The preferred download is the named full matching source ZIP attached to the
 release. Repository source-code snapshots alone may omit this large asset tree;
 the named release archive includes both source and the exact presentation.
+
+## WiiDS 1.0 Galaxy integration
+
+Galaxy runs inside the same non-debuggable APK, without wrap.sh. See
+[Galaxy setup and rebuild](GALAXY-SETUP.md) and [1.0 release notes](V1.0.md).
+The snapshot includes Galaxy-Android's handwritten CC0 decomp source (a scoped
+export exception), current platform/JNI/Java changes, importer and lower bake
+sources. NDK 29 builds Galaxy; the existing WiiDS engines retain their pins.
+Restore binary upstream dependencies at the recorded pin; Build-Importer.py
+fetches the hashed Android wheels for NumPy/Pillow. Stage-Integrated.py copies
+only code/dependencies/assets, never cooked game data or generated lower assets.
+The shader manifest is an upstream-generated code cache, included explicitly.

@@ -1,7 +1,7 @@
 {
   "schema": 1,
   "kind": "wiids-bundled-presentation",
-  "revision": "thor-2026-10-20-r3",
+  "revision": "thor-2026-10-22-v1.0",
   "files": [
     {
       "asset": "presentation/files/eclipse-hud/game_6-balloon_icon.png",
@@ -948,8 +948,8 @@
     {
       "asset": "presentation/files/launcher/artwork.json",
       "target": "launcher/artwork.json",
-      "sha256": "5f8d045c389d5acca9df11d18cdb73458099ea1ed6664eb5cfeee011902ac92b",
-      "bytes": 5149
+      "sha256": "9e584b324a0b9f86c959b4e406cf3245e790343b3e0da4805cc9302cdcad3887",
+      "bytes": 5920
     },
     {
       "asset": "presentation/files/launcher/eclipse-cover.png",
@@ -968,6 +968,24 @@
       "target": "launcher/eclipse-spine.png",
       "sha256": "448a181fa125e03bcb637e5057bc10f7a9accc390feb4f9ae2575b6c88485226",
       "bytes": 38249
+    },
+    {
+      "asset": "presentation/files/launcher/galaxy-cover.png",
+      "target": "launcher/galaxy-cover.png",
+      "sha256": "f383d4514d0a7b8208c126afc1be7498be243b6a67f99c3b5665cb9b1c3edbb0",
+      "bytes": 568754
+    },
+    {
+      "asset": "presentation/files/launcher/galaxy-disc.png",
+      "target": "launcher/galaxy-disc.png",
+      "sha256": "b2b936f03d84af37bda19d48b386894460c4a788cf5c0b90e0d3dcdd7a36633e",
+      "bytes": 50153
+    },
+    {
+      "asset": "presentation/files/launcher/galaxy-spine.png",
+      "target": "launcher/galaxy-spine.png",
+      "sha256": "47653d2b93e982e86746af2c09f4ec7647f5969595146dc51a19ae322423202b",
+      "bytes": 28880
     },
     {
       "asset": "presentation/files/launcher/msmbwii-cover.png",

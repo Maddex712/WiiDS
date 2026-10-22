@@ -27,7 +27,7 @@ LIBRARIES = {
     'libnsmbw.so': ROOT / 'build/nsmbw-thor/e1/android-native/libnsmbw.so',
     'libmsmbwii.so': ROOT / 'build/nsmbw-thor/msmbwii/android-native/libmsmbwii.so',
     'libSDL2.so': ROOT / 'build/sunshine-thor/android-native-wiids/SDL2/libSDL2.so',
-    'libsms.so': ROOT / 'build/sunshine-thor/jniLibs/arm64-v8a/libsms.so',
+    'libsms.so': ROOT / 'build/sunshine-thor/android-native-wiids/libsms.so',
     'libsmsbootstrap.so': ROOT / 'build/sunshine-thor/jniLibs/arm64-v8a/libsmsbootstrap.so',
 }
 MSMBWII_SHA256 = 'be135baea3a6caeb6510574e5bf0ed55a6e3fdfbe51d191195134d865faa30cf'

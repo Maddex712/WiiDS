@@ -806,7 +806,7 @@ void DrawToggle(const Canvas& c) {
 // the whole screen (the multiplier is greyed out meanwhile). Keybinds: the keyboard's remote.
 constexpr float kScales[] = {0.5f, 0.75f, 1.0f, 1.5f, 2.0f, 3.0f, 4.0f};
 std::atomic<bool> g_settingsChanged{false};  // the Android app copies them into its own settings
-int g_settingsTab = 0;                       // 0 Video, 1 Keybinds
+int g_settingsTab = 0;                       // 0 Video, 1 Keybinds, 2 Controller
 float g_lastScale = 1.0f;                    // the multiplier Match Screen Resolution returns to
 bool g_lastWide = true;
 
@@ -940,12 +940,47 @@ constexpr float kSettingsHeight = 440.0f, kSettingsWidth = 720.0f;
 
 void DrawSettingsTabs(const Canvas& c) {
     const float y = kSettingsHeight / 2 - 42.0f;
-    const char* names[] = {"Video", "Keybinds"};
-    for (int tab = 0; tab < 2; ++tab) {
-        const float x = tab == 0 ? -125.0f : 125.0f;
-        Button(c, names[tab], x, y, 220, g_ui.cursor == 0 && g_settingsTab == tab, g_settingsTab == tab, g_ui.frame);
-        AddHitEvent(x, y, 228, 60, 0, tab == 0 ? kEvLeft : kEvRight);
+    const char* names[] = {"Video", "Keybinds", "Controller"};
+    for (int tab = 0; tab < 3; ++tab) {
+        const float x = -230.0f + 230.0f * tab;
+        Button(c, names[tab], x, y, 210, g_ui.cursor == 0 && g_settingsTab == tab, g_settingsTab == tab, g_ui.frame);
+        // Touch: the outer tabs step left and right, the middle one is both at once.
+        AddHitEvent(x, y, 218, 60, 0, tab == 0 ? kEvLeft : tab == 2 ? kEvRight : kEvLeft | kEvRight);
     }
+}
+
+// The settings window's Controller tab: what each of the twelve GameCube buttons the game reads is
+// driven by (settings_overlay.cpp keeps the mapping). The labels say what the button does here.
+constexpr int kPadRows = 6, kPadReset = 13, kPadOk = 14;
+const char* const kPadActions[] = {"Jump (2)", "Run / fire (1)", "Run (1)", "A button", "Pause (+)", "Spin (shake)",
+                                   "Minus (-)", "Spin (shake)", "Up", "Down", "Left", "Right"};
+
+void DrawControllerTab(const Canvas& c) {
+    const int capturing = settings_overlay::ControllerCapturing();
+    const int count = std::min(settings_overlay::ControllerButtonCount(), 12);
+    bool connected = true;
+    for (int button = 0; button < count; ++button) {
+        const int column = button / kPadRows, row = button % kPadRows;
+        const float x0 = column == 0 ? -178.0f : 178.0f;
+        const float y = 122.0f - 44.0f * row;
+        Text(c, kPadActions[button], x0 - 168, y, 21, 0);
+        std::string label = capturing == button ? "Press a button..." : settings_overlay::ControllerBindingLabel(button);
+        if (label.empty()) {
+            connected = false;
+            label = "-";
+        }
+        const float size = label.size() > 16 ? 17.0f : label.size() > 11 ? 19.0f : 22.0f;
+        Button(c, label, x0 + 78, y, 172, g_ui.cursor == 1 + button, connected, g_ui.frame, size, 38.0f);
+        AddHit(x0 + 78, y, 178, 42, 1 + button);
+    }
+    Text(c, capturing >= 0 ? "Press the controller button for it (10 seconds)." :
+            connected ? "Choose a button, then press the one you want." : "Connect a controller to change its buttons.",
+         0, -140, 20);
+    const float y = -kSettingsHeight / 2 + 43.0f;
+    Button(c, "Reset Defaults", -126, y, 232, g_ui.cursor == kPadReset, true, g_ui.frame, 26.0f);
+    Button(c, "OK", 126, y, 232, g_ui.cursor == kPadOk, true, g_ui.frame);
+    AddHit(-126, y, 240, 60, kPadReset);
+    AddHit(126, y, 240, 60, kPadOk);
 }
 
 void DrawVideoTab(const Canvas& c) {
@@ -1024,8 +1059,10 @@ void DrawSettings(const Canvas& c) {
     DrawSettingsTabs(c);
     if (g_settingsTab == 0) {
         DrawVideoTab(c);
-    } else {
+    } else if (g_settingsTab == 1) {
         DrawKeybindsTab(c);
+    } else {
+        DrawControllerTab(c);
     }
 }
 
@@ -1044,12 +1081,18 @@ void HandleSettings(bool left, bool right, bool up, bool down, bool confirm, boo
         Keybinds::PollCapture();  // the keyboard is the capture's until a key is picked
         return;
     }
+    if (settings_overlay::ControllerCapturing() >= 0) {
+        settings_overlay::PollControllerCapture();  // the controller is the capture's until a press
+        return;
+    }
     int& cursor = g_ui.cursor;
     if (cursor == 0) {
-        if (left || right) {
-            g_settingsTab = left ? 0 : 1;
+        if (left && right) {
+            g_settingsTab = 1;
+        } else if (left || right) {
+            g_settingsTab = std::clamp(g_settingsTab + (left ? -1 : 1), 0, 2);
         } else if (confirm) {
-            g_settingsTab ^= 1;
+            g_settingsTab = (g_settingsTab + 1) % 3;
         } else if (down) {
             cursor = g_settingsTab == 0 && settings_overlay::RenderScale() <= 0.0f ? 2 : 1;
         } else if (back) {
@@ -1086,6 +1129,21 @@ void HandleSettings(bool left, bool right, bool up, bool down, bool confirm, boo
         } else if (confirm && cursor == kVideoOk) {
             CloseSettings();
         }
+        return;
+    }
+    if (g_settingsTab == 2) {
+        if (cursor >= kPadReset) {
+            if (left || right) cursor = cursor == kPadReset ? kPadOk : kPadReset;
+            if (up) cursor = cursor == kPadReset ? kPadRows : 2 * kPadRows;
+            if (confirm && cursor == kPadReset) settings_overlay::ResetControllerMapping();
+            if (confirm && cursor == kPadOk) CloseSettings();
+            return;
+        }
+        const int button = cursor - 1, column = button / kPadRows, row = button % kPadRows;
+        if (up) cursor = row == 0 ? 0 : cursor - 1;
+        if (down) cursor = row == kPadRows - 1 ? (column == 0 ? kPadReset : kPadOk) : cursor + 1;
+        if ((left && column == 1) || (right && column == 0)) cursor = 1 + (1 - column) * kPadRows + row;
+        if (confirm) settings_overlay::BeginControllerCapture(button);
         return;
     }
     if (cursor >= kKeyReset) {

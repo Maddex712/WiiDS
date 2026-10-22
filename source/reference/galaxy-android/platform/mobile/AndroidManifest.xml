@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="com.openport.galaxyandroid"
+    android:versionCode="14"
+    android:versionName="0.0.4-delta"
+    android:installLocation="auto">
+
+    <uses-sdk android:minSdkVersion="28" android:targetSdkVersion="34" />
+
+    <uses-feature android:name="android.hardware.vulkan.version" android:version="0x400000" android:required="true" />
+    <uses-feature android:name="android.hardware.touchscreen" android:required="false" />
+    <uses-feature android:name="android.hardware.gamepad" android:required="false" />
+
+    <!-- Game data files & saves access -->
+    <uses-permission android:name="android.permission.MANAGE_EXTERNAL_STORAGE" />
+    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
+    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
+    <uses-permission android:name="android.permission.VIBRATE" />
+
+    <!-- android:debuggable="true" is load-bearing, not a development leftover: Android
+         only honours lib/<abi>/wrap.sh in a debuggable app, and wrap.sh is what
+         preloads libreserve.so, which reserves the game's 32-bit address window
+         before ART lays out its heap (see platform/android/reserve.c).  A plain
+         System.loadLibrary cannot replace it: by then ART's heap is already mapped
+         across the window.
+
+         Consequence: this APK is debuggable and must not be published to a store -
+         any process can attach a debugger and `run-as` can read the app-private
+         data directory (the extracted disc and its saves live there).  Ship release
+         APKs by sideload only.
+         extractNativeLibs="true" is likewise required for wrap.sh. -->
+    <application
+        android:label="Galaxy Android"
+        android:icon="@mipmap/ic_launcher"
+        android:banner="@drawable/banner"
+        android:theme="@style/Theme.GalaxyAndroid"
+        android:hasCode="true"
+        android:debuggable="true"
+        android:extractNativeLibs="true"
+        android:allowBackup="false"
+        android:requestLegacyExternalStorage="true">
+
+        <!-- Launcher & In-App Setup Activity -->
+        <activity
+            android:name="com.openport.galaxyandroid.MainActivity"
+            android:exported="true"
+            android:configChanges="orientation|screenSize|keyboardHidden"
+            android:screenOrientation="sensorLandscape">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+
+        <!-- Native Game Engine Activity -->
+        <activity
+            android:name="com.openport.galaxyandroid.GameActivity"
+            android:exported="true"
+            android:excludeFromRecents="false"
+            android:launchMode="singleTask"
+            android:screenOrientation="sensorLandscape"
+            android:resizeableActivity="false"
+            android:theme="@android:style/Theme.Black.NoTitleBar.Fullscreen"
+            android:configChanges="density|keyboard|keyboardHidden|navigation|orientation|screenLayout|screenSize|uiMode">
+            <meta-data android:name="android.app.lib_name" android:value="main" />
+        </activity>
+    </application>
+</manifest>

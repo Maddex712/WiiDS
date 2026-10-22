@@ -1,6 +1,6 @@
 # WiiDS game guide
 
-Six library entries share one Android app. Each needs the supported base disc listed below; no original
+Seven library entries share one Android app. Galaxy needs Android API 32+; see its setup section below. Each needs the supported base disc listed below; no original
 or patched game image ships in the APK. All use the Thor's physical controls. The lower screen is a
 companion display, with no touch gameplay-button overlay.
 
@@ -135,3 +135,26 @@ the printed packaging. Community/custom covers are not Nintendo retail releases.
 spine scan is USA artwork; that presentation choice does not change the PAL game-input requirement.
 Nintendo and the respective fan-art creators retain their artwork rights. See the
 [component notices](release/WIIDS-NOTICE.md) for the other presentation and runtime credits.
+
+## Super Mario Galaxy 1
+
+The Galaxy-Android/Petari native runtime is integrated into WiiDS, with a separate
+package-internal game process, NAND, settings and import profile. Bring your USA
+RMGE01 revision 0 disc. The setup card extracts/converts it and generates its lower
+HUD/fonts, Gardens map and textured planets. No helper APK or PC converter is needed.
+See [full setup, migration and limits](release/GALAXY-SETUP.md).
+
+The live lower screen uses matched actor visibility/base matrices and a Mario/Luigi
+marker. It omits animated enemies/NPC/player models and has material/coverage gaps.
+The current integration has desktop/Android emulator validation, with no physical
+Thor run of the final ARM64 APK. Earlier Thor development captures are labelled.
+No all-stage/performance/audio/haptics guarantee is made. Galaxy 2 is unsupported.
+
+## Controller remapping in 1.0
+
+WiiDS Options > Controller buttons explains each game's remapping page. Galaxy:
+Back > Controls > Buttons. NSMB/MSMBWii: Settings > Controller. Sunshine/Eclipse:
+their existing controller config, now reachable from WiiDS. Mario Kart/Retro Rewind:
+Back > Controller; their prebuilt page still uses Xbox position labels.
+NSMB rebinding was checked on the earlier Thor build; MSMBWii shares its code but
+was not independently checked on Thor.

@@ -1,0 +1,17 @@
+{
+  "assets/galaxy/pythonhome.zip": {
+    "sha256": "4656ec5bc9234e53717cf960b247e3ba81a4b9d4af302e0a5367f2e3c1ee14aa",
+    "bytes": 10400856,
+    "kind": "Python code/dependencies and source-generated metadata"
+  },
+  "assets/galaxy/cooker-scripts.zip": {
+    "sha256": "b9dbb64d6ca7739dd9154ef6bbc80fc02824dd03d0a588cb17f43b219636521c",
+    "bytes": 102931,
+    "kind": "Python code/dependencies and source-generated metadata"
+  },
+  "assets/galaxy_shader_manifest.bin": {
+    "sha256": "9f8cda579c48a726934ccf35520133cf788d72ffabf55d9e672461a3d39ceb02",
+    "bytes": 46760,
+    "kind": "upstream generated shader-code manifest"
+  }
+}

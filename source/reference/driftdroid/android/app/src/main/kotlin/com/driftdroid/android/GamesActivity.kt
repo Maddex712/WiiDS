@@ -50,6 +50,9 @@ class GamesActivity : Activity() {
     /** Result of the last MSMBWii mod install ("" = success), shown on its card. */
     private var modMessage: String? = null
     private var eclipseMessage: String? = null
+    // Galaxy: a disc chosen with Choose file (its path), and the card's "Import again" button.
+    private var galaxyChosen: String? = null
+    private var galaxyAgain: Button? = null
     private var foreground = false
     private lateinit var accessRow: LinearLayout
     private lateinit var searchButton: Button
@@ -147,6 +150,11 @@ class GamesActivity : Activity() {
             refresh()
             return
         }
+        if (requestCode == REQUEST_GALAXY_IMPORT) {
+            if (resultCode == RESULT_OK) { messages.remove(GameCatalog.Disc.GALAXY_USA); galaxyChosen = null }
+            refresh()
+            return
+        }
         if (requestCode == REQUEST_PICK_MOD) {
             val uri = data?.data
             if (resultCode == RESULT_OK && uri != null) { modMessage = null; MsmbwiiMod.start(this, uri) }
@@ -174,6 +182,12 @@ class GamesActivity : Activity() {
             }
             handler.post {
                 if (message != null) messages[game.disc] = message
+                else if (game == Game.GALAXY) {
+                    galaxyChosen = discPath(source)
+                    messages[game.disc] = if (galaxyChosen != null) "${source.name} is the right disc. Set up Galaxy to convert it."
+                        else "${source.name} is the right disc, but Galaxy setup can only read it from this device's storage. " +
+                            "Copy it there (a ROMs folder is fine) and choose it again."
+                }
                 else if (!GameInstaller.start(this, game.disc, source)) messages[game.disc] = BUSY
                 else messages.remove(game.disc)
                 refresh()
@@ -197,6 +211,10 @@ class GamesActivity : Activity() {
         searchButton.text = if (scanning) "Searching..." else "Search again"
         for ((game, card) in cards) {
             val disc = game.disc
+            if (game == Game.GALAXY) {
+                refreshGalaxy(card)
+                continue
+            }
             if (game == Game.ECLIPSE && eclipseBusy) {
                 val mod = EclipseMod.state
                 val percent = if (mod.total > 0) (mod.done * 100 / mod.total).toInt().coerceIn(0, 100) else 0
@@ -296,6 +314,67 @@ class GamesActivity : Activity() {
                 }
             }
         }
+    }
+
+    /**
+     * Galaxy plays in its own add-on, which converts and keeps its own game data: this card says
+     * whether it is ready and hands the add-on the right disc (GalaxyImportActivity there does the
+     * work, keeping saves when it imports again).
+     */
+    private fun refreshGalaxy(card: Card) {
+        if (android.os.Build.VERSION.SDK_INT < 32) { show(card, "Galaxy needs Android 12L or newer (API 32).", AMBER); button(card, "Android update required", false) {}; return }
+        val disc = GameCatalog.Disc.GALAXY_USA
+        card.progress.visibility = View.GONE
+        val message = messages[disc]
+        val found = scan?.matching(disc).orEmpty()
+        val foundPath = found.firstNotNullOfOrNull { discPath(it.source) }
+        val path = galaxyChosen ?: foundPath
+        val ready = disc.isInstalled(this)
+        when {
+            ready -> show(card, "Installed. Ready to play.", GREEN)
+            message != null && message.isNotEmpty() -> show(card, message, if (galaxyChosen != null) GREEN else AMBER)
+            path != null -> show(card, "Found ${java.io.File(path).name}, the right disc. Set up Galaxy to convert it " +
+                "(about 15 minutes; keep the device charging).", GREEN)
+            scanning -> show(card, "Searching this device...", MUTED)
+            else -> {
+                val wrong = scan?.mismatched(disc)?.firstOrNull()
+                when {
+                    wrong != null -> show(card, "Found ${wrong.first.source.name}, but it can't be used. ${wrong.second}", AMBER)
+                    scan == null -> show(card, "Allow access above so WiiDS can find it, or choose the file.", MUTED)
+                    else -> show(card, "Not found on this device yet.", MUTED)
+                }
+            }
+        }
+        when {
+            ready -> button(card, "Play", true) { ThorGameLaunch.launchGalaxy(this) }
+            path != null -> button(card, "Set up Galaxy", !GameInstaller.running) { importGalaxy(path) }
+            else -> button(card, "Choose file", !GameInstaller.running) { chooseFile(Game.GALAXY) }
+        }
+        galaxyAgain?.let { again ->
+            again.visibility = if (ready && path != null) View.VISIBLE else View.GONE
+            again.setOnClickListener { if (path != null) importGalaxy(path) }
+        }
+    }
+
+    /** A disc WiiDS can name by path (the add-on reads it there with its own All files access). */
+    private fun discPath(source: WiiDsDisc.Source): String? = when (source) {
+        is WiiDsDisc.Source.Files -> source.parts.first().path
+        is WiiDsDisc.Source.Document -> runCatching {
+            val id = android.provider.DocumentsContract.getDocumentId(source.uri)
+            when {
+                id.startsWith("raw:") -> id.removePrefix("raw:")
+                id.startsWith("primary:") -> android.os.Environment.getExternalStorageDirectory().path + "/" + id.removePrefix("primary:")
+                else -> null
+            }
+        }.getOrNull()?.takeIf { java.io.File(it).isFile }
+    }
+
+    private fun importGalaxy(path: String) {
+        val intent = Intent("dev.thor.galaxy.action.IMPORT_DISC")
+            .setClassName(packageName, "dev.thor.galaxy.GalaxyImportActivity")
+            .putExtra("disc_path", path)
+        if (runCatching { startActivityForResult(intent, REQUEST_GALAXY_IMPORT) }.isFailure)
+            messages[GameCatalog.Disc.GALAXY_USA] = "Galaxy setup is unavailable on this Android version."
     }
 
     private fun show(card: Card, text: String, color: Int) {
@@ -414,6 +493,13 @@ class GamesActivity : Activity() {
         box.addView(progress, LinearLayout.LayoutParams(-1, dp(10)).apply { bottomMargin = dp(10) })
         val action = styledButton("Choose file") {}
         box.addView(action, LinearLayout.LayoutParams(-2, -2))
+        if (game == Game.GALAXY) {
+            box.addView(styledButton("Import legacy Galaxy backup") { startActivity(Intent().setClassName(packageName, "dev.thor.galaxy.GalaxyBackupActivity")) }, LinearLayout.LayoutParams(-2, -2).apply { topMargin = dp(8) })
+            galaxyAgain = styledButton("Import again (keeps your saves)") {}.also {
+                it.visibility = View.GONE
+                box.addView(it, LinearLayout.LayoutParams(-2, -2).apply { topMargin = dp(8) })
+            }
+        }
         if (game == Game.ECLIPSE) {
             box.addView(styledButton("Import patched image") { if (!GameInstaller.running && !EclipseMod.state.running) chooseFile(game) },
                 LinearLayout.LayoutParams(-2, -2).apply { topMargin = dp(8) })
@@ -457,6 +543,7 @@ class GamesActivity : Activity() {
         private const val REQUEST_PICK = 4710
         private const val REQUEST_PICK_MOD = 4711
         private const val REQUEST_PICK_ECLIPSE_PATCH = 4712
+        private const val REQUEST_GALAXY_IMPORT = 4713
         private const val BUSY = "Another disc is being imported. Wait for it to finish."
         private const val WHITE = Color.WHITE
         private const val MUTED = 0xFFA9BBD3.toInt()

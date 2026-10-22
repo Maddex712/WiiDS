@@ -40,6 +40,8 @@ object WiiDsArt {
                 Job("sms-cases", disc.installedFile(context), cases(context), "sunshine-disc.png", false))
             GameCatalog.Disc.ECLIPSE_110 -> listOf(
                 Job("sms-hud", disc.installedFile(context), File(external(context), "eclipse/ThorHud"), "manifest.json", true))
+            // Galaxy's art comes with its add-on.
+            GameCatalog.Disc.GALAXY_USA -> emptyList()
             GameCatalog.Disc.MARIO_KART_PAL -> listOf(
                 Job("mkw-art", root, thorMap(context), "menu.json", false),
                 Job("mkw-audio", root, File(thorMap(context), "launcher-audio"), "audio.json", true),

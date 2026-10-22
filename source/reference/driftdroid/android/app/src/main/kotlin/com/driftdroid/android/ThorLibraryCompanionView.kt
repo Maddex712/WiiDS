@@ -173,10 +173,10 @@ internal class ThorLibraryCompanionView(context: Context, private val folder: Fi
 
     /** Separate games validate their own data and never inherit Mario Kart update/video state. */
     private fun separateGame() = (selection.product == NSMB || selection.product == SUNSHINE ||
-        selection.product == MSMBWII || selection.product == ECLIPSE) && !selection.options
+        selection.product == MSMBWII || selection.product == ECLIPSE || selection.product == GALAXY) && !selection.options
     /** MSMBWii's disc is there but its mod isn't (yet). */
     private fun modPending() = selection.product == MSMBWII && nsmbDiscImported && !selection.available
-    private fun separateGameName() = when (selection.product) { SUNSHINE -> "Sunshine"; ECLIPSE -> "Eclipse"; MSMBWII -> "MSMBWii"; else -> "NSMB Wii" }
+    private fun separateGameName() = when (selection.product) { GALAXY -> "Galaxy"; SUNSHINE -> "Sunshine"; ECLIPSE -> "Eclipse"; MSMBWII -> "MSMBWii"; else -> "NSMB Wii" }
 
     private fun updateGated() = BuildConfig.THOR_RETRO_REWIND && !separateGame() &&
         (snapshot.running || pendingUpdate || recoveryRequired)
@@ -220,6 +220,7 @@ internal class ThorLibraryCompanionView(context: Context, private val folder: Fi
         NSMB -> "New Super Mario Bros. Wii"
         SUNSHINE -> "Super Mario Sunshine"
         ECLIPSE -> "Super Mario Eclipse"
+        GALAXY -> "Super Mario Galaxy"
         MSMBWII -> "MSMBWii: Just a Little Adventure"
         else -> "Mario Kart Wii"
     }
@@ -229,6 +230,7 @@ internal class ThorLibraryCompanionView(context: Context, private val folder: Fi
         NSMB -> "nsmbw"
         SUNSHINE -> "sunshine"
         ECLIPSE -> "eclipse"
+        GALAXY -> "galaxy"
         MSMBWII -> "msmbwii"
         else -> "original"
     }
@@ -275,15 +277,22 @@ internal class ThorLibraryCompanionView(context: Context, private val folder: Fi
     private fun drawOptions(c: Canvas, image: (String, Float, Float, Float, Float, Boolean, Int) -> Unit,
                             text: (String, Float, Float, Float, Float, Boolean) -> Unit) {
         image("panel", 54f, 276f, 1226f, 810f, true, 255)
-        val later = listOf("msmbwii", "sunshine", "eclipse").filter { artwork?.images?.containsKey("$it-cover") == true }
+        val later = listOf("msmbwii", "sunshine", "eclipse", "galaxy").filter { artwork?.images?.containsKey("$it-cover") == true }
         if (later.isNotEmpty()) {
-            // Four or five cases share the collection area (x 96..582) without moving its panels.
+            // The cases share the collection area (x 96..582, y 286..624) without moving its panels:
+            // one row of up to six, then two rows.
             val games = listOf("original", "retro-rewind", "nsmbw") + later
-            val w = (486f - (games.size - 1) * 10f) / games.size
+            val rows = if (games.size > 6) 2 else 1
+            val perRow = (games.size + rows - 1) / rows
+            val w = minOf((486f - (perRow - 1) * 10f) / perRow, (338f - (rows - 1) * 12f) / rows * 112f / 160f)
             val h = w * 160f / 112f
+            val top = 455f - (rows * h + (rows - 1) * 12f) / 2
             for ((i, game) in games.withIndex()) {
-                val x = 96f + i * (w + 10f)
-                image("$game-cover", x, 455f - h / 2, x + w, 455f + h / 2, false, 255)
+                val row = i / perRow
+                val inRow = minOf(perRow, games.size - row * perRow)
+                val x = 96f + (486f - (inRow * w + (inRow - 1) * 10f)) / 2 + (i % perRow) * (w + 10f)
+                val y = top + row * (h + 12f)
+                image("$game-cover", x, y, x + w, y + h, false, 255)
             }
         } else if (artwork?.images?.containsKey("nsmbw-cover") == true) {
             // Three games: the same covers, smaller, in the same space.
@@ -327,12 +336,14 @@ internal class ThorLibraryCompanionView(context: Context, private val folder: Fi
         if (separateGame()) {
             // Only what the library actually knows: the disc is (or is not) imported.
             line(when {
+                selection.product == GALAXY -> if (selection.available) "Galaxy ready" else "Set up Galaxy first"
                 selection.product == ECLIPSE -> if (selection.available) "Eclipse app installed" else "Install the Eclipse Thor app"
                 selection.available -> "Disc imported"
                 modPending() -> "Finish it on Your games"
                 else -> "Import it on Your games"
             }, 36f)
             line(when (selection.product) {
+                GALAXY -> "USA Wii disc"
                 SUNSHINE -> "USA GameCube disc"
                 ECLIPSE -> "Separate game data and saves"
                 MSMBWII -> "Mod included, on your NSMB Wii disc"
@@ -372,6 +383,7 @@ internal class ThorLibraryCompanionView(context: Context, private val folder: Fi
             !selection.available -> when {
                 modPending() -> "Open Your games to set up MSMBWii"
                 selection.product == ECLIPSE -> "Install the Eclipse Thor app to play"
+                selection.product == GALAXY -> "Set up Super Mario Galaxy to play"
                 else -> "Import your ${if (selection.product == MSMBWII) "NSMB Wii" else separateGameName()} disc to play"
             } to "Left / Right  Choose a game     X  Options"
             else -> (selection.status.trim().ifEmpty { "Left / Right  Choose a game" }) to "A  Open case     X  Options"
@@ -403,7 +415,7 @@ internal class ThorLibraryCompanionView(context: Context, private val folder: Fi
         }
         text("The game is loading.", 640f, 800f, 40f, 1100f, true)
         if (separateGame()) {
-            footerHints(text, "Main Menu in the game brings you back here.")
+            footerHints(text, if (selection.product == GALAXY) "Back returns to your WiiDS library." else "Main Menu in the game brings you back here.")
             return
         }
         val video = videoSettings
@@ -421,6 +433,7 @@ internal class ThorLibraryCompanionView(context: Context, private val folder: Fi
         const val MSMBWII = 3
         const val SUNSHINE = 4
         const val ECLIPSE = 5
+        const val GALAXY = 6
         private val main = Handler(Looper.getMainLooper())
         private val worker = Executors.newSingleThreadExecutor { task ->
             Thread(task, "ThorLibraryArtwork").apply { isDaemon = true }
@@ -442,12 +455,12 @@ internal class ThorLibraryCompanionView(context: Context, private val folder: Fi
                         runCatching { font.bitmap(roles.getJSONObject(role).getString("texture")) }
                             .getOrNull()?.let { images[role] = it }
                     }
-                    for (game in listOf("original", "retro-rewind", "nsmbw", "msmbwii", "sunshine", "eclipse")) for (kind in listOf("cover", "disc")) {
+                    for (game in listOf("original", "retro-rewind", "nsmbw", "msmbwii", "sunshine", "eclipse", "galaxy")) for (kind in listOf("cover", "disc")) {
                         ThorLauncherArtwork.bitmap(cases, "$game-$kind")?.let { images["$game-$kind"] = it }
                     }
                     // Round, hole-punched discs prepared once here (the supplied original disc
                     // is a square JPEG; drawing it raw showed a white box on the lower screen).
-                    for (name in listOf("original-disc", "retro-rewind-disc", "nsmbw-disc", "msmbwii-disc", "sunshine-disc", "eclipse-disc")) images[name]?.let {
+                    for (name in listOf("original-disc", "retro-rewind-disc", "nsmbw-disc", "msmbwii-disc", "sunshine-disc", "eclipse-disc", "galaxy-disc")) images[name]?.let {
                         images["$name-round"] = roundDisc(it, discScale(name.removeSuffix("-disc")))
                     }
                     Artwork(font, images)

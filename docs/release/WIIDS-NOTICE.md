@@ -16,6 +16,17 @@ Source and project page: https://github.com/Maddex712/WiiDS
 
 ## Built on
 
+- **Galaxy-Android** (OpenPort-Labs), pinned to `1abcb975927ecb4189949bd51f81e73a04d97566`:
+  Super Mario Galaxy Android runtime, GPL-3.0; Petari decompilation sources are CC0 1.0.
+  https://github.com/OpenPort-Labs/Galaxy-Android . Galaxy runs inside WiiDS, with
+  its upstream licence texts and matching source in the complete WiiDS source bundle.
+  Galaxy disc data and generated Galaxy HUD, fonts and planet meshes are supplied by the player.
+- **CPython 3.10**, **NumPy 1.26.2**, **Pillow 9.2.0**, **OpenBLAS 0.2.20**,
+  **FreeType 2.9.1**, libjpeg and the GCC Fortran runtime support on-device generation.
+  Android wheels come from Chaquopy's public package repository, with hashes in
+  `experiments/galaxy-thor/python-packages.json`. Their notices travel in the APK.
+  This software is based in part on the work of the FreeType Team.
+
 - **DriftDroid** (dorPXP) and **WiiCompiled** (patchzyy): Mario Kart Wii static recompilation and
   Android runtime. GPL-3.0. https://github.com/dorPXP/driftdroid
 - **NSMB Wii recompilation** (WitherBlitz): New Super Mario Bros. Wii runtime. GPL-3.0.

@@ -19,7 +19,8 @@ object GameCatalog {
         MARIO_KART_PAL("RMCP01", 0, WiiDsDisc.Platform.WII, "Mario Kart Wii", "Europe (PAL)"),
         NSMB_USA_REV1("SMNE01", 1, WiiDsDisc.Platform.WII, "New Super Mario Bros. Wii", "USA"),
         SUNSHINE_USA("GMSE01", 0, WiiDsDisc.Platform.GAMECUBE, "Super Mario Sunshine", "USA"),
-        ECLIPSE_110("GMSE04", 0, WiiDsDisc.Platform.GAMECUBE, "Super Mario Eclipse 1.1.0", "Patched USA");
+        ECLIPSE_110("GMSE04", 0, WiiDsDisc.Platform.GAMECUBE, "Super Mario Eclipse 1.1.0", "Patched USA"),
+        GALAXY_USA("RMGE01", 0, WiiDsDisc.Platform.WII, "Super Mario Galaxy", "USA");
 
         val requirement: String
             get() = "$gameName, $regionName ${if (platform == WiiDsDisc.Platform.GAMECUBE) "GameCube " else ""}disc, " +
@@ -47,6 +48,8 @@ object GameCatalog {
             NSMB_USA_REV1 -> File(context.filesDir, "games/nsmbw")
             SUNSHINE_USA -> File(context.filesDir, "games/sms")
             ECLIPSE_110 -> File(context.filesDir, "games/eclipse")
+            // Galaxy runs in its own add-on (io.github.maddex712.wiids.galaxy) with its own data.
+            GALAXY_USA -> File(context.filesDir, "games/galaxy")
         }
 
         /** The finished-install marker. */
@@ -55,7 +58,8 @@ object GameCatalog {
             WiiDsDisc.Platform.GAMECUBE -> File(installDir(context), "game.iso")
         }
 
-        fun isInstalled(context: Context) = installedFile(context).isFile
+        fun isInstalled(context: Context) =
+            if (this == GALAXY_USA) com.driftdroid.android.ThorGameLaunch.galaxyInstalled(context) else installedFile(context).isFile
     }
 
     enum class Game(val title: String, val disc: Disc, val note: String? = null) {
@@ -66,6 +70,8 @@ object GameCatalog {
         SUNSHINE("Super Mario Sunshine", Disc.SUNSHINE_USA),
         ECLIPSE("Super Mario Eclipse", Disc.ECLIPSE_110,
             "Import your USA Sunshine revision 0 disc first, then install Eclipse Team's included 1.1.0 patch here. An already patched GMSE04 image also works. Original Sunshine and Eclipse keep separate saves."),
+        GALAXY("Super Mario Galaxy", Disc.GALAXY_USA,
+            "Runs inside WiiDS with its own game data and saves. Import your USA revision 0 disc; the lower screen is generated automatically."),
     }
 
     /**

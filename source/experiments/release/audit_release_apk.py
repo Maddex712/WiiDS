@@ -145,6 +145,7 @@ def dol_from_iso(path):
 def local_sources():
     sources = []
     for label, relative in [
+        ('Galaxy main.dol', 'build/galaxy-thor/extracted/sys/main.dol'),
         ('MKW main.dol', 'reference/driftdroid/DiscData/sys/main.dol'),
         ('MKW StaticR.rel', 'reference/driftdroid/DiscData/files/rel/StaticR.rel'),
         ('NSMB main.dol', 'build/nsmbw-thor/e1/extracted/sys/main.dol'),
@@ -170,6 +171,8 @@ def local_sources():
 
 def audit(apk, sources):
     findings, inventory, libraries, mods = [], [], {}, []
+    code_manifest=ROOT/'release/galaxy-code-assets.json'
+    code_assets=json.loads(code_manifest.read_text(encoding='utf-8')) if code_manifest.is_file() else {}
     with zipfile.ZipFile(apk) as archive:
         presentation_errors, presentation = presentation_audit(archive)
         findings.extend(presentation_errors)
@@ -209,12 +212,12 @@ def audit(apk, sources):
                 libraries[name] = archive.read(entry)
             if suffix == '.zip':
                 data = archive.read(entry)
-                expected = MOD_ZIPS.get(name)
+                expected = MOD_ZIPS.get(name) or code_assets.get(name,{}).get('sha256')
                 if expected is None or hashlib.sha256(data).hexdigest() != expected:
                     findings.append('Unapproved bundled archive: ' + name)
                 else:
                     mods.append({'path': name, 'sha256': expected, 'bytes': len(data),
-                                 'description': 'MSMBWii authorized mod archive'})
+                                 'description': 'Galaxy code/dependency archive' if name in code_assets else 'MSMBWii authorized mod archive'})
                     with zipfile.ZipFile(io.BytesIO(data)) as mod:
                         for member in mod.infolist():
                             p = PurePosixPath(member.filename)

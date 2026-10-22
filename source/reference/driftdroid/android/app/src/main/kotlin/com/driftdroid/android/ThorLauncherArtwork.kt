@@ -35,7 +35,7 @@ internal object ThorLauncherArtwork {
     private val required = emptySet<String>()
     private val optional = listOf(setOf("original-cover", "original-disc"), setOf("retro-rewind-cover", "retro-rewind-disc"),
         setOf("nsmbw-cover", "nsmbw-disc"), setOf("sunshine-cover", "sunshine-disc"), setOf("msmbwii-cover", "msmbwii-disc"),
-        setOf("eclipse-cover", "eclipse-disc"))
+        setOf("eclipse-cover", "eclipse-disc"), setOf("galaxy-cover", "galaxy-disc"))
     private val spines = optional.associate { pair -> "${pair.first().removeSuffix("-cover")}-spine" to pair }
     private val stems = required + optional.flatten() + spines.keys
     private data class Key(val path: String, val modified: Long, val length: Long)
