@@ -2,31 +2,33 @@
 
 <img src="docs/images/wiids-minimal-logo.png" width="120" alt="Minimal WiiDS dual-screen app logo">
 
-Reviewed code snapshot: [source/](source/) (runtime, Android frontend, translators and build tools).
-The **complete matching source bundle**, including the large approved presentation payload, is the named
-`WiiDS-1.0-source.zip` asset in [Releases](https://github.com/Maddex712/WiiDS/releases).
-GitHub's automatic Source code ZIP and this Git tree omit that large media payload; use the named release source ZIP to rebuild the exact package.
+Play supported Wii and GameCube games on the AYN Thor, with a companion on its lower screen.
 
-Release preparation: [source and rebuild notes](docs/release/SOURCE-RELEASE.md),
-[release checklist](docs/release/RELEASE-DRAFT.md), and
-[component credits](docs/release/WIIDS-NOTICE.md). The final APK's matching source
-archive and SHA-256 checksums belong beside it under GitHub Releases.
+## Quick start
 
-**Wii and GameCube favourites, running natively on the AYN Thor, with a second screen that works like a DS.**
+**You need:** an **AYN Thor with both screens**, Android **11 or newer** (**12L or newer for Galaxy**),
+and your own [compatible game dump](#exact-game-files-for-each-game). The region and revision must match.
+**Games are not included.** Leave room for the APK, your dump and the prepared game files.
 
-WiiDS turns the AYN Thor's two displays into something that feels like a Nintendo handheld that never
-existed: the game runs on the top screen, and the bottom screen gets its own purpose-built companion,
-such as a live course map, a stored-item box, Star Coin slots or an episode guide. The games
-aren't emulated. They run as native Android code through static recompilation and decompilation ports.
+1. **[Download WiiDS 1.0 for AYN Thor (APK, 1.85 GB)](https://github.com/Maddex712/WiiDS/releases/download/v1.0.0/WiiDS-1.0-arm64.apk)** on your Thor.
+2. **Install the APK and open WiiDS.** Allow your browser or file manager to install apps if Android asks.
+   Wait for WiiDS to prepare its files. Updating? Install over your existing copy; do not uninstall it.
+3. **Copy your game dump to the Thor.** Open **Options → Your games** (it opens automatically on first use).
+   Allow storage access, then use **Choose file** on the game's card or **Search again** to find your dump.
+   Keep WiiDS open until import finishes.
+4. **Galaxy only:** use a clean **USA Galaxy 1 ISO, `RMGE01`, revision 0**, then press **Set up Galaxy**.
+   After installing WiiDS and copying the ISO, leave **at least 2.8 GB free**, or **7.6 GB to include movies**.
+   Setup prepares the game and lower screen automatically. **No helper app or PC is needed.**
+5. **Play.** Return to the library. Press **A** to choose a game (Original or its mod), **A** to open its case, then **A** to launch the disc.
+   **B** goes back; **X** opens Options.
 
-> **WiiDS 1.0 — first full release.** Download the signed Android APK, matching source and checksums from
-> [GitHub Releases](https://github.com/Maddex712/WiiDS/releases). Bring your own supported game discs.
-> The single APK includes all seven engines, setup tools and authorised mod patches, with no disc images.
+**Want the mods?**
 
-> **Bring your own supported base-game dumps; WiiDS handles the rest.**
-> MSMBWii and Eclipse installers are bundled. Retro Rewind downloads directly in-app.
-> **Galaxy is now integrated too; no second APK is required.** See [First launch](#first-launch)
-> and [supported dump requirements](#what-youll-need).
+- **MSMBWii:** installs automatically after importing the supported NSMB Wii disc. Use **Install mod** or **Retry mod installation** if needed.
+- **Eclipse:** import the supported Sunshine disc, then choose **Install Eclipse** in **Your games**. The patch is included.
+- **Retro Rewind:** import the supported Mario Kart Wii disc, then press **Y** in the library or open **Options → Retro Rewind updates**. This download needs internet access.
+
+[Check supported discs and formats](#what-youll-need) · [Galaxy setup and storage details](docs/release/GALAXY-SETUP.md) · [Per-game guide](docs/GAMES.md)
 
 <p align="center">
   <img src="docs/images/mkw-retro-rewind-peach-circuit.jpg" width="640"
@@ -51,45 +53,16 @@ Read the [game guide](docs/GAMES.md) for each game's setup, companion screen and
 
 ## First launch
 
-You need the **WiiDS APK and your own supported base-game dumps**: PAL Mario Kart Wii
-`RMCP01` revision 0, USA NSMB Wii `SMNE01` revision 1, or USA Sunshine `GMSE01` revision 0.
-Import only the games you own. See [What you'll need](#what-youll-need) for the detailed
-revision, format and NSMB disc-metadata requirements. **All three mods are set up inside
-WiiDS; no separate mod APKs or companion apps are needed.**
+Follow the [Quick start](#quick-start) above. WiiDS is built for the Thor's two screens;
+single-screen phones are not supported by this release.
 
-1. Download the signed ARM64 APK from [Releases](https://github.com/Maddex712/WiiDS/releases),
-   install it on your Thor and open **WiiDS**. Android may ask you to allow installation from
-   your browser or file manager.
-2. A preparation screen unpacks the bundled cases, music and companion artwork. With no games
-   imported yet, **Your games** opens automatically. Allow storage access to search for your own
-   dumps, or use **Choose file** for a single image. For split WBFS, keep `.wbfs` and all `.wbf1`
-   (and later numbered) parts together and use **Search again**, which collects the sibling parts.
-   **Choose file** opens only the selected file. Exact supported regions and revisions are listed below.
-3. Import a supported disc and keep WiiDS open while it checks and prepares the game.
-   You can import just the games you own; the seven visible cases are not supplied ROMs.
-4. **MSMBWii:** its bundled mod installation starts automatically after importing NSMB Wii. If it was
-   cancelled or did not finish, its card offers **Install mod** or **Retry mod installation**.
-   **Eclipse:** after importing Sunshine, choose **Install Eclipse**. If cancelled,
-   **Retry Eclipse installation** tries the bundled patch again. Both mod patches come with WiiDS;
-   you do not need to find or copy separate mod files.
-   **Retro Rewind:** press **Y** in the library or open **Retro Rewind updates** in Options.
-   WiiDS downloads and installs the newest pack supported by this APK from the official servers;
-   this step needs internet access. Each mod has its own case and separate save profile.
-5. Return to the case shelf. Use the Thor's physical controls to browse. Press **A** to choose a
-   game family, choose Original or its mod, then **A** to open the case and **A** again to select
-   its disc and launch. **B** returns one step; **X** opens Options.
-   Gameplay uses physical controls, with each game's companion on the lower screen.
+For split WBFS dumps, keep `.wbfs` and all `.wbf1`/later numbered parts in the same folder.
+Use **Search again** in **Your games** to collect all parts; **Choose file** opens only one file.
 
-Imports and mod installations need extra free storage beyond the APK itself. Eclipse creates its own
-separate game image. Updating WiiDS in place keeps existing profiles; uninstalling the app can remove them.
-
-### Super Mario Galaxy setup
-
-Galaxy 1 is in the same APK. Supply a clean **USA RMGE01 revision 0 ISO**, then choose
-**Set up Galaxy** in Your games. Keep setup open while it extracts/cooks and generates
-the lower-screen assets. No helper or PC bake is required. Galaxy needs API 32+ and
-additional free space; see the [setup and legacy-profile migration guide](docs/release/GALAXY-SETUP.md).
-Galaxy 2 is not supported. The other six entries retain their existing imports and saves.
+Imports and mods need storage beyond the APK and original dump. Eclipse creates a separate game image.
+Update WiiDS in place to keep existing profiles; uninstalling or clearing app data can remove them.
+Galaxy 2 is not supported. See [Galaxy setup](docs/release/GALAXY-SETUP.md) for other input formats,
+legacy-save migration and current limits.
 
 ## Highlights
 
@@ -230,6 +203,7 @@ counters. Eclipse's game data and saves stay separate from regular Sunshine.
 | MSMBWii: Just a Little Adventure | the same NSMB Wii disc | `SMNE01` | USA | **1** | `aa7b134a7606435ddcd735f2964ebdecde38c2ef` |
 | Super Mario Sunshine | Super Mario Sunshine (GameCube) | `GMSE01` | USA | 0 | `8d094f2c5c112aba9660f0478b16c7f2caf63cbf` |
 | Super Mario Eclipse 1.1.0 | the same Sunshine source disc; apply the included official patch | `GMSE01` source → `GMSE04` installed | USA source | 0 (source) | same clean Sunshine source hash above |
+| Super Mario Galaxy 1 | Super Mario Galaxy (Wii), clean ISO | `RMGE01` | USA | **0** | `a36105c9fbfff6041dc5babf4318c6a216ad470a` |
 
 For Eclipse, first import the unchanged supported Sunshine disc, then choose **Install Eclipse**.
 WiiDS checks the source disc, bundled 1.1.0 patch and resulting image, and keeps Eclipse's image,
@@ -240,7 +214,8 @@ If installation is cancelled, **Retry Eclipse installation** reuses the bundled 
 **Not supported (yet):** the USA Mario Kart Wii disc (`RMCE01`), other regions, NSMB Wii revisions 0 and 2,
 and PAL or Japanese Super Mario Sunshine.
 
-**Supported disc-image formats:**
+**Supported disc-image formats:** for Galaxy, use the clean ISO described in the Quick start.
+The table below covers the other games; see [Galaxy setup](docs/release/GALAXY-SETUP.md) for its alternatives.
 
 | Format | Extension | Accepted |
 |---|---|---|
@@ -279,6 +254,14 @@ Its release manifest records each file's size and SHA-256. This presentation
 does not replace the required game discs or Retro Rewind content installation. Existing valid user
 overrides remain separate and preserved. See the [component notices](docs/release/WIIDS-NOTICE.md)
 for mod and presentation credits and terms.
+
+## Source and build information
+
+The [1.0 release](https://github.com/Maddex712/WiiDS/releases/tag/v1.0.0) contains the APK, checksums and
+matching `WiiDS-1.0-source.zip`. That named source ZIP includes the large presentation files omitted
+from GitHub's automatic Source code download. The reviewed code is also in [source/](source/).
+See the [build notes](docs/release/SOURCE-RELEASE.md), [release notes](docs/release/V1.0.md)
+and [component credits](docs/release/WIIDS-NOTICE.md).
 
 ## Credits
 
