@@ -50,6 +50,14 @@ bool RestartGame() {
 
 extern "C" {
 
+JNIEXPORT jintArray JNICALL Java_com_wither_nsmbw_GameActivity_nativeReadAchievementEvents(JNIEnv* env, jclass, jint cursor)
+{
+    const auto words = ThorState::AchievementEvents(cursor);
+    jintArray result = env->NewIntArray(static_cast<jsize>(words.size()));
+    if (result) env->SetIntArrayRegion(result, 0, static_cast<jsize>(words.size()), words.data());
+    return result;
+}
+
 JNIEXPORT jintArray JNICALL Java_com_wither_nsmbw_GameActivity_nativeReadThorState(JNIEnv* env, jclass)
 {
     const auto state = ThorState::Read();

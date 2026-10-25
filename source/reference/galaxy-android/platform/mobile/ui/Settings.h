@@ -70,7 +70,7 @@ struct Settings {
     int screenOrientationChoice = 0;
 
     // AYN Thor settings menu (platform/mobile/thor/ThorSettingsBridge.cpp).
-    int postProcess = -1;       // anti-aliasing and bloom: -1 never chosen (engine default), 0 off, 1 on
+    int postProcess = -1;       // -1 engine default; 0 original, 1 neutral anti-aliasing, 2 added glow/color
     bool cameraInverted = false;
     // AYN Thor: what each controller button does in Galaxy (mobile_input::ButtonAction), in
     // mobile_input::PhysicalButton order: A B X Y L1 R1 L2 R2 L3 R3 Start Select. The standard

@@ -1,3 +1,4 @@
+#include "port/profile.h"
 #include "SettingsMenuDefs.h"
 
 namespace mobile_ui {
@@ -58,8 +59,8 @@ static const MenuRowDef kModsRows[] = {
     {ACT_INFINITE_LIVES, ROW_SWITCH, 50.0f, "Infinite Lives (99)", "Lock Mario life pouch to 99 lives", 0, {}, 0.0f, 0.0f, 0.0f, nullptr},
     {ACT_INFINITE_STARBITS, ROW_SWITCH, 50.0f, "Infinite Star Bits (999)", "Max out Star Bits pouch to 999", 0, {}, 0.0f, 0.0f, 0.0f, nullptr},
     {ACT_SECTION_HEADER, ROW_SECTION, 36.0f, "RIIVOLUTION MODDING", "SD card patches and game replacements", 0, {}, 0.0f, 0.0f, 0.0f, nullptr},
-    {ACT_RIIVOLUTION, ROW_SWITCH, 50.0f, "Enable Riivolution Mods", "Load XML patch files from /sdcard/Android/data/io.github.maddex712.wiids/files/galaxy/GalaxyData/mods", 0, {}, 0.0f, 0.0f, 0.0f, nullptr},
-    {ACT_RELOAD_MODS, ROW_SINGLE_BTN, 48.0f, "Scan & Reload Mod Directory", "Scans /sdcard/Android/data/io.github.maddex712.wiids/files/galaxy/GalaxyData/mods", 0, {}, 0.0f, 0.0f, 0.0f, nullptr},
+    {ACT_RIIVOLUTION, ROW_SWITCH, 50.0f, "Enable Riivolution Mods", "Load XML patch files from the active Galaxy profile mods folder", 0, {}, 0.0f, 0.0f, 0.0f, nullptr},
+    {ACT_RELOAD_MODS, ROW_SINGLE_BTN, 48.0f, "Scan & Reload Mod Directory", "Scans the active Galaxy profile mods folder", 0, {}, 0.0f, 0.0f, 0.0f, nullptr},
 };
 
 static const MenuRowDef kSaveRows[] = {

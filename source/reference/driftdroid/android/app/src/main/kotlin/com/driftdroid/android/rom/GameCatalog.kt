@@ -72,6 +72,8 @@ object GameCatalog {
             "Import your USA Sunshine revision 0 disc first, then install Eclipse Team's included 1.1.0 patch here. An already patched GMSE04 image also works. Original Sunshine and Eclipse keep separate saves."),
         GALAXY("Super Mario Galaxy", Disc.GALAXY_USA,
             "Runs inside WiiDS with its own game data and saves. Import your USA revision 0 disc; the lower screen is generated automatically."),
+        KAIZO("Kaizo Mario Galaxy Rebalanced 2.1", Disc.GALAXY_USA,
+            "Uses your USA Galaxy revision 0 disc and the creator’s original Rebalanced 2.1 ZIP. Separate saves and mod-generated lower-screen models."),
     }
 
     /**
@@ -85,7 +87,8 @@ object GameCatalog {
             File(msmbwiiModDir(context), "riivolution").isDirectory
 
     fun isPlayable(context: Context, game: Game) =
-        game.disc.isInstalled(context) && (game != Game.MSMBWII || msmbwiiModInstalled(context))
+        if (game == Game.KAIZO) com.driftdroid.android.ThorGameLaunch.kaizoInstalled(context)
+        else game.disc.isInstalled(context) && (game != Game.MSMBWII || msmbwiiModInstalled(context))
 
     const val ACCEPTED_FORMATS = "ISO, WBFS (one file or split), RVZ, WIA, GCZ or CISO. NKit images aren't accepted."
 }

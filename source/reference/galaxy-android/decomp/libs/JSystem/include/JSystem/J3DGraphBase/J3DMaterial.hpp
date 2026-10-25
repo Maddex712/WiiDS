@@ -53,7 +53,9 @@ public:
     s32 newSingleSharedDisplayList(u32);
 
     inline J3DMaterialAnm* getMaterialAnm() {
-        return reinterpret_cast< uintptr_t >(mMaterialAnm) < 0xC0000000 ? mMaterialAnm : nullptr;
+        // Animation buffers also live in relocated MEM2 (0xC0000000 onward).
+        // An address cutoff from the old layout silently disables them.
+        return mMaterialAnm;
     }
 
     bool isDrawModeOpaTexEdge() {

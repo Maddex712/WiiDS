@@ -1,3 +1,4 @@
+#include "port/kaizo.h"
 #include "dvd_internal.h"
 
 #include <ctype.h>
@@ -65,6 +66,8 @@ extern "C" const PortDisc* port_dvd_identify(const char* root) {
         return nullptr;
     }
     for (const PortDisc& disc : kDiscs) {
+        // The mod overlays PAL text folders too; they do not change its USA base disc.
+        if (port_kaizo_enabled() && strcmp(disc.id, "RMGE01")) continue;
         if (hasTexts(root, fst, disc.languages[0])) {
             return &disc;
         }

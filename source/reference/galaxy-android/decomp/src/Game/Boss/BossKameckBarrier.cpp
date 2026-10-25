@@ -1,3 +1,4 @@
+#include "port/kaizo.h"
 #include "Game/Boss/BossKameckBarrier.hpp"
 #include "Game/LiveActor/Nerve.hpp"
 #include "Game/Util/ActorSensorUtil.hpp"
@@ -13,6 +14,7 @@ BossKameckBarrier::BossKameckBarrier(const char* pName, const char* pModelName) 
 
 void BossKameckBarrier::init(const JMapInfoIter& rIter) {
     MR::initDefaultPos(this, rIter);
+    if (port_kaizo_enabled()) mPosition.y += -1500.0f; // XML 0x80001800 contains -1500.0f, called at 0x800382B8.
     initModelManagerWithAnm(mModelName, nullptr, false);
     MR::connectToSceneEnemy(this);
     initHitSensor(1);

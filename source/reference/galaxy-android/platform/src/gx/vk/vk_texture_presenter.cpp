@@ -113,6 +113,9 @@ void VkRenderer::present(const VkTarget& target, int vpX, int vpY, int vpW, int 
             chosenPipe = mPresentPipelinePostProcess;
         }
         vkCmdBindPipeline(mPresentCommandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, chosenPipe);
+        const int32_t enhanced = port_is_post_processing_enabled() == 2 ? 1 : 0;
+        vkCmdPushConstants(mPresentCommandBuffer, mPresentPipelineLayout, VK_SHADER_STAGE_FRAGMENT_BIT,
+                           0, sizeof(enhanced), &enhanced);
         vkCmdBindDescriptorSets(mPresentCommandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, mPresentPipelineLayout, 0, 1, &presentSet, 0, nullptr);
         vkCmdDraw(mPresentCommandBuffer, 3, 1, 0, 0);
     }

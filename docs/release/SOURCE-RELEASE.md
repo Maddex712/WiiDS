@@ -1,7 +1,8 @@
-# WiiDS source release
+# WiiDS 1.1 source release
 
-The APK and matching source archive must refer to the same release. This source
-candidate contains the current handwritten Android, runtime, translator, disc/art
+Use the named WiiDS-1.1-source.zip from the 1.1 release for the matching source and
+curated presentation. The APK and source archive refer to the same release profile. This source
+snapshot contains the current handwritten Android, runtime, translator, disc/art
 pipeline and build-tool sources from the explicitly named projects. The manifest
 records the upstream commit and every included file hash. Local changes are part
 of the snapshot, rather than merely links to unmodified upstream repositories.
@@ -23,7 +24,7 @@ of the snapshot, rather than merely links to unmodified upstream repositories.
    notes. Stage merged libraries and licence notices, then package the Android
    release. Create your own signing key; the owner's key is never included.
 
-For the exact prepared one-APK 1.0 packaging command, see
+For the base one-APK packaging workflow, see
 `docs/release/RELEASE-DRAFT.md` and `scripts/Package-PublicRelease.ps1`. The wrapper
 uses an explicit or environment-configured JDK/SDK and already-staged runtimes.
 It stages the embedded Eclipse host/bootstrap and verified official patch, then
@@ -108,3 +109,13 @@ Restore binary upstream dependencies at the recorded pin; Build-Importer.py
 fetches the hashed Android wheels for NumPy/Pillow. Stage-Integrated.py copies
 only code/dependencies/assets, never cooked game data or generated lower assets.
 The shader manifest is an upstream-generated code cache, included explicitly.
+
+## WiiDS 1.1 source selection
+
+The 1.1 archive includes Kaizo Rebalanced integration, motion defaults,
+RetroAchievements browsing, save tools and Dolphin adapters, shortcuts, resume
+guards and the Galaxy input/graphics corrections. It exports the source used by
+the release, with the separate paused achievement-earning experiment excluded.
+The source manifest hashes every included file. Restore its pinned dependencies
+and generate game translations from your own supported discs before building.
+An independent clean-machine rebuild has not been completed.

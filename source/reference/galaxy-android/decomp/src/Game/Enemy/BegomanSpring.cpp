@@ -1,3 +1,4 @@
+#include "port/kaizo.h"
 
 #include "Game/Enemy/BegomanSpring.hpp"
 #include "Game/Enemy/BegomanBaby.hpp"
@@ -239,7 +240,7 @@ void BegomanSpring::control() {
         }
     }
 
-    if (MR::isBindedGroundDamageFire(this)) {
+    if (!port_kaizo_enabled() && MR::isBindedGroundDamageFire(this)) {
         makeActorDead();
         MR::emitEffect(this, "Fall");
         return;

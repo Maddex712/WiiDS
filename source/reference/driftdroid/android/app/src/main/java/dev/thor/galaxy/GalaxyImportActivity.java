@@ -43,8 +43,12 @@ import java.util.zip.ZipInputStream;
  * a disc anywhere on the device needs All files access, asked for once. "verify_only" (tests)
  * cooks into GalaxyData.pending and leaves the installed game untouched.
  */
-public final class GalaxyImportActivity extends Activity {
-    @Override protected void attachBaseContext(android.content.Context base) { super.attachBaseContext(new GalaxyStorage(base)); }
+public class GalaxyImportActivity extends Activity {
+    protected boolean kaizoProfile() { return false; }
+    protected String gameTitle() { return "Super Mario Galaxy"; }
+    protected void prepareExtraction(File root) throws Exception { }
+    protected boolean prepareStart() { return true; }
+    @Override protected void attachBaseContext(android.content.Context base) { super.attachBaseContext(new GalaxyStorage(base, kaizoProfile())); }
     static final String TAG = "GalaxyImport";
     static final String ACTION = "dev.thor.galaxy.action.IMPORT_DISC";
     // Space needed beyond the disc itself, with and without the cutscene movies (2.3 GB each,
@@ -74,6 +78,7 @@ public final class GalaxyImportActivity extends Activity {
     @Override protected void onResume() {
         super.onResume();
         if (started || finished || discPath == null) return;
+        if (!prepareStart()) return;
         if (!Environment.isExternalStorageManager()) {
             status.setText("To read your Galaxy disc image, WiiDS needs All files access. "
                 + "Only the disc you chose is read.");
@@ -128,9 +133,11 @@ public final class GalaxyImportActivity extends Activity {
         File work = new File(external, "GalaxyImport");
         File extracted = new File(work, "extracted");
         File pending = new File(external, "GalaxyData.pending");
+        boolean workOwned = false;
         try (java.io.RandomAccessFile guard = new java.io.RandomAccessFile(new File(getFilesDir(), ".galaxy-runtime.lock"), "rw");
              java.nio.channels.FileLock lock = guard.getChannel().tryLock()) {
             if (lock == null) throw new IOException("Close Galaxy before importing or replacing its data.");
+            workOwned = true;
             GalaxyMigration.recover(getFilesDir(), external);
             GalaxyInstall.recover(new File(external, "GalaxyData"));
             if (!CookerEngine.load()) throw new IOException("The importer is missing from this add-on build.");
@@ -146,6 +153,7 @@ public final class GalaxyImportActivity extends Activity {
             extract(disc, extracted, movies);
             File root = dataRoot(extracted);
             checkDisc(root);
+            prepareExtraction(root);
             if (!movies) deleteTree(new File(root, "files/MovieData"));
 
             step(35, "Converting the game files (this takes a while)...");
@@ -164,11 +172,10 @@ public final class GalaxyImportActivity extends Activity {
             deleteTree(work);
             step(98, "Installing...");
             GalaxyInstall.install(new File(external, "GalaxyData"), pending);
-            done(true, "Super Mario Galaxy is ready. Your saves were kept.");
+            done(true, gameTitle() + " is ready. Your saves were kept.");
         } catch (Exception failure) {
             Log.e(TAG, "import failed", failure);
-            deleteTree(work);
-            deleteTree(pending);
+            if (workOwned) { deleteTree(work); deleteTree(pending); }
             done(false, failure.getMessage() != null ? failure.getMessage() : failure.toString());
         }
     }
@@ -274,7 +281,7 @@ public final class GalaxyImportActivity extends Activity {
         column.setOrientation(LinearLayout.VERTICAL);
         column.setPadding(80, 60, 80, 60);
         column.setBackgroundColor(Color.rgb(0x0b, 0x18, 0x40));
-        title = text("Setting up Super Mario Galaxy", 30, Color.WHITE);
+        title = text("Setting up " + gameTitle(), 30, Color.WHITE);
         title.setTypeface(Typeface.DEFAULT_BOLD);
         column.addView(title);
         status = text("Starting...", 20, Color.rgb(0xcf, 0xd8, 0xff));
@@ -328,7 +335,7 @@ public final class GalaxyImportActivity extends Activity {
     private void finish(boolean ok, String message) {
         finished = true;
         Log.i(TAG, (ok ? "done: " : "failed: ") + message);
-        title.setText(ok ? "Super Mario Galaxy is set up" : "Super Mario Galaxy couldn't be set up");
+        title.setText(gameTitle() + (ok ? " is set up" : " couldn't be set up"));
         status.setText(message);
         bar.setIndeterminate(false);
         bar.setProgress(ok ? 100 : 0);

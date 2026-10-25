@@ -46,17 +46,20 @@ final class GalaxySettingsDialog extends Dialog implements GalaxySettingsMenu.Ho
 
     @Override protected void onStart() {
         super.onStart();
+        GalaxyActivity.touchPointer(0, 0, false);
         try { GalaxyActivity.nativeMenuState(true); } catch (UnsatisfiedLinkError ignored) { }
         GalaxyActivity.settingsShowing = true;
         if (menu != null) menu.requestFocus();
     }
 
     @Override public void setValue(int key, int value) {
+        if (key == GalaxySettingsMenu.LOWER_TOUCH_MODE) { activity.setLowerTouchMode(value); return; }
         try { GalaxyActivity.nativeMenuSet(key, value); } catch (UnsatisfiedLinkError ignored) { }
     }
 
     @Override public void readValues(int[] out) {
         try { GalaxyActivity.nativeMenuValues(out); } catch (UnsatisfiedLinkError ignored) { }
+        if (out.length > GalaxySettingsMenu.LOWER_TOUCH_MODE) out[GalaxySettingsMenu.LOWER_TOUCH_MODE] = activity.lowerTouchMode();
     }
 
     @Override public void close() {

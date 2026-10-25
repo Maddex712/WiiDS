@@ -1,7 +1,9 @@
+#include "port/kaizo.h"
 #include "Game/Util/SequenceUtil.hpp"
 #include "Game/Scene/GameSceneFunction.hpp"
 #include "Game/System/GalaxyMoveArgument.hpp"
 #include "Game/System/GameSequenceFunction.hpp"
+#include "Game/System/GameDataFunction.hpp"
 #include "Game/System/GameSystem.hpp"
 #include "Game/System/GameSystemSceneController.hpp"
 #include "Game/Util/EventUtil.hpp"
@@ -42,6 +44,7 @@ namespace MR {
         argument._C = pSceneController->getCurrentSelectedScenarioNo();
 
         GameSequenceFunction::requestGalaxyMove(argument);
+        if (port_kaizo_enabled()) GameDataFunction::addStarPiece(-999);
     }
 
     void requestChangeStageInGameMoving(const char* pStageName, s32 scenarioNo, const JMapIdInfo& rInfo) {

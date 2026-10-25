@@ -1,3 +1,4 @@
+#include "port/kaizo.h"
 #include "Game/Util/SceneUtil.hpp"
 #include "Game/NameObj/NameObjFinder.hpp"
 #include "Game/Scene/PlacementStateChecker.hpp"
@@ -156,7 +157,7 @@ namespace MR {
     }
 
     bool isStageSuddenDeathDodoryu() {
-        return isEqualStageName("CosmosGardenGalaxy") && getCurrentScenarioNo() == 4;
+        return !port_kaizo_enabled() && isEqualStageName("CosmosGardenGalaxy") && getCurrentScenarioNo() == 4;
     }
 
     void setInitializeStatePlacementPlayer() {
@@ -262,7 +263,7 @@ namespace MR {
 
     s32 getPlacedHiddenStarScenarioNo(const char* pStageName, s32 starId) {
         GalaxyStatusAccessor accessor = makeGalaxyStatusAccessor(pStageName);
-        s32 scenarioNo = getPlacedHiddenStarScenarioNoFromTable(pStageName, starId);
+        s32 scenarioNo = port_kaizo_enabled() ? 0 : getPlacedHiddenStarScenarioNoFromTable(pStageName, starId);
         if (scenarioNo > 0) {
             return scenarioNo;
         }

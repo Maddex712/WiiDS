@@ -56,6 +56,8 @@
 #include <unistd.h>
 #endif
 #if defined(__ANDROID__)
+#include <dlfcn.h>
+#include <ucontext.h>
 #include <sys/system_properties.h>
 #endif
 
@@ -1213,6 +1215,30 @@ void PosixMemoryFaultHandler(int sig, siginfo_t* info, void* ucontextVoid) {
     if (s_inCrashHandler.test_and_set()) {
         std::_Exit(EXIT_FAILURE);
     }
+
+#if defined(__ANDROID__) && defined(__aarch64__)
+    // Preserve the faulting host instruction too: ctx->pc is guest state and
+    // cannot identify a crash inside the renderer after Android surface changes.
+    if (ucontextVoid != nullptr) {
+        const auto* uc = static_cast<const ucontext_t*>(ucontextVoid);
+        for (const auto& address : {std::pair{"pc", uc->uc_mcontext.pc},
+                                    std::pair{"lr", uc->uc_mcontext.regs[30]}}) {
+            Dl_info module{};
+            const auto pc = static_cast<uintptr_t>(address.second);
+            if (dladdr(reinterpret_cast<void*>(pc), &module) != 0) {
+                std::fprintf(stderr, "[runtime] host %s=0x%llx module=%s offset=0x%llx\n",
+                    address.first, static_cast<unsigned long long>(pc), module.dli_fname,
+                    static_cast<unsigned long long>(pc - reinterpret_cast<uintptr_t>(module.dli_fbase)));
+            }
+        }
+        std::fprintf(stderr, "[runtime] host x0=0x%llx x1=0x%llx x2=0x%llx x29=0x%llx\n",
+            static_cast<unsigned long long>(uc->uc_mcontext.regs[0]),
+            static_cast<unsigned long long>(uc->uc_mcontext.regs[1]),
+            static_cast<unsigned long long>(uc->uc_mcontext.regs[2]),
+            static_cast<unsigned long long>(uc->uc_mcontext.regs[29]));
+        std::fflush(stderr);
+    }
+#endif
 
     ReportUnhandledSignalFault(sig, faultAddress);
     std::ostringstream popupDetails;

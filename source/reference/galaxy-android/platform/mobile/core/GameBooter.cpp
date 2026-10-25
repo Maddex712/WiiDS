@@ -1,3 +1,4 @@
+#include "port/profile.h"
 #include "GameBooter.h"
 
 #include <android/log.h>
@@ -45,7 +46,7 @@ void GameBooter::pollAndBoot(bool& gameBooted, std::string& dataRoot, const std:
         if (now - lastLog > 2000000000ll) {
             lastLog = now;
             missingCount++;
-            LOGI("Waiting for game files in /sdcard/Android/data/io.github.maddex712.wiids/files/galaxy/GalaxyData or %s/game (attempt %d)", extDir.c_str(), missingCount);
+            LOGI("Waiting for game files in the active profile or %s/game (attempt %d)", extDir.c_str(), missingCount);
             dataRoot = mobile_system::StorageManager::findGameData(extDir);
             if (dataRoot.empty() && missingCount >= 2) {
                 mobile_system::SystemManager::returnToLauncher(app);

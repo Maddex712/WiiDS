@@ -19,7 +19,9 @@ internal object ThorBundledPresentation {
     private const val MAX_TOTAL = 768L * 1024 * 1024
     private val groups = setOf("launcher", "launcher-audio", "thor-map", "nsmbw-hud", "msmbwii-hud", "sms-hud", "eclipse-hud")
     private val extensions = setOf("png", "jpg", "jpeg", "wav", "json", "tsv", "rgba")
-    private val revisionPattern = Regex("[A-Za-z0-9][A-Za-z0-9_-]{0,63}")
+    // Release labels use dotted versions (for example thor-2026-10-22-v1.0).
+    // This remains one bounded path component; safe() rejects traversal segments.
+    private val revisionPattern = Regex("[A-Za-z0-9][A-Za-z0-9_.-]{0,63}")
     private val hashPattern = Regex("[0-9a-f]{64}")
     private data class Entry(val asset: String, val group: String, val relative: String, val sha: String, val bytes: Long)
 
@@ -33,7 +35,7 @@ internal object ThorBundledPresentation {
         val value = JSONObject(active.readText())
         val name = value.getString("folder")
         val hash = value.getString("manifest_sha256")
-        if (!name.matches(Regex("[A-Za-z0-9][A-Za-z0-9_-]{0,80}")) || !hash.matches(hashPattern)) return null
+        if (!name.matches(Regex("[A-Za-z0-9][A-Za-z0-9_.-]{0,80}")) || !hash.matches(hashPattern)) return null
         val revision = safe(base, name)
         val complete = safe(revision, ".complete")
         if (!complete.isFile || complete.length() != 64L || complete.readText() != hash) return null

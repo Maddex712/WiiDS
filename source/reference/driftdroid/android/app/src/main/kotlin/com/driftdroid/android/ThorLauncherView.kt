@@ -58,6 +58,8 @@ internal class ThorLauncherView(
     private val onPhaseChanged: (phase: Phase, product: Int?, message: String) -> Unit = { _, _, _ -> },
     /** Blocking reason for launching [product] now, or null when the launch may proceed. */
     private val preflight: (product: Int) -> String? = { null },
+    /** Y on a case whose Y is not Retro Rewind's Updates: that game's achievements. */
+    private val onAchievements: ((product: Int) -> Unit)? = null,
     private val thorMap: File? = null,
     private val status: () -> String,
 ) : View(context) {
@@ -382,7 +384,8 @@ internal class ThorLauncherView(
             selection == caseCount -> listOf("A  Options", "Up  Game cases", if (expanded >= 0) "B  All games" else "AYN Thor")
             else -> listOf(if (expanded < 0 && stacked(selection)) "A  Choose game" else "A  Open case",
                 if (expanded >= 0) "B  All games" else "X  Options",
-                if (BuildConfig.THOR_RETRO_REWIND && actions[selection].updatesShortcut) "Y  Updates" else "AYN Thor")
+                if (BuildConfig.THOR_RETRO_REWIND && actions[selection].updatesShortcut) "Y  Updates"
+                else if (onAchievements != null) "Y  Achievements" else "AYN Thor")
         }
         text(c, hints[0], 140f, 1015f, 38f, 560f)
         text(c, hints[1], 960f, 1015f, 38f, 560f, true)
@@ -843,9 +846,11 @@ internal class ThorLauncherView(
     // ================================================================ options + music setting
     private fun drawOptions(c: Canvas) {
         val list = optionEntries()
+        // Keep added save/shortcut rows above the status/footer, including seven-row menus.
+        val rowStep = minOf(132f, 520f / maxOf(1, (list.size + 1) / 2 - 1))
         list.forEachIndexed { index, entry ->
             val x = 180f + (index % 2) * 810f
-            val y = 230f + (index / 2) * 132f
+            val y = 230f + (index / 2) * rowStep
             row(c, RectF(x, y, x + 750f, y + 84f), index, entry.label, entry.description)
         }
         if (musicPanel) drawMusicPanel(c)
@@ -1145,7 +1150,14 @@ internal class ThorLauncherView(
     private fun openUpdates() {
         // Retro Rewind updates belong to the Mario Kart cases (and the Options button), not other games.
         val case = if (state == State.OPEN) opened else selection
-        if (case < caseCount && !actions[case].updatesShortcut) return
+        if (case < caseCount && !(actions[case].updatesShortcut && BuildConfig.THOR_RETRO_REWIND)) {
+            // Every other case: Y shows that game's achievements (browsing the shelf only).
+            if (state == State.BROWSE) onAchievements?.let { open ->
+                ThorLauncherAudio.play(ThorLauncherAudio.Sound.SELECT)
+                open(case)
+            }
+            return
+        }
         val entry = actions.firstOrNull { it.label == "Retro Rewind updates" } ?: return
         // Also from an open case: a blocked launch there tells the player to press Y.
         if (!entry.enabled() || (state != State.BROWSE && state != State.OPEN)) return

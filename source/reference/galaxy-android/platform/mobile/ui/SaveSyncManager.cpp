@@ -1,3 +1,4 @@
+#include "port/profile.h"
 #include "SaveSyncManager.h"
 #include "DolphinSaveConverter.h"
 
@@ -48,7 +49,7 @@ bool SaveSyncManager::exportSave(const std::string& savePath, std::string& outTo
         }
     }
     if (!in) {
-        std::string extCandidate = "/sdcard/Android/data/io.github.maddex712.wiids/files/galaxy/GalaxyData/saves/GameData.bin";
+        std::string extCandidate = port_profile_data_path("/saves/GameData.bin").c_str();
         in = fopen(extCandidate.c_str(), "rb");
     }
     if (!in) {
@@ -65,9 +66,10 @@ bool SaveSyncManager::exportSave(const std::string& savePath, std::string& outTo
     fclose(in);
 
     mkdir("/sdcard/Download", 0770);
-    std::string dstSave1 = "/sdcard/Download/GalaxyAndroid_save.bin";
-    std::string dstSave2 = "/sdcard/Download/GameData.bin";
-    std::string dstDolphin = "/sdcard/Download/GameData_Dolphin.bin";
+    mkdir(port_profile_exchange_path("").c_str(), 0770);
+    std::string dstSave1 = port_profile_exchange_path("/GalaxyAndroid_save.bin").c_str();
+    std::string dstSave2 = port_profile_exchange_path("/GameData.bin").c_str();
+    std::string dstDolphin = port_profile_exchange_path("/GameData_Dolphin.bin").c_str();
 
     writeAtomic(dstSave1, data.data(), data.size());
     writeAtomic(dstSave2, data.data(), data.size());
@@ -77,7 +79,7 @@ bool SaveSyncManager::exportSave(const std::string& savePath, std::string& outTo
         writeAtomic(dstDolphin, dolphinData.data(), dolphinData.size());
     }
 
-    outToastMsg = "Exported to Download/ (includes Dolphin save)!";
+    outToastMsg = "Exported to " + port_profile_exchange_path("") + " (includes Dolphin save)!";
     return true;
 }
 
@@ -87,22 +89,24 @@ bool SaveSyncManager::importSave(const std::string& savePath, std::string& outTo
     if (lastSlash == std::string::npos) return false;
     std::string saveRoot = savePath.substr(0, lastSlash);
 
-    const char* downloadCandidates[] = {
-        "/sdcard/Download/GalaxyAndroid_save.bin",
-        "/sdcard/Download/GameData.bin",
-        "/sdcard/Download/GameData_Dolphin.bin",
-        "/sdcard/Download/save.bin",
+    const std::string downloadCandidates[] = {
+        port_profile_exchange_path("/GalaxyAndroid_save.bin").c_str(),
+        port_profile_exchange_path("/GameData.bin").c_str(),
+        port_profile_exchange_path("/GameData_Dolphin.bin").c_str(),
+        port_profile_exchange_path("/save.bin").c_str(),
         "/sdcard/dolphin-emu/Wii/title/00010000/524d4745/data/GameData.bin",
         "/sdcard/dolphin-emu/Wii/title/00010000/524d4750/data/GameData.bin",
         "/sdcard/dolphin-emu/Wii/title/00010000/524d474a/data/GameData.bin",
         "/sdcard/dolphin-emu/Wii/title/00010000/524d474b/data/GameData.bin",
-        "/sdcard/Android/data/io.github.maddex712.wiids/files/galaxy/GalaxyData/saves/GameData.bin",
-        "/sdcard/Android/data/io.github.maddex712.wiids/files/galaxy/GalaxyData/saves/GameData_Dolphin.bin"
+        port_profile_data_path("/saves/GameData.bin").c_str(),
+        port_profile_data_path("/saves/GameData_Dolphin.bin").c_str()
     };
 
     FILE* in = nullptr;
     const char* matchedPath = nullptr;
-    for (const char* path : downloadCandidates) {
+    for (const std::string& candidate : downloadCandidates) {
+        const char* path = candidate.c_str();
+        if (port_profile_exchange_path("").find("WiiDS-Kaizo") != std::string::npos && candidate.find("/sdcard/dolphin-emu/") == 0) continue;
         in = fopen(path, "rb");
         if (in) { matchedPath = path; break; }
     }
@@ -150,9 +154,9 @@ bool SaveSyncManager::importSave(const std::string& savePath, std::string& outTo
         writeAtomic(dir + "/save.bin", data.data(), data.size());
     }
 
-    mkdir("/sdcard/Android/data/io.github.maddex712.wiids/files/galaxy/GalaxyData", 0770);
-    mkdir("/sdcard/Android/data/io.github.maddex712.wiids/files/galaxy/GalaxyData/saves", 0770);
-    writeAtomic("/sdcard/Android/data/io.github.maddex712.wiids/files/galaxy/GalaxyData/saves/GameData.bin", data.data(), data.size());
+    mkdir(port_profile_data_path("").c_str(), 0770);
+    mkdir(port_profile_data_path("/saves").c_str(), 0770);
+    writeAtomic(port_profile_data_path("/saves/GameData.bin").c_str(), data.data(), data.size());
 
     if (!anySuccess) {
         outToastMsg = "Failed to write save data to storage!";

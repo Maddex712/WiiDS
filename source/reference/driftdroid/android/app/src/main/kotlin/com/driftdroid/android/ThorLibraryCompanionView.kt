@@ -14,7 +14,12 @@ import android.graphics.Shader
 import android.os.Handler
 import android.os.Looper
 import android.os.SystemClock
+import android.view.MotionEvent
 import android.view.View
+import com.driftdroid.android.achievements.AchievementBadges
+import com.driftdroid.android.achievements.AchievementCatalog
+import com.driftdroid.android.achievements.AchievementText
+import com.driftdroid.android.achievements.RaLibrary
 import org.json.JSONObject
 import java.io.File
 import java.util.concurrent.Executors
@@ -50,6 +55,17 @@ internal class ThorLibraryCompanionView(context: Context, private val folder: Fi
     private var phaseAt = SystemClock.uptimeMillis()
     private val area = RectF()
     private val paint = Paint(Paint.ANTI_ALIAS_FLAG or Paint.FILTER_BITMAP_FLAG)
+    /** Touching a preview card or View all: (game id, achievement id or null). */
+    var onOpenAchievements: ((String, String?) -> Unit)? = null
+    /** The selected game's previews; replaced only by the latest request for that game. */
+    private var preview: ThorAchievementPreview.Data? = null
+    private val previewArt = ThorAchievementPreview()
+    private var previewGame: String? = null
+    private val latest = AchievementCatalog.Latest()
+    private var achievementFont: Pair<ThorMenuArtwork, AchievementText>? = null
+    private var designScale = 1f
+    private var designLeft = 0f
+    private var designTop = 0f
     // Keyed by the case manifest too, so cases composed after an import replace the cached set.
     // The player's own cases when present (ThorLauncherFolders), else those built from the discs.
     private val cases = ThorLauncherFolders.cases(context, folder)
@@ -78,7 +94,7 @@ internal class ThorLibraryCompanionView(context: Context, private val folder: Fi
 
     init {
         isFocusable = false
-        isClickable = false
+        isFocusableInTouchMode = false
         fallback.setStatus("Game library", "Choose a game on the upper screen.")
         fallback.setOnContentChanged(Runnable { if (!closed) invalidate() })
         requestArtwork(cacheKey, folder, cases, loaded)
@@ -88,6 +104,8 @@ internal class ThorLibraryCompanionView(context: Context, private val folder: Fi
         if (closed) return
         if (value.phase != selection.phase) phaseAt = SystemClock.uptimeMillis()
         selection = value
+        val game = if (value.options) null else gameId(value.product)
+        if (game != previewGame) { previewGame = game; preview = null; previewArt.pressed = null; requestAchievements(game) }
         nsmbDiscImported = com.driftdroid.android.rom.GameCatalog.Disc.NSMB_USA_REV1.isInstalled(context)
         refreshMetadata()
         updateDescription()
@@ -173,10 +191,10 @@ internal class ThorLibraryCompanionView(context: Context, private val folder: Fi
 
     /** Separate games validate their own data and never inherit Mario Kart update/video state. */
     private fun separateGame() = (selection.product == NSMB || selection.product == SUNSHINE ||
-        selection.product == MSMBWII || selection.product == ECLIPSE || selection.product == GALAXY) && !selection.options
+        selection.product == MSMBWII || selection.product == ECLIPSE || selection.product == GALAXY || selection.product == KAIZO) && !selection.options
     /** MSMBWii's disc is there but its mod isn't (yet). */
     private fun modPending() = selection.product == MSMBWII && nsmbDiscImported && !selection.available
-    private fun separateGameName() = when (selection.product) { GALAXY -> "Galaxy"; SUNSHINE -> "Sunshine"; ECLIPSE -> "Eclipse"; MSMBWII -> "MSMBWii"; else -> "NSMB Wii" }
+    private fun separateGameName() = when (selection.product) { KAIZO -> "Kaizo Rebalanced"; GALAXY -> "Galaxy"; SUNSHINE -> "Sunshine"; ECLIPSE -> "Eclipse"; MSMBWII -> "MSMBWii"; else -> "NSMB Wii" }
 
     private fun updateGated() = BuildConfig.THOR_RETRO_REWIND && !separateGame() &&
         (snapshot.running || pendingUpdate || recoveryRequired)
@@ -221,8 +239,22 @@ internal class ThorLibraryCompanionView(context: Context, private val folder: Fi
         SUNSHINE -> "Super Mario Sunshine"
         ECLIPSE -> "Super Mario Eclipse"
         GALAXY -> "Super Mario Galaxy"
+        KAIZO -> "Kaizo Mario Galaxy Rebalanced"
         MSMBWII -> "MSMBWii: Just a Little Adventure"
         else -> "Mario Kart Wii"
+    }
+
+    /** Stable game identity for the library case index (FrontendGame IDs, never carousel state). */
+    private fun gameId(product: Int?): String? = when (product) {
+        0 -> FrontendGame.MARIO_KART.id
+        1 -> FrontendGame.RETRO_REWIND.id
+        NSMB -> FrontendGame.NSMB.id
+        MSMBWII -> FrontendGame.MSMBWII.id
+        SUNSHINE -> FrontendGame.SUNSHINE.id
+        ECLIPSE -> FrontendGame.ECLIPSE.id
+        GALAXY -> FrontendGame.GALAXY.id
+        KAIZO -> FrontendGame.KAIZO.id
+        else -> null
     }
 
     private fun artPrefix() = when (selection.product) {
@@ -231,6 +263,7 @@ internal class ThorLibraryCompanionView(context: Context, private val folder: Fi
         SUNSHINE -> "sunshine"
         ECLIPSE -> "eclipse"
         GALAXY -> "galaxy"
+        KAIZO -> "kaizo"
         MSMBWII -> "msmbwii"
         else -> "original"
     }
@@ -240,6 +273,8 @@ internal class ThorLibraryCompanionView(context: Context, private val folder: Fi
         if (width <= 0 || height <= 0) return
         val art = artwork ?: run { fallback.render(canvas, width, height); return }
         val scale = minOf(width / 1280f, height / 1080f)
+        designScale = scale; designLeft = (width - 1280f * scale) / 2f; designTop = (height - 1080f * scale) / 2f
+        if (selection.options || selection.product == null || selection.phase == ThorLauncherView.Phase.LAUNCHING) previewArt.hits.clear()
         canvas.save()
         canvas.translate((width - 1280f * scale) / 2f, (height - 1080f * scale) / 2f)
         canvas.scale(scale, scale)
@@ -277,7 +312,7 @@ internal class ThorLibraryCompanionView(context: Context, private val folder: Fi
     private fun drawOptions(c: Canvas, image: (String, Float, Float, Float, Float, Boolean, Int) -> Unit,
                             text: (String, Float, Float, Float, Float, Boolean) -> Unit) {
         image("panel", 54f, 276f, 1226f, 810f, true, 255)
-        val later = listOf("msmbwii", "sunshine", "eclipse", "galaxy").filter { artwork?.images?.containsKey("$it-cover") == true }
+        val later = listOf("msmbwii", "sunshine", "eclipse", "galaxy", "kaizo").filter { artwork?.images?.containsKey("$it-cover") == true }
         if (later.isNotEmpty()) {
             // The cases share the collection area (x 96..582, y 286..624) without moving its panels:
             // one row of up to six, then two rows.
@@ -320,83 +355,137 @@ internal class ThorLibraryCompanionView(context: Context, private val folder: Fi
         image("panel", 54f, 270f, 1226f, 830f, true, 255)
         // Left: the selected disc as it sits in the case, with a soft contact shadow.
         val prefix = artPrefix()
-        val discX = 290f; val discY = 520f; val r = 190f * discScale(prefix)
+        val discX = 242f; val discY = 448f; val r = 150f * discScale(prefix)
         paint.shader = RadialGradient(discX + 8f, discY + 14f, r + 26f, intArrayOf(0x55000000, 0x00000000), floatArrayOf(0.8f, 1f), Shader.TileMode.CLAMP)
         c.drawCircle(discX + 8f, discY + 14f, r + 26f, paint); paint.shader = null
         val disc = art.images["$prefix-disc-round"]
         if (disc != null) { area.set(discX - r, discY - r, discX + r, discY + r); c.drawBitmap(disc, null, area, paint) }
-        else image("$prefix-cover", discX - 140f, discY - 200f, discX + 140f, discY + 200f, false, 255)
-        // Availability, with a restrained blue (ready) or grey (needs attention) marker.
+        else image("$prefix-cover", discX - 104f, discY - 148f, discX + 104f, discY + 148f, false, 255)
+        // Under the disc: availability with a restrained blue (ready) or grey marker, then compact facts.
         val ready = selection.available && !updateGated()
+        val label = readiness()
+        val labelWidth = minOf(art.font.width(label, 36f), 330f)
         paint.color = if (ready) 0xff2f8fe0.toInt() else 0xff9aa3ab.toInt()
-        c.drawCircle(560f, 337f, 13f, paint)
-        text(readiness(), 588f, 312f, 46f, 600f, false)
-        var y = 396f
-        fun line(value: String, size: Float = 34f) { text(value, 588f, y, size, 600f, false); y += size + 22f }
-        if (separateGame()) {
-            // Only what the library actually knows: the disc is (or is not) imported.
-            line(when {
-                selection.product == GALAXY -> if (selection.available) "Galaxy ready" else "Set up Galaxy first"
-                selection.product == ECLIPSE -> if (selection.available) "Eclipse app installed" else "Install the Eclipse Thor app"
-                selection.available -> "Disc imported"
-                modPending() -> "Finish it on Your games"
-                else -> "Import it on Your games"
-            }, 36f)
-            line(when (selection.product) {
-                GALAXY -> "USA Wii disc"
-                SUNSHINE -> "USA GameCube disc"
-                ECLIPSE -> "Separate game data and saves"
-                MSMBWII -> "Mod included, on your NSMB Wii disc"
-                else -> "USA Wii disc, revision 1"
-            }, 30f)
-            line("Checked by the game when it starts", 30f)
-        } else if (selection.product == 1) {
-            line(installedVersion?.let { "Installed  $it" } ?: "Pack not installed", 36f)
-            val latest = snapshot.latestVersion
-            if (latest != null) {
-                line("Last checked  $latest", 30f)
-                val compatible = snapshot.compatibleVersion
-                line(when {
-                    latest == installedVersion -> "Your pack is up to date."
-                    compatible != null && compatible != installedVersion -> "Compatible update  $compatible"
-                    else -> "Newer pack needs a newer build."
-                }, 30f)
-            } else line("Updates not checked yet", 30f)
-        } else {
-            line("Original PAL game", 36f)
-            line("Your own disc data", 30f)
-        }
-        y += 14f
-        val video = videoSettings
-        if (separateGame()) Unit // Mario Kart's saved video options do not describe this game.
-        else if (video != null) {
-            line(video.resolution, 32f)
-            line(video.frameRate + if (video.frameRate.startsWith("120")) " (game 60 Hz)" else "", 28f)
-            line(video.renderer, 28f)
-        } else line("Video settings unavailable", 30f)
+        c.drawCircle(discX - labelWidth / 2f - 8f, 654f, 11f, paint)
+        text(label, discX + 12f, 634f, 36f, 330f, true)
+        facts().take(3).forEachIndexed { k, value -> text(value, discX, 690f + k * 40f, 27f, 352f, true) }
+        // Right: this game's achievements.
+        drawAchievements(c, art)
         // The step-specific prompt sits in a quiet strip under the panel.
+        val achievementsKey = achievementsButton()
         val (headline, hints) = if (separateGame()) when {
-            // Retro Rewind updates (Y) are not offered for this game.
+            // Retro Rewind updates (Y) are not offered for this game; Y opens its achievements.
             blocked -> selection.message to "X  Options     B  Close case"
             open -> "Disc ready" to "A  Select disc     B  Close case"
             // MSMBWii plays on the NSMB Wii disc (its included mod installs itself).
             !selection.available -> when {
                 modPending() -> "Open Your games to set up MSMBWii"
                 selection.product == ECLIPSE -> "Install the Eclipse Thor app to play"
+                selection.product == KAIZO -> "Set up Kaizo Rebalanced on Your games"
                 selection.product == GALAXY -> "Set up Super Mario Galaxy to play"
                 else -> "Import your ${if (selection.product == MSMBWII) "NSMB Wii" else separateGameName()} disc to play"
-            } to "Left / Right  Choose a game     X  Options"
-            else -> (selection.status.trim().ifEmpty { "Left / Right  Choose a game" }) to "A  Open case     X  Options"
+            } to "Left / Right  Choose a game     X  Options$achievementsKey"
+            else -> (selection.status.trim().ifEmpty { "Left / Right  Choose a game" }) to "A  Open case     X  Options$achievementsKey"
         } else when {
             blocked -> selection.message to (if (BuildConfig.THOR_RETRO_REWIND) "Y  Updates     X  Options     B  Close case" else "X  Options     B  Close case")
             open -> "Disc ready" to "A  Select disc     B  Close case"
-            !selection.available -> "Game data required" to "A  Set up game data     X  Options"
+            !selection.available -> "Game data required" to "A  Set up game data     X  Options$achievementsKey"
             else -> (selection.status.trim().ifEmpty { "Left / Right  Choose a game" }) to
-                (if (BuildConfig.THOR_RETRO_REWIND) "A  Open case     X  Options     Y  Updates" else "A  Open case     X  Options")
+                (if (BuildConfig.THOR_RETRO_REWIND) "A  Open case     X  Options     Y  Updates" else "A  Open case     X  Options$achievementsKey")
         }
         val lines = ThorLowerStatus.messageLines(headline, 1100f) { art.font.width(it, if (blocked) 32f else 38f) }
         lines.take(2).forEachIndexed { k, l -> text(l, 640f, 852f + k * 44f, if (blocked) 32f else 38f, 1100f, true) }
         footerHints(text, hints)
+    }
+
+    /** Y opens achievements wherever it is not Retro Rewind's Updates button (ThorLauncherView). */
+    private fun achievementsButton() =
+        if (onOpenAchievements == null || (!separateGame() && BuildConfig.THOR_RETRO_REWIND)) "" else "     Y  Achievements"
+
+    /** The secondary technical lines, compacted so achievements have room. ASCII for the menu font. */
+    private fun facts(): List<String> {
+        val video = videoSettings?.let { "${it.resolution} / ${it.frameRate} / ${it.renderer}" } ?: "Video settings unavailable"
+        return when {
+            separateGame() -> listOf(when {
+                selection.product == KAIZO -> if (selection.available) "Rebalanced 2.1 ready" else "Set up Rebalanced first"
+                selection.product == GALAXY -> if (selection.available) "Galaxy ready" else "Set up Galaxy first"
+                selection.product == ECLIPSE -> if (selection.available) "Eclipse app installed" else "Install the Eclipse Thor app"
+                selection.available -> "Disc imported"
+                modPending() -> "Finish it on Your games"
+                else -> "Import it on Your games"
+            }, when (selection.product) {
+                KAIZO -> "Own Galaxy disc + official 2.1 patch"
+                GALAXY -> "USA Wii disc"
+                SUNSHINE -> "USA GameCube disc"
+                ECLIPSE -> "Separate game data and saves"
+                MSMBWII -> "Mod included, on your NSMB Wii disc"
+                else -> "USA Wii disc, revision 1"
+            }, "Checked by the game when it starts")
+            selection.product == 1 -> {
+                val latest = snapshot.latestVersion
+                val compatible = snapshot.compatibleVersion
+                listOf(installedVersion?.let { "Installed  $it" } ?: "Pack not installed", when {
+                    latest == null -> "Updates not checked yet"
+                    latest == installedVersion -> "Up to date (checked $latest)"
+                    compatible != null && compatible != installedVersion -> "Compatible update  $compatible"
+                    else -> "Newer pack needs a newer build"
+                }, video)
+            }
+            else -> listOf("Original PAL game", "Your own disc data", video)
+        }
+    }
+
+    // ---------------------------------------------------------------- achievements preview
+    private fun drawAchievements(c: Canvas, art: Artwork) {
+        val name = when (selection.product) { 0 -> "Mario Kart Wii"; 1 -> "Retro Rewind"; else -> separateGameName() }
+        previewArt.draw(c, achievementText(art), preview?.takeIf { it.game == previewGame }, name)
+    }
+
+    private fun achievementText(art: Artwork): AchievementText =
+        achievementFont?.takeIf { it.first === art.font }?.second
+            ?: ThorAchievementText.of(art.font).also { achievementFont = art.font to it }
+
+    private fun requestAchievements(game: String?) {
+        val token = latest.begin(game)
+        if (game == null) return
+        val app = context.applicationContext
+        achievementWorker.execute {
+            val result = runCatching {
+                val loaded = RaLibrary.load(app)
+                val snap = AchievementCatalog.of(loaded.library, game, loaded.account != null)
+                val art = badgeArt(app)
+                val shown = (snap.recent.take(2) + snap.upcoming.take(3)).ifEmpty { listOf(AchievementCatalog.placeholder()) }
+                ThorAchievementPreview.Data(game, snap, shown.associate { it.id to art.badge(it, 140) }, false, RaLibrary.running())
+            }.getOrElse { ThorAchievementPreview.Data(game, null, mapOf("none" to badgeArt(app).badge(AchievementCatalog.placeholder(), 140)), true) }
+            main.post { if (!closed && latest.accept(token, game)) { preview = result; invalidate() } }
+        }
+    }
+
+    /** Back in the library (from a game or the browser), or a refresh finished: re-read this game's previews. */
+    fun refreshAchievements() { if (!closed) { badgeArt(context.applicationContext).forgetImported(); requestAchievements(previewGame) } }
+
+    override fun onTouchEvent(event: MotionEvent): Boolean {
+        if (onOpenAchievements == null || selection.options || selection.product == null ||
+            selection.phase == ThorLauncherView.Phase.LAUNCHING) return false
+        val x = (event.x - designLeft) / designScale
+        val y = (event.y - designTop) / designScale
+        val hit = previewArt.hits.firstOrNull { it.first.contains(x, y) }
+        when (event.actionMasked) {
+            MotionEvent.ACTION_DOWN -> { previewArt.pressed = hit; invalidate(); return hit != null }
+            MotionEvent.ACTION_UP -> {
+                val target = previewArt.pressed
+                previewArt.pressed = null
+                invalidate()
+                val game = previewGame
+                if (target != null && hit != null && target.second == hit.second && game != null) {
+                    ThorLauncherAudio.play(ThorLauncherAudio.Sound.SELECT)
+                    onOpenAchievements?.invoke(game, target.second)
+                }
+                return true
+            }
+            MotionEvent.ACTION_CANCEL -> { previewArt.pressed = null; invalidate(); return true }
+        }
+        return previewArt.pressed != null
     }
 
     private fun drawLaunching(c: Canvas, art: Artwork, image: (String, Float, Float, Float, Float, Boolean, Int) -> Unit,
@@ -415,7 +504,7 @@ internal class ThorLibraryCompanionView(context: Context, private val folder: Fi
         }
         text("The game is loading.", 640f, 800f, 40f, 1100f, true)
         if (separateGame()) {
-            footerHints(text, if (selection.product == GALAXY) "Back returns to your WiiDS library." else "Main Menu in the game brings you back here.")
+            footerHints(text, if (selection.product == GALAXY || selection.product == KAIZO) "Back returns to your WiiDS library." else "Main Menu in the game brings you back here.")
             return
         }
         val video = videoSettings
@@ -434,7 +523,14 @@ internal class ThorLibraryCompanionView(context: Context, private val folder: Fi
         const val SUNSHINE = 4
         const val ECLIPSE = 5
         const val GALAXY = 6
+        const val KAIZO = 7
         private val main = Handler(Looper.getMainLooper())
+        private val achievementWorker = Executors.newSingleThreadExecutor { task ->
+            Thread(task, "ThorLibraryAchievements").apply { isDaemon = true }
+        }
+        @Volatile private var badges: AchievementBadges? = null
+        private fun badgeArt(context: Context): AchievementBadges =
+            badges ?: synchronized(this) { badges ?: AchievementBadges(context).also { badges = it } }
         private val worker = Executors.newSingleThreadExecutor { task ->
             Thread(task, "ThorLibraryArtwork").apply { isDaemon = true }
         }
@@ -455,12 +551,12 @@ internal class ThorLibraryCompanionView(context: Context, private val folder: Fi
                         runCatching { font.bitmap(roles.getJSONObject(role).getString("texture")) }
                             .getOrNull()?.let { images[role] = it }
                     }
-                    for (game in listOf("original", "retro-rewind", "nsmbw", "msmbwii", "sunshine", "eclipse", "galaxy")) for (kind in listOf("cover", "disc")) {
+                    for (game in listOf("original", "retro-rewind", "nsmbw", "msmbwii", "sunshine", "eclipse", "galaxy", "kaizo")) for (kind in listOf("cover", "disc")) {
                         ThorLauncherArtwork.bitmap(cases, "$game-$kind")?.let { images["$game-$kind"] = it }
                     }
                     // Round, hole-punched discs prepared once here (the supplied original disc
                     // is a square JPEG; drawing it raw showed a white box on the lower screen).
-                    for (name in listOf("original-disc", "retro-rewind-disc", "nsmbw-disc", "msmbwii-disc", "sunshine-disc", "eclipse-disc", "galaxy-disc")) images[name]?.let {
+                    for (name in listOf("original-disc", "retro-rewind-disc", "nsmbw-disc", "msmbwii-disc", "sunshine-disc", "eclipse-disc", "galaxy-disc", "kaizo-disc")) images[name]?.let {
                         images["$name-round"] = roundDisc(it, discScale(name.removeSuffix("-disc")))
                     }
                     Artwork(font, images)

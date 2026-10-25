@@ -65,6 +65,7 @@ namespace CameraLocalUtil {
     bool testCameraPadButtonReset();
     bool testCameraPadTriggerReset();
     bool testCameraPadTriggerRoundLeft();
+    void updateCameraPadStick();
     bool testCameraPadTriggerRoundRight();
     void slerpCamera(TQuat4f*, const TQuat4f&, const TQuat4f&, f32, bool);
     bool makeTowerCameraMtx(TPos3f*, const TPos3f&, const TVec3f&, const TVec3f&, const TVec3f&);

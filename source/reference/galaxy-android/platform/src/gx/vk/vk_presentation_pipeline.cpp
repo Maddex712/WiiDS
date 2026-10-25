@@ -17,6 +17,9 @@ bool VkRenderer::createPresentationPipeline() {
     plci.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
     plci.setLayoutCount = 1;
     plci.pSetLayouts = &mPresentDescLayout;
+    VkPushConstantRange pictureMode{VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(int32_t)};
+    plci.pushConstantRangeCount = 1;
+    plci.pPushConstantRanges = &pictureMode;
 
     if (vkCreatePipelineLayout(mDevice, &plci, nullptr, &mPresentPipelineLayout) != VK_SUCCESS) {
         return false;
@@ -55,6 +58,9 @@ void main() {
 layout(location = 0) in vec2 v_uv;
 layout(location = 0) out vec4 outColor;
 layout(set = 0, binding = 0) uniform sampler2D s_target;
+
+// Edge smoothing does not imply a color grade. Added bloom/vibrance is opt-in.
+layout(push_constant) uniform PictureMode { int enhanced; } picture;
 
 float getLuma(vec3 col) {
     return dot(col, vec3(0.299, 0.587, 0.114));
@@ -104,13 +110,15 @@ void main() {
         }
     }
 
-    vec3 bloomSample = (cN + cS + cW + cE) * 0.25;
-    float bright = max(0.0, getLuma(bloomSample) - 0.70);
-    vec3 bloom = bloomSample * bright * 0.35;
-
-    vec3 result = aaCol + bloom;
-    float finalLuma = getLuma(result);
-    result = mix(vec3(finalLuma), result, 1.12);
+    vec3 result = aaCol;
+    if (picture.enhanced != 0) {
+        vec3 bloomSample = (cN + cS + cW + cE) * 0.25;
+        float bright = max(0.0, getLuma(bloomSample) - 0.70);
+        vec3 bloom = bloomSample * bright * 0.35;
+        result += bloom;
+        float finalLuma = getLuma(result);
+        result = mix(vec3(finalLuma), result, 1.12);
+    }
 
     outColor = vec4(clamp(result, 0.0, 1.0), 1.0);
 }

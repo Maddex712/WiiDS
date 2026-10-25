@@ -94,27 +94,27 @@
   ],
   "missing_roots": [],
   "source_coverage": {
-    "expected_source_files": 11848,
+    "expected_source_files": 11948,
     "roots": {
-      "reference/driftdroid": 1524,
-      "reference/nsmbw-android-e1": 1203,
+      "reference/driftdroid": 1550,
+      "reference/nsmbw-android-e1": 1204,
       "reference/nsmbw-android-msmbwii": 1203,
       "reference/sms-thor": 249,
       "reference/sms-launcher-thor": 23,
       "reference/sms-eclipse-thor": 275,
       "reference/eclipse-launcher-thor": 13,
-      "reference/galaxy-android": 5107,
+      "reference/galaxy-android": 5115,
       "scripts": 26,
-      "diagnostics": 9,
+      "diagnostics": 10,
       "wiids": 213,
       "release": 0,
       "docs/release": 0,
-      "experiments/release": 18,
+      "experiments/release": 61,
       "experiments/eclipse-thor": 15,
       "experiments/nsmbw-thor": 47,
       "experiments/sunshine-thor": 16,
       "experiments/launcher-spines": 2,
-      "experiments/galaxy-thor": 56,
+      "experiments/galaxy-thor": 77,
       "third_party/eclipse": 96,
       "third_party/BetterSunshineEngine": 143,
       "third_party/BetterSunshineMoveset": 20,
@@ -5758,6 +5758,10 @@
       "sha256": "8f154655d35903eeb5ab68e66266822179ef20e0b9b36bcd8566c55de0744998",
       "bytes": 3638
     },
+    "diagnostics/driver/ShellInput.java": {
+      "sha256": "129825b4e696d21548a93c9c014d21ad99e583a1f010643b362396ae8994211f",
+      "bytes": 3910
+    },
     "diagnostics/src/dev/thor/mkw/screencheck/ScreenCheckActivity.java": {
       "sha256": "df1284308909089171d505e382793df95ccdac8804da8f8edfa7e5104dd14915",
       "bytes": 4730
@@ -5769,6 +5773,42 @@
     "diagnostics/test_measure_thor_sysfs.py": {
       "sha256": "0ea0dd7912b78638dce1e4939c91da78a4c61aa6f00291d6dabe537530e66b80",
       "bytes": 3462
+    },
+    "docs/ACHIEVEMENTS.md": {
+      "sha256": "3b80ed2dff1d3c11cb95ac4434b61120b76d6d41fa13cfe1a5ccaf9f3fc34f22",
+      "bytes": 11310
+    },
+    "docs/FEATURE_PLAN_1_1.md": {
+      "sha256": "18d50a8d2aff4e252f6e3a81c13a98c89c2bb6520a29e845d6b43dcabe0ac2b4",
+      "bytes": 12655
+    },
+    "docs/FRONTEND_LAUNCHING.md": {
+      "sha256": "4adae4220671bc6f57155a06024a141862f9b551ca1497f47d8e8cfdc54334c7",
+      "bytes": 5588
+    },
+    "docs/SAVE_MANAGER.md": {
+      "sha256": "27ec2e877db8bccfc08861487f166db3de74bc22c7c784fe4a142bf77cc7ab17",
+      "bytes": 8627
+    },
+    "docs/TESTING_1_1_PREVIEW.md": {
+      "sha256": "a3d60019f1ff46188f73213370cc75d82870668c97a24d2aead3bbffcb738478",
+      "bytes": 7188
+    },
+    "docs/release/1.1-GAME-REVIEW.md": {
+      "sha256": "d81a055ef6ac172985cdfdef05e0cc10de2a8aa7d789306090fef06b427af974",
+      "bytes": 5975
+    },
+    "docs/release/1.1-RELEASE-NOTES.md": {
+      "sha256": "e0807c70f69d4fe8a39abe6c57d0927bc17adafb73bcc9ae7525e770eaf4bbcd",
+      "bytes": 7820
+    },
+    "docs/release/1.1-SOURCE-PROFILE.md": {
+      "sha256": "45ff5ee7a3ba8b625c81ae6f43c79f92e98ce27a3dc75aedd97bbdd46db737f8",
+      "bytes": 3122
+    },
+    "docs/release/1.1-THOR-POLISH.md": {
+      "sha256": "37b9ac8092bd71a6e5ee3cf547d4ee16b0107261712d514af9888115afd6d409",
+      "bytes": 16688
     },
     "docs/release/GALAXY-SETUP.md": {
       "sha256": "72d7b44bfbb18e55c90b3e30d79aba004ba9418482fe08dc4e336a8b416deaa6",
@@ -5947,8 +5987,8 @@
       "bytes": 2588
     },
     "experiments/galaxy-thor/Export-Source.py": {
-      "sha256": "172b8f5e8cc8f54c4ac316399cc4341d64f93fb8291f2e072873450b37a0f44b",
-      "bytes": 3651
+      "sha256": "092312f3f2c68e39c83f6a8cc5cc5792f2002f5b4f05192c3b8da5e3d2d61ac2",
+      "bytes": 3815
     },
     "experiments/galaxy-thor/Extract-LowerArt.py": {
       "sha256": "531fe5bf63f7a1726f773046e6f78c3484da25f62b065a05e90a9d4906ea0308",
@@ -5983,8 +6023,8 @@
       "bytes": 3858
     },
     "experiments/galaxy-thor/MODLOG.md": {
-      "sha256": "da123542a2f614906129119d3aa6dfb06c1a20f211fc99be5ad81e214f51cc07",
-      "bytes": 33051
+      "sha256": "74b606e5c64d51882ec98883a3c6778441b6c0b8dddc720334f509dd0a1c2053",
+      "bytes": 36661
     },
     "experiments/galaxy-thor/Package-Runtime.py": {
       "sha256": "a2b228f50ba1ec9c00be98f49933be05eb8540cd2389e377556c708c77027992",
@@ -6055,24 +6095,24 @@
       "bytes": 1737
     },
     "experiments/galaxy-thor/android/GalaxyActivity.java": {
-      "sha256": "1460787b71f3d30531aa90cc948ed285f5f09c51b60541bc1fe84aee511736d1",
-      "bytes": 9078
+      "sha256": "5976fe572adcaa9bfcc9325534d0f56009a7c055a286877af7917a7361afc3a3",
+      "bytes": 10963
     },
     "experiments/galaxy-thor/android/GalaxyBackupActivity.java": {
       "sha256": "0ef5107fde00a198b9c3e8326eb236245849c84d779291538b50e9ce513bf25c",
       "bytes": 2115
     },
     "experiments/galaxy-thor/android/GalaxyImportActivity.java": {
-      "sha256": "4bc4658dd4fdcf90256721508b6d38c86f76b398eb92bcbacd79efc4ccb329ba",
-      "bytes": 16854
+      "sha256": "4a2f179f3f57cb4a214708ad344771b32871d9fafaa57eece7dcb4d37ed33686",
+      "bytes": 17233
     },
     "experiments/galaxy-thor/android/GalaxyInstall.java": {
       "sha256": "2d33ec388027bca22d1b6bb5deb55e3b1ea58efc6cc174709181b30850ac9fab",
       "bytes": 5637
     },
     "experiments/galaxy-thor/android/GalaxyLowerScreen.java": {
-      "sha256": "ef2a3355811fd5a0e1c154089ca5b19127a38ffa707674d86a52e06772575960",
-      "bytes": 48999
+      "sha256": "7fa813ab7f61149e67816b59c3a4e0696992e6e5ddff8be18da605b45c64ccb9",
+      "bytes": 52949
     },
     "experiments/galaxy-thor/android/GalaxyMigration.java": {
       "sha256": "b5fd32d70962e40dce2a88e57ed724a0b038cd9a2a45b67738e5739d92e413d3",
@@ -6087,28 +6127,104 @@
       "bytes": 26549
     },
     "experiments/galaxy-thor/android/GalaxySettingsDialog.java": {
-      "sha256": "a26c2ffc162e362bee8000397aacfb9ffc7bced4b4e6f9c85773f98ab1555476",
-      "bytes": 3157
+      "sha256": "ebdb2058efea0288fc23768b072c8f04cabfe6f485ed519ff221fbf300c74eb4",
+      "bytes": 3442
     },
     "experiments/galaxy-thor/android/GalaxySettingsMenu.java": {
-      "sha256": "b975644f3ad2f0f86a5791be34d45811f66b01e945f392daa1e880e827753bcb",
-      "bytes": 28051
+      "sha256": "93a78eb6830af1d81dbc3930efe8630afd48f0896d022013e59d97857c8d77cd",
+      "bytes": 29259
     },
     "experiments/galaxy-thor/android/GalaxyStorage.java": {
-      "sha256": "bb9f52094f38d5f1f1bc8826d7132f38c7259bbcb8e38c9d6eb6ae79465836d8",
-      "bytes": 1494
+      "sha256": "153b0d4b0f65c7603e4609c54e786d7dc906109a267d80caf80599f1bfcc2979",
+      "bytes": 2196
+    },
+    "experiments/galaxy-thor/android/GalaxyTouchHint.java": {
+      "sha256": "29d9db7f6bf5c426b08e12e1f3675238707421020a6f0282aa7255b1759ba6ee",
+      "bytes": 507
+    },
+    "experiments/galaxy-thor/android/GalaxyTrackpad.java": {
+      "sha256": "5cdaab9599a5ea9b70db324d08b8641642fedf4ab015dd29b3dbab63edeba307",
+      "bytes": 1345
     },
     "experiments/galaxy-thor/android/GameFont.java": {
       "sha256": "24026ab79af6d9c1fd45b7538ff516fab251fe2565690ab4a956ebbd76df4f9e",
       "bytes": 5121
+    },
+    "experiments/galaxy-thor/android/KaizoActivities.java": {
+      "sha256": "4cbebcc1d5ca8833e9928f723d7692e91d6540b2fb23e280b8224c7ff5437aab",
+      "bytes": 5222
     },
     "experiments/galaxy-thor/android/StatusProvider.java": {
       "sha256": "c537d2859ffd14bec216d10116cd9fd8265c4b024bd6449ad08b2d1c1843bc32",
       "bytes": 1289
     },
     "experiments/galaxy-thor/android/ThorLaunchActivity.java": {
-      "sha256": "070cca26a69bc01c47e97a11bfa7e1ccbff294d62b82f4a5c9f796b8694aa1c7",
-      "bytes": 2350
+      "sha256": "ca49f0751f1906534b048ef54ef526263b2337ffa814a95e7e17cebe82bdcdb9",
+      "bytes": 2490
+    },
+    "experiments/galaxy-thor/kaizo/Apply-Native.py": {
+      "sha256": "d90e280c6fa05ca2dc3a132210e34e99fddffc24b6750bc7aec7a6f111c825bb",
+      "bytes": 5726
+    },
+    "experiments/galaxy-thor/kaizo/Apply-ProfileIsolation.py": {
+      "sha256": "4618c9a9cf315a2baa479cff231f1695d7df662a5b839ce049f7318b51fb933a",
+      "bytes": 4851
+    },
+    "experiments/galaxy-thor/kaizo/Build-Emulator.py": {
+      "sha256": "50b0b29b0e369cf101ef426a898e7bf854b39f9332d2c8454db9d41bc16b8489",
+      "bytes": 2028
+    },
+    "experiments/galaxy-thor/kaizo/Build-PrivateData.py": {
+      "sha256": "7c036b0426877b2ef3e27f188013e1ae8b82d3c2e4f01563480a42201012124a",
+      "bytes": 1468
+    },
+    "experiments/galaxy-thor/kaizo/CLAUDE_HANDOFF.md": {
+      "sha256": "e262822c9e8e86dfb9e05a7a9f56dc36b510fcaf6ffc17e897fb292e3571564c",
+      "bytes": 15101
+    },
+    "experiments/galaxy-thor/kaizo/Compose-KaizoArt.py": {
+      "sha256": "1ccb946efbe8bd51197f02546d319eb929114eb67c0d88701a246f7be785e307",
+      "bytes": 8441
+    },
+    "experiments/galaxy-thor/kaizo/Integrate-Frontend.py": {
+      "sha256": "e1a6cccccc948c0120105d7da48e0ab4f7a58c85607309669ee0616d75ed362c",
+      "bytes": 10166
+    },
+    "experiments/galaxy-thor/kaizo/NativeTest.cpp": {
+      "sha256": "8a94d29ddae9aec0eb024abf9fd1394a9d2affdb1255a118598eae6745108a79",
+      "bytes": 2210
+    },
+    "experiments/galaxy-thor/kaizo/PATCH-MAPPING.md": {
+      "sha256": "ad1a48aba3d11356df37b6733d4e48183119e20456f5e1a7df80cf08ae90352d",
+      "bytes": 4340
+    },
+    "experiments/galaxy-thor/kaizo/Polish-Frontend.py": {
+      "sha256": "686c3b66fa45375b09bb8b6cd46fcf0d1fbab9995e0bcbbae92dea09080d5e0b",
+      "bytes": 4041
+    },
+    "experiments/galaxy-thor/kaizo/ProfileTest.cpp": {
+      "sha256": "406dbf9d2fee28c1714e5d807ac8701a6bf7d59056e88885519412d852754cdc",
+      "bytes": 2819
+    },
+    "experiments/galaxy-thor/kaizo/README.md": {
+      "sha256": "8ba3c0b7dcdb148f5db30d5ea14db4efc2c3040a818f88229d32320823414646",
+      "bytes": 3469
+    },
+    "experiments/galaxy-thor/kaizo/Stage-KaizoArt.py": {
+      "sha256": "80099ab67af8dffba3159eb961b5333107a97bd292d7de4df5bc23ba835c4329",
+      "bytes": 2973
+    },
+    "experiments/galaxy-thor/kaizo/Test-Native.py": {
+      "sha256": "e31a1e802e105cb9d6523f5450df1cafe31a3e6895d855019ac969754c9ee39d",
+      "bytes": 1572
+    },
+    "experiments/galaxy-thor/kaizo/Test-Profile.py": {
+      "sha256": "abc508992099cd604d1cc87374b9a2a1107b1507f206a03df64d33a9c4cd19ae",
+      "bytes": 1311
+    },
+    "experiments/galaxy-thor/kaizo/Verify-Preservation.py": {
+      "sha256": "71f203db89d876b0558844c90e23df03bc937debd83bf824541438969a917eed",
+      "bytes": 1847
     },
     "experiments/galaxy-thor/lowermap/__init__.py": {
       "sha256": "d441ac5c7d21beee78f80ef2b27318493fb870482548db14fae9338b370274f8",
@@ -6139,12 +6255,12 @@
       "bytes": 5610
     },
     "experiments/galaxy-thor/patches/galaxy-android.patch": {
-      "sha256": "7140aab5a2b6314cb36272fbff494877a0faca8ae11c5acaab677f02a95c95c4",
-      "bytes": 188407
+      "sha256": "e730b42fcc284302d5e5b495dd139d151868b36e7653cc97f0f91d2b33b65d4e",
+      "bytes": 222461
     },
     "experiments/galaxy-thor/patches/wiids-galaxy.patch": {
-      "sha256": "d5dded60b35bb7bcf5643100c0d0da26ad855e311159dd557abb8517ee6ade3c",
-      "bytes": 18991
+      "sha256": "54b0412eca411eb0ef984bd5f0f0774b59946f59a0456030b3aba48ddc6d5562",
+      "bytes": 33920
     },
     "experiments/galaxy-thor/python-packages.json": {
       "sha256": "00c8bb47a59d9e288833b041e206d2aca34a186836b9dc93859b69ee6f913f9c",
@@ -6165,6 +6281,26 @@
     "experiments/galaxy-thor/tests/gamepad.cpp": {
       "sha256": "96f5d036f089f57130db67ba4b53f00b583ea997e5ba3493e24369abd1ac8f40",
       "bytes": 3888
+    },
+    "experiments/galaxy-thor/tests/light_position_test.cpp": {
+      "sha256": "480145cc1c433d4f6d664ef06374dc86714469205d96561038bb9c13581433eb",
+      "bytes": 1445
+    },
+    "experiments/galaxy-thor/tests/lighting_generate.cpp": {
+      "sha256": "95e5fb5bcaa2231a569ab46010e05b307d45927c5550cb917361c481bf0c58ac",
+      "bytes": 870
+    },
+    "experiments/galaxy-thor/tests/material_animation_pointer.cpp": {
+      "sha256": "2680aa0e451b559f840d62666b58bba9c4a4c4038711e667486c9938d733008a",
+      "bytes": 1507
+    },
+    "experiments/galaxy-thor/tests/touch_pointer.cpp": {
+      "sha256": "7477576724d4b03af9f13427b8329e4f38d73c7db8e9340a473960a6419c5921",
+      "bytes": 1463
+    },
+    "experiments/galaxy-thor/tests/trackpad_camera.cpp": {
+      "sha256": "3acc489ab0fe0f4b7dbd0c3ce2173cd63c9e0c5db96836da0d53243ccc216644",
+      "bytes": 2458
     },
     "experiments/launcher-spines/README.md": {
       "sha256": "8e71f06a7fc5303a63492b82d1607964acde2a9c03f325096ab9f0226cbc17c4",
@@ -6435,8 +6571,8 @@
       "bytes": 10852
     },
     "experiments/nsmbw-thor/tests/thor_state_test.cpp": {
-      "sha256": "3a8e1c9a11e950c3ad458421947fc004c263e7fdc9669aa9323adcc25a99633e",
-      "bytes": 11302
+      "sha256": "d0954502874370b854e0f67e52fc69361768dd1a246461f497251bb0850a14b7",
+      "bytes": 11346
     },
     "experiments/nsmbw-thor/tests/thor_world_map_test.cpp": {
       "sha256": "752322dfdbeb01c518c286609ffc9ba2b23d66e0612f0aa362db4964aee57b4c",
@@ -6454,9 +6590,57 @@
       "sha256": "61c18334bcea45a35a9fee008f4d0e9f771136a5353f680cb6ff03a1b1c9f266",
       "bytes": 2519
     },
+    "experiments/release/Control-Thor1_1.py": {
+      "sha256": "d295a887cbb6666fd6230e0e7559dbb380c830bcb7b289e07886902c83e6c1d4",
+      "bytes": 3364
+    },
+    "experiments/release/GALAXY_ATTACK_LIGHTING.md": {
+      "sha256": "9e4392a35a52a088509eb3ad6ee864593ea969206910e231f2277ac95b4f7221",
+      "bytes": 6870
+    },
+    "experiments/release/GALAXY_CONTROLS_LIGHTING.md": {
+      "sha256": "056f011cc0d67b7a135f2f402e6d9424f000098f94821349b8cbef61664ee737",
+      "bytes": 5373
+    },
+    "experiments/release/GALAXY_PICTURE.md": {
+      "sha256": "ecaee0d08519c40afc1ea9b17f1360fefb285562a12ebd11a7c63d44d45ca4ff",
+      "bytes": 2939
+    },
+    "experiments/release/NSMB_RESUME_GUARD.md": {
+      "sha256": "ac1b15a1d5e4490b0b9b70430b6320140be8ef049a8e92668971cb11a06ef4a3",
+      "bytes": 4142
+    },
     "experiments/release/audit_release_apk.py": {
       "sha256": "7830723d64ee8c6c3e610769bd2b1b6551c30c29139f8cb4cf70315fd0b1a938",
       "bytes": 13672
+    },
+    "experiments/release/build_galaxy_attack_preview.py": {
+      "sha256": "bea8148c5684314ebf9d850b3450a63efff74e613e680d6a31b3eed50ca7e4a5",
+      "bytes": 2210
+    },
+    "experiments/release/build_galaxy_controls_preview.py": {
+      "sha256": "fafdf5d7f11fae13169d568e0104b6d807881be2b0b03b3e85d4f09d9800fd03",
+      "bytes": 2662
+    },
+    "experiments/release/build_galaxy_lighting_incremental.py": {
+      "sha256": "164e769be8056370e53208be09c4acc11731879ed660df7db8fc4c3663b99106",
+      "bytes": 2703
+    },
+    "experiments/release/build_msmb_overlay_preview.py": {
+      "sha256": "8123979946e725de6c822ed3619e79cd808e1bf11a7f0c509e2ff2cafc37a1c8",
+      "bytes": 2229
+    },
+    "experiments/release/build_picture_preview.py": {
+      "sha256": "ce5de4a29214ef3ca29d2d097d24c13d9d77ff09af300255dcb0d6e8fcb6304b",
+      "bytes": 2123
+    },
+    "experiments/release/build_resume_preview.py": {
+      "sha256": "2db92c853569735d05f272ccd6246d90bb58cade0b8e0203c2656ecf9559249f",
+      "bytes": 6183
+    },
+    "experiments/release/capture_galaxy_first_play.py": {
+      "sha256": "c54b3cb01685bcf4e9be1e3e0bb4ea1e16f1a7ec7457820347b5607d59f253eb",
+      "bytes": 1490
     },
     "experiments/release/disc-test/CMakeLists.txt": {
       "sha256": "9f663bfd3bfb18ed304ce38574584a70da5e8fe801f7e4f90714555bafea5c3e",
@@ -6466,9 +6650,21 @@
       "sha256": "acfcf5e047eac6f39088d3959f7c0067beb4b3b465ae748f79f1e69cb7964799",
       "bytes": 608
     },
+    "experiments/release/dolphin_import_session.py": {
+      "sha256": "0d4a9fbf01dc70d5156c03f0b6682dc8a71e4941fbde3dcc9e57f21cab449ce5",
+      "bytes": 1380
+    },
+    "experiments/release/export_1_1_source.py": {
+      "sha256": "265fb38755f73bb8f0d87283c93aa4b360fc42b23e7d9433e3b1adb0372ef6ac",
+      "bytes": 2993
+    },
     "experiments/release/export_release_source.py": {
       "sha256": "d05d37b7ea45e3f5514ec0852c222521f1135dda13c963c564ae1c7b430a6d31",
       "bytes": 21737
+    },
+    "experiments/release/galaxy_pointer_session.py": {
+      "sha256": "4cc5dbbadb1a8d3a707d6391bdaa55c5e6367f814bc87c8ddd313a274811e95e",
+      "bytes": 1546
     },
     "experiments/release/game-data-test/inc/isa/ppc_isa_context.h": {
       "sha256": "1081ed327c78b524819c7a45517683db37850c4b332fb2faddfb68b8623b8fe5",
@@ -6494,6 +6690,38 @@
       "sha256": "145a82c26fa1249b9f97e9c14ebc76fd55e16407025fa9ae000cec8259db2f02",
       "bytes": 3404
     },
+    "experiments/release/install_dolphin_preview.py": {
+      "sha256": "c825b2a4f241942839afe4467aabeffa2ff6f959ee80a63980a77952c9f94e26",
+      "bytes": 2327
+    },
+    "experiments/release/package_1_1_candidate.py": {
+      "sha256": "1d444600f62831b4382f8c4110a23eadb335372257c47da3837bbef161b9bc0d",
+      "bytes": 6180
+    },
+    "experiments/release/package_1_1_preview.py": {
+      "sha256": "06b3242e8273266696a08c90fd83c7ed40ba709300eeeb5f7feae87c5cf0e1ad",
+      "bytes": 13771
+    },
+    "experiments/release/prepare_galaxy_native_tests.py": {
+      "sha256": "65acc594d237b32492d7b2bbfdb98b61c1acf8a34d770383dc2d51c20d1abac1",
+      "bytes": 5551
+    },
+    "experiments/release/probe_galaxy_pointer.py": {
+      "sha256": "99d8f1bb2321669d5d5f374be28fba6d0657a5e1f6de037599c3e363f5006e7c",
+      "bytes": 2050
+    },
+    "experiments/release/record_1_1_pointer_acceptance.py": {
+      "sha256": "63b1472a0adf6b385b6c4bda2e2aa20176597708da8c27db3db63132428616d4",
+      "bytes": 6117
+    },
+    "experiments/release/record_1_1_preview.py": {
+      "sha256": "31010b4295c940d9e7856be00ed8d785a4e42895ac7b3f4ab269bcaa6ba053d5",
+      "bytes": 8325
+    },
+    "experiments/release/run_galaxy_native_tests.py": {
+      "sha256": "e1213271f9798c614ba1c59523c4c1cfd68d1fbff8a10c5ff33a3c3067ee5de8",
+      "bytes": 2641
+    },
     "experiments/release/scan_game_bytes.py": {
       "sha256": "3e7e8759a7b5520af005c1524d0b9aeff7fc9410a1bb372b6a512bb1f3e67a05",
       "bytes": 1709
@@ -6511,28 +6739,124 @@
       "bytes": 10569
     },
     "experiments/release/test_bundled_presentation.py": {
-      "sha256": "94105fe7d1fa0119e90fc92172e9a13a99dd27d3ba00e9c62ef2d1215fe1103a",
-      "bytes": 12471
+      "sha256": "28c7eb0d9a200ed374f8e352f186b0ebf34c0859c67b2f5a9f645d9aadadc2f2",
+      "bytes": 13006
+    },
+    "experiments/release/test_dolphin_android.py": {
+      "sha256": "dc6aef1a48fd42069f6d5536fafda28bf6b08331e2f5141b90f3535f917c4895",
+      "bytes": 7251
+    },
+    "experiments/release/test_dolphin_native.py": {
+      "sha256": "ae44d202cbe1327882b1c626cf4ce722ba8d3ce21ef58792128776f3d7a6ce63",
+      "bytes": 2772
+    },
+    "experiments/release/test_dolphin_saves.py": {
+      "sha256": "d6ef93566a389181ab8ee03b507b15bca2d528bb206380328fed9993fb80bef5",
+      "bytes": 14608
     },
     "experiments/release/test_eclipse_retry.py": {
       "sha256": "6010bc4834ca9549f3d1a58d58a62056b46671811e0a593d317f98950f3fd5b3",
       "bytes": 9909
     },
+    "experiments/release/test_frontend_launch.py": {
+      "sha256": "e6e94d93fcd6eb4c77d12a925912f1d00c40ce003e70f22d4cbbe7b7cec7b9e0",
+      "bytes": 6485
+    },
+    "experiments/release/test_frontend_resume.py": {
+      "sha256": "0c6eabcaf91de7d0151b0decadd64a73c7ccfbc8f765dadcd6ca1d4a0b0069d9",
+      "bytes": 3710
+    },
+    "experiments/release/test_galaxy_controls.py": {
+      "sha256": "6f709f21a3caee9ed358c10a93d3b7cbb6ab8552a56ea3769393b5a271d88243",
+      "bytes": 2003
+    },
+    "experiments/release/test_galaxy_handoff.py": {
+      "sha256": "c9429e58783f770a30931bbca88509e9ae0805e1627771b63e454b1eb9bb96c9",
+      "bytes": 3300
+    },
+    "experiments/release/test_galaxy_lighting.py": {
+      "sha256": "89de1f33cb81d245c1885e3baa38504b14355d34a60fc17f46b61c8a72224259",
+      "bytes": 2931
+    },
+    "experiments/release/test_galaxy_menu_touch.py": {
+      "sha256": "6e504b03df3eb5c8f7e03650e9279a88b8161728fb85b153454978a627cc62a2",
+      "bytes": 3161
+    },
+    "experiments/release/test_galaxy_picture.py": {
+      "sha256": "d810a1f43fd7bc82c28e3b8e6e46a58d8aa3f93b27a8250c64ffa135070c89f6",
+      "bytes": 3362
+    },
+    "experiments/release/test_galaxy_signed_light.py": {
+      "sha256": "b381c224bfec6e6fd94b753a2b6e2f688d06db2a32eac3b74e5c399136916d21",
+      "bytes": 2627
+    },
+    "experiments/release/test_galaxy_touch.py": {
+      "sha256": "0e72342dd1673613465b32a1b8b991efd46b5a0d08812c19ae11ef113204d409",
+      "bytes": 1302
+    },
+    "experiments/release/test_galaxy_touch_hint.py": {
+      "sha256": "f57c76410d7d9943aa6991b6465166d0c82409e7b14f4e2189dc6b7044f4d3f9",
+      "bytes": 2268
+    },
+    "experiments/release/test_game_shortcuts.py": {
+      "sha256": "fdd4e679a4780bda903c35310fd99ccae0ed4c754dfc506c16283ec8e40520fb",
+      "bytes": 10732
+    },
+    "experiments/release/test_imgui_overlay.py": {
+      "sha256": "98135284475f3d296501b6d66cbb7a9ca1e857ab1b2ae2cad11c1492a81ab6e5",
+      "bytes": 5179
+    },
     "experiments/release/test_launcher_touch.py": {
       "sha256": "b64c6fa01bf07943336a8e4f8b0df11450910e276ed2ffab6c8566dd40eafb63",
       "bytes": 7813
+    },
+    "experiments/release/test_motion_input.py": {
+      "sha256": "1bca31818e9bee0c0c38e6b2033085441d1e9b0c5c80901a7c90d4c15bf9004c",
+      "bytes": 8760
     },
     "experiments/release/test_msmbwii_install.py": {
       "sha256": "f7f07f722675fd29c1ebfa8d99ab2091153621dcd3d7412af6f96255682a79cc",
       "bytes": 13816
     },
+    "experiments/release/test_nsmb_resume_copy.py": {
+      "sha256": "c630dd2afc9b4a56d123cb91cbf6a79670f0936a99af89d38409406726966967",
+      "bytes": 5199
+    },
+    "experiments/release/test_nsmb_shake.py": {
+      "sha256": "f8ac5ea7df08b1a1fe795a7e54b29205076fcfcac31f4d018f1f03118a17ad21",
+      "bytes": 3664
+    },
+    "experiments/release/test_presentation_android.py": {
+      "sha256": "88b6d84092a266d73558ec61a75fd4b139d61e0a1a392ed5674378f96f23fa8c",
+      "bytes": 8640
+    },
     "experiments/release/test_release_audit.py": {
       "sha256": "972a61002d2c356d21ef6306a4b472c54b4c4018bcd4a88cdb89e2126961ebc2",
       "bytes": 4006
     },
+    "experiments/release/test_save_android.py": {
+      "sha256": "e0b84b2259202b4352a76579a888357428955fb47e06e5778892ca5bc89b3180",
+      "bytes": 10800
+    },
+    "experiments/release/test_save_archive.py": {
+      "sha256": "5b94be93e36bcc38bcc27d24a1ed92984134b742c2717e719d9ef3fd71bea93d",
+      "bytes": 11285
+    },
+    "experiments/release/test_save_profiles.py": {
+      "sha256": "899eae94f356089bb9d6f915d6e7bc3f8056d52d3c48969697adc5087c485426",
+      "bytes": 8025
+    },
     "experiments/release/test_source_export.py": {
       "sha256": "9ca630cd7411e8780177110af822e55b66b1b87e9259ac95f3146b25d3e186a3",
       "bytes": 6196
+    },
+    "experiments/release/thor_galaxy_step.py": {
+      "sha256": "116ce2002ca124dd95daa8ccabd657960295752ca78f240c5a65ef7b82d436fe",
+      "bytes": 1612
+    },
+    "experiments/release/verify_galaxy_preview_device.py": {
+      "sha256": "9b9a10acd598abb1596d1fc3b44de823e0a2c7ef6ac5697d1ed8958bbf17aac9",
+      "bytes": 1720
     },
     "experiments/sunshine-thor/ANDROID_BUILD.md": {
       "sha256": "35b552140bceea2a595315b1369431fae0c4273d851de4afb777a3f897e4db61",
@@ -6863,8 +7187,8 @@
       "bytes": 5495
     },
     "reference/driftdroid/android/app/src/main/AndroidManifest.xml": {
-      "sha256": "1a72810de117b645bce8c574992ff83819c90475ec97d72178e2a8d7cac96ab2",
-      "bytes": 12834
+      "sha256": "3fc7d65e6cab79d207bb1d701bf449c1ba297343ea407f77f6282c29e6a54167",
+      "bytes": 15109
     },
     "reference/driftdroid/android/app/src/main/cpp/CMakeLists.txt": {
       "sha256": "5d45079cc84501c32ac163e18358bc47311b06a037ac3c71346c9891bdcb1107",
@@ -6873,6 +7197,58 @@
     "reference/driftdroid/android/app/src/main/cpp/hello.cpp": {
       "sha256": "e3eeac16fcb11bd199cbca3365019a100e7f41a40598cc6f6e9f5265b1cdd95f",
       "bytes": 5385
+    },
+    "reference/driftdroid/android/app/src/main/java/com/driftdroid/android/FrontendGame.java": {
+      "sha256": "01c027689f0940d1d0740bceeeacfc6927e0fc466a00dc8071e3538e1afa4573",
+      "bytes": 1070
+    },
+    "reference/driftdroid/android/app/src/main/java/com/driftdroid/android/FrontendResume.java": {
+      "sha256": "5170a8fcce53f2f1b1ed253462d6ee3e8a834c18391ee34f5acb6886a28dd309",
+      "bytes": 2602
+    },
+    "reference/driftdroid/android/app/src/main/java/com/driftdroid/android/achievements/AchievementBadges.java": {
+      "sha256": "0ba1ccb075a2df79e8a69f4531422d7e14747cc6cd754ccbc933e8eac1a8c214",
+      "bytes": 14791
+    },
+    "reference/driftdroid/android/app/src/main/java/com/driftdroid/android/achievements/AchievementCatalog.java": {
+      "sha256": "6d3d710958130ff49eb872777a1605c8c6afbe5f863be068dc8f03d929745054",
+      "bytes": 9274
+    },
+    "reference/driftdroid/android/app/src/main/java/com/driftdroid/android/achievements/AchievementPopup.java": {
+      "sha256": "b862d1680a15e7fae2dce459ba002e04101b28b03c992a9267be5cd85add51c5",
+      "bytes": 7823
+    },
+    "reference/driftdroid/android/app/src/main/java/com/driftdroid/android/achievements/AchievementText.java": {
+      "sha256": "653038d4cd235cda4c94dca38fe8faa6f77b781df5ba1c527ac06ee52b18dfc9",
+      "bytes": 2613
+    },
+    "reference/driftdroid/android/app/src/main/java/com/driftdroid/android/achievements/NsmbAchievementSession.java": {
+      "sha256": "f1f6165d8aca53dfe25039d7198bb34fccb176c965e9c260dd7bc20d0203a29b",
+      "bytes": 3131
+    },
+    "reference/driftdroid/android/app/src/main/java/com/driftdroid/android/achievements/NsmbAchievements.java": {
+      "sha256": "9a195fc9d07a9f319011a7ed065de733b4fc42b501fa8d144184a6a861cbf206",
+      "bytes": 6433
+    },
+    "reference/driftdroid/android/app/src/main/java/com/driftdroid/android/achievements/RaBadges.java": {
+      "sha256": "5669164508aa93f3d74c445dbe806066596e8fd7558f9fdeca2b4698025c6d4e",
+      "bytes": 7374
+    },
+    "reference/driftdroid/android/app/src/main/java/com/driftdroid/android/achievements/RaCredentials.java": {
+      "sha256": "aa2bc2ba62918de2913fc3fb20ea1990d9b187781cbdc6152771f64c7538c4f2",
+      "bytes": 3390
+    },
+    "reference/driftdroid/android/app/src/main/java/com/driftdroid/android/achievements/RaLibrary.java": {
+      "sha256": "89c1208ff91587919e4c596e7ec098b7beaa43ea02c60c86bef193eb84e12411",
+      "bytes": 10218
+    },
+    "reference/driftdroid/android/app/src/main/java/com/driftdroid/android/achievements/RaProgress.java": {
+      "sha256": "92ce5819e4c9a8cde9c9ca2b6d60da3cfccf8a4460600b6de65c0aa50e9af183",
+      "bytes": 14020
+    },
+    "reference/driftdroid/android/app/src/main/java/com/driftdroid/android/achievements/RaSets.java": {
+      "sha256": "7444c36622ec5686c2cecc03c2a21ab38d69f8ee4dbc271791a216b22864dcb8",
+      "bytes": 6809
     },
     "reference/driftdroid/android/app/src/main/java/com/driftdroid/android/dualscreen/RaceMapBridge.java": {
       "sha256": "cd29a81b9fc915595fdbe2b0180f3be6ab74654688244f71fad3efd323b6754d",
@@ -6890,6 +7266,18 @@
       "sha256": "e1fe9f1c0d1d90e7ff49a040005c684d487b2860023431c7d2932203cba0a6d7",
       "bytes": 4412
     },
+    "reference/driftdroid/android/app/src/main/java/com/driftdroid/android/saves/DolphinSaveImport.java": {
+      "sha256": "5687dacd008b687f88585ae33729b6908bb32eada494e70f6c2ff46304a81361",
+      "bytes": 15514
+    },
+    "reference/driftdroid/android/app/src/main/java/com/driftdroid/android/saves/GalaxySaveCodec.java": {
+      "sha256": "2c15f0dd7c959c7961048519ede4621ac5155b2c41bd19ae171ce24377fbfbe6",
+      "bytes": 6841
+    },
+    "reference/driftdroid/android/app/src/main/java/com/driftdroid/android/saves/SaveArchive.java": {
+      "sha256": "44a3d551486c0e06205b90a05ca35c6a86a3e6a4893bdb05fe5fcda5879e0c11",
+      "bytes": 19192
+    },
     "reference/driftdroid/android/app/src/main/java/com/galaxy/installer/CookerEngine.java": {
       "sha256": "dcc1efee1bd02f07e7740c2b8c6d305640a35da73c69863444bc3e6a49fbb704",
       "bytes": 1737
@@ -6899,24 +7287,24 @@
       "bytes": 13723
     },
     "reference/driftdroid/android/app/src/main/java/com/wither/nsmbw/AppSettings.java": {
-      "sha256": "6867d4e2639bec7b9c05f8fa40aca07d9a564c8c6fa1f87a489cf0f20ed09f92",
-      "bytes": 4154
+      "sha256": "b65d601f6a2ab796057b332dfe954e56b527bb26ae04e831f2de7e823790a545",
+      "bytes": 4412
     },
     "reference/driftdroid/android/app/src/main/java/com/wither/nsmbw/DevicesDialog.java": {
       "sha256": "b8243fd8b44ae0088abc009fe2bf1d79f07b0cbef62cf837590354f9eedbb515",
       "bytes": 8286
     },
     "reference/driftdroid/android/app/src/main/java/com/wither/nsmbw/GameActivity.java": {
-      "sha256": "3fef15a6b480b42c6a52bfb61fd62af8abf7960a7313de2b9d432e2ead6544fc",
-      "bytes": 16497
+      "sha256": "1e5315204211b4f6853ff25c908f43ae6226fa6a7be77c1f5a964617fbe529dc",
+      "bytes": 17939
     },
     "reference/driftdroid/android/app/src/main/java/com/wither/nsmbw/LauncherActivity.java": {
       "sha256": "2f3bfa03b32e3b9870ccc5721fea5a251023f5cb9670186e237733dbc27710a6",
       "bytes": 27647
     },
     "reference/driftdroid/android/app/src/main/java/com/wither/nsmbw/MotionInput.java": {
-      "sha256": "3d98a8100a03606c10d465128bc5e7ed49fafec22a4eae599cdd5b34ff2f0430",
-      "bytes": 4519
+      "sha256": "415ed92314c94ffa4840b676fd44cf22ed72df451e5f249ed79acda7567d4b4a",
+      "bytes": 5001
     },
     "reference/driftdroid/android/app/src/main/java/com/wither/nsmbw/MsmbwiiActivities.java": {
       "sha256": "8b86ba01224284cf62647fd056526875010df5af09d2f5bb4e73df43732fe3d0",
@@ -6931,12 +7319,12 @@
       "bytes": 1435
     },
     "reference/driftdroid/android/app/src/main/java/com/wither/nsmbw/SettingsMenu.java": {
-      "sha256": "95577b61e96a3326e75c79e1166806ed6d564f8e48868efd54887c1586d81e76",
-      "bytes": 8590
+      "sha256": "87b85dd59c16c6b590b5dfe83bc902268ff9179c03ecb381f8519095dbea62ef",
+      "bytes": 8596
     },
     "reference/driftdroid/android/app/src/main/java/com/wither/nsmbw/ThorCompanion.java": {
-      "sha256": "8b8de0d042151ba61824cce6f4296d613463443668b4ce831c20f56a73741047",
-      "bytes": 26942
+      "sha256": "27ad2ab377a4375f2d2604e5e5b8b9ff754516715c599daa0478bfced4100dbe",
+      "bytes": 27001
     },
     "reference/driftdroid/android/app/src/main/java/com/wither/nsmbw/ThorGameState.java": {
       "sha256": "1d65e9215b60b1257f598af63aeb03c47b5dd8597c48d9e9b9c358f2fe026fce",
@@ -6951,8 +7339,8 @@
       "bytes": 2497
     },
     "reference/driftdroid/android/app/src/main/java/com/wither/nsmbw/ThorLowerScreen.java": {
-      "sha256": "808a4b6c5b2e33facdb33c6d53568560d074942c7df1d93eee7d354e87f93f7a",
-      "bytes": 14248
+      "sha256": "281e84c19ef3fe3b1c039c952b82004824786e304842b39128d07134e0d5fe98",
+      "bytes": 14307
     },
     "reference/driftdroid/android/app/src/main/java/com/wither/nsmbw/ThorReserveState.java": {
       "sha256": "5be5d3b2e10c17a7e53bbf7ed6d1a6e5cbb68f9de9da5fc40ade0591f16b1549",
@@ -7083,24 +7471,24 @@
       "bytes": 55458
     },
     "reference/driftdroid/android/app/src/main/java/dev/thor/galaxy/GalaxyActivity.java": {
-      "sha256": "1460787b71f3d30531aa90cc948ed285f5f09c51b60541bc1fe84aee511736d1",
-      "bytes": 9078
+      "sha256": "5976fe572adcaa9bfcc9325534d0f56009a7c055a286877af7917a7361afc3a3",
+      "bytes": 10963
     },
     "reference/driftdroid/android/app/src/main/java/dev/thor/galaxy/GalaxyBackupActivity.java": {
       "sha256": "0ef5107fde00a198b9c3e8326eb236245849c84d779291538b50e9ce513bf25c",
       "bytes": 2115
     },
     "reference/driftdroid/android/app/src/main/java/dev/thor/galaxy/GalaxyImportActivity.java": {
-      "sha256": "4bc4658dd4fdcf90256721508b6d38c86f76b398eb92bcbacd79efc4ccb329ba",
-      "bytes": 16854
+      "sha256": "4a2f179f3f57cb4a214708ad344771b32871d9fafaa57eece7dcb4d37ed33686",
+      "bytes": 17233
     },
     "reference/driftdroid/android/app/src/main/java/dev/thor/galaxy/GalaxyInstall.java": {
       "sha256": "2d33ec388027bca22d1b6bb5deb55e3b1ea58efc6cc174709181b30850ac9fab",
       "bytes": 5637
     },
     "reference/driftdroid/android/app/src/main/java/dev/thor/galaxy/GalaxyLowerScreen.java": {
-      "sha256": "ef2a3355811fd5a0e1c154089ca5b19127a38ffa707674d86a52e06772575960",
-      "bytes": 48999
+      "sha256": "7fa813ab7f61149e67816b59c3a4e0696992e6e5ddff8be18da605b45c64ccb9",
+      "bytes": 52949
     },
     "reference/driftdroid/android/app/src/main/java/dev/thor/galaxy/GalaxyMigration.java": {
       "sha256": "b5fd32d70962e40dce2a88e57ed724a0b038cd9a2a45b67738e5739d92e413d3",
@@ -7115,24 +7503,36 @@
       "bytes": 26549
     },
     "reference/driftdroid/android/app/src/main/java/dev/thor/galaxy/GalaxySettingsDialog.java": {
-      "sha256": "a26c2ffc162e362bee8000397aacfb9ffc7bced4b4e6f9c85773f98ab1555476",
-      "bytes": 3157
+      "sha256": "ebdb2058efea0288fc23768b072c8f04cabfe6f485ed519ff221fbf300c74eb4",
+      "bytes": 3442
     },
     "reference/driftdroid/android/app/src/main/java/dev/thor/galaxy/GalaxySettingsMenu.java": {
-      "sha256": "b975644f3ad2f0f86a5791be34d45811f66b01e945f392daa1e880e827753bcb",
-      "bytes": 28051
+      "sha256": "93a78eb6830af1d81dbc3930efe8630afd48f0896d022013e59d97857c8d77cd",
+      "bytes": 29259
     },
     "reference/driftdroid/android/app/src/main/java/dev/thor/galaxy/GalaxyStorage.java": {
-      "sha256": "bb9f52094f38d5f1f1bc8826d7132f38c7259bbcb8e38c9d6eb6ae79465836d8",
-      "bytes": 1494
+      "sha256": "153b0d4b0f65c7603e4609c54e786d7dc906109a267d80caf80599f1bfcc2979",
+      "bytes": 2196
+    },
+    "reference/driftdroid/android/app/src/main/java/dev/thor/galaxy/GalaxyTouchHint.java": {
+      "sha256": "29d9db7f6bf5c426b08e12e1f3675238707421020a6f0282aa7255b1759ba6ee",
+      "bytes": 507
+    },
+    "reference/driftdroid/android/app/src/main/java/dev/thor/galaxy/GalaxyTrackpad.java": {
+      "sha256": "5cdaab9599a5ea9b70db324d08b8641642fedf4ab015dd29b3dbab63edeba307",
+      "bytes": 1345
     },
     "reference/driftdroid/android/app/src/main/java/dev/thor/galaxy/GameFont.java": {
       "sha256": "24026ab79af6d9c1fd45b7538ff516fab251fe2565690ab4a956ebbd76df4f9e",
       "bytes": 5121
     },
+    "reference/driftdroid/android/app/src/main/java/dev/thor/galaxy/KaizoActivities.java": {
+      "sha256": "4cbebcc1d5ca8833e9928f723d7692e91d6540b2fb23e280b8224c7ff5437aab",
+      "bytes": 5222
+    },
     "reference/driftdroid/android/app/src/main/java/dev/thor/galaxy/ThorLaunchActivity.java": {
-      "sha256": "070cca26a69bc01c47e97a11bfa7e1ccbff294d62b82f4a5c9f796b8694aa1c7",
-      "bytes": 2350
+      "sha256": "ca49f0751f1906534b048ef54ef526263b2337ffa814a95e7e17cebe82bdcdb9",
+      "bytes": 2490
     },
     "reference/driftdroid/android/app/src/main/java/org/libsdl/app/HIDDevice.java": {
       "sha256": "81da1b64281575c46e501f1d623691bd713cdfaa29fd055143920361e08f9d5a",
@@ -7230,9 +7630,17 @@
       "sha256": "ffb048e8f8ed71d23a7f77168cd8fefe26af68c4932d0fdd94018853ac409a6d",
       "bytes": 2986
     },
+    "reference/driftdroid/android/app/src/main/kotlin/com/driftdroid/android/FrontendLaunchActivity.kt": {
+      "sha256": "c66b1aace0e9a8a753edd36652c1485e2e61747e031ba028a42c8d45de3c72c4",
+      "bytes": 6833
+    },
+    "reference/driftdroid/android/app/src/main/kotlin/com/driftdroid/android/GameShortcuts.kt": {
+      "sha256": "3a5b5f25be0e64de65f8bde7bd100924f3ffcf27fc9fa5898b5a64b45ba5b1cd",
+      "bytes": 3971
+    },
     "reference/driftdroid/android/app/src/main/kotlin/com/driftdroid/android/GamesActivity.kt": {
-      "sha256": "869bfaf5eaf4bbdb9fc1913fd6cd2e646dad409ee8c9e2a6f6f6a19cd9addfbf",
-      "bytes": 28291
+      "sha256": "1463b4ccad265b52478795e0b71abee335aa30207723ce47d507b14e99f5660f",
+      "bytes": 28805
     },
     "reference/driftdroid/android/app/src/main/kotlin/com/driftdroid/android/GpuDriverSettings.kt": {
       "sha256": "ea1e79f07fced175d1019a133822f7ad0be88edc1d8a4c1dea7356ec2fa092a4",
@@ -7259,8 +7667,8 @@
       "bytes": 18209
     },
     "reference/driftdroid/android/app/src/main/kotlin/com/driftdroid/android/ModePickerActivity.kt": {
-      "sha256": "abc797efdde3a86dca1b34c76c6df1e51204fcc9c17bc729596091264c525b28",
-      "bytes": 96484
+      "sha256": "8495dff02cbdac354bf2cf8d759f9f21f474d7d3c087b182abc363c8ec3b5a30",
+      "bytes": 102232
     },
     "reference/driftdroid/android/app/src/main/kotlin/com/driftdroid/android/MotionSteering.kt": {
       "sha256": "83509009de2dabe1c8559483e757eca415200916e7c9b8e9e909ef2ceaa86381",
@@ -7286,45 +7694,61 @@
       "sha256": "bc712b562daef1da59d972d854757e9221bf095d4c3569f0f6a1ea85b65c4e5c",
       "bytes": 4048
     },
+    "reference/driftdroid/android/app/src/main/kotlin/com/driftdroid/android/SaveManagerActivity.kt": {
+      "sha256": "591e26d37db32437d52acde699b500e557bf1eea6954a5920b7cc454fca77b9a",
+      "bytes": 19235
+    },
+    "reference/driftdroid/android/app/src/main/kotlin/com/driftdroid/android/SaveManagerProfiles.kt": {
+      "sha256": "1c0acd1ddadfb5382fdb4ce0717ef6f4d9188b4899ac605066b1d781025c5d24",
+      "bytes": 4684
+    },
     "reference/driftdroid/android/app/src/main/kotlin/com/driftdroid/android/ThermalMonitor.kt": {
       "sha256": "4c8ef2206b248167aef2d110327a103c93c18eb722cdb63525e8183e738d8937",
       "bytes": 1927
     },
+    "reference/driftdroid/android/app/src/main/kotlin/com/driftdroid/android/ThorAchievementPreview.kt": {
+      "sha256": "86951ac26c2bd1b69fb646367333045aaf22ef6d79c31b9a8f4f72ba8b0a32de",
+      "bytes": 8206
+    },
+    "reference/driftdroid/android/app/src/main/kotlin/com/driftdroid/android/ThorAchievementText.kt": {
+      "sha256": "697119c20af263452a445462fb95f6a76e95e8799315689119f7c978537e3c6b",
+      "bytes": 1541
+    },
     "reference/driftdroid/android/app/src/main/kotlin/com/driftdroid/android/ThorBundledPresentation.kt": {
-      "sha256": "e9794f37968d5698c14797f810dcfa922bbc83b8e2203ebd2817752b1d10ca62",
-      "bytes": 11430
+      "sha256": "27358e53d1644b7defb0aff8a64c366fca496c53169586877f20953a1c1a3d0f",
+      "bytes": 11593
     },
     "reference/driftdroid/android/app/src/main/kotlin/com/driftdroid/android/ThorDialogs.kt": {
       "sha256": "c33deddab5fb4fa4786a995d3d97014292e06e59111f333041de71c124475354",
       "bytes": 10781
     },
     "reference/driftdroid/android/app/src/main/kotlin/com/driftdroid/android/ThorGameLaunch.kt": {
-      "sha256": "ba4456cfa4ce62b45442ad2083586fa56cd73a6bfce9c7b2628bd13bf60c1be4",
-      "bytes": 3565
+      "sha256": "0f23a5e6044a07621eabdf2ef4e804e7ae9b4df677699a232613c8e369f6a39b",
+      "bytes": 4091
     },
     "reference/driftdroid/android/app/src/main/kotlin/com/driftdroid/android/ThorGameSession.kt": {
       "sha256": "e9ba78487eef8e6a6ec320243a20d7029f4cc3a4fdff0e0149d5ee5e8c3a87bc",
       "bytes": 683
     },
     "reference/driftdroid/android/app/src/main/kotlin/com/driftdroid/android/ThorLauncherArtwork.kt": {
-      "sha256": "6ca651c3dfc644552b92e1273395d338925f4ad881982b5391d8c43d0c117523",
-      "bytes": 9303
+      "sha256": "17f2265e78e09eb45158eb7dcde1ba71c809410fe56e2d5f325b59dc412fbffb",
+      "bytes": 9347
     },
     "reference/driftdroid/android/app/src/main/kotlin/com/driftdroid/android/ThorLauncherAudio.kt": {
-      "sha256": "1346a74d0af96832d069794be481069176981a146b53e00f422988ffebed364d",
-      "bytes": 14135
+      "sha256": "b3e84bddcd8def07f9d89c3ab9a4a2043758ea8820739169c60d1e67a70ca0a7",
+      "bytes": 14208
     },
     "reference/driftdroid/android/app/src/main/kotlin/com/driftdroid/android/ThorLauncherView.kt": {
-      "sha256": "314f4733b6f76c3593a7536e68dc18d8f6326b3fb637b3548dfd2de69645717e",
-      "bytes": 70982
+      "sha256": "f2ac9f8aa73b8a07391adbee9d4c2c9d918a8b9688e00302ccc999fc57048a03",
+      "bytes": 70400
     },
     "reference/driftdroid/android/app/src/main/kotlin/com/driftdroid/android/ThorLibraryCompanionView.kt": {
-      "sha256": "cd52b5efdfd22b51d189a42b8caec239a88ed16c57d1caea534d712146a8f2b7",
-      "bytes": 26253
+      "sha256": "ba2e58e6b18c52926ab04a4f5d86976b767d7c37d61c573123d8e8bab376b9e9",
+      "bytes": 32285
     },
     "reference/driftdroid/android/app/src/main/kotlin/com/driftdroid/android/ThorLowerCompanion.kt": {
-      "sha256": "e94959da75238d596c26d775fbe155b1bc6e199e9fcc74dce45a72de689a3fa9",
-      "bytes": 6143
+      "sha256": "1ece83625113c9b8f0007ab4c3eb2a322623acb97e49d795e713b48812fc3c60",
+      "bytes": 7228
     },
     "reference/driftdroid/android/app/src/main/kotlin/com/driftdroid/android/ThorLowerStatus.kt": {
       "sha256": "fdbf50b27e9c33c33d2daeefe05edb6d3d911e3e7ac390961fd07211134307cc",
@@ -7370,6 +7794,10 @@
       "sha256": "46e6b5fbf5d11be8e020b75448fc0ff2b8794f5fbe564f832a56a0a66a661a1c",
       "bytes": 2407
     },
+    "reference/driftdroid/android/app/src/main/kotlin/com/driftdroid/android/achievements/AchievementsActivity.kt": {
+      "sha256": "454b81ba4fd4c63bdb2e5dff355facad2f8bec3e2659224d713565f9192dc224",
+      "bytes": 46319
+    },
     "reference/driftdroid/android/app/src/main/kotlin/com/driftdroid/android/rom/DiscInstallCommit.kt": {
       "sha256": "23da205606ce15628af04464932ee1452bdc07f87b886ac3a3a632361b70da26",
       "bytes": 2667
@@ -7379,8 +7807,8 @@
       "bytes": 5537
     },
     "reference/driftdroid/android/app/src/main/kotlin/com/driftdroid/android/rom/GameCatalog.kt": {
-      "sha256": "fd135ac11bc6c4612ddb77ce653b89e29825f3a09c483d64786f4781147aef43",
-      "bytes": 5069
+      "sha256": "1892fd2b9902ca8065c43aa71458b906bde96baaf1815927b09b1c8e36ed9778",
+      "bytes": 5395
     },
     "reference/driftdroid/android/app/src/main/kotlin/com/driftdroid/android/rom/GameInstaller.kt": {
       "sha256": "6d71b0977a4dc4775fdaf691452da1da397259c03408e814a21b17e190710c3b",
@@ -14739,8 +15167,8 @@
       "bytes": 949
     },
     "reference/galaxy-android/decomp/include/Game/Camera/CameraLocalUtil.hpp": {
-      "sha256": "103c5e444ade068e10974ef592b5d1c8dd98299f14e7ec9df75faaf8636df445",
-      "bytes": 3205
+      "sha256": "dff42bca7b4ac8002c3588f09dc5c0b12df06c436974f36a1709fc0d0736a29e",
+      "bytes": 3239
     },
     "reference/galaxy-android/decomp/include/Game/Camera/CameraMan.hpp": {
       "sha256": "8fed65cdb47e355f0ca9b401e4dedcec1a703bde114d21f8e772998b3030d663",
@@ -19955,8 +20383,8 @@
       "bytes": 49263
     },
     "reference/galaxy-android/decomp/libs/JSystem/include/JSystem/J3DGraphBase/J3DMaterial.hpp": {
-      "sha256": "0beead080cd5e201604648f904a101497d7dbd5d6188fbfb2d73dea2f28b2366",
-      "bytes": 4866
+      "sha256": "77cff59ee1db5dbfef1253fcbbcf7a9dd8c48ebf3fa052ee6dc60218a55b2f8c",
+      "bytes": 4950
     },
     "reference/galaxy-android/decomp/libs/JSystem/include/JSystem/J3DGraphBase/J3DPacket.hpp": {
       "sha256": "39772e038690720abf8cb8f7cb4458cfe19e902acfc2a31aabca4e8516589adb",
@@ -22851,8 +23279,8 @@
       "bytes": 169
     },
     "reference/galaxy-android/decomp/src/Game/Boss/BossKameckBarrier.cpp": {
-      "sha256": "53c5400be362607ac8a928c7a2f6a575eca28f9d48bb91545f565acd2fc1424b",
-      "bytes": 1186
+      "sha256": "851017eab6e3927a34bd27d8ae62b4ce15e315bee684258085183100b1a5503f",
+      "bytes": 1326
     },
     "reference/galaxy-android/decomp/src/Game/Boss/BossKameckBattleDemo.cpp": {
       "sha256": "0ef938b852761175c53014f74d0f80bcd7339f839bcae183f08b5abf195f09ed",
@@ -23047,12 +23475,12 @@
       "bytes": 909
     },
     "reference/galaxy-android/decomp/src/Game/Boss/DodoryuStateLv1.cpp": {
-      "sha256": "36d41a02a7ae834374ff40a03e4dc8804d00b54e968e152df53b0bb2fcb82382",
-      "bytes": 14103
+      "sha256": "c90584f9dc164a7dc4bce3ca73d22d103345efd4235695aa9d1b0ede38f055b5",
+      "bytes": 14183
     },
     "reference/galaxy-android/decomp/src/Game/Boss/DodoryuStateLv2.cpp": {
-      "sha256": "7c842c0b527206fbb192d860327f98592aad78709f779fd957cce16e4e535665",
-      "bytes": 32506
+      "sha256": "a5af0bf794a1e0daa132909193185c94a34a9a4f81eba112d94bec91600b263c",
+      "bytes": 32586
     },
     "reference/galaxy-android/decomp/src/Game/Boss/DodoryuStateWait.cpp": {
       "sha256": "1f2a21fd2f87180ffc12c4aaa4613b972486d2461e633a8fb7b7af2f421e1ba7",
@@ -23311,8 +23739,8 @@
       "bytes": 557
     },
     "reference/galaxy-android/decomp/src/Game/Boss/SkeletalFishBaby.cpp": {
-      "sha256": "440135aaf34c3b2d55061c3658bf234f4a4e7dcd72138f318b64c1e4cbd8558b",
-      "bytes": 11178
+      "sha256": "0baa2b7becd7adb6e0915472c2bdedbbcc8ba7d446a7c3d1c577a9cd72cad6b7",
+      "bytes": 11230
     },
     "reference/galaxy-android/decomp/src/Game/Boss/SkeletalFishBabyRail.cpp": {
       "sha256": "dbd97ee9f249a19474c0d7c94a4be3a76ae1f829d1c7348712226140c7c2ad36",
@@ -23751,8 +24179,8 @@
       "bytes": 2611
     },
     "reference/galaxy-android/decomp/src/Game/Camera/CameraDirector.cpp": {
-      "sha256": "f4a94d56bb76bcc82193c668e9ae53afe91d25ecea6dc6091d4d70a31d26a687",
-      "bytes": 29417
+      "sha256": "6164628f91f695d82d09e1e55f366347558353fafcc0612187431f705eb053a3",
+      "bytes": 27091
     },
     "reference/galaxy-android/decomp/src/Game/Camera/CameraFix.cpp": {
       "sha256": "29c388f5d9667f6f976a2d9d2dbf551a6245d5320c8598715dbb932acac152e3",
@@ -23807,8 +24235,8 @@
       "bytes": 3996
     },
     "reference/galaxy-android/decomp/src/Game/Camera/CameraLocalUtil.cpp": {
-      "sha256": "bff6ee7a56a40bfe28fd2ee4b8cf7cfc31edd0313fd7b0525411066405e13903",
-      "bytes": 16014
+      "sha256": "9ce497c95ba8ba30e104fc91f4a6553610d2d58e3731446e306ef31156744f09",
+      "bytes": 17226
     },
     "reference/galaxy-android/decomp/src/Game/Camera/CameraMan.cpp": {
       "sha256": "e25ee695030229e69feb3d39a0bc101df2bc16f41928be3c08acfe20a310910f",
@@ -24247,8 +24675,8 @@
       "bytes": 24174
     },
     "reference/galaxy-android/decomp/src/Game/Enemy/BegomanBaby.cpp": {
-      "sha256": "f4dbf3db3d1aa627146119a72edb99d840f9324763ddbdf1523977347c760daa",
-      "bytes": 20249
+      "sha256": "e61679c325626ff69acf649c6a40c71927ff23542377e8461e5d7537e7871fd1",
+      "bytes": 20299
     },
     "reference/galaxy-android/decomp/src/Game/Enemy/BegomanBase.cpp": {
       "sha256": "49d791967ab757ea81d9032111e8fae70fcaa3934081d2209f4c2f289c928ce4",
@@ -24263,12 +24691,12 @@
       "bytes": 7042
     },
     "reference/galaxy-android/decomp/src/Game/Enemy/BegomanSpike.cpp": {
-      "sha256": "a91e2c3834fbe4ee6ea8510acfff5b1a25e45625574b707e763ba4d8ab900fcf",
-      "bytes": 22856
+      "sha256": "9f58f49a04184a2fdfde75916165c53c4e3845f08a923f41079738eb60ed334d",
+      "bytes": 22906
     },
     "reference/galaxy-android/decomp/src/Game/Enemy/BegomanSpring.cpp": {
-      "sha256": "f7802d9d8b3703d58dd10d77e6d40c8557309a23f79098afba4e192281f7cde6",
-      "bytes": 27114
+      "sha256": "fa0c4370c901f0cb7ca6c22d1a8304ba61fcbdea6498c34ce12cbb64869a39aa",
+      "bytes": 27164
     },
     "reference/galaxy-android/decomp/src/Game/Enemy/BegomanSpringHead.cpp": {
       "sha256": "918ec511509e9fac1ae631ac19d0de5df2a63e7bde771201e4f581469f26bc9e",
@@ -24659,8 +25087,8 @@
       "bytes": 3167
     },
     "reference/galaxy-android/decomp/src/Game/Enemy/WaterBazooka.cpp": {
-      "sha256": "227d238991a038563e449da8076cf7d3ceab73772984f4d4eeb4e40daebcdc06",
-      "bytes": 31496
+      "sha256": "677db52cb3a4c511ba1018d05b7ecd88e1910af95f233b5b993be0c7f21219dd",
+      "bytes": 31536
     },
     "reference/galaxy-android/decomp/src/Game/Enemy/WaterBazookaCapsule.cpp": {
       "sha256": "39aab98d71ad39879deeb39e66717f98e0fefaf785faa55d243176d166564de6",
@@ -25743,8 +26171,8 @@
       "bytes": 7095
     },
     "reference/galaxy-android/decomp/src/Game/MapObj/FlipPanel.cpp": {
-      "sha256": "04e91b689d3b2b4ea465477cd03c7a5ae22b29934512a0f6dc1fc82162aae102",
-      "bytes": 10993
+      "sha256": "3411e89ba974eb719a56f81f6434298b1f84e61444d5de2157c3bf01f0c3ebf9",
+      "bytes": 11078
     },
     "reference/galaxy-android/decomp/src/Game/MapObj/FloaterFloatingForce.cpp": {
       "sha256": "f7fad852d564512293d87b1590bdea875acb03fbfe2d738d41a02b2d089bcaaa",
@@ -26647,8 +27075,8 @@
       "bytes": 20478
     },
     "reference/galaxy-android/decomp/src/Game/NPC/KinopioAstro.cpp": {
-      "sha256": "23143f08a909391e087c9f6bb51d655533a98057a815e3d781475d7f2c3a355e",
-      "bytes": 8444
+      "sha256": "cca152eec8d168d4ea730fb0da96a79ba3cb3ab88437b462f8b461d0fc7aa713",
+      "bytes": 8579
     },
     "reference/galaxy-android/decomp/src/Game/NPC/KoopaJr.cpp": {
       "sha256": "832049e62bcc3134d5d0edb3562df08e2b45c7d6a348dc990bddc4c11ec78920",
@@ -28319,8 +28747,8 @@
       "bytes": 6778
     },
     "reference/galaxy-android/decomp/src/Game/System/GalaxyCometScheduler.cpp": {
-      "sha256": "40090d9a47e75d80176fa254f58418c41337fbb2dfa6e5a4283bce25a140e551",
-      "bytes": 16068
+      "sha256": "620e5543295ee82d32f1860c757f5bd57622c7844ad3f989399621734ebf281c",
+      "bytes": 16120
     },
     "reference/galaxy-android/decomp/src/Game/System/GalaxyCometState.cpp": {
       "sha256": "59721e318e571f4a761fe9df42834be0b4db67580d1b004253a7f19003fbc62a",
@@ -28375,8 +28803,8 @@
       "bytes": 2331
     },
     "reference/galaxy-android/decomp/src/Game/System/GameEventFlagTable.cpp": {
-      "sha256": "5d2391381a7b71462c194a51af4085815877aff2a87a8b245d6c794ecd09ab82",
-      "bytes": 29262
+      "sha256": "f96ccc3e6d037c0f7df78db3eb05be1ab5274957f37857e74f7d8f107a05b545",
+      "bytes": 29370
     },
     "reference/galaxy-android/decomp/src/Game/System/GameEventValueChecker.cpp": {
       "sha256": "f8512f7691f648cc10f0b6a83489fd07517aea245d4c0cc7fc0d85777f28f3c3",
@@ -28439,8 +28867,8 @@
       "bytes": 11645
     },
     "reference/galaxy-android/decomp/src/Game/System/HeapMemoryWatcher.cpp": {
-      "sha256": "8254562b51a4b669a52da9b00ab830da86be90c70d95c81702b5e6be05186bdf",
-      "bytes": 6000
+      "sha256": "c0a6f132a9f06250703da083b0af90021eccf53aa3d7dfd36ef569ccfe4305a8",
+      "bytes": 6805
     },
     "reference/galaxy-android/decomp/src/Game/System/HomeButtonMenuWrapper.cpp": {
       "sha256": "2ab7bd113e1f06adb2ad5bfc255f88d8415b670cb1ca584cf49159e61d820da7",
@@ -28879,8 +29307,8 @@
       "bytes": 1577
     },
     "reference/galaxy-android/decomp/src/Game/Util/SceneUtil.cpp": {
-      "sha256": "82f1cf7c9e179fb499f2be71372edc9053c8fc3479a8ad2c7b45728cecaaa582",
-      "bytes": 14632
+      "sha256": "85d28b97d44b10b1679623ea5e0999a4dabea78e34b702e583ebb8da9c373bfb",
+      "bytes": 14709
     },
     "reference/galaxy-android/decomp/src/Game/Util/SchedulerUtil.cpp": {
       "sha256": "07ce89356355e10061ca7aa8ee666b060173a4996f79a9f861ca6427146b1067",
@@ -28891,8 +29319,8 @@
       "bytes": 19189
     },
     "reference/galaxy-android/decomp/src/Game/Util/SequenceUtil.cpp": {
-      "sha256": "db73f9f77d937402384df0a2fbbcd2da1682e8c6d59cb4d195ba51b9a6c32efd",
-      "bytes": 4328
+      "sha256": "45a6949f8fdd7d65640f88b4f29c4931e1e32d28fba7f93f9ac165233a0428c5",
+      "bytes": 4471
     },
     "reference/galaxy-android/decomp/src/Game/Util/ShareUtil.cpp": {
       "sha256": "3ed4bbf411433e5c0d1f4c0c9b5e566549fc97b4e2e225dd412eed54c091f886",
@@ -31927,8 +32355,8 @@
       "bytes": 1588
     },
     "reference/galaxy-android/installer-mobile/jni/py_bridge.cpp": {
-      "sha256": "599e739c93c3567e931910cbcb3c01445b8e09091b73e5731bd947b43310e782",
-      "bytes": 9719
+      "sha256": "924c19ca71dc7a27c45fbe0e4acb3a1ac8d85aa8479cdba645dd8af1000d690a",
+      "bytes": 10079
     },
     "reference/galaxy-android/installer-mobile/jni/wii_disc_reader.cpp": {
       "sha256": "6ce4307e0a59a3e52f311ee90fd789d9f7ca4ca2688006961c4edf8fa564a126",
@@ -32690,6 +33118,10 @@
       "sha256": "ba3c6fe393570514e68fd154195fafad0bba89aab072a2f79a8905cd9bb204e3",
       "bytes": 35
     },
+    "reference/galaxy-android/platform/include/port/camera_stick.h": {
+      "sha256": "b47132a192916a3c2ed52312bb63192bd143249a48d5886ec3404c02b3bfc145",
+      "bytes": 810
+    },
     "reference/galaxy-android/platform/include/port/compat.h": {
       "sha256": "579080c0313965a8a19437b342cd881ff69b61241cf4b08e45f8b57d386d19d2",
       "bytes": 11608
@@ -32710,6 +33142,10 @@
       "sha256": "c98e709bb9c2662f30bc786739a84fcde7e78889d26d24699af99ca1b1eb2651",
       "bytes": 4582
     },
+    "reference/galaxy-android/platform/include/port/kaizo.h": {
+      "sha256": "c90b1b2c766b652f5b59a79a996fbfcc81b41438ad7169015b5d89c29991f7f1",
+      "bytes": 515
+    },
     "reference/galaxy-android/platform/include/port/msl_ext.hpp": {
       "sha256": "1d9e0e497169e5296eda818cb84518f5cb19a1bd6d80d1f81a3c0f19c6c1a011",
       "bytes": 9380
@@ -32721,6 +33157,10 @@
     "reference/galaxy-android/platform/include/port/ppc_intrinsics.h": {
       "sha256": "c23743136245aa29c5a384d32557b98ca51d9fbc7b3a0b4fd2c768172850df2f",
       "bytes": 3409
+    },
+    "reference/galaxy-android/platform/include/port/profile.h": {
+      "sha256": "0c3f09df97fb96dfd262ef2a81b06cb4c2728e7b78a7352b108e426ab5092a7d",
+      "bytes": 515
     },
     "reference/galaxy-android/platform/include/port/ptr32.h": {
       "sha256": "919f1361f4d3858e153dfc24c0c0d5385cc7ea39c529b8a7c7cb140acf2c074f",
@@ -32763,20 +33203,20 @@
       "bytes": 2178
     },
     "reference/galaxy-android/platform/mobile/core/GameBooter.cpp": {
-      "sha256": "eacee17af240c2de47adad51b9c873c9ea1a90b9073c9af613af0d622b86565f",
-      "bytes": 2344
+      "sha256": "aecde87290ab9d1a21a8232b89eb4c6a8d034ff854928ea8a3f337ef5704efa1",
+      "bytes": 2319
     },
     "reference/galaxy-android/platform/mobile/core/GameBooter.h": {
       "sha256": "b227313d1f857a78a4eeb431549edcf0173ec3df0e6f3c7e8d96c1689bff5ada",
       "bytes": 412
     },
     "reference/galaxy-android/platform/mobile/core/MobileApp.cpp": {
-      "sha256": "9bafea4380e69175158c0c449d60fe6922f7846145787f9185d027b2e1539141",
-      "bytes": 13571
+      "sha256": "8e88d418363e7711db584a679f813effbfdc08eb188d73d27e52739a1dcc2ca1",
+      "bytes": 14457
     },
     "reference/galaxy-android/platform/mobile/core/MobileApp.h": {
-      "sha256": "3b5fa9ff763b13ec898dd6f79edf6d46bb2dfff3642ac2d0fd9b8e14fd177610",
-      "bytes": 1481
+      "sha256": "f5e7206290b6fc634a0d0b84271039be38e554a56d87e960c202440f9e75ba8b",
+      "bytes": 1518
     },
     "reference/galaxy-android/platform/mobile/display/FramePacer.cpp": {
       "sha256": "2d0b0cd9978530912601f49b1e5500b1346bfcc8a5867118ac8e6a6610ce0543",
@@ -32795,12 +33235,12 @@
       "bytes": 1191
     },
     "reference/galaxy-android/platform/mobile/input/GamepadInput.cpp": {
-      "sha256": "b4cfc9260aecd3c244588e7430175a9d74baf1f1b6300c8e04a73ae1899e2a2a",
-      "bytes": 12279
+      "sha256": "fe23a9c851657a8c6d8c9ec3f40536a821b74f5030a38f3780fa8b8de1fce5d9",
+      "bytes": 12714
     },
     "reference/galaxy-android/platform/mobile/input/GamepadInput.h": {
-      "sha256": "f6b625d1ef6b3ae4a5f9ba1e5dcd641595ec5a9cb50dfcef2e837ba87eda1c63",
-      "bytes": 3177
+      "sha256": "493e7b626e3aaf0c03e9152eca964dd70c9c7cc0258502d1904c7856b774ac5e",
+      "bytes": 3231
     },
     "reference/galaxy-android/platform/mobile/input/Sensors.cpp": {
       "sha256": "b83596cbe4f6d19668e16e502e948a0010b5a9d85720b3e7e7dee671fb3f1069",
@@ -32811,8 +33251,8 @@
       "bytes": 878
     },
     "reference/galaxy-android/platform/mobile/mobile_app.cpp": {
-      "sha256": "abfe578d48cf09369fbbe597e2f7456d8664fae0f241168449ae734bd708303b",
-      "bytes": 2433
+      "sha256": "de2c96ca4d14e06f14c069e900246e284c783472e0e4fab52f747668f0b5a630",
+      "bytes": 2673
     },
     "reference/galaxy-android/platform/mobile/mobile_stubs.cpp": {
       "sha256": "3666c52beb5c9d33a9749e1fc10d730fe5b909c6e7a66ecfb31d700819a14bac",
@@ -32831,8 +33271,8 @@
       "bytes": 698
     },
     "reference/galaxy-android/platform/mobile/render/VulkanLifecycle.cpp": {
-      "sha256": "a96f1d31801325b6ab24f760fdfa1b9e15905f1baad808d37c32bec007d1ed36",
-      "bytes": 3964
+      "sha256": "f85268a7ba7747154a7f1198e557d33802d4149e30481de909f0cee8e5375774",
+      "bytes": 3953
     },
     "reference/galaxy-android/platform/mobile/render/VulkanLifecycle.h": {
       "sha256": "815ff80efd1f18f7ee05c6325eac583e5c754651880235e8c745e7f241d2fe09",
@@ -32947,28 +33387,36 @@
       "bytes": 776
     },
     "reference/galaxy-android/platform/mobile/system/SystemManager.cpp": {
-      "sha256": "42e9c8098e33086fbc286e12ee5fd2280a82beb7daa054b877c28b0d831a148d",
-      "bytes": 9799
+      "sha256": "357c4b513351af4dd396530cb7e5b5fca4d8c6b828161b974f5dd67631cb9485",
+      "bytes": 9788
     },
     "reference/galaxy-android/platform/mobile/system/SystemManager.h": {
       "sha256": "42aa91c52e25a7e512e7cb0898d571c4f1638534a31cb4dd1677e0e0eb34e9bc",
       "bytes": 1100
     },
     "reference/galaxy-android/platform/mobile/thor/ThorLowerBridge.cpp": {
-      "sha256": "d57793963961a1394b9d9e51ea6c3d390285e4b21995e9db6e01a931ebd8dbfc",
-      "bytes": 7861
+      "sha256": "3d032ff031040dcadb0ffb67e31a44309f1fa6c710556da4b143984aa3afd25a",
+      "bytes": 8678
     },
     "reference/galaxy-android/platform/mobile/thor/ThorLowerBridge.h": {
-      "sha256": "3cdc7571dc0fa3680b54279a89f791ffa7b4db0ee03815968843cd4a058a6076",
-      "bytes": 351
+      "sha256": "16cde4a1464a23cc802a7c2891b066c9ea8af5b5c7755a55e678bcf3bb161e19",
+      "bytes": 465
     },
     "reference/galaxy-android/platform/mobile/thor/ThorSettingsBridge.cpp": {
-      "sha256": "222f1f03285fa3c180a60985789bb535a0f9a1f53ac85ab09ffea2dc35b8797e",
-      "bytes": 8091
+      "sha256": "17a3dbd81f175152a12a324f8ef79a178a67a903ae9907bc19abf455eba0a15c",
+      "bytes": 8127
     },
     "reference/galaxy-android/platform/mobile/thor/ThorSettingsBridge.h": {
       "sha256": "f578efe0f6a9d1bc356cab6fa7d4f97278a12c8b8aade88f9d686bb8a6e4a514",
       "bytes": 2451
+    },
+    "reference/galaxy-android/platform/mobile/thor/TouchPointerMailbox.h": {
+      "sha256": "dd575d58b30d9203c50118ac8dfadd7a4b2f71ed3150673effdfb67478092601",
+      "bytes": 1084
+    },
+    "reference/galaxy-android/platform/mobile/thor/TrackpadMailbox.h": {
+      "sha256": "61927ea9f9b6385351d99e79d5382bab4aea4720f1b5fc7b664da1a7dd59950d",
+      "bytes": 1690
     },
     "reference/galaxy-android/platform/mobile/ui/DolphinSaveConverter.cpp": {
       "sha256": "139ab0d5f861f4dfcfd4ca6eda08f92b42c21508b0aaab9a44e3e9e6065a7495",
@@ -33015,36 +33463,36 @@
       "bytes": 1476
     },
     "reference/galaxy-android/platform/mobile/ui/SaveManager.cpp": {
-      "sha256": "9322825d0885eadce929701733791dba7db8ecdf9de84f07c0183c10c4e65c98",
-      "bytes": 9172
+      "sha256": "6b2b32668ff15bbadd5cb284df0337a82b68d0a9a5e1c6f44ff195edb9e3f5c9",
+      "bytes": 8971
     },
     "reference/galaxy-android/platform/mobile/ui/SaveManager.h": {
       "sha256": "5371fa57c26096050def1a50c0710b60d177c02c7469dff6d9d793803ffa9920",
       "bytes": 1558
     },
     "reference/galaxy-android/platform/mobile/ui/SaveSyncManager.cpp": {
-      "sha256": "d866fd85046ff611965608387bfb35225981248a31f1703d8f8f21693443a853",
-      "bytes": 6272
+      "sha256": "37b0797136f94312441f729d2b4a76b57186904944c80e41a148cb050d4cada3",
+      "bytes": 6506
     },
     "reference/galaxy-android/platform/mobile/ui/SaveSyncManager.h": {
       "sha256": "49cbed56c710e6c7ae6581ff2a37ec73f7b55af33455e30ebc193992bf9a8413",
       "bytes": 430
     },
     "reference/galaxy-android/platform/mobile/ui/Settings.cpp": {
-      "sha256": "b39a0a685b5a4afc2e31b2dcc267534ddb4c2881384f16aba9db11e7ed7e8475",
+      "sha256": "fc4aaa098c9714cf9ee6604297a8c90d126292a9f35c67f0120b9d2c4a07073c",
       "bytes": 9561
     },
     "reference/galaxy-android/platform/mobile/ui/Settings.h": {
-      "sha256": "f176ed280647a5f40d02695c75d341df866c054a8e9fedc8f025ccf98e9390f8",
-      "bytes": 2508
+      "sha256": "9e27ae29ea5d5765a99f163d47effacd2c9c1616ddaa1b3b221d42f2225e8095",
+      "bytes": 2512
     },
     "reference/galaxy-android/platform/mobile/ui/SettingsDrawerChrome.cpp": {
       "sha256": "632b9cdc8414859f06a6d5d49d8fc7f758db24bac8d25ca0a31180ec6f7f4728",
       "bytes": 4280
     },
     "reference/galaxy-android/platform/mobile/ui/SettingsDrawerRender.cpp": {
-      "sha256": "73c9de2569476ba54104cc7dcdd2ec612ed177e0d7f606facd3cd778bfda5622",
-      "bytes": 17427
+      "sha256": "9950f45c2b9c731b2c880b5916bc806810defb9d7aa7d259bc8731b26746cbf9",
+      "bytes": 17416
     },
     "reference/galaxy-android/platform/mobile/ui/SettingsDrawerWidgets.cpp": {
       "sha256": "efcc7f470c0a4cc3f019a0ce624c020312701865984a519bd7dd8988eebf1dbe",
@@ -33059,8 +33507,8 @@
       "bytes": 912
     },
     "reference/galaxy-android/platform/mobile/ui/SettingsMenuDefs.cpp": {
-      "sha256": "954b26bb06c3355be4844747c6aed263217f42e5a2fdd0f2975701ecda64a9ee",
-      "bytes": 10726
+      "sha256": "cb086e47bb9f124d81c4c019b457bcb3c21d3d7b8dd77b01b8e75dcc8d3b6bec",
+      "bytes": 10677
     },
     "reference/galaxy-android/platform/mobile/ui/SettingsMenuDefs.h": {
       "sha256": "04a86ac07bb842e12299a8b37aa36b6b74c94c3d48620ea15c1381e1a505eccb",
@@ -33075,8 +33523,8 @@
       "bytes": 3085
     },
     "reference/galaxy-android/platform/mobile/ui/SettingsMenuModActions.cpp": {
-      "sha256": "67673ddb72a1dc04c39185904c394a2a44552c2f314f92161c472580568863aa",
-      "bytes": 6958
+      "sha256": "bc8836481b323c906ba51c9f9c3391087777d4bc9c6d60f5db2bc501d69b6ee5",
+      "bytes": 6909
     },
     "reference/galaxy-android/platform/mobile/ui/SettingsMenuModActions.h": {
       "sha256": "a78aaccc6aa9eb38b8071831b2b51f5f8dbbd210dcbaf3eac314d641ee0b072a",
@@ -33187,8 +33635,8 @@
       "bytes": 6597
     },
     "reference/galaxy-android/platform/src/dvd/dvd_disc.cpp": {
-      "sha256": "2d7002690940d601b1c17e1346b038259d31f8ce4038a81bfb75902d8139ccf6",
-      "bytes": 5505
+      "sha256": "c5b89e4e5daf11173bd43393a0cb130900a442a4677d2031f543eacc92b1b9cb",
+      "bytes": 5693
     },
     "reference/galaxy-android/platform/src/dvd/dvd_fst.cpp": {
       "sha256": "f03c5a56ae37846c9d9074ec707439eb45737112f8eabdbdcbb8b55ae61dfedb",
@@ -33235,8 +33683,8 @@
       "bytes": 7319
     },
     "reference/galaxy-android/platform/src/gx/gx_builder_state.cpp": {
-      "sha256": "b86461449955d78928ce26bc5fe9473066624974a794c58705e7093dc0d2b09e",
-      "bytes": 9864
+      "sha256": "bd33a000d6f98a4e41065b89f40d44ed70b8a8aa9d0b24e4b9323a2d32c6e291",
+      "bytes": 9820
     },
     "reference/galaxy-android/platform/src/gx/gx_camera.h": {
       "sha256": "72f0403916ed1bef0ccfec9cf8c6d065ecd7b05bd3d3d612feb6ccb329643892",
@@ -33267,8 +33715,8 @@
       "bytes": 4126
     },
     "reference/galaxy-android/platform/src/gx/gx_recorder_tex.cpp": {
-      "sha256": "c2a62175921415e53127e725ee4e81a0c1fb9741050b38c82184ddc5e55663a9",
-      "bytes": 6706
+      "sha256": "9eb2b8180cfc83d49dc8abcb881894a34888ab41dc56a07ec02cf7f4286ce893",
+      "bytes": 6625
     },
     "reference/galaxy-android/platform/src/gx/gx_shader_uid.cpp": {
       "sha256": "6551dceb3d534165d9e5bd613cc9838a185b587adf5a19362b06c488c8cc1a65",
@@ -33367,8 +33815,8 @@
       "bytes": 2412
     },
     "reference/galaxy-android/platform/src/gx/vk/vk_pipeline_cache_manager.cpp": {
-      "sha256": "3cf907a28dfe3ea4946ef0dc32c5caf0d2bded25d3c357d91678eb5c4b7b46e0",
-      "bytes": 4472
+      "sha256": "08c247c8c0a80813455c4096e64d74d929a3882ef450869fd64af3e465bd6ed2",
+      "bytes": 4492
     },
     "reference/galaxy-android/platform/src/gx/vk/vk_pipeline_key.h": {
       "sha256": "e1ecfe9e7202cc4e45b9004403e7c5484903431cd97fbdb7a426869e6bfe3de2",
@@ -33379,8 +33827,8 @@
       "bytes": 13121
     },
     "reference/galaxy-android/platform/src/gx/vk/vk_presentation_pipeline.cpp": {
-      "sha256": "7a98d263ebc441132577b49293348a3de71793530a3ef84c9b4ecdc50bb79cfd",
-      "bytes": 9554
+      "sha256": "ebe5c837c92350af34fd909b6a5b2e4be7c5231a732725259d59661d3d2e0273",
+      "bytes": 9956
     },
     "reference/galaxy-android/platform/src/gx/vk/vk_render.cpp": {
       "sha256": "400f45e5e055800b324399f09e31189118d5913645af71ca9a1ae2345075eccb",
@@ -33415,8 +33863,8 @@
       "bytes": 12780
     },
     "reference/galaxy-android/platform/src/gx/vk/vk_texture_presenter.cpp": {
-      "sha256": "699a18bead174a5cfc8ea6411739cc847e8ce56e37641100451e727c857b4dc9",
-      "bytes": 8053
+      "sha256": "6fe7cff5cf9c6390c443679afcdd31754dca72b8df583fea8f5dc7520c97c614",
+      "bytes": 8301
     },
     "reference/galaxy-android/platform/src/gx/vk/vk_thor_capture.cpp": {
       "sha256": "6e0f658906130d9fff29e38fbdff0470bd3c857340661b9a62eeefc6627e71ac",
@@ -33471,8 +33919,8 @@
       "bytes": 2559
     },
     "reference/galaxy-android/platform/src/gx/vk_shader_manifest.cpp": {
-      "sha256": "a75e1c8f18adfffb760260a6a7db599ac4af30c64465e940f22cf3bdd5e297c9",
-      "bytes": 7186
+      "sha256": "593294508bf577cca48b6f72729329eb8589ccaaba432a8fff4a506a3ce86b4a",
+      "bytes": 7175
     },
     "reference/galaxy-android/platform/src/gx/vk_shader_manifest.h": {
       "sha256": "c6a6f6d62ace66201756ceb5f0fd49b351337355b3117e91715399bf5e9b17a6",
@@ -33499,16 +33947,16 @@
       "bytes": 4771
     },
     "reference/galaxy-android/platform/src/gx/vk_shadergen_vs.cpp": {
-      "sha256": "d14599c702dc2729606508f0b1bd9ebec1f03f8020e65e752f0356542b585b83",
-      "bytes": 11451
+      "sha256": "40dbc2ae96876293e3791dd86dbadde7a751361b31f1b3742277cb9d1580153e",
+      "bytes": 11898
     },
     "reference/galaxy-android/platform/src/input/wpad.cpp": {
       "sha256": "709200cd12846de21c6d85245236f4a147ad7166573ae1c732130809d162f2e4",
       "bytes": 11241
     },
     "reference/galaxy-android/platform/src/nand/nand.cpp": {
-      "sha256": "96599cefb9202347385949c6d79aa8c03a5b758b5fd4a1cdae77e6870f56cb40",
-      "bytes": 7953
+      "sha256": "32ebfc56a2f72a15340afe92602e6790ee0af24ad6d68abadcfde7ed4013b01b",
+      "bytes": 7754
     },
     "reference/galaxy-android/platform/src/os/os_alarm.cpp": {
       "sha256": "671d67f94d90c8edf1b764dec972cd9a3dcf7c15e87826efc03b97939763e059",
@@ -33551,12 +33999,16 @@
       "bytes": 3920
     },
     "reference/galaxy-android/platform/src/port/boot.cpp": {
-      "sha256": "8cc0f7caff86a4b31c5846079a510f9eef41b8819ee2f6c25d06ac03ac63e5d8",
-      "bytes": 5347
+      "sha256": "d693c175c03d7ad5a8770509db99ccc6b9479f7e6e4fa8b60aa82113415d7411",
+      "bytes": 5336
     },
     "reference/galaxy-android/platform/src/port/cutscene_skip.cpp": {
       "sha256": "5ef0606dfb8cba9960bf73db5dbdf3ce99b6a35a169e7afa4fbda26c04222631",
       "bytes": 8648
+    },
+    "reference/galaxy-android/platform/src/port/kaizo.cpp": {
+      "sha256": "34dea0feee91dcffdbe5b23fd4c9ae7ef13c7debf530ce42d19e38c823657639",
+      "bytes": 4232
     },
     "reference/galaxy-android/platform/src/port/missing_game.cpp": {
       "sha256": "95f3e16cd587e75dfcae310e9335ab1c7862e553b8371bf975ad8e685abce19d",
@@ -33577,6 +34029,10 @@
     "reference/galaxy-android/platform/src/port/perf.cpp": {
       "sha256": "87fb746df25cf8351a749ab456fcd1619e622cdcea7fca18f4e3e9ebff1c5b37",
       "bytes": 8019
+    },
+    "reference/galaxy-android/platform/src/port/profile.cpp": {
+      "sha256": "8a152d73691f9f38fa6e30a639dc3965f43e8b1ad8c380673e5111bf69c1a2fc",
+      "bytes": 1497
     },
     "reference/galaxy-android/platform/src/port/romfont_stub.cpp": {
       "sha256": "8153916e95aa8dfe3ff9843d74304aaa8ddaa4b8fa39c09f2e52553116a4e31c",
@@ -33829,6 +34285,10 @@
     "reference/galaxy-android/tools/cook/jpa.py": {
       "sha256": "0802e5172693fcdca294ca6101681efbee69f362cac3517bca1bc845e93d039e",
       "bytes": 2548
+    },
+    "reference/galaxy-android/tools/cook/kaizo_patch.py": {
+      "sha256": "dbe49bc27db45bc3f72a630ddc9de6e2378d18f131e11b089c3cbf6d44b3de14",
+      "bytes": 7989
     },
     "reference/galaxy-android/tools/cook/kcl.py": {
       "sha256": "c44e1ed8ccabe287f9052fcfd3e2e67070e7afcd0d967747f154e911d4207431",
@@ -34403,28 +34863,28 @@
       "bytes": 13076
     },
     "reference/nsmbw-android-e1/android/app/src/main/java/com/wither/nsmbw/AppSettings.java": {
-      "sha256": "1660551d08650d9004226f946f0d7015816962acf6758ffb26cbb23154120d19",
-      "bytes": 4141
+      "sha256": "0f28b332fb0df837f3a2d2afe82bdb270b1622bd59291329b1500a5490b9b65d",
+      "bytes": 4028
     },
     "reference/nsmbw-android-e1/android/app/src/main/java/com/wither/nsmbw/DevicesDialog.java": {
       "sha256": "e0e9f98a0ccf7b416f3d37c31574493e16cf4956d5ab58b7063e10d898bd4ae2",
       "bytes": 8469
     },
     "reference/nsmbw-android-e1/android/app/src/main/java/com/wither/nsmbw/GameActivity.java": {
-      "sha256": "5d99355037acdd8c6d5f8b828bff2e5c902880d9288743285b80ab2174e139dd",
-      "bytes": 16831
+      "sha256": "84b226f871ef365e7ca4e9be7052b7d582827eac3ecf9a160821cd2214226964",
+      "bytes": 16711
     },
     "reference/nsmbw-android-e1/android/app/src/main/java/com/wither/nsmbw/LauncherActivity.java": {
       "sha256": "d88ceb6ff3fdf0baecd0273a5d64cbf66dd7706ab596cc40aea407eb1c3e945f",
       "bytes": 27542
     },
     "reference/nsmbw-android-e1/android/app/src/main/java/com/wither/nsmbw/MotionInput.java": {
-      "sha256": "929378a2316b7072629775e8adae4fdc0fc7cd31e0a42418238a5af11597d17e",
-      "bytes": 4632
+      "sha256": "415ed92314c94ffa4840b676fd44cf22ed72df451e5f249ed79acda7567d4b4a",
+      "bytes": 5001
     },
     "reference/nsmbw-android-e1/android/app/src/main/java/com/wither/nsmbw/SettingsMenu.java": {
-      "sha256": "8b6dd4567a538adcb0a1b66f2c8344046db41779073f93979f5a61d63335eabb",
-      "bytes": 8784
+      "sha256": "87b85dd59c16c6b590b5dfe83bc902268ff9179c03ecb381f8519095dbea62ef",
+      "bytes": 8596
     },
     "reference/nsmbw-android-e1/android/app/src/main/java/com/wither/nsmbw/ThorCompanion.java": {
       "sha256": "8b8de0d042151ba61824cce6f4296d613463443668b4ce831c20f56a73741047",
@@ -36138,13 +36598,17 @@
       "sha256": "9173c7bbcb764680de7f1fdd4c6b0eb2e5daf18ee2f0e390dadb12d36db82691",
       "bytes": 4237
     },
+    "reference/nsmbw-android-e1/runtime/include/thor_achievements.h": {
+      "sha256": "3edf46e6058481748f3ec08fed2f7d14377228c317e63f04535485d8f82e1607",
+      "bytes": 1956
+    },
     "reference/nsmbw-android-e1/runtime/include/thor_reserve.h": {
       "sha256": "9c5845fe236de3f7a8ab0c3e77a7c8689e28d1839340f19fd2791c92c3f2104f",
       "bytes": 821
     },
     "reference/nsmbw-android-e1/runtime/include/thor_state.h": {
-      "sha256": "0f8f8b77f355e73920d2b25dc2fbc09c413e66f87cf2811455bc8a9b9cbfc256",
-      "bytes": 310
+      "sha256": "5c2f479d80eddcbe7374f78c744aa2eb27e7f1c9a9359949d4957d67c51e0268",
+      "bytes": 478
     },
     "reference/nsmbw-android-e1/runtime/include/thor_world_map.h": {
       "sha256": "6e68b7bd6b3c247c8e94aff017e1ef72a35b9edb7a8e6cdad0bc749085179a99",
@@ -36175,8 +36639,8 @@
       "bytes": 18739
     },
     "reference/nsmbw-android-e1/runtime/src/android/android_bridge.cpp": {
-      "sha256": "83104fc61b8207eebae0e5ee886fb32609505e48549eee3cd7c0c5750e8d3583",
-      "bytes": 7417
+      "sha256": "1b82425d6e1b389f2e448434a0d3e3b595f7c1b9251665a1b6c491dfc174d271",
+      "bytes": 7809
     },
     "reference/nsmbw-android-e1/runtime/src/audio_backend.cpp": {
       "sha256": "3048639c741cec7e01cf925acb3d7e00150f4161f0515c23c59bfbc4e442fcc6",
@@ -36283,8 +36747,8 @@
       "bytes": 730
     },
     "reference/nsmbw-android-e1/runtime/src/hle/gx/gx_copy.cpp": {
-      "sha256": "7b410750addf0a6fdadeac4d1f980c8499c8fa73641d5f603a636d0dae802905",
-      "bytes": 11075
+      "sha256": "780d842874f34c85d39f7ad8a7d55dc73db356f67af9faa7f76ac4423fb8934a",
+      "bytes": 11378
     },
     "reference/nsmbw-android-e1/runtime/src/hle/gx/gx_cp_decode.h": {
       "sha256": "7895b2a2bd02c1acfa0b00f5939526ebb100a51ac8c61170eedfba1a7d36f921",
@@ -36563,8 +37027,8 @@
       "bytes": 5998
     },
     "reference/nsmbw-android-e1/runtime/src/main.cpp": {
-      "sha256": "9995a55fc992202b82ec34200cede408e40cb7390be2216d544ea52ad3719545",
-      "bytes": 71995
+      "sha256": "662c6ecf541c4f948eb06940f9840d278298455d91236cbd3aeeb4d55a2be51d",
+      "bytes": 73425
     },
     "reference/nsmbw-android-e1/runtime/src/memory.cpp": {
       "sha256": "3b89a1b2e5ddbac9fb0b803a66d393f04ce139dd55e8df3f93c98aecc4b4118b",
@@ -36655,8 +37119,8 @@
       "bytes": 15752
     },
     "reference/nsmbw-android-e1/runtime/src/settings_overlay.cpp": {
-      "sha256": "75d67e3718047ed1cb44d1abfa169120c483e4fd9820b26b695cbdda7b89f669",
-      "bytes": 89848
+      "sha256": "239434d54b2b58cdc4c8c1ef2d6722b082dcb2a8e404cd8a713b1e0f0a3bcab6",
+      "bytes": 90259
     },
     "reference/nsmbw-android-e1/runtime/src/system_bridge.cpp": {
       "sha256": "45a381e6a99b2fb96a88fd4e488a8776d863d92c009d5d49f0988f25536518bd",
@@ -36667,8 +37131,8 @@
       "bytes": 21848
     },
     "reference/nsmbw-android-e1/runtime/src/thor_state.cpp": {
-      "sha256": "0da4c68e55890b5ff89230a83ead8b299e8d21862846cd5f96ce84f53f63af90",
-      "bytes": 9211
+      "sha256": "58bf7691ac2ed6cfa19e4b6c3616d6fcf5c0f57252a59f006d2582772fface9b",
+      "bytes": 12143
     },
     "reference/nsmbw-android-e1/runtime/src/thor_world_map.cpp": {
       "sha256": "24e1caf76f218e7995260a68c120644a5c8133735b80343f6f54e75975f6a4e3",
@@ -39639,28 +40103,28 @@
       "bytes": 13523
     },
     "reference/nsmbw-android-msmbwii/android/app/src/main/java/com/wither/nsmbw/AppSettings.java": {
-      "sha256": "1660551d08650d9004226f946f0d7015816962acf6758ffb26cbb23154120d19",
-      "bytes": 4141
+      "sha256": "0f28b332fb0df837f3a2d2afe82bdb270b1622bd59291329b1500a5490b9b65d",
+      "bytes": 4028
     },
     "reference/nsmbw-android-msmbwii/android/app/src/main/java/com/wither/nsmbw/DevicesDialog.java": {
       "sha256": "e0e9f98a0ccf7b416f3d37c31574493e16cf4956d5ab58b7063e10d898bd4ae2",
       "bytes": 8469
     },
     "reference/nsmbw-android-msmbwii/android/app/src/main/java/com/wither/nsmbw/GameActivity.java": {
-      "sha256": "5d99355037acdd8c6d5f8b828bff2e5c902880d9288743285b80ab2174e139dd",
-      "bytes": 16831
+      "sha256": "84b226f871ef365e7ca4e9be7052b7d582827eac3ecf9a160821cd2214226964",
+      "bytes": 16711
     },
     "reference/nsmbw-android-msmbwii/android/app/src/main/java/com/wither/nsmbw/LauncherActivity.java": {
       "sha256": "d88ceb6ff3fdf0baecd0273a5d64cbf66dd7706ab596cc40aea407eb1c3e945f",
       "bytes": 27542
     },
     "reference/nsmbw-android-msmbwii/android/app/src/main/java/com/wither/nsmbw/MotionInput.java": {
-      "sha256": "929378a2316b7072629775e8adae4fdc0fc7cd31e0a42418238a5af11597d17e",
-      "bytes": 4632
+      "sha256": "415ed92314c94ffa4840b676fd44cf22ed72df451e5f249ed79acda7567d4b4a",
+      "bytes": 5001
     },
     "reference/nsmbw-android-msmbwii/android/app/src/main/java/com/wither/nsmbw/SettingsMenu.java": {
-      "sha256": "8b6dd4567a538adcb0a1b66f2c8344046db41779073f93979f5a61d63335eabb",
-      "bytes": 8784
+      "sha256": "87b85dd59c16c6b590b5dfe83bc902268ff9179c03ecb381f8519095dbea62ef",
+      "bytes": 8596
     },
     "reference/nsmbw-android-msmbwii/android/app/src/main/java/com/wither/nsmbw/ThorCompanion.java": {
       "sha256": "8b8de0d042151ba61824cce6f4296d613463443668b4ce831c20f56a73741047",
@@ -41519,8 +41983,8 @@
       "bytes": 730
     },
     "reference/nsmbw-android-msmbwii/runtime/src/hle/gx/gx_copy.cpp": {
-      "sha256": "7b410750addf0a6fdadeac4d1f980c8499c8fa73641d5f603a636d0dae802905",
-      "bytes": 11075
+      "sha256": "780d842874f34c85d39f7ad8a7d55dc73db356f67af9faa7f76ac4423fb8934a",
+      "bytes": 11378
     },
     "reference/nsmbw-android-msmbwii/runtime/src/hle/gx/gx_cp_decode.h": {
       "sha256": "7895b2a2bd02c1acfa0b00f5939526ebb100a51ac8c61170eedfba1a7d36f921",
@@ -41891,8 +42355,8 @@
       "bytes": 15752
     },
     "reference/nsmbw-android-msmbwii/runtime/src/settings_overlay.cpp": {
-      "sha256": "75d67e3718047ed1cb44d1abfa169120c483e4fd9820b26b695cbdda7b89f669",
-      "bytes": 89848
+      "sha256": "239434d54b2b58cdc4c8c1ef2d6722b082dcb2a8e404cd8a713b1e0f0a3bcab6",
+      "bytes": 90259
     },
     "reference/nsmbw-android-msmbwii/runtime/src/system_bridge.cpp": {
       "sha256": "45a381e6a99b2fb96a88fd4e488a8776d863d92c009d5d49f0988f25536518bd",
@@ -49827,7 +50291,7 @@
       "bytes": 1379
     },
     "release/galaxy-code-assets.json": {
-      "sha256": "30106f78400de66469c82bbbe7f07c00b5bc439845c48d1caf2403029c5be4ef",
+      "sha256": "075ccdb537374eac21fdafcb20636957387328b24d4760e1d10979383c9e2ba1",
       "bytes": 654
     },
     "release/licenses/GCC-COPYING3.txt": {

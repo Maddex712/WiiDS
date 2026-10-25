@@ -48,6 +48,7 @@ private:
     PortPadState mPad{};
     int mSpinFrames = 0;
     bool mTouchscreenDown = false;
+    bool mLowerTouchWasDown = false;
 
     std::string mDataRoot;
     std::string mSaveRoot;

@@ -1,3 +1,4 @@
+#include "port/profile.h"
 #include "SaveManager.h"
 #include "SaveSyncManager.h"
 
@@ -157,7 +158,7 @@ std::string SaveManager::triggerLoadSlot(int slot, bool haptics) {
     std::string slotDir = nandDir + slotSuffix;
 
     if (!validateSaveDir(slotDir)) {
-        std::string pubSlot = "/sdcard/Android/data/io.github.maddex712.wiids/files/galaxy/GalaxyData/saves/" + ((slot == 4) ? std::string("quick") : ("slot" + std::to_string(slot)));
+        std::string pubSlot = port_profile_data_path("/saves/").c_str() + ((slot == 4) ? std::string("quick") : ("slot" + std::to_string(slot)));
         if (validateSaveDir(pubSlot)) {
             slotDir = pubSlot;
         } else {
@@ -201,11 +202,11 @@ bool SaveManager::update(std::string& outToastMsg) {
     if (lastSlash == std::string::npos) return false;
 
     std::string nandDir = mSavePath.substr(0, lastSlash);
-    mkdir("/sdcard/Android/data/io.github.maddex712.wiids/files/galaxy/GalaxyData", 0775);
-    mkdir("/sdcard/Android/data/io.github.maddex712.wiids/files/galaxy/GalaxyData/saves", 0775);
+    mkdir(port_profile_data_path("").c_str(), 0775);
+    mkdir(port_profile_data_path("/saves").c_str(), 0775);
 
     if (slot == 0) {
-        copyDirVerified(nandDir, "/sdcard/Android/data/io.github.maddex712.wiids/files/galaxy/GalaxyData/saves/current");
+        copyDirVerified(nandDir, port_profile_data_path("/saves/current").c_str());
         outToastMsg = "Progress Saved Anywhere! (Verified)";
         return true;
     } else {
@@ -218,9 +219,9 @@ bool SaveManager::update(std::string& outToastMsg) {
             rename(slotDir.c_str(), slotOld.c_str());
             rename(slotStaging.c_str(), slotDir.c_str());
 
-            std::string pubSlot = "/sdcard/Android/data/io.github.maddex712.wiids/files/galaxy/GalaxyData/saves/" + ((slot == 4) ? std::string("quick") : ("slot" + std::to_string(slot)));
+            std::string pubSlot = port_profile_data_path("/saves/").c_str() + ((slot == 4) ? std::string("quick") : ("slot" + std::to_string(slot)));
             copyDirVerified(slotDir, pubSlot);
-            copyDirVerified(slotDir, "/sdcard/Android/data/io.github.maddex712.wiids/files/galaxy/GalaxyData/saves/current");
+            copyDirVerified(slotDir, port_profile_data_path("/saves/current").c_str());
 
             char msg[96];
             snprintf(msg, sizeof(msg), (slot == 4) ? "Quick Saved Anywhere! (Verified)" : "Saved to Slot %d! (Verified)", slot);

@@ -1,3 +1,4 @@
+#include "port/profile.h"
 #include "gx_recorder_internal.h"
 
 namespace gpu {
@@ -154,14 +155,14 @@ void Recorder::decode(TexImage& img, const u8* src, const TexKey& key) {
     if (!sCustomTexChecked) {
         sCustomTexChecked = true;
         struct stat st;
-        sCustomTexFolderExists = (stat("/sdcard/Android/data/io.github.maddex712.wiids/files/galaxy/GalaxyData/textures", &st) == 0 && S_ISDIR(st.st_mode));
+        sCustomTexFolderExists = (stat(port_profile_data_path("/textures").c_str(), &st) == 0 && S_ISDIR(st.st_mode));
         if (sCustomTexFolderExists) {
-            port_log("textures: Custom texture overrides enabled from /sdcard/Android/data/io.github.maddex712.wiids/files/galaxy/GalaxyData/textures");
+            port_log("textures: Custom texture overrides enabled from %s", port_profile_data_path("/textures").c_str());
         }
     }
     if (sCustomTexFolderExists) {
         char customPath[128];
-        snprintf(customPath, sizeof(customPath), "/sdcard/Android/data/io.github.maddex712.wiids/files/galaxy/GalaxyData/textures/tex_%08x_%dx%d.rgba", key.addr, key.width, key.height);
+        snprintf(customPath, sizeof(customPath), port_profile_data_path("/textures/tex_%08x_%dx%d.rgba").c_str(), key.addr, key.width, key.height);
         FILE* cf = fopen(customPath, "rb");
         if (cf) {
             fseek(cf, 0, SEEK_END);

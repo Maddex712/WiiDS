@@ -1,3 +1,4 @@
+#include "port/kaizo.h"
 #include "Game/NPC/KinopioAstro.hpp"
 #include "Game/Demo/AstroDemoFunction.hpp"
 #include "Game/Demo/DemoFunction.hpp"
@@ -127,11 +128,11 @@ bool KinopioAstro::eventFunc(u32 letterEvent) {
         return false;
     } else if (letterEvent == LetterEvent_PeachLetter1Ups) {
         if (mIsPlayerLuigi) {
-            for (s32 i = 0; i < ::sMessangerOneUpExNum; i++) {
+            for (s32 i = 0; i < (port_kaizo_enabled() ? 99 : ::sMessangerOneUpExNum); i++) {
                 MR::incPlayerLeft();
             }
 
-            MR::getGameSceneLayoutHolder()->requestOneUp(::sMessangerOneUpExNum);
+            MR::getGameSceneLayoutHolder()->requestOneUp(port_kaizo_enabled() ? 99 : ::sMessangerOneUpExNum);
             MR::startSystemSE("SE_SY_5UP");
         } else {
             for (s32 i = 0; i < ::sMessangerOneUpNum; i++) {
@@ -200,12 +201,12 @@ void KinopioAstro::init(const JMapInfoIter& rIter) {
             mPeachLetter = new PeachLetter("\x83\x73\x81\x5b\x83\x60\x95\x50\x82\xa9\x82\xe7\x82\xcc\x8e\xe8\x8e\x86");
             mPeachLetter->initWithoutIter();
             _194 = true;
-            if (MR::isLuigiLeftSupply()) {
+            if (port_kaizo_enabled() || MR::isLuigiLeftSupply()) {
                 mIsPlayerLuigi = true;
             }
 
             if (mIsPlayerLuigi) {
-                MR::setMessageArg(mMsgCtrl, ::sMessangerOneUpExNum);
+                MR::setMessageArg(mMsgCtrl, port_kaizo_enabled() ? 99 : ::sMessangerOneUpExNum);
             } else {
                 MR::setMessageArg(mMsgCtrl, ::sMessangerOneUpNum);
             }

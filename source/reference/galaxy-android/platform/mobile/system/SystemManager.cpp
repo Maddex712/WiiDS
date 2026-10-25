@@ -1,3 +1,4 @@
+#include "port/profile.h"
 #include "SystemManager.h"
 
 #include <android/log.h>
@@ -48,7 +49,7 @@ static void crashSignalHandler(int sig, siginfo_t* info, void* ucontext) {
     }
 #endif
 
-    FILE* f = fopen("/sdcard/Android/data/io.github.maddex712.wiids/files/galaxy/GalaxyData/galaxy_crash.log", "a");
+    FILE* f = fopen(port_profile_data_path("/galaxy_crash.log").c_str(), "a");
     if (f) {
         time_t t = time(nullptr);
         char* ct = ctime(&t);

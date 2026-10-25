@@ -10,6 +10,12 @@
 #include "Game/Util/GamePadUtil.hpp"
 #include "Game/Util/MathUtil.hpp"
 #include <JSystem/JMath/JMATrigonometric.hpp>
+#ifdef TARGET_PC
+#include "port/camera_stick.h"
+extern "C" void port_input_get_right_stick(int chan, float* x, float* y);
+extern "C" int port_input_camera_inverted(void);
+namespace { port::CameraStick sCameraStick; }
+#endif
 
 void CameraLocalUtil_FORCE_SDATA2() {
     (void)1.0f;
@@ -301,6 +307,17 @@ namespace CameraLocalUtil {
         return MR::testSubPadTriggerC(WPAD_CHAN0);
     }
 
+    void updateCameraPadStick() {
+#ifdef TARGET_PC
+        float x = 0, y = 0;
+        port_input_get_right_stick(0, &x, &y);
+        CameraDirector* director = getCameraDirector();
+        // The platform's orbit axis has the opposite sign to a physical rightward nudge.
+        sCameraStick.update(-x, !MR::isDemoActive() && !MR::isFirstPersonCamera()
+                && (director->isEnableToRoundLeft() || director->isEnableToRoundRight()));
+#endif
+    }
+
     bool testCameraPadTriggerRoundLeft() {
         if (MR::isDemoActive()) {
             return false;
@@ -311,10 +328,13 @@ namespace CameraLocalUtil {
         }
 
 #ifdef TARGET_PC
-        // The invert_camera setting: left and right swapped.
+        // Native camera requests keep the current camera's collision and rotation restrictions.
         if (port_input_camera_inverted()) {
-            return MR::testCorePadTriggerRight(WPAD_CHAN0);
+            return (MR::testCorePadTriggerRight(WPAD_CHAN0) || sCameraStick.right())
+                    && getCameraDirector()->isEnableToRoundLeft();
         }
+        return (MR::testCorePadTriggerLeft(WPAD_CHAN0) || sCameraStick.left())
+                && getCameraDirector()->isEnableToRoundLeft();
 #endif
         return MR::testCorePadTriggerLeft(WPAD_CHAN0);
     }
@@ -330,8 +350,11 @@ namespace CameraLocalUtil {
 
 #ifdef TARGET_PC
         if (port_input_camera_inverted()) {
-            return MR::testCorePadTriggerLeft(WPAD_CHAN0);
+            return (MR::testCorePadTriggerLeft(WPAD_CHAN0) || sCameraStick.left())
+                    && getCameraDirector()->isEnableToRoundRight();
         }
+        return (MR::testCorePadTriggerRight(WPAD_CHAN0) || sCameraStick.right())
+                && getCameraDirector()->isEnableToRoundRight();
 #endif
         return MR::testCorePadTriggerRight(WPAD_CHAN0);
     }

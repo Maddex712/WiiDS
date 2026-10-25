@@ -53,6 +53,7 @@ class GamesActivity : Activity() {
     // Galaxy: a disc chosen with Choose file (its path), and the card's "Import again" button.
     private var galaxyChosen: String? = null
     private var galaxyAgain: Button? = null
+    private var kaizoAgain: Button? = null
     private var foreground = false
     private lateinit var accessRow: LinearLayout
     private lateinit var searchButton: Button
@@ -182,10 +183,11 @@ class GamesActivity : Activity() {
             }
             handler.post {
                 if (message != null) messages[game.disc] = message
-                else if (game == Game.GALAXY) {
+                else if (game == Game.GALAXY || game == Game.KAIZO) {
                     galaxyChosen = discPath(source)
-                    messages[game.disc] = if (galaxyChosen != null) "${source.name} is the right disc. Set up Galaxy to convert it."
-                        else "${source.name} is the right disc, but Galaxy setup can only read it from this device's storage. " +
+                    // One disc for both cards: each card adds its own action (refreshGalaxy).
+                    messages[game.disc] = if (galaxyChosen != null) "${source.name} is the right disc."
+                        else "${source.name} is the right disc, but setup can only read it from this device's storage. " +
                             "Copy it there (a ROMs folder is fine) and choose it again."
                 }
                 else if (!GameInstaller.start(this, game.disc, source)) messages[game.disc] = BUSY
@@ -211,8 +213,8 @@ class GamesActivity : Activity() {
         searchButton.text = if (scanning) "Searching..." else "Search again"
         for ((game, card) in cards) {
             val disc = game.disc
-            if (game == Game.GALAXY) {
-                refreshGalaxy(card)
+            if (game == Game.GALAXY || game == Game.KAIZO) {
+                refreshGalaxy(card, game == Game.KAIZO)
                 continue
             }
             if (game == Game.ECLIPSE && eclipseBusy) {
@@ -321,7 +323,11 @@ class GamesActivity : Activity() {
      * whether it is ready and hands the add-on the right disc (GalaxyImportActivity there does the
      * work, keeping saves when it imports again).
      */
-    private fun refreshGalaxy(card: Card) {
+    /** What the card's setup button does with the shared Galaxy disc. */
+    private fun setupAction(kaizo: Boolean) =
+        if (kaizo) "Set up Rebalanced to build it with the official 2.1 patch" else "Set up Galaxy to convert it"
+
+    private fun refreshGalaxy(card: Card, kaizo: Boolean = false) {
         if (android.os.Build.VERSION.SDK_INT < 32) { show(card, "Galaxy needs Android 12L or newer (API 32).", AMBER); button(card, "Android update required", false) {}; return }
         val disc = GameCatalog.Disc.GALAXY_USA
         card.progress.visibility = View.GONE
@@ -329,11 +335,12 @@ class GamesActivity : Activity() {
         val found = scan?.matching(disc).orEmpty()
         val foundPath = found.firstNotNullOfOrNull { discPath(it.source) }
         val path = galaxyChosen ?: foundPath
-        val ready = disc.isInstalled(this)
+        val ready = if (kaizo) ThorGameLaunch.kaizoInstalled(this) else disc.isInstalled(this)
         when {
             ready -> show(card, "Installed. Ready to play.", GREEN)
-            message != null && message.isNotEmpty() -> show(card, message, if (galaxyChosen != null) GREEN else AMBER)
-            path != null -> show(card, "Found ${java.io.File(path).name}, the right disc. Set up Galaxy to convert it " +
+            message != null && message.isNotEmpty() ->
+                show(card, if (galaxyChosen != null) "$message ${setupAction(kaizo)}." else message, if (galaxyChosen != null) GREEN else AMBER)
+            path != null -> show(card, "Found ${java.io.File(path).name}, the right disc. ${setupAction(kaizo)} " +
                 "(about 15 minutes; keep the device charging).", GREEN)
             scanning -> show(card, "Searching this device...", MUTED)
             else -> {
@@ -346,13 +353,13 @@ class GamesActivity : Activity() {
             }
         }
         when {
-            ready -> button(card, "Play", true) { ThorGameLaunch.launchGalaxy(this) }
-            path != null -> button(card, "Set up Galaxy", !GameInstaller.running) { importGalaxy(path) }
-            else -> button(card, "Choose file", !GameInstaller.running) { chooseFile(Game.GALAXY) }
+            ready -> button(card, "Play", true) { if (kaizo) ThorGameLaunch.launchKaizo(this) else ThorGameLaunch.launchGalaxy(this) }
+            path != null -> button(card, if (kaizo) "Set up Rebalanced" else "Set up Galaxy", !GameInstaller.running) { importGalaxy(path, kaizo) }
+            else -> button(card, "Choose file", !GameInstaller.running) { chooseFile(if (kaizo) Game.KAIZO else Game.GALAXY) }
         }
-        galaxyAgain?.let { again ->
+        (if (kaizo) kaizoAgain else galaxyAgain)?.let { again ->
             again.visibility = if (ready && path != null) View.VISIBLE else View.GONE
-            again.setOnClickListener { if (path != null) importGalaxy(path) }
+            again.setOnClickListener { if (path != null) importGalaxy(path, kaizo) }
         }
     }
 
@@ -369,9 +376,9 @@ class GamesActivity : Activity() {
         }.getOrNull()?.takeIf { java.io.File(it).isFile }
     }
 
-    private fun importGalaxy(path: String) {
+    private fun importGalaxy(path: String, kaizo: Boolean = false) {
         val intent = Intent("dev.thor.galaxy.action.IMPORT_DISC")
-            .setClassName(packageName, "dev.thor.galaxy.GalaxyImportActivity")
+            .setClassName(packageName, if (kaizo) "dev.thor.galaxy.KaizoActivities\$Import" else "dev.thor.galaxy.GalaxyImportActivity")
             .putExtra("disc_path", path)
         if (runCatching { startActivityForResult(intent, REQUEST_GALAXY_IMPORT) }.isFailure)
             messages[GameCatalog.Disc.GALAXY_USA] = "Galaxy setup is unavailable on this Android version."
@@ -496,6 +503,12 @@ class GamesActivity : Activity() {
         if (game == Game.GALAXY) {
             box.addView(styledButton("Import legacy Galaxy backup") { startActivity(Intent().setClassName(packageName, "dev.thor.galaxy.GalaxyBackupActivity")) }, LinearLayout.LayoutParams(-2, -2).apply { topMargin = dp(8) })
             galaxyAgain = styledButton("Import again (keeps your saves)") {}.also {
+                it.visibility = View.GONE
+                box.addView(it, LinearLayout.LayoutParams(-2, -2).apply { topMargin = dp(8) })
+            }
+        }
+        if (game == Game.KAIZO) {
+            kaizoAgain = styledButton("Import again (keeps your saves)") {}.also {
                 it.visibility = View.GONE
                 box.addView(it, LinearLayout.LayoutParams(-2, -2).apply { topMargin = dp(8) })
             }

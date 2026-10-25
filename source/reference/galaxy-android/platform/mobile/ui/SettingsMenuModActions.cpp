@@ -1,3 +1,4 @@
+#include "port/profile.h"
 #include "SettingsMenuModActions.h"
 
 #include <algorithm>
@@ -116,10 +117,10 @@ bool SettingsMenuModActions::dispatch(MenuActionId action, float px, float midX,
         return true;
     case ACT_RIIVOLUTION:
         settings.modRiivolution = !settings.modRiivolution;
-        outToastMsg = settings.modRiivolution ? "Riivolution Mods: ON (/sdcard/Android/data/io.github.maddex712.wiids/files/galaxy/GalaxyData/mods)" : "Riivolution Mods: OFF";
+        outToastMsg = settings.modRiivolution ? "Riivolution Mods: ON (the active Galaxy profile mods folder)" : "Riivolution Mods: OFF";
         return true;
     case ACT_RELOAD_MODS:
-        outToastMsg = "Scanned /sdcard/Android/data/io.github.maddex712.wiids/files/galaxy/GalaxyData/mods: Active!";
+        outToastMsg = "Scanned the active Galaxy profile mods folder: Active!";
         return true;
     case ACT_QUICK_CARDS:
         outToastMsg = (px < midX) ? saveMgr.triggerSaveSlot(4, settings.haptics)

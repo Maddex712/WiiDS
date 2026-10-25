@@ -1,3 +1,4 @@
+#include "port/kaizo.h"
 #include "Game/Boss/SkeletalFishBaby.hpp"
 #include "Game/Boss/SkeletalFishJointCalc.hpp"
 #include "Game/Boss/SkeletalFishRailControl.hpp"
@@ -264,7 +265,7 @@ bool SkeletalFishBaby::damage(const TVec3f& rAirBubblePos, bool shakeCameraNorma
             MR::shakeCameraWeak();
         }
 
-        MR::appearAirBubble(rAirBubblePos, -1);
+        if (!port_kaizo_enabled()) MR::appearAirBubble(rAirBubblePos, -1);
         setNerve(GET_NERVE_ANON(SkeletalFishBabyNrvBreak));
         return true;
     }

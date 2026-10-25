@@ -33,6 +33,8 @@ public_pin = '60feb5cabe0b29878eda94394118fa9d48112f12'
 paths = ['android/app/src/main/AndroidManifest.xml']
 paths += ['android/app/src/main/kotlin/com/driftdroid/android/' + name + '.kt' for name in
           ('ThorGameLaunch', 'ModePickerActivity', 'ThorLauncherArtwork', 'ThorLibraryCompanionView')]
+paths += ['android/app/src/main/kotlin/com/driftdroid/android/GamesActivity.kt',
+          'android/app/src/main/kotlin/com/driftdroid/android/rom/GameCatalog.kt']
 combined = []
 records = []
 for relative in paths:

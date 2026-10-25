@@ -1,11 +1,11 @@
 # WiiDS game guide
 
-Seven library entries share one Android app. Galaxy needs Android API 32+; see its setup section below. Each needs the supported base disc listed below; no original
+Eight library entries share one Android app. Galaxy needs Android API 32+; see its setup section below. Each needs the supported base disc listed below; no original
 or patched game image ships in the APK. All use the Thor's physical controls. The lower screen is a
 companion display, with no touch gameplay-button overlay.
 
 The main shelf groups each original game with its mod: Mario Kart Wii/Retro Rewind,
-NSMB Wii/MSMBWii, and Sunshine/Eclipse. Choose a family first, then choose the game inside it.
+NSMB Wii/MSMBWii, Sunshine/Eclipse, and Galaxy/Kaizo. Choose a family first, then choose the game inside it.
 The printed cases and lower-screen readiness panel identify which version will launch.
 
 For split WBFS imports, keep the `.wbfs` file and its `.wbf1`/later numbered parts together in the
@@ -146,11 +146,38 @@ See [full setup, migration and limits](release/GALAXY-SETUP.md).
 
 The live lower screen uses matched actor visibility/base matrices and a Mario/Luigi
 marker. It omits animated enemies/NPC/player models and has material/coverage gaps.
-The current integration has desktop/Android emulator validation, with no physical
-Thor run of the final ARM64 APK. Earlier Thor development captures are labelled.
-No all-stage/performance/audio/haptics guarantee is made. Galaxy 2 is unsupported.
+The 1.1 development builds have bounded physical Thor verification for existing-save
+loading, pointing, camera controls, sleep/wake and normal exit. Clean dev28 also
+verifies corrected attack colors and original Gateway rendering. No all-stage
+or sustained-performance guarantee is made. Galaxy 2 is unsupported.
 
-## Controller remapping in 1.0
+## Kaizo Mario Galaxy Rebalanced 2.1
+
+The challenge mod joins WiiDS in 1.1 with its own Galaxy-family case. It uses the
+same native Galaxy engine and companion design, with mod-specific behavior and
+lower-screen models generated from patched files. Its saves, settings, imports
+and generated assets stay separate from original Galaxy.
+
+Use your clean **USA RMGE01 revision 0** Galaxy disc. In **Your games**, choose
+Kaizo's card and **Set up Rebalanced**. Select the creator's original **Rebalanced
+2.1 ZIP** when prompted; the dialog's **Official download** opens its download
+page. The patch ZIP is not bundled. Other versions or repacked ZIPs are refused.
+See the [Galaxy/Kaizo setup guide](release/GALAXY-SETUP.md#kaizo-mario-galaxy-rebalanced-21).
+
+Kaizo starts with its own progress. Original Galaxy progress and the author's
+optional Luigi-unlocked save are not copied into it automatically. The Gardens
+setup, existing-save loading, pointer collection, pause/resume and corrected attack
+scene were checked on the Thor. Every changed boss or stage has not been tested.
+
+## Shared tools in 1.1
+
+- [Save manager](SAVE_MANAGER.md): dated WiiDS backups, export/restore and supported Dolphin in-game save imports for all eight profiles.
+- [Game shortcuts](FRONTEND_LAUNCHING.md): individual pinned shortcuts for Cocoon and compatible Android launchers.
+- RetroAchievements browser: available game/mod sets and subsets, badge art and optional existing account progress. It does not submit new gameplay unlocks.
+- Galaxy **Controls > Lower screen** selects Trackpad or Planet. Trackpad moves the Star Pointer relatively; lifting your finger keeps the cursor in place. Planet retains orbit/zoom controls.
+- NSMB tilt and physical shake start enabled unless you saved an explicit Off setting.
+
+## Controller remapping
 
 WiiDS Options > Controller buttons explains each game's remapping page. Galaxy:
 Back > Controls > Buttons. NSMB/MSMBWii: Settings > Controller. Sunshine/Eclipse:

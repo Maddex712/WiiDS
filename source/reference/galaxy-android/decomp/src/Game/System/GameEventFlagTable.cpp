@@ -1,3 +1,4 @@
+#include "port/kaizo.h"
 #include "Game/System/GameEventFlagTable.hpp"
 #include "Game/Util/HashUtil.hpp"
 #include "Game/Util/JMapInfo.hpp"
@@ -9,7 +10,7 @@
 extern const JMapData GalaxyIDBCSV;
 
 namespace {
-    static const GameEventFlag sGameEventFlagStatic[] = {
+    static GameEventFlag sGameEventFlagStatic[] = {
         {"AppearFlipPanelExGalaxy", GameEventFlag::Type_GalaxyOpenStar, 1, 0, 0, 0, "FlipPanelExGalaxy", 0},
         {"AppearSurfingLv1Galaxy", GameEventFlag::Type_GalaxyOpenStar, 1, 0, 0, 0, "SurfingLv1Galaxy", 0},
         {"AppearTamakoroExLv1Galaxy", GameEventFlag::Type_GalaxyOpenStar, 1, 0, 0, 0, "TamakoroExLv1Galaxy", 0},
@@ -234,6 +235,7 @@ bool GameEventFlagIter::isValid() const {
 }
 
 GameEventFlagTableInstance::GameEventFlagTableInstance() : mSortTable(nullptr), mLength(0) {
+    port_kaizo_apply_flags(::sGameEventFlagStatic, ARRAY_SIZE(::sGameEventFlagStatic));
     initSortTable();
 }
 

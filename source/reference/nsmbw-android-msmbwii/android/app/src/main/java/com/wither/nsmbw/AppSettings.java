@@ -52,10 +52,10 @@ final class AppSettings {
     float touchOpacity() { return prefs.getFloat("touch_opacity", 0.6f); }
     void setTouchOpacity(float opacity) { prefs.edit().putFloat("touch_opacity", opacity).commit(); }
 
-    boolean motionTilt() { return prefs.getBoolean("motion_tilt", !BuildConfig.THOR_BUILD); }
+    boolean motionTilt() { return prefs.getBoolean("motion_tilt", true); }
     void setMotionTilt(boolean on) { prefs.edit().putBoolean("motion_tilt", on).commit(); }
 
-    boolean motionShake() { return prefs.getBoolean("motion_shake", !BuildConfig.THOR_BUILD); }
+    boolean motionShake() { return prefs.getBoolean("motion_shake", true); }
     void setMotionShake(boolean on) { prefs.edit().putBoolean("motion_shake", on).commit(); }
 
     boolean haptics() { return prefs.getBoolean("haptics", true); }

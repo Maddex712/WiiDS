@@ -1,5 +1,8 @@
 #include "thor_state.h"
 #include "memory.h"
+#include "thor_achievements.h"
+#include "nand_path.h"
+#include "netplay_session.h"
 #include <cstdlib>
 #include <algorithm>
 #include <bit>
@@ -12,6 +15,9 @@ namespace {
 std::mutex mutex;
 Snapshot published{};
 uint32_t sequence = 0;
+ThorAchievements::Observer achievements;
+uint64_t achievementProfile = 0;
+ThorAchievements::Sample lastCourse;
 bool Word(uint32_t address, uint32_t& value) { return Memory::TryRead32(address, value); }
 bool Pointer(uint32_t p, size_t size) {
     return p >= 0x80000000u && (p & 3u) == 0 &&
@@ -183,12 +189,63 @@ void Capture() {
             next[8] = static_cast<int32_t>(lives);
         }
     }
+    ThorAchievements::Sample observation;
+    uint32_t header = 0, slot = 0, entries = 0;
+    bool solo = true;
+    for (unsigned i = 0; i < 4; ++i) {
+        uint32_t entry = 0;
+        if (!Word(0x80354E50u + i * 4u, entry)) solo = false;
+        else if (entry) ++entries;
+    }
+    // Never use a title/demo, LAN, multiplayer or unready actor snapshot as evidence.
+    const bool validSave = Word(0x8042A040u, header) && Pointer(header, 40) &&
+        Byte(header + 38u, slot) && slot < 3;
+    if (solo && entries == 1 && !NetplaySession::Active() && validSave) {
+        if (next[3] == 5 && next[4] == 0 && (next[2] & (2 | 64 | 256)) == (2 | 64 | 256)) {
+            uint32_t active = 0, world = 0, course = 0;
+            if (Word(0x8042A1C8u, active) && Pointer(active, 4624) &&
+                Byte(active + 4620u, world) && world < 9 &&
+                Byte(active + 4621u, course) && course < 38) {
+                observation = {true, true, header, int(slot), int(world), int(course), next[13], -1};
+            }
+        } else if (next[3] == 3 && lastCourse.eligible && lastCourse.header == header && lastCourse.slot == int(slot)) {
+            // The clear flag may be committed as the course transitions back to its map.
+            observation = lastCourse;
+            observation.inCourse = false;
+            observation.stars = -1;
+        }
+        if (observation.eligible) {
+            uint32_t flags = 0;
+            const uint32_t address = header + slot * 2432u + 1728u + 108u +
+                observation.world * 168u + observation.course * 4u;
+            if (Pointer(address, 4) && Word(address, flags)) observation.flags = int(flags & 0x37u);
+            else observation.eligible = false;
+        }
+    }
+    // Resolve the same full NAND namespace as the game's sidecars, once after runtime readiness.
+    uint64_t resolvedProfile = 0;
+    if (observation.eligible && achievementProfile == 0) {
+        uint64_t hash = 14695981039346656037ull;
+        for (char8_t byte : RuntimeNandPath::DiscoverNandRootPath().lexically_normal().generic_u8string()) {
+            hash ^= static_cast<unsigned char>(byte); hash *= 1099511628211ull;
+        }
+        resolvedProfile = hash;
+    }
+    lastCourse = observation;
     std::lock_guard<std::mutex> lock(mutex);
+    if (resolvedProfile != 0) achievementProfile = resolvedProfile;
+    achievements.Capture(observation);
     published = next;
 }
 
 Snapshot Read() {
     std::lock_guard<std::mutex> lock(mutex);
     return published;
+}
+std::vector<int32_t> AchievementEvents(int cursor) {
+    std::lock_guard<std::mutex> lock(mutex);
+    std::vector<int32_t> words{1, int32_t(achievementProfile >> 32), int32_t(achievementProfile)};
+    for (const auto& event : achievements.After(cursor)) words.insert(words.end(), event.begin(), event.end());
+    return words;
 }
 }

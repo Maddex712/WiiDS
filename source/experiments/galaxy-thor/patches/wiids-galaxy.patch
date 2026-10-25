@@ -8,10 +8,15 @@
          <package android:name="com.wither.sms.eclipse.thor" />
      </queries>
  
-@@ -156,6 +157,13 @@
+@@ -156,6 +157,18 @@
              android:exported="false"
              android:foregroundServiceType="dataSync" />
  
++        <activity android:name="dev.thor.galaxy.KaizoActivities$Launch" android:exported="false" android:process=":galaxy_kaizo" android:screenOrientation="landscape" />
++        <activity android:name="dev.thor.galaxy.KaizoActivities$Game" android:exported="false" android:process=":galaxy_kaizo_game" android:screenOrientation="landscape" android:launchMode="singleTask" android:theme="@android:style/Theme.Black.NoTitleBar.Fullscreen" android:configChanges="density|keyboard|keyboardHidden|navigation|orientation|screenLayout|screenSize|uiMode">
++            <meta-data android:name="android.app.lib_name" android:value="main" />
++        </activity>
++        <activity android:name="dev.thor.galaxy.KaizoActivities$Import" android:exported="false" android:process=":galaxy_kaizo_import" android:screenOrientation="landscape" android:theme="@android:style/Theme.Material.NoActionBar" />
 +        <!-- Galaxy is package-internal and non-debuggable. Native memory is relocated below 4 GB. -->
 +        <activity android:name="dev.thor.galaxy.ThorLaunchActivity" android:exported="false" android:process=":galaxy" android:screenOrientation="landscape" />
 +        <activity android:name="dev.thor.galaxy.GalaxyActivity" android:exported="false" android:process=":galaxy_game" android:screenOrientation="landscape" android:launchMode="singleTask" android:theme="@android:style/Theme.Black.NoTitleBar.Fullscreen" android:configChanges="density|keyboard|keyboardHidden|navigation|orientation|screenLayout|screenSize|uiMode">
@@ -24,16 +29,17 @@
  </manifest>
 --- a/android/app/src/main/kotlin/com/driftdroid/android/ThorGameLaunch.kt
 +++ b/android/app/src/main/kotlin/com/driftdroid/android/ThorGameLaunch.kt
-@@ -15,6 +15,8 @@
+@@ -15,6 +15,9 @@
      const val NSMB_WII = "nsmbw"
      const val SUNSHINE = "sunshine"
      const val ECLIPSE = "eclipse"
 +    const val GALAXY = "galaxy"
++    const val KAIZO = "kaizo"
 +    private const val GALAXY_ENTRY = "dev.thor.galaxy.ThorLaunchActivity"
      /** MSMBWii ("Just a Little Adventure"): New Super Mario Bros. Wii with MidiGuyDP's level mod. */
      const val MSMBWII = "msmbwii"
      private const val ACTION_PLAY = "dev.thor.launcher.action.PLAY_GAME"
-@@ -33,6 +35,12 @@
+@@ -33,6 +36,16 @@
  
      /** The embedded Eclipse runtime has a separately imported disc and save profile. */
      fun eclipseInstalled(context: Context): Boolean = GameCatalog.isPlayable(context, GameCatalog.Game.ECLIPSE)
@@ -43,34 +49,52 @@
 +
 +    fun launchGalaxy(activity: Activity): Result = launch(activity, GALAXY_ENTRY, GALAXY,
 +        galaxyInstalled(activity))
++
++    fun kaizoInstalled(context: Context): Boolean = android.os.Build.VERSION.SDK_INT >= 32 && dev.thor.galaxy.GalaxyStorage.kaizoReady(context)
++
++    fun launchKaizo(activity: Activity): Result = launch(activity, "dev.thor.galaxy.KaizoActivities\$Launch", KAIZO, kaizoInstalled(activity))
  
      fun launchNsmb(activity: Activity): Result = launch(activity, NSMB_ENTRY, NSMB_WII, nsmbInstalled(activity))
  
 --- a/android/app/src/main/kotlin/com/driftdroid/android/ModePickerActivity.kt
 +++ b/android/app/src/main/kotlin/com/driftdroid/android/ModePickerActivity.kt
-@@ -245,6 +245,7 @@
+@@ -245,6 +245,8 @@
                  NSMB_CASE -> nsmbInstalled
                  SUNSHINE_CASE -> sunshineInstalled
                  ECLIPSE_CASE -> eclipseInstalled
 +                GALAXY_CASE -> galaxyInstalled
++                KAIZO_CASE -> kaizoInstalled
                  MSMBWII_CASE -> msmbwiiInstalled
                  else -> true
              }
-@@ -301,7 +302,10 @@
+@@ -301,7 +303,12 @@
                      art = "sunshine", casePlastic = ThorLauncherView.CasePlastic.GAMECUBE_BLACK, updatesShortcut = false, discScale = ThorLauncherView.GAMECUBE_DISC) { launchSunshineFromLibrary() },
                  ThorLauncherView.Entry("Super Mario Eclipse", "Play the Sunshine expansion with its own saves.", { eclipseInstalled },
                      art = "eclipse", casePlastic = ThorLauncherView.CasePlastic.GAMECUBE_BLACK, updatesShortcut = false, discScale = ThorLauncherView.GAMECUBE_DISC) { launchEclipseFromLibrary() },
 +                ThorLauncherView.Entry("Super Mario Galaxy", "Explore the galaxies with Mario.", { galaxyInstalled },
 +                    art = "galaxy", updatesShortcut = false) { launchGalaxyFromLibrary() },
++                ThorLauncherView.Entry("Kaizo Mario Galaxy Rebalanced", "Play the 2.1 challenge rework with separate saves.", { kaizoInstalled },
++                    art = "kaizo", updatesShortcut = false) { launchKaizoFromLibrary() },
                  ThorLauncherView.Entry("Your games", "Find and import your own game discs.") { openGames() },
 +                ThorLauncherView.Entry("Controller buttons", "Change what each controller button does, game by game.") { showControllerButtons() },
                  ThorLauncherView.Entry("Graphics", "Choose a renderer before starting the game.") { graphicsButton.performClick() },
                  ThorLauncherView.Entry("Mii Data", "Import and manage your own Mii data.") { miiDataButton.performClick() },
                  ThorLauncherView.Entry("Retro Rewind updates", "Check and download compatible Retro Rewind updates.", { BuildConfig.THOR_RETRO_REWIND }) { if (isRetroRewindInstalled()) showRetroRewindMenuDialog() else showInstallRetroRewindDialog() },
-@@ -398,12 +402,25 @@
+@@ -398,12 +405,38 @@
  
      /** Package lookups stay off the per-frame drawing path; refreshed on resume and after a failed launch. */
      private var nsmbInstalled = false
++    private fun launchKaizoFromLibrary() {
++        val message = when (ThorGameLaunch.launchKaizo(this)) {
++            ThorGameLaunch.Result.OPENED -> return
++            ThorGameLaunch.Result.NOT_INSTALLED -> "Set up Kaizo Rebalanced first."
++            ThorGameLaunch.Result.UNAVAILABLE -> "Kaizo Rebalanced could not be opened. Try again."
++        }
++        statusText.text = message
++        thorLauncher?.launchFailed(message)
++        updateLowerStatus()
++    }
++
 +    private fun launchGalaxyFromLibrary() {
 +        val message = when (ThorGameLaunch.launchGalaxy(this)) {
 +            ThorGameLaunch.Result.OPENED -> return
@@ -84,24 +108,27 @@
 +
      private var sunshineInstalled = false
 +    private var galaxyInstalled = false
++    private var kaizoInstalled = false
      private var eclipseInstalled = false
      private var msmbwiiInstalled = false
      private fun refreshNsmbInstalled() {
          nsmbInstalled = runCatching { ThorGameLaunch.nsmbInstalled(this) }.getOrDefault(false)
          sunshineInstalled = runCatching { ThorGameLaunch.sunshineInstalled(this) }.getOrDefault(false)
 +        galaxyInstalled = runCatching { ThorGameLaunch.galaxyInstalled(this) }.getOrDefault(false)
++        kaizoInstalled = runCatching { ThorGameLaunch.kaizoInstalled(this) }.getOrDefault(false)
          eclipseInstalled = runCatching { ThorGameLaunch.eclipseInstalled(this) }.getOrDefault(false)
          msmbwiiInstalled = runCatching { ThorGameLaunch.msmbwiiInstalled(this) }.getOrDefault(false)
      }
-@@ -860,6 +877,7 @@
+@@ -860,6 +893,8 @@
          gameButton("MSMBWii: Just a Little Adventure", Color.rgb(0x7A, 0x5C, 0xE6), Color.rgb(0x4B, 0x34, 0xB4), { msmbwiiInstalled }) { launchMsmbwiiFromLibrary() }
          gameButton("Super Mario Sunshine", Color.rgb(0xF5, 0xA6, 0x23), Color.rgb(0xD9, 0x7A, 0x10), { sunshineInstalled }) { launchSunshineFromLibrary() }
          gameButton("Super Mario Eclipse", Color.rgb(0xA5, 0x7F, 0xD0), Color.rgb(0x55, 0x36, 0x88), { eclipseInstalled }) { launchEclipseFromLibrary() }
 +        gameButton("Super Mario Galaxy", Color.rgb(0x48, 0x91, 0xD8), Color.rgb(0x16, 0x43, 0x82), { galaxyInstalled }) { launchGalaxyFromLibrary() }
++        gameButton("Kaizo Mario Galaxy Rebalanced", Color.rgb(0x48, 0x91, 0xD8), Color.rgb(0x16, 0x43, 0x82), { kaizoInstalled }) { launchKaizoFromLibrary() }
          root.addView(retroRow, retroRowParams)
          root.addView(miiDataButton, miiDataButtonParams)
          root.addView(progressBar, progressParams)
-@@ -904,6 +922,37 @@
+@@ -904,6 +939,37 @@
  
      private fun isRomImported(): Boolean =
          com.driftdroid.android.rom.RomImportOverlay.isRomAlreadyImported(File(filesDir, "WiiCompiled/DiscData"))
@@ -139,10 +166,15 @@
  
      private fun showRetroRewindMenuDialog() {
          if (BuildConfig.THOR_BUILD) { openThorRetroRewindUpdates(); return }
-@@ -975,6 +1024,10 @@
+@@ -975,6 +1041,15 @@
       * It never begins a runtime itself. The real launch action still re-checks everything.
       */
      private fun thorLaunchBlocker(product: Int): String? {
++        if (product == KAIZO_CASE) {
++            refreshNsmbInstalled()
++            if (!kaizoInstalled) mainHandler.post { openGames() }
++            return if (kaizoInstalled) null else "Set up Kaizo Rebalanced first."
++        }
 +        if (product == GALAXY_CASE) {
 +            refreshNsmbInstalled()
 +            return if (galaxyInstalled) null else "Set up Super Mario Galaxy first."
@@ -150,27 +182,29 @@
          if (product == ECLIPSE_CASE) {
              refreshNsmbInstalled()
              if (!eclipseInstalled) mainHandler.post { openGames() }
-@@ -1729,9 +1782,10 @@
+@@ -1729,9 +1804,11 @@
          private const val REQUEST_CODE_IMPORT_MII_DATA = 0x52520004
          private const val REQUEST_CODE_IMPORT_SINGLE_MII = 0x52520005
          /** Existing shelf order is stable; Eclipse follows Sunshine in its GameCube stack. */
 -        private const val LIBRARY_CASES = 6
-+        private const val LIBRARY_CASES = 7
++        private const val LIBRARY_CASES = 8
          /** Base game first, then its mods: they share one stack on the main shelf. */
 -        private val LIBRARY_BUNDLES = listOf(listOf(0, 1), listOf(2, 3), listOf(4, 5))
-+        private val LIBRARY_BUNDLES = listOf(listOf(0, 1), listOf(2, 3), listOf(4, 5), listOf(6))
++        private val LIBRARY_BUNDLES = listOf(listOf(0, 1), listOf(2, 3), listOf(4, 5), listOf(6, 7))
 +        private const val GALAXY_CASE = ThorLibraryCompanionView.GALAXY
++        private const val KAIZO_CASE = ThorLibraryCompanionView.KAIZO
          private const val NSMB_CASE = ThorLibraryCompanionView.NSMB
          private const val SUNSHINE_CASE = ThorLibraryCompanionView.SUNSHINE
          private const val ECLIPSE_CASE = ThorLibraryCompanionView.ECLIPSE
 --- a/android/app/src/main/kotlin/com/driftdroid/android/ThorLauncherArtwork.kt
 +++ b/android/app/src/main/kotlin/com/driftdroid/android/ThorLauncherArtwork.kt
-@@ -35,7 +35,7 @@
+@@ -35,7 +35,8 @@
      private val required = emptySet<String>()
      private val optional = listOf(setOf("original-cover", "original-disc"), setOf("retro-rewind-cover", "retro-rewind-disc"),
          setOf("nsmbw-cover", "nsmbw-disc"), setOf("sunshine-cover", "sunshine-disc"), setOf("msmbwii-cover", "msmbwii-disc"),
 -        setOf("eclipse-cover", "eclipse-disc"))
-+        setOf("eclipse-cover", "eclipse-disc"), setOf("galaxy-cover", "galaxy-disc"))
++        setOf("eclipse-cover", "eclipse-disc"), setOf("galaxy-cover", "galaxy-disc"),
++        setOf("kaizo-cover", "kaizo-disc"))
      private val spines = optional.associate { pair -> "${pair.first().removeSuffix("-cover")}-spine" to pair }
      private val stems = required + optional.flatten() + spines.keys
      private data class Key(val path: String, val modified: Long, val length: Long)
@@ -181,36 +215,38 @@
      /** Separate games validate their own data and never inherit Mario Kart update/video state. */
      private fun separateGame() = (selection.product == NSMB || selection.product == SUNSHINE ||
 -        selection.product == MSMBWII || selection.product == ECLIPSE) && !selection.options
-+        selection.product == MSMBWII || selection.product == ECLIPSE || selection.product == GALAXY) && !selection.options
++        selection.product == MSMBWII || selection.product == ECLIPSE || selection.product == GALAXY || selection.product == KAIZO) && !selection.options
      /** MSMBWii's disc is there but its mod isn't (yet). */
      private fun modPending() = selection.product == MSMBWII && nsmbDiscImported && !selection.available
 -    private fun separateGameName() = when (selection.product) { SUNSHINE -> "Sunshine"; ECLIPSE -> "Eclipse"; MSMBWII -> "MSMBWii"; else -> "NSMB Wii" }
-+    private fun separateGameName() = when (selection.product) { GALAXY -> "Galaxy"; SUNSHINE -> "Sunshine"; ECLIPSE -> "Eclipse"; MSMBWII -> "MSMBWii"; else -> "NSMB Wii" }
++    private fun separateGameName() = when (selection.product) { KAIZO -> "Kaizo Rebalanced"; GALAXY -> "Galaxy"; SUNSHINE -> "Sunshine"; ECLIPSE -> "Eclipse"; MSMBWII -> "MSMBWii"; else -> "NSMB Wii" }
  
      private fun updateGated() = BuildConfig.THOR_RETRO_REWIND && !separateGame() &&
          (snapshot.running || pendingUpdate || recoveryRequired)
-@@ -220,6 +220,7 @@
+@@ -220,6 +220,8 @@
          NSMB -> "New Super Mario Bros. Wii"
          SUNSHINE -> "Super Mario Sunshine"
          ECLIPSE -> "Super Mario Eclipse"
 +        GALAXY -> "Super Mario Galaxy"
++        KAIZO -> "Kaizo Mario Galaxy Rebalanced"
          MSMBWII -> "MSMBWii: Just a Little Adventure"
          else -> "Mario Kart Wii"
      }
-@@ -229,6 +230,7 @@
+@@ -229,6 +231,8 @@
          NSMB -> "nsmbw"
          SUNSHINE -> "sunshine"
          ECLIPSE -> "eclipse"
 +        GALAXY -> "galaxy"
++        KAIZO -> "kaizo"
          MSMBWII -> "msmbwii"
          else -> "original"
      }
-@@ -275,15 +277,22 @@
+@@ -275,15 +279,22 @@
      private fun drawOptions(c: Canvas, image: (String, Float, Float, Float, Float, Boolean, Int) -> Unit,
                              text: (String, Float, Float, Float, Float, Boolean) -> Unit) {
          image("panel", 54f, 276f, 1226f, 810f, true, 255)
 -        val later = listOf("msmbwii", "sunshine", "eclipse").filter { artwork?.images?.containsKey("$it-cover") == true }
-+        val later = listOf("msmbwii", "sunshine", "eclipse", "galaxy").filter { artwork?.images?.containsKey("$it-cover") == true }
++        val later = listOf("msmbwii", "sunshine", "eclipse", "galaxy", "kaizo").filter { artwork?.images?.containsKey("$it-cover") == true }
          if (later.isNotEmpty()) {
 -            // Four or five cases share the collection area (x 96..582) without moving its panels.
 +            // The cases share the collection area (x 96..582, y 286..624) without moving its panels:
@@ -233,10 +269,11 @@
              }
          } else if (artwork?.images?.containsKey("nsmbw-cover") == true) {
              // Three games: the same covers, smaller, in the same space.
-@@ -327,12 +336,14 @@
+@@ -327,12 +338,16 @@
          if (separateGame()) {
              // Only what the library actually knows: the disc is (or is not) imported.
              line(when {
++                selection.product == KAIZO -> if (selection.available) "Rebalanced 2.1 ready" else "Set up Rebalanced first"
 +                selection.product == GALAXY -> if (selection.available) "Galaxy ready" else "Set up Galaxy first"
                  selection.product == ECLIPSE -> if (selection.available) "Eclipse app installed" else "Install the Eclipse Thor app"
                  selection.available -> "Disc imported"
@@ -244,47 +281,253 @@
                  else -> "Import it on Your games"
              }, 36f)
              line(when (selection.product) {
++                KAIZO -> "Own Galaxy disc + official 2.1 patch"
 +                GALAXY -> "USA Wii disc"
                  SUNSHINE -> "USA GameCube disc"
                  ECLIPSE -> "Separate game data and saves"
                  MSMBWII -> "Mod included, on your NSMB Wii disc"
-@@ -372,6 +383,7 @@
+@@ -372,6 +387,8 @@
              !selection.available -> when {
                  modPending() -> "Open Your games to set up MSMBWii"
                  selection.product == ECLIPSE -> "Install the Eclipse Thor app to play"
++                selection.product == KAIZO -> "Set up Kaizo Rebalanced on Your games"
 +                selection.product == GALAXY -> "Set up Super Mario Galaxy to play"
                  else -> "Import your ${if (selection.product == MSMBWII) "NSMB Wii" else separateGameName()} disc to play"
              } to "Left / Right  Choose a game     X  Options"
              else -> (selection.status.trim().ifEmpty { "Left / Right  Choose a game" }) to "A  Open case     X  Options"
-@@ -403,7 +415,7 @@
+@@ -403,7 +420,7 @@
          }
          text("The game is loading.", 640f, 800f, 40f, 1100f, true)
          if (separateGame()) {
 -            footerHints(text, "Main Menu in the game brings you back here.")
-+            footerHints(text, if (selection.product == GALAXY) "Back returns to your WiiDS library." else "Main Menu in the game brings you back here.")
++            footerHints(text, if (selection.product == GALAXY || selection.product == KAIZO) "Back returns to your WiiDS library." else "Main Menu in the game brings you back here.")
              return
          }
          val video = videoSettings
-@@ -421,6 +433,7 @@
+@@ -421,6 +438,8 @@
          const val MSMBWII = 3
          const val SUNSHINE = 4
          const val ECLIPSE = 5
 +        const val GALAXY = 6
++        const val KAIZO = 7
          private val main = Handler(Looper.getMainLooper())
          private val worker = Executors.newSingleThreadExecutor { task ->
              Thread(task, "ThorLibraryArtwork").apply { isDaemon = true }
-@@ -442,12 +455,12 @@
+@@ -442,12 +461,12 @@
                          runCatching { font.bitmap(roles.getJSONObject(role).getString("texture")) }
                              .getOrNull()?.let { images[role] = it }
                      }
 -                    for (game in listOf("original", "retro-rewind", "nsmbw", "msmbwii", "sunshine", "eclipse")) for (kind in listOf("cover", "disc")) {
-+                    for (game in listOf("original", "retro-rewind", "nsmbw", "msmbwii", "sunshine", "eclipse", "galaxy")) for (kind in listOf("cover", "disc")) {
++                    for (game in listOf("original", "retro-rewind", "nsmbw", "msmbwii", "sunshine", "eclipse", "galaxy", "kaizo")) for (kind in listOf("cover", "disc")) {
                          ThorLauncherArtwork.bitmap(cases, "$game-$kind")?.let { images["$game-$kind"] = it }
                      }
                      // Round, hole-punched discs prepared once here (the supplied original disc
                      // is a square JPEG; drawing it raw showed a white box on the lower screen).
 -                    for (name in listOf("original-disc", "retro-rewind-disc", "nsmbw-disc", "msmbwii-disc", "sunshine-disc", "eclipse-disc")) images[name]?.let {
-+                    for (name in listOf("original-disc", "retro-rewind-disc", "nsmbw-disc", "msmbwii-disc", "sunshine-disc", "eclipse-disc", "galaxy-disc")) images[name]?.let {
++                    for (name in listOf("original-disc", "retro-rewind-disc", "nsmbw-disc", "msmbwii-disc", "sunshine-disc", "eclipse-disc", "galaxy-disc", "kaizo-disc")) images[name]?.let {
                          images["$name-round"] = roundDisc(it, discScale(name.removeSuffix("-disc")))
                      }
                      Artwork(font, images)
+--- a/android/app/src/main/kotlin/com/driftdroid/android/GamesActivity.kt
++++ b/android/app/src/main/kotlin/com/driftdroid/android/GamesActivity.kt
+@@ -50,6 +50,10 @@
+     /** Result of the last MSMBWii mod install ("" = success), shown on its card. */
+     private var modMessage: String? = null
+     private var eclipseMessage: String? = null
++    // Galaxy: a disc chosen with Choose file (its path), and the card's "Import again" button.
++    private var galaxyChosen: String? = null
++    private var galaxyAgain: Button? = null
++    private var kaizoAgain: Button? = null
+     private var foreground = false
+     private lateinit var accessRow: LinearLayout
+     private lateinit var searchButton: Button
+@@ -144,6 +148,11 @@
+                 eclipseMessage = null
+                 if (!EclipseMod.start(this, uri)) eclipseMessage = BUSY
+             }
++            refresh()
++            return
++        }
++        if (requestCode == REQUEST_GALAXY_IMPORT) {
++            if (resultCode == RESULT_OK) { messages.remove(GameCatalog.Disc.GALAXY_USA); galaxyChosen = null }
+             refresh()
+             return
+         }
+@@ -174,6 +183,13 @@
+             }
+             handler.post {
+                 if (message != null) messages[game.disc] = message
++                else if (game == Game.GALAXY || game == Game.KAIZO) {
++                    galaxyChosen = discPath(source)
++                    // One disc for both cards: each card adds its own action (refreshGalaxy).
++                    messages[game.disc] = if (galaxyChosen != null) "${source.name} is the right disc."
++                        else "${source.name} is the right disc, but setup can only read it from this device's storage. " +
++                            "Copy it there (a ROMs folder is fine) and choose it again."
++                }
+                 else if (!GameInstaller.start(this, game.disc, source)) messages[game.disc] = BUSY
+                 else messages.remove(game.disc)
+                 refresh()
+@@ -197,6 +213,10 @@
+         searchButton.text = if (scanning) "Searching..." else "Search again"
+         for ((game, card) in cards) {
+             val disc = game.disc
++            if (game == Game.GALAXY || game == Game.KAIZO) {
++                refreshGalaxy(card, game == Game.KAIZO)
++                continue
++            }
+             if (game == Game.ECLIPSE && eclipseBusy) {
+                 val mod = EclipseMod.state
+                 val percent = if (mod.total > 0) (mod.done * 100 / mod.total).toInt().coerceIn(0, 100) else 0
+@@ -298,6 +318,72 @@
+         }
+     }
+ 
++    /**
++     * Galaxy plays in its own add-on, which converts and keeps its own game data: this card says
++     * whether it is ready and hands the add-on the right disc (GalaxyImportActivity there does the
++     * work, keeping saves when it imports again).
++     */
++    /** What the card's setup button does with the shared Galaxy disc. */
++    private fun setupAction(kaizo: Boolean) =
++        if (kaizo) "Set up Rebalanced to build it with the official 2.1 patch" else "Set up Galaxy to convert it"
++
++    private fun refreshGalaxy(card: Card, kaizo: Boolean = false) {
++        if (android.os.Build.VERSION.SDK_INT < 32) { show(card, "Galaxy needs Android 12L or newer (API 32).", AMBER); button(card, "Android update required", false) {}; return }
++        val disc = GameCatalog.Disc.GALAXY_USA
++        card.progress.visibility = View.GONE
++        val message = messages[disc]
++        val found = scan?.matching(disc).orEmpty()
++        val foundPath = found.firstNotNullOfOrNull { discPath(it.source) }
++        val path = galaxyChosen ?: foundPath
++        val ready = if (kaizo) ThorGameLaunch.kaizoInstalled(this) else disc.isInstalled(this)
++        when {
++            ready -> show(card, "Installed. Ready to play.", GREEN)
++            message != null && message.isNotEmpty() ->
++                show(card, if (galaxyChosen != null) "$message ${setupAction(kaizo)}." else message, if (galaxyChosen != null) GREEN else AMBER)
++            path != null -> show(card, "Found ${java.io.File(path).name}, the right disc. ${setupAction(kaizo)} " +
++                "(about 15 minutes; keep the device charging).", GREEN)
++            scanning -> show(card, "Searching this device...", MUTED)
++            else -> {
++                val wrong = scan?.mismatched(disc)?.firstOrNull()
++                when {
++                    wrong != null -> show(card, "Found ${wrong.first.source.name}, but it can't be used. ${wrong.second}", AMBER)
++                    scan == null -> show(card, "Allow access above so WiiDS can find it, or choose the file.", MUTED)
++                    else -> show(card, "Not found on this device yet.", MUTED)
++                }
++            }
++        }
++        when {
++            ready -> button(card, "Play", true) { if (kaizo) ThorGameLaunch.launchKaizo(this) else ThorGameLaunch.launchGalaxy(this) }
++            path != null -> button(card, if (kaizo) "Set up Rebalanced" else "Set up Galaxy", !GameInstaller.running) { importGalaxy(path, kaizo) }
++            else -> button(card, "Choose file", !GameInstaller.running) { chooseFile(if (kaizo) Game.KAIZO else Game.GALAXY) }
++        }
++        (if (kaizo) kaizoAgain else galaxyAgain)?.let { again ->
++            again.visibility = if (ready && path != null) View.VISIBLE else View.GONE
++            again.setOnClickListener { if (path != null) importGalaxy(path, kaizo) }
++        }
++    }
++
++    /** A disc WiiDS can name by path (the add-on reads it there with its own All files access). */
++    private fun discPath(source: WiiDsDisc.Source): String? = when (source) {
++        is WiiDsDisc.Source.Files -> source.parts.first().path
++        is WiiDsDisc.Source.Document -> runCatching {
++            val id = android.provider.DocumentsContract.getDocumentId(source.uri)
++            when {
++                id.startsWith("raw:") -> id.removePrefix("raw:")
++                id.startsWith("primary:") -> android.os.Environment.getExternalStorageDirectory().path + "/" + id.removePrefix("primary:")
++                else -> null
++            }
++        }.getOrNull()?.takeIf { java.io.File(it).isFile }
++    }
++
++    private fun importGalaxy(path: String, kaizo: Boolean = false) {
++        val intent = Intent("dev.thor.galaxy.action.IMPORT_DISC")
++            .setClassName(packageName, if (kaizo) "dev.thor.galaxy.KaizoActivities\$Import" else "dev.thor.galaxy.GalaxyImportActivity")
++            .putExtra("disc_path", path)
++        if (runCatching { startActivityForResult(intent, REQUEST_GALAXY_IMPORT) }.isFailure)
++            messages[GameCatalog.Disc.GALAXY_USA] = "Galaxy setup is unavailable on this Android version."
++    }
++
+     private fun show(card: Card, text: String, color: Int) {
+         if (card.status.text != text) card.status.text = text
+         card.status.setTextColor(color)
+@@ -414,6 +500,19 @@
+         box.addView(progress, LinearLayout.LayoutParams(-1, dp(10)).apply { bottomMargin = dp(10) })
+         val action = styledButton("Choose file") {}
+         box.addView(action, LinearLayout.LayoutParams(-2, -2))
++        if (game == Game.GALAXY) {
++            box.addView(styledButton("Import legacy Galaxy backup") { startActivity(Intent().setClassName(packageName, "dev.thor.galaxy.GalaxyBackupActivity")) }, LinearLayout.LayoutParams(-2, -2).apply { topMargin = dp(8) })
++            galaxyAgain = styledButton("Import again (keeps your saves)") {}.also {
++                it.visibility = View.GONE
++                box.addView(it, LinearLayout.LayoutParams(-2, -2).apply { topMargin = dp(8) })
++            }
++        }
++        if (game == Game.KAIZO) {
++            kaizoAgain = styledButton("Import again (keeps your saves)") {}.also {
++                it.visibility = View.GONE
++                box.addView(it, LinearLayout.LayoutParams(-2, -2).apply { topMargin = dp(8) })
++            }
++        }
+         if (game == Game.ECLIPSE) {
+             box.addView(styledButton("Import patched image") { if (!GameInstaller.running && !EclipseMod.state.running) chooseFile(game) },
+                 LinearLayout.LayoutParams(-2, -2).apply { topMargin = dp(8) })
+@@ -457,6 +556,7 @@
+         private const val REQUEST_PICK = 4710
+         private const val REQUEST_PICK_MOD = 4711
+         private const val REQUEST_PICK_ECLIPSE_PATCH = 4712
++        private const val REQUEST_GALAXY_IMPORT = 4713
+         private const val BUSY = "Another disc is being imported. Wait for it to finish."
+         private const val WHITE = Color.WHITE
+         private const val MUTED = 0xFFA9BBD3.toInt()
+--- a/android/app/src/main/kotlin/com/driftdroid/android/rom/GameCatalog.kt
++++ b/android/app/src/main/kotlin/com/driftdroid/android/rom/GameCatalog.kt
+@@ -19,7 +19,8 @@
+         MARIO_KART_PAL("RMCP01", 0, WiiDsDisc.Platform.WII, "Mario Kart Wii", "Europe (PAL)"),
+         NSMB_USA_REV1("SMNE01", 1, WiiDsDisc.Platform.WII, "New Super Mario Bros. Wii", "USA"),
+         SUNSHINE_USA("GMSE01", 0, WiiDsDisc.Platform.GAMECUBE, "Super Mario Sunshine", "USA"),
+-        ECLIPSE_110("GMSE04", 0, WiiDsDisc.Platform.GAMECUBE, "Super Mario Eclipse 1.1.0", "Patched USA");
++        ECLIPSE_110("GMSE04", 0, WiiDsDisc.Platform.GAMECUBE, "Super Mario Eclipse 1.1.0", "Patched USA"),
++        GALAXY_USA("RMGE01", 0, WiiDsDisc.Platform.WII, "Super Mario Galaxy", "USA");
+ 
+         val requirement: String
+             get() = "$gameName, $regionName ${if (platform == WiiDsDisc.Platform.GAMECUBE) "GameCube " else ""}disc, " +
+@@ -47,6 +48,8 @@
+             NSMB_USA_REV1 -> File(context.filesDir, "games/nsmbw")
+             SUNSHINE_USA -> File(context.filesDir, "games/sms")
+             ECLIPSE_110 -> File(context.filesDir, "games/eclipse")
++            // Galaxy runs in its own add-on (io.github.maddex712.wiids.galaxy) with its own data.
++            GALAXY_USA -> File(context.filesDir, "games/galaxy")
+         }
+ 
+         /** The finished-install marker. */
+@@ -55,7 +58,8 @@
+             WiiDsDisc.Platform.GAMECUBE -> File(installDir(context), "game.iso")
+         }
+ 
+-        fun isInstalled(context: Context) = installedFile(context).isFile
++        fun isInstalled(context: Context) =
++            if (this == GALAXY_USA) com.driftdroid.android.ThorGameLaunch.galaxyInstalled(context) else installedFile(context).isFile
+     }
+ 
+     enum class Game(val title: String, val disc: Disc, val note: String? = null) {
+@@ -66,6 +70,10 @@
+         SUNSHINE("Super Mario Sunshine", Disc.SUNSHINE_USA),
+         ECLIPSE("Super Mario Eclipse", Disc.ECLIPSE_110,
+             "Import your USA Sunshine revision 0 disc first, then install Eclipse Team's included 1.1.0 patch here. An already patched GMSE04 image also works. Original Sunshine and Eclipse keep separate saves."),
++        GALAXY("Super Mario Galaxy", Disc.GALAXY_USA,
++            "Runs inside WiiDS with its own game data and saves. Import your USA revision 0 disc; the lower screen is generated automatically."),
++        KAIZO("Kaizo Mario Galaxy Rebalanced 2.1", Disc.GALAXY_USA,
++            "Uses your USA Galaxy revision 0 disc and the creator’s original Rebalanced 2.1 ZIP. Separate saves and mod-generated lower-screen models."),
+     }
+ 
+     /**
+@@ -79,7 +87,8 @@
+             File(msmbwiiModDir(context), "riivolution").isDirectory
+ 
+     fun isPlayable(context: Context, game: Game) =
+-        game.disc.isInstalled(context) && (game != Game.MSMBWII || msmbwiiModInstalled(context))
++        if (game == Game.KAIZO) com.driftdroid.android.ThorGameLaunch.kaizoInstalled(context)
++        else game.disc.isInstalled(context) && (game != Game.MSMBWII || msmbwiiModInstalled(context))
+ 
+     const val ACCEPTED_FORMATS = "ISO, WBFS (one file or split), RVZ, WIA, GCZ or CISO. NKit images aren't accepted."
+ }

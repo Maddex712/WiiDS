@@ -7,8 +7,9 @@ import android.widget.TextView;
 import java.io.File;
 import java.io.FileInputStream;
 
-public final class ThorLaunchActivity extends Activity {
-    @Override protected void attachBaseContext(android.content.Context base) { super.attachBaseContext(new GalaxyStorage(base)); }
+public class ThorLaunchActivity extends Activity {
+    protected boolean kaizoProfile() { return false; }
+    @Override protected void attachBaseContext(android.content.Context base) { super.attachBaseContext(new GalaxyStorage(base, kaizoProfile())); }
     static boolean ready(android.content.Context context) {
         File external = context.getExternalFilesDir(null);
         if (external == null) return false;
@@ -32,7 +33,7 @@ public final class ThorLaunchActivity extends Activity {
         Intent source = getIntent();
         boolean shared = "dev.thor.launcher.action.PLAY_GAME".equals(source.getAction());
         if (shared && (source.getIntExtra("thor_protocol", -1) != 1
-                || !"galaxy".equals(source.getStringExtra("thor_game")))) {
+                || !(kaizoProfile() ? "kaizo" : "galaxy").equals(source.getStringExtra("thor_game")))) {
             showMessage("This Galaxy launch request is not supported.");
             return;
         }
@@ -40,7 +41,7 @@ public final class ThorLaunchActivity extends Activity {
             showMessage("Super Mario Galaxy\n\nYour game files are not ready yet.");
             return;
         }
-        startActivity(new Intent(this, GalaxyActivity.class));
+        startActivity(new Intent(this, kaizoProfile() ? KaizoActivities.Game.class : GalaxyActivity.class));
         finish();
     }
 

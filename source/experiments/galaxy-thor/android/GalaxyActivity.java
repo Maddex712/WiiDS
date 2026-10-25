@@ -13,17 +13,22 @@ import android.view.View;
 import android.view.WindowManager;
 import android.widget.TextView;
 
-public final class GalaxyActivity extends NativeActivity implements DisplayManager.DisplayListener {
-    @Override protected void attachBaseContext(Context base) { super.attachBaseContext(new GalaxyStorage(base)); }
+public class GalaxyActivity extends NativeActivity implements DisplayManager.DisplayListener {
+    protected boolean kaizoProfile() { return false; }
+    @Override protected void attachBaseContext(Context base) { super.attachBaseContext(new GalaxyStorage(base, kaizoProfile())); }
     private static GalaxyActivity instance;
     private DisplayManager displays;
     private Presentation lower;
     private boolean resumed;
     private boolean leaving;
+    private final GalaxyTouchHint touchHint = new GalaxyTouchHint();
+    private boolean planetTouch;
 
     @Override public void onCreate(Bundle state) {
         instance = this;
         super.onCreate(state);
+        planetTouch = getSharedPreferences("galaxy_lower_controls", MODE_PRIVATE)
+                .getBoolean(kaizoProfile() ? "kaizo_planet" : "galaxy_planet", false);
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
         fullscreen();
         displays = (DisplayManager)getSystemService(Context.DISPLAY_SERVICE);
@@ -58,6 +63,16 @@ public final class GalaxyActivity extends NativeActivity implements DisplayManag
     static native int nativeSpace(java.nio.ByteBuffer out, int have, int[] mode);
     /** The stage's live world pieces (platform/include/port/thor_world.h), registered the same way. */
     static native int nativeWorldState(java.nio.ByteBuffer out, int have);
+    static native void nativeTouchPointer(float x, float y, boolean down);
+    static native void nativeTouchTrackpad(float dx, float dy, int phase);
+    static void touchTrackpad(float dx, float dy, int phase) {
+        try { nativeTouchTrackpad(dx, dy, settingsShowing ? GalaxyTrackpad.CANCEL : phase); }
+        catch (UnsatisfiedLinkError unavailable) { android.util.Log.w("GalaxyTouch", "Trackpad bridge unavailable"); }
+    }
+    static void touchPointer(float x, float y, boolean down) {
+        try { nativeTouchPointer(x, y, down && !settingsShowing); }
+        catch (UnsatisfiedLinkError unavailable) { android.util.Log.w("GalaxyTouch", "Pointer bridge unavailable"); }
+    }
     /** The Galaxy settings menu's link to the game (platform/mobile/thor/ThorSettingsBridge.cpp). */
     static native void nativeMenuState(boolean open);
     static native void nativeMenuSet(int key, int value);
@@ -86,17 +101,31 @@ public final class GalaxyActivity extends NativeActivity implements DisplayManag
     }
 
     private GalaxyLowerScreen lowerView;
+    int lowerTouchMode() { return planetTouch ? 1 : 0; }
+    void setLowerTouchMode(int mode) {
+        planetTouch = mode == 1;
+        getSharedPreferences("galaxy_lower_controls", MODE_PRIVATE).edit()
+                .putBoolean(kaizoProfile() ? "kaizo_planet" : "galaxy_planet", planetTouch).apply();
+        if (lowerView != null) lowerView.setPointerMode(!planetTouch);
+    }
 
     // Named and package-private: this d8 rejects the synthetic classes javac 21 makes at -source 8.
     static final class LowerSource implements GalaxyLowerScreen.Source {
+        private final GalaxyActivity owner;
+        LowerSource(GalaxyActivity owner) { this.owner = owner; }
         @Override public int copy(java.nio.ByteBuffer out) { return nativeLowerState(out); }
         @Override public int space(java.nio.ByteBuffer out, int have, int[] mode) { return nativeSpace(out, have, mode); }
         @Override public int world(java.nio.ByteBuffer out, int have) { return nativeWorldState(out, have); }
+        @Override public void trackpad(float dx, float dy, int phase) { touchTrackpad(dx, dy, phase); }
+        @Override public int touchMode() { return owner.lowerTouchMode(); }
+        @Override public void setTouchMode(int mode) { owner.setLowerTouchMode(mode); }
     }
 
     @Override public void onResume() { super.onResume(); resumed = true; showLower(); }
     @Override public void onPause() { resumed = false; closeLower(); super.onPause(); }
     private void closeLower() {
+        touchPointer(0, 0, false);
+        touchTrackpad(0, 0, GalaxyTrackpad.CANCEL);
         if (lowerView != null) { lowerView.stop(); lowerView = null; }
         if (lower != null) { lower.dismiss(); lower = null; }
     }
@@ -116,7 +145,7 @@ public final class GalaxyActivity extends NativeActivity implements DisplayManag
         // The observatory field guide: the galaxy's star chart / the Observatory's ledger, from the
         // game's own state; the owner's art is staged privately in files/ThorHud.
         java.io.File art = new java.io.File(getExternalFilesDir(null), "GalaxyData/ThorHud");
-        lowerView = new GalaxyLowerScreen(lower.getContext(), art, new LowerSource());
+        lowerView = new GalaxyLowerScreen(lower.getContext(), art, new LowerSource(this), touchHint);
         lowerView.setBackgroundColor(0xff090b2a);
         lower.setContentView(lowerView.layered());
         // Touchable (the planet turns under a finger) but never focusable: the controller stays the game's.

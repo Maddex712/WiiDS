@@ -28,6 +28,7 @@ import android.widget.Button
 import android.widget.LinearLayout
 import android.widget.ProgressBar
 import android.widget.TextView
+import android.widget.Toast
 import androidx.documentfile.provider.DocumentFile
 import java.io.File
 import java.io.RandomAccessFile
@@ -127,6 +128,7 @@ class ModePickerActivity : Activity() {
     private fun createLibrary() {
         refreshNsmbInstalled()
         buildUi()
+        if (routePendingFrontend()) return
         if (routePendingThorUpdate()) return
         if (BuildConfig.THOR_BUILD) {
             val restartProduct = intent.getStringExtra(EXTRA_RESTART_PRODUCT)
@@ -136,6 +138,37 @@ class ModePickerActivity : Activity() {
                 mainHandler.post { if (!isFinishing && !isDestroyed) launchProduct(restartProduct) }
             }
         }
+    }
+
+    override fun onNewIntent(request: Intent) {
+        super.onNewIntent(request)
+        setIntent(request)
+        if (!presentationLoading) routePendingFrontend()
+    }
+
+    private fun routePendingFrontend(): Boolean {
+        val id = intent.getStringExtra(EXTRA_FRONTEND_GAME) ?: return false
+        intent.removeExtra(EXTRA_FRONTEND_GAME)
+        if (!BuildConfig.THOR_BUILD) return false
+        val game = FrontendGame.fromId(id) ?: return false
+        mainHandler.post {
+            if (isFinishing || isDestroyed) return@post
+            when (game) {
+                FrontendGame.MARIO_KART -> {
+                    val blocker = thorLaunchBlocker(0)
+                    if (blocker == null) launchProduct(MainActivity.PRODUCT_BASE)
+                    else Toast.makeText(this, blocker, Toast.LENGTH_LONG).show()
+                }
+                FrontendGame.RETRO_REWIND -> launchRetroRewindOrUpdate()
+                FrontendGame.NSMB -> launchNsmbFromLibrary()
+                FrontendGame.MSMBWII -> launchMsmbwiiFromLibrary()
+                FrontendGame.SUNSHINE -> launchSunshineFromLibrary()
+                FrontendGame.ECLIPSE -> launchEclipseFromLibrary()
+                FrontendGame.GALAXY -> launchGalaxyFromLibrary()
+                FrontendGame.KAIZO -> launchKaizoFromLibrary()
+            }
+        }
+        return true
     }
 
     override fun onResume() {
@@ -160,9 +193,15 @@ class ModePickerActivity : Activity() {
         if (thorLauncher == null && File(com.driftdroid.android.rom.WiiDsArt.thorMap(this), "menu.json").isFile) showThorLauncher()
         val thorDevice = BuildConfig.THOR_BUILD && Build.MODEL.equals("AYN Thor", ignoreCase = true)
         if (thorDevice) {
-            if (thorCompanion == null) thorCompanion = ThorLowerCompanion(this, File(filesDir, "WiiCompiled/ThorMap"))
+            if (thorCompanion == null) thorCompanion = ThorLowerCompanion(this, File(filesDir, "WiiCompiled/ThorMap")).also {
+                it.onOpenAchievements = { game, item -> if (libraryResumed) openAchievements(game, item) }
+            }
             updateLowerStatus()
             thorCompanion?.start()
+            // A game or the browser may have recorded unlocks since the previews were read.
+            thorCompanion?.refreshAchievements()
+            // RetroAchievements progress, at most once a day while an account is connected.
+            com.driftdroid.android.achievements.RaLibrary.syncIfDue(this) { _, _, _ -> thorCompanion?.refreshAchievements() }
         }
         // The case launcher runs on any THOR_BUILD device; only the lower-screen companion needs the Thor.
         thorLauncher?.refreshSelection()
@@ -236,6 +275,17 @@ class ModePickerActivity : Activity() {
 
     private fun dp(value: Int): Int = (value * resources.displayMetrics.density).toInt()
 
+    /** The game Options > Achievements opens: the case last selected on the shelf. */
+    private var lastLibraryGame = FrontendGame.NSMB
+
+    /** The WiiDS achievement browser for [game], optionally focused on one achievement. */
+    private fun openAchievements(game: String, achievement: String?) {
+        startActivity(Intent(this, com.driftdroid.android.achievements.AchievementsActivity::class.java)
+            .putExtra(com.driftdroid.android.achievements.AchievementsActivity.EXTRA_GAME, game)
+            .putExtra(com.driftdroid.android.achievements.AchievementsActivity.EXTRA_ACHIEVEMENT, achievement))
+        @Suppress("DEPRECATION") overridePendingTransition(android.R.anim.fade_in, android.R.anim.fade_out)
+    }
+
     private fun updateLowerStatus() {
         val status = if (::statusText.isInitialized) statusText.text.toString().trim() else ""
         if (thorLauncher != null) {
@@ -246,6 +296,7 @@ class ModePickerActivity : Activity() {
                 SUNSHINE_CASE -> sunshineInstalled
                 ECLIPSE_CASE -> eclipseInstalled
                 GALAXY_CASE -> galaxyInstalled
+                KAIZO_CASE -> kaizoInstalled
                 MSMBWII_CASE -> msmbwiiInstalled
                 else -> true
             }
@@ -304,8 +355,17 @@ class ModePickerActivity : Activity() {
                     art = "eclipse", casePlastic = ThorLauncherView.CasePlastic.GAMECUBE_BLACK, updatesShortcut = false, discScale = ThorLauncherView.GAMECUBE_DISC) { launchEclipseFromLibrary() },
                 ThorLauncherView.Entry("Super Mario Galaxy", "Explore the galaxies with Mario.", { galaxyInstalled },
                     art = "galaxy", updatesShortcut = false) { launchGalaxyFromLibrary() },
+                ThorLauncherView.Entry("Kaizo Mario Galaxy Rebalanced", "Play the 2.1 challenge rework with separate saves.", { kaizoInstalled },
+                    art = "kaizo", updatesShortcut = false) { launchKaizoFromLibrary() },
                 ThorLauncherView.Entry("Your games", "Find and import your own game discs.") { openGames() },
                 ThorLauncherView.Entry("Controller buttons", "Change what each controller button does, game by game.") { showControllerButtons() },
+                ThorLauncherView.Entry("Game shortcuts", "Add a game or mod directly to Cocoon or your home screen.") { GameShortcuts.show(this) },
+                ThorLauncherView.Entry("Save manager", "Back up, export or restore each game's in-game saves.") {
+                    startActivity(Intent(this, SaveManagerActivity::class.java))
+                },
+                ThorLauncherView.Entry("Achievements", "Your RetroAchievements for each game, with everything already earned.") {
+                    openAchievements(lastLibraryGame.id, null)
+                },
                 ThorLauncherView.Entry("Graphics", "Choose a renderer before starting the game.") { graphicsButton.performClick() },
                 ThorLauncherView.Entry("Mii Data", "Import and manage your own Mii data.") { miiDataButton.performClick() },
                 ThorLauncherView.Entry("Retro Rewind updates", "Check and download compatible Retro Rewind updates.", { BuildConfig.THOR_RETRO_REWIND }) { if (isRetroRewindInstalled()) showRetroRewindMenuDialog() else showInstallRetroRewindDialog() },
@@ -317,6 +377,7 @@ class ModePickerActivity : Activity() {
             val view = ThorLauncherView(this, artwork, chrome, entries, LIBRARY_CASES, LIBRARY_BUNDLES,
                 onSelectionChanged = { product, options ->
                     thorLibraryProduct = product
+                    product?.let { LIBRARY_GAMES.getOrNull(it) }?.let { lastLibraryGame = it }
                     thorLibraryOptions = options
                     updateLowerStatus()
                 },
@@ -327,6 +388,7 @@ class ModePickerActivity : Activity() {
                     updateLowerStatus()
                 },
                 preflight = { product -> thorLaunchBlocker(product) },
+                onAchievements = { product -> LIBRARY_GAMES.getOrNull(product)?.let { openAchievements(it.id, null) } },
                 thorMap = folder) { statusText.text.toString() }
             thorLauncher = view
             statusText.addTextChangedListener(object : android.text.TextWatcher {
@@ -402,6 +464,17 @@ class ModePickerActivity : Activity() {
 
     /** Package lookups stay off the per-frame drawing path; refreshed on resume and after a failed launch. */
     private var nsmbInstalled = false
+    private fun launchKaizoFromLibrary() {
+        val message = when (ThorGameLaunch.launchKaizo(this)) {
+            ThorGameLaunch.Result.OPENED -> return
+            ThorGameLaunch.Result.NOT_INSTALLED -> "Set up Kaizo Rebalanced first."
+            ThorGameLaunch.Result.UNAVAILABLE -> "Kaizo Rebalanced could not be opened. Try again."
+        }
+        statusText.text = message
+        thorLauncher?.launchFailed(message)
+        updateLowerStatus()
+    }
+
     private fun launchGalaxyFromLibrary() {
         val message = when (ThorGameLaunch.launchGalaxy(this)) {
             ThorGameLaunch.Result.OPENED -> return
@@ -415,12 +488,14 @@ class ModePickerActivity : Activity() {
 
     private var sunshineInstalled = false
     private var galaxyInstalled = false
+    private var kaizoInstalled = false
     private var eclipseInstalled = false
     private var msmbwiiInstalled = false
     private fun refreshNsmbInstalled() {
         nsmbInstalled = runCatching { ThorGameLaunch.nsmbInstalled(this) }.getOrDefault(false)
         sunshineInstalled = runCatching { ThorGameLaunch.sunshineInstalled(this) }.getOrDefault(false)
         galaxyInstalled = runCatching { ThorGameLaunch.galaxyInstalled(this) }.getOrDefault(false)
+        kaizoInstalled = runCatching { ThorGameLaunch.kaizoInstalled(this) }.getOrDefault(false)
         eclipseInstalled = runCatching { ThorGameLaunch.eclipseInstalled(this) }.getOrDefault(false)
         msmbwiiInstalled = runCatching { ThorGameLaunch.msmbwiiInstalled(this) }.getOrDefault(false)
     }
@@ -872,12 +947,17 @@ class ModePickerActivity : Activity() {
             otherGameButtons[button] = shown
         }
         gameButton("Your games", Color.rgb(0x4C, 0x8D, 0xF2), Color.rgb(0x1E, 0x5B, 0xC6), { true }) { openGames() }
+        if (BuildConfig.THOR_BUILD) gameButton("Game shortcuts", Color.rgb(0x4C, 0x8D, 0xF2), Color.rgb(0x1E, 0x5B, 0xC6), { true }) { GameShortcuts.show(this) }
+        if (BuildConfig.THOR_BUILD) gameButton("Save manager", Color.rgb(0x4C, 0x8D, 0xF2), Color.rgb(0x1E, 0x5B, 0xC6), { true }) {
+            startActivity(Intent(this, SaveManagerActivity::class.java))
+        }
         root.addView(baseButton, buttonParams)
         gameButton("New Super Mario Bros. Wii", Color.rgb(0xF2, 0x5C, 0x4C), Color.rgb(0xD1, 0x2A, 0x1E), { nsmbInstalled }) { launchNsmbFromLibrary() }
         gameButton("MSMBWii: Just a Little Adventure", Color.rgb(0x7A, 0x5C, 0xE6), Color.rgb(0x4B, 0x34, 0xB4), { msmbwiiInstalled }) { launchMsmbwiiFromLibrary() }
         gameButton("Super Mario Sunshine", Color.rgb(0xF5, 0xA6, 0x23), Color.rgb(0xD9, 0x7A, 0x10), { sunshineInstalled }) { launchSunshineFromLibrary() }
         gameButton("Super Mario Eclipse", Color.rgb(0xA5, 0x7F, 0xD0), Color.rgb(0x55, 0x36, 0x88), { eclipseInstalled }) { launchEclipseFromLibrary() }
         gameButton("Super Mario Galaxy", Color.rgb(0x48, 0x91, 0xD8), Color.rgb(0x16, 0x43, 0x82), { galaxyInstalled }) { launchGalaxyFromLibrary() }
+        gameButton("Kaizo Mario Galaxy Rebalanced", Color.rgb(0x48, 0x91, 0xD8), Color.rgb(0x16, 0x43, 0x82), { kaizoInstalled }) { launchKaizoFromLibrary() }
         root.addView(retroRow, retroRowParams)
         root.addView(miiDataButton, miiDataButtonParams)
         root.addView(progressBar, progressParams)
@@ -1024,6 +1104,12 @@ class ModePickerActivity : Activity() {
      * It never begins a runtime itself. The real launch action still re-checks everything.
      */
     private fun thorLaunchBlocker(product: Int): String? {
+        SaveManagerProfiles.blocker(this)?.let { return it }
+        if (product == KAIZO_CASE) {
+            refreshNsmbInstalled()
+            if (!kaizoInstalled) mainHandler.post { openGames() }
+            return if (kaizoInstalled) null else "Set up Kaizo Rebalanced first."
+        }
         if (product == GALAXY_CASE) {
             refreshNsmbInstalled()
             return if (galaxyInstalled) null else "Set up Super Mario Galaxy first."
@@ -1172,6 +1258,10 @@ class ModePickerActivity : Activity() {
     }
 
     private fun launchProduct(product: String, romPath: String? = null) {
+        SaveManagerProfiles.blocker(this)?.let {
+            Toast.makeText(this, it, Toast.LENGTH_LONG).show()
+            return
+        }
         if (BuildConfig.THOR_BUILD && (ThorRetroRewindUpdateStatus.snapshot.running ||
                 ThorUpdateRestart.requested(this) || ThorRetroRewindUpdateService.needsRecovery(this) || !ThorGameSession.tryBeginRuntime())) {
             openThorRetroRewindUpdates()
@@ -1772,6 +1862,7 @@ class ModePickerActivity : Activity() {
     companion object {
         /** The Games screen opens by itself at most once per launch. */
         private var gamesOfferedThisProcess = false
+        internal const val EXTRA_FRONTEND_GAME = "wiids_frontend_game"
         internal const val EXTRA_RESTART_PRODUCT = "thor_restart_product"
         private const val REQUEST_CODE_PICK_RETRO_REWIND_FOLDER = 0x52520000 // "RR"
         private const val REQUEST_CODE_PICK_RETRO_REWIND_ZIP = 0x52520001
@@ -1782,10 +1873,14 @@ class ModePickerActivity : Activity() {
         private const val REQUEST_CODE_IMPORT_MII_DATA = 0x52520004
         private const val REQUEST_CODE_IMPORT_SINGLE_MII = 0x52520005
         /** Existing shelf order is stable; Eclipse follows Sunshine in its GameCube stack. */
-        private const val LIBRARY_CASES = 7
+        private const val LIBRARY_CASES = 8
         /** Base game first, then its mods: they share one stack on the main shelf. */
-        private val LIBRARY_BUNDLES = listOf(listOf(0, 1), listOf(2, 3), listOf(4, 5), listOf(6))
+        private val LIBRARY_BUNDLES = listOf(listOf(0, 1), listOf(2, 3), listOf(4, 5), listOf(6, 7))
+        /** Stable game identity of each library case, in shelf order. */
+        private val LIBRARY_GAMES = listOf(FrontendGame.MARIO_KART, FrontendGame.RETRO_REWIND, FrontendGame.NSMB, FrontendGame.MSMBWII,
+            FrontendGame.SUNSHINE, FrontendGame.ECLIPSE, FrontendGame.GALAXY, FrontendGame.KAIZO)
         private const val GALAXY_CASE = ThorLibraryCompanionView.GALAXY
+        private const val KAIZO_CASE = ThorLibraryCompanionView.KAIZO
         private const val NSMB_CASE = ThorLibraryCompanionView.NSMB
         private const val SUNSHINE_CASE = ThorLibraryCompanionView.SUNSHINE
         private const val ECLIPSE_CASE = ThorLibraryCompanionView.ECLIPSE

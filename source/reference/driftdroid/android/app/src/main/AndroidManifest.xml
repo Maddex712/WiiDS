@@ -59,6 +59,29 @@
             </intent-filter>
         </activity>
 
+        <activity android:name=".achievements.AchievementsActivity" android:exported="false"
+            android:screenOrientation="sensorLandscape" android:theme="@android:style/Theme.Black.NoTitleBar.Fullscreen" />
+
+        <activity android:name=".SaveManagerActivity" android:exported="false"
+            android:screenOrientation="sensorLandscape"
+            android:configChanges="orientation|screenSize|screenLayout|keyboardHidden"
+            android:theme="@android:style/Theme.Material.NoActionBar" />
+
+        <activity android:name=".FrontendLaunchActivity" android:exported="true"
+            android:launchMode="singleTask" android:screenOrientation="sensorLandscape"
+            android:taskAffinity="${applicationId}.frontend" android:excludeFromRecents="true">
+            <intent-filter>
+                <action android:name="io.github.maddex712.wiids.action.PLAY" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="wiids" android:host="play" />
+            </intent-filter>
+        </activity>
+
         <activity
             android:name=".MainActivity"
             android:exported="${gameActivityExported}"
@@ -157,6 +180,11 @@
             android:exported="false"
             android:foregroundServiceType="dataSync" />
 
+        <activity android:name="dev.thor.galaxy.KaizoActivities$Launch" android:exported="false" android:process=":galaxy_kaizo" android:screenOrientation="landscape" />
+        <activity android:name="dev.thor.galaxy.KaizoActivities$Game" android:exported="false" android:process=":galaxy_kaizo_game" android:screenOrientation="landscape" android:launchMode="singleTask" android:theme="@android:style/Theme.Black.NoTitleBar.Fullscreen" android:configChanges="density|keyboard|keyboardHidden|navigation|orientation|screenLayout|screenSize|uiMode">
+            <meta-data android:name="android.app.lib_name" android:value="main" />
+        </activity>
+        <activity android:name="dev.thor.galaxy.KaizoActivities$Import" android:exported="false" android:process=":galaxy_kaizo_import" android:screenOrientation="landscape" android:theme="@android:style/Theme.Material.NoActionBar" />
         <!-- Galaxy is package-internal and non-debuggable. Native memory is relocated below 4 GB. -->
         <activity android:name="dev.thor.galaxy.ThorLaunchActivity" android:exported="false" android:process=":galaxy" android:screenOrientation="landscape" />
         <activity android:name="dev.thor.galaxy.GalaxyActivity" android:exported="false" android:process=":galaxy_game" android:screenOrientation="landscape" android:launchMode="singleTask" android:theme="@android:style/Theme.Black.NoTitleBar.Fullscreen" android:configChanges="density|keyboard|keyboardHidden|navigation|orientation|screenLayout|screenSize|uiMode">

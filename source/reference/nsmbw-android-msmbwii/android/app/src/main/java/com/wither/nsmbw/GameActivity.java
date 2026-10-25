@@ -60,6 +60,7 @@ public final class GameActivity extends SDLActivity
     private boolean bootWidescreen;  // the game reads 4:3 versus widescreen once, when it starts
     private TouchControlsView touch;
     private MotionInput motion;
+    private boolean motionResumed;
     private boolean nativeReady;
     private ThorLowerScreen lowerScreen;
     private int touchButtons;
@@ -151,6 +152,7 @@ public final class GameActivity extends SDLActivity
     @Override
     protected void onResume() {
         super.onResume();
+        motionResumed = true;
         menuPoll.removeCallbacks(pollMenu);
         menuPoll.post(pollMenu);
         hideSystemBars();
@@ -197,6 +199,7 @@ public final class GameActivity extends SDLActivity
 
     @Override
     protected void onPause() {
+        motionResumed = false;
         if (lowerScreen != null) lowerScreen.stop();
         menuPoll.removeCallbacks(pollMenu);
         if (motion != null) motion.stop();
@@ -209,8 +212,10 @@ public final class GameActivity extends SDLActivity
         super.onWindowFocusChanged(hasFocus);
         if (hasFocus) {
             hideSystemBars();
+            if (motion != null && motionResumed) motion.start(settings.motionTilt(), settings.motionShake());
         } else if (touch != null) {
             touch.release();  // a dialog or the shade took the screen: let go of every button
+            if (motion != null) motion.stop();
         }
     }
 

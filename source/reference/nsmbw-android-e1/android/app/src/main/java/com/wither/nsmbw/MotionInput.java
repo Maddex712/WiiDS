@@ -32,6 +32,7 @@ final class MotionInput implements SensorEventListener {
     private final Sensor accelerometer;
     private final float[] gravity = new float[3];
     private boolean haveGravity;
+    private boolean active;
     private boolean tiltOn, shakeOn;
     private long shakeUntil;
     private float lastTilt;
@@ -45,15 +46,21 @@ final class MotionInput implements SensorEventListener {
     }
 
     void start(boolean tilt, boolean shake) {
+        stop();
         tiltOn = tilt;
         shakeOn = shake;
         haveGravity = false;
         if (accelerometer != null && (tilt || shake)) {
-            sensors.registerListener(this, accelerometer, SensorManager.SENSOR_DELAY_GAME);
+            active = sensors.registerListener(this, accelerometer, SensorManager.SENSOR_DELAY_GAME);
         }
+        android.util.Log.i("NSMBMotion", "tilt=" + tilt + " shake=" + shake
+                + " accelerometer=" + (accelerometer != null) + " active=" + active);
     }
 
     void stop() {
+        active = false;
+        shakeUntil = 0;
+        haveGravity = false;
         if (sensors != null) {
             sensors.unregisterListener(this);
         }
@@ -62,7 +69,9 @@ final class MotionInput implements SensorEventListener {
 
     @Override
     public void onSensorChanged(SensorEvent event) {
+        if (!active || event == null || event.values == null || event.values.length < 3) return;
         final float[] v = event.values;
+        if (!Float.isFinite(v[0]) || !Float.isFinite(v[1]) || !Float.isFinite(v[2])) return;
         if (!haveGravity) {
             System.arraycopy(v, 0, gravity, 0, 3);
             haveGravity = true;

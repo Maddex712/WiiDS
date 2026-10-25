@@ -1,3 +1,5 @@
+#include "port/profile.h"
+#include "port/kaizo.h"
 // Flat-screen Android Mobile application entry point (AOSP / Phones).
 // Modularized into decoupled OOP components under ui/, system/, display/, input/, render/, and core/.
 
@@ -12,6 +14,8 @@ extern "C" {
 
 __attribute__((visibility("default"))) void port_android_main(
     struct android_app* app, uintptr_t windowBase, size_t windowSize) {
+    port_profile_configure(app->activity->internalDataPath, app->activity->externalDataPath);
+    port_kaizo_configure(app->activity->internalDataPath, app->activity->externalDataPath);
     mobile_core::MobileApp::get().run(app, windowBase, windowSize);
 }
 

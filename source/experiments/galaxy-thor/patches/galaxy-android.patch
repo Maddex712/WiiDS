@@ -110,6 +110,149 @@ index fe8f9ea..c58205c 100644
  
  #define OSRoundUp32B(x) (((u32)(x) + 32 - 1) & ~(32 - 1))
  #define OSRoundDown32B(x) (((u32)(x)) & ~(32 - 1))
+diff --git a/decomp/src/Game/Boss/BossKameckBarrier.cpp b/decomp/src/Game/Boss/BossKameckBarrier.cpp
+index 72142fd..6602db8 100644
+--- a/decomp/src/Game/Boss/BossKameckBarrier.cpp
++++ b/decomp/src/Game/Boss/BossKameckBarrier.cpp
+@@ -1,3 +1,4 @@
++#include "port/kaizo.h"
+ #include "Game/Boss/BossKameckBarrier.hpp"
+ #include "Game/LiveActor/Nerve.hpp"
+ #include "Game/Util/ActorSensorUtil.hpp"
+@@ -13,6 +14,7 @@ BossKameckBarrier::BossKameckBarrier(const char* pName, const char* pModelName)
+ 
+ void BossKameckBarrier::init(const JMapInfoIter& rIter) {
+     MR::initDefaultPos(this, rIter);
++    if (port_kaizo_enabled()) mPosition.y += -1500.0f; // XML 0x80001800 contains -1500.0f, called at 0x800382B8.
+     initModelManagerWithAnm(mModelName, nullptr, false);
+     MR::connectToSceneEnemy(this);
+     initHitSensor(1);
+diff --git a/decomp/src/Game/Boss/DodoryuStateLv1.cpp b/decomp/src/Game/Boss/DodoryuStateLv1.cpp
+index ebb1b6b..a732ed4 100644
+--- a/decomp/src/Game/Boss/DodoryuStateLv1.cpp
++++ b/decomp/src/Game/Boss/DodoryuStateLv1.cpp
+@@ -1,3 +1,4 @@
++#include "port/kaizo.h"
+ #include "Game/Boss/DodoryuStateLv1.hpp"
+ #include "Game/Boss/Dodoryu.hpp"
+ #include "Game/LiveActor/HitSensor.hpp"
+@@ -342,7 +343,7 @@ bool DodoryuStateLv1::catchPlayerAttack(u32 msg, HitSensor* pSender, HitSensor*
+         return true;
+     }
+ 
+-    if (MR::isMsgPlayerHitAll(msg)) {
++    if (port_kaizo_enabled() ? MR::isMsgJetTurtleAttack(msg) : MR::isMsgPlayerHitAll(msg)) {
+         _98.set(pReceiver->mPosition - pSender->mPosition);
+ 
+         if (!calcVerticalizedDir(&_98, _98)) {
+diff --git a/decomp/src/Game/Boss/DodoryuStateLv2.cpp b/decomp/src/Game/Boss/DodoryuStateLv2.cpp
+index 237e5f1..36ad90c 100644
+--- a/decomp/src/Game/Boss/DodoryuStateLv2.cpp
++++ b/decomp/src/Game/Boss/DodoryuStateLv2.cpp
+@@ -1,3 +1,4 @@
++#include "port/kaizo.h"
+ #include "Game/Boss/DodoryuStateLv2.hpp"
+ #include "Game/Boss/Dodoryu.hpp"
+ #include "Game/LiveActor/HitSensor.hpp"
+@@ -690,7 +691,7 @@ bool DodoryuStateLv2::catchPlayerAttack(u32 msg, HitSensor* pSender, HitSensor*
+         return true;
+     }
+ 
+-    if (MR::isMsgPlayerHitAll(msg)) {
++    if (port_kaizo_enabled() ? MR::isMsgJetTurtleAttack(msg) : MR::isMsgPlayerHitAll(msg)) {
+         TVec3f attackDir = pReceiver->mPosition;
+         attackDir.sub(pSender->mPosition);
+         _A0.set(attackDir);
+diff --git a/decomp/src/Game/Boss/SkeletalFishBaby.cpp b/decomp/src/Game/Boss/SkeletalFishBaby.cpp
+index dd4da66..a9209b7 100644
+--- a/decomp/src/Game/Boss/SkeletalFishBaby.cpp
++++ b/decomp/src/Game/Boss/SkeletalFishBaby.cpp
+@@ -1,3 +1,4 @@
++#include "port/kaizo.h"
+ #include "Game/Boss/SkeletalFishBaby.hpp"
+ #include "Game/Boss/SkeletalFishJointCalc.hpp"
+ #include "Game/Boss/SkeletalFishRailControl.hpp"
+@@ -264,7 +265,7 @@ bool SkeletalFishBaby::damage(const TVec3f& rAirBubblePos, bool shakeCameraNorma
+             MR::shakeCameraWeak();
+         }
+ 
+-        MR::appearAirBubble(rAirBubblePos, -1);
++        if (!port_kaizo_enabled()) MR::appearAirBubble(rAirBubblePos, -1);
+         setNerve(GET_NERVE_ANON(SkeletalFishBabyNrvBreak));
+         return true;
+     }
+diff --git a/decomp/src/Game/Enemy/BegomanBaby.cpp b/decomp/src/Game/Enemy/BegomanBaby.cpp
+index a8ac30d..ef2dfe9 100644
+--- a/decomp/src/Game/Enemy/BegomanBaby.cpp
++++ b/decomp/src/Game/Enemy/BegomanBaby.cpp
+@@ -1,3 +1,4 @@
++#include "port/kaizo.h"
+ #include "Game/Enemy/BegomanBaby.hpp"
+ #include "Game/LiveActor/Nerve.hpp"
+ #include "Game/Util/ActorMovementUtil.hpp"
+@@ -172,7 +173,7 @@ void BegomanBaby::control() {
+         }
+     }
+ 
+-    if (MR::isBindedGroundDamageFire(this)) {
++    if (!port_kaizo_enabled() && MR::isBindedGroundDamageFire(this)) {
+         killWithGenItem();
+         MR::emitEffect(this, "Fall");
+         return;
+diff --git a/decomp/src/Game/Enemy/BegomanSpike.cpp b/decomp/src/Game/Enemy/BegomanSpike.cpp
+index 20f7645..7afd331 100644
+--- a/decomp/src/Game/Enemy/BegomanSpike.cpp
++++ b/decomp/src/Game/Enemy/BegomanSpike.cpp
+@@ -1,3 +1,4 @@
++#include "port/kaizo.h"
+ #include "Game/Enemy/BegomanSpike.hpp"
+ #include "Game/Enemy/BegomanSpringHead.hpp"
+ #include "Game/LiveActor/HitSensor.hpp"
+@@ -211,7 +212,7 @@ void BegomanSpike::control() {
+         }
+     }
+ 
+-    if (MR::isBindedGroundDamageFire(this)) {
++    if (!port_kaizo_enabled() && MR::isBindedGroundDamageFire(this)) {
+         kill();
+         MR::emitEffect(this, "Fall");
+         return;
+diff --git a/decomp/src/Game/Enemy/BegomanSpring.cpp b/decomp/src/Game/Enemy/BegomanSpring.cpp
+index e10d0af..92b4ab8 100644
+--- a/decomp/src/Game/Enemy/BegomanSpring.cpp
++++ b/decomp/src/Game/Enemy/BegomanSpring.cpp
+@@ -1,3 +1,4 @@
++#include "port/kaizo.h"
+ 
+ #include "Game/Enemy/BegomanSpring.hpp"
+ #include "Game/Enemy/BegomanBaby.hpp"
+@@ -239,7 +240,7 @@ void BegomanSpring::control() {
+         }
+     }
+ 
+-    if (MR::isBindedGroundDamageFire(this)) {
++    if (!port_kaizo_enabled() && MR::isBindedGroundDamageFire(this)) {
+         makeActorDead();
+         MR::emitEffect(this, "Fall");
+         return;
+diff --git a/decomp/src/Game/Enemy/WaterBazooka.cpp b/decomp/src/Game/Enemy/WaterBazooka.cpp
+index af3a96e..eddcfb9 100644
+--- a/decomp/src/Game/Enemy/WaterBazooka.cpp
++++ b/decomp/src/Game/Enemy/WaterBazooka.cpp
+@@ -1,3 +1,4 @@
++#include "port/kaizo.h"
+ #include "Game/Enemy/WaterBazooka.hpp"
+ #include "Game/Camera/CameraTargetObj.hpp"
+ #include "Game/Enemy/ElectricPressureBullet.hpp"
+@@ -943,7 +944,7 @@ bool WaterBazooka::tryShotBullet() {
+     if (mIsElectric) {
+         static_cast< ElectricPressureBullet* >(bullet)->shotElectricBullet(this, posMtx, ::sElectricBulletSpeed);
+     } else {
+-        static_cast< WaterPressureBullet* >(bullet)->shotWaterBullet(this, posMtx, 40.0f, true, true, false, &mCameraInfo);
++        static_cast< WaterPressureBullet* >(bullet)->shotWaterBullet(this, posMtx, 40.0f, true, true, port_kaizo_enabled(), &mCameraInfo);
+     }
+ 
+     return true;
 diff --git a/decomp/src/Game/LiveActor/DisplayListMaker.cpp b/decomp/src/Game/LiveActor/DisplayListMaker.cpp
 index d63b100..6c25ebe 100644
 --- a/decomp/src/Game/LiveActor/DisplayListMaker.cpp
@@ -250,6 +393,71 @@ index cb099c0..e6d2abe 100644
      if (MR::isFirstStep(this)) {
          mSysInfoWindow->appear("System_FileSelect001", SysInfoWindow::Type_YesNo, SysInfoWindow::TextPos_Center, SysInfoWindow::MessageType_System);
          mSysInfoWindow->setYesNoSelectorSE("SE_SY_BUTTON_CURSOR_ON", "SE_SY_FILE_SEL_NEW_FILE", "SE_SY_TALK_SELECT_NO");
+diff --git a/decomp/src/Game/MapObj/FlipPanel.cpp b/decomp/src/Game/MapObj/FlipPanel.cpp
+index 6716b88..039a734 100644
+--- a/decomp/src/Game/MapObj/FlipPanel.cpp
++++ b/decomp/src/Game/MapObj/FlipPanel.cpp
+@@ -1,3 +1,4 @@
++#include "port/kaizo.h"
+ #include "Game/MapObj/FlipPanel.hpp"
+ #include "Game/LiveActor/HitSensor.hpp"
+ #include "Game/LiveActor/LiveActorGroupArray.hpp"
+@@ -52,7 +53,7 @@ void FlipPanel::init(const JMapInfoIter& rIter) {
+     initialize(rIter, info);
+     mIsReverse = isObjectName("FlipPanelReverse");
+     mDelegator = MR::createJointDelegatorWithNullChildFunc(this, &FlipPanel::calcJointMove, "Panel");
+-    mFlipPanelGroup = MR::joinToGroupArray(this, rIter, 0, 0x20);
++    mFlipPanelGroup = MR::joinToGroupArray(this, rIter, 0, port_kaizo_enabled() ? 0x80 : 0x20);
+     MR::invalidateClipping(this);
+     MR::startBck(this, "PanelB");
+     f32 frameMax = MR::getBckFrameMax(this);
+@@ -275,7 +276,7 @@ void FlipPanelObserver::init(const JMapInfoIter& rIter) {
+     initHitSensor(1);
+     MR::addBodyMessageSensorMapObj(this);
+     MR::invalidateClipping(this);
+-    _8C = MR::joinToGroupArray(this, rIter, 0, 0x20);
++    _8C = MR::joinToGroupArray(this, rIter, 0, port_kaizo_enabled() ? 0x80 : 0x20);
+     MR::useStageSwitchWriteA(this, rIter);
+     initSound(2, false);
+     MR::getJMapInfoArg7NoInit(rIter, &mPowerStarId);
+diff --git a/decomp/src/Game/NPC/KinopioAstro.cpp b/decomp/src/Game/NPC/KinopioAstro.cpp
+index dcf9a67..21a2e8d 100644
+--- a/decomp/src/Game/NPC/KinopioAstro.cpp
++++ b/decomp/src/Game/NPC/KinopioAstro.cpp
+@@ -1,3 +1,4 @@
++#include "port/kaizo.h"
+ #include "Game/NPC/KinopioAstro.hpp"
+ #include "Game/Demo/AstroDemoFunction.hpp"
+ #include "Game/Demo/DemoFunction.hpp"
+@@ -127,11 +128,11 @@ bool KinopioAstro::eventFunc(u32 letterEvent) {
+         return false;
+     } else if (letterEvent == LetterEvent_PeachLetter1Ups) {
+         if (mIsPlayerLuigi) {
+-            for (s32 i = 0; i < ::sMessangerOneUpExNum; i++) {
++            for (s32 i = 0; i < (port_kaizo_enabled() ? 99 : ::sMessangerOneUpExNum); i++) {
+                 MR::incPlayerLeft();
+             }
+ 
+-            MR::getGameSceneLayoutHolder()->requestOneUp(::sMessangerOneUpExNum);
++            MR::getGameSceneLayoutHolder()->requestOneUp(port_kaizo_enabled() ? 99 : ::sMessangerOneUpExNum);
+             MR::startSystemSE("SE_SY_5UP");
+         } else {
+             for (s32 i = 0; i < ::sMessangerOneUpNum; i++) {
+@@ -200,12 +201,12 @@ void KinopioAstro::init(const JMapInfoIter& rIter) {
+             mPeachLetter = new PeachLetter("\x83\x73\x81\x5b\x83\x60\x95\x50\x82\xa9\x82\xe7\x82\xcc\x8e\xe8\x8e\x86");
+             mPeachLetter->initWithoutIter();
+             _194 = true;
+-            if (MR::isLuigiLeftSupply()) {
++            if (port_kaizo_enabled() || MR::isLuigiLeftSupply()) {
+                 mIsPlayerLuigi = true;
+             }
+ 
+             if (mIsPlayerLuigi) {
+-                MR::setMessageArg(mMsgCtrl, ::sMessangerOneUpExNum);
++                MR::setMessageArg(mMsgCtrl, port_kaizo_enabled() ? 99 : ::sMessangerOneUpExNum);
+             } else {
+                 MR::setMessageArg(mMsgCtrl, ::sMessangerOneUpNum);
+             }
 diff --git a/decomp/src/Game/Scene/GameScene.cpp b/decomp/src/Game/Scene/GameScene.cpp
 index 6e8133b..1d04f8f 100644
 --- a/decomp/src/Game/Scene/GameScene.cpp
@@ -427,6 +635,50 @@ index fd06f13..d1c9119 100644
 +    LayoutActor::draw();
 +}
 +#endif
+diff --git a/decomp/src/Game/System/GalaxyCometScheduler.cpp b/decomp/src/Game/System/GalaxyCometScheduler.cpp
+index ace3239..0852cc8 100644
+--- a/decomp/src/Game/System/GalaxyCometScheduler.cpp
++++ b/decomp/src/Game/System/GalaxyCometScheduler.cpp
+@@ -1,3 +1,4 @@
++#include "port/kaizo.h"
+ #include "Game/System/GalaxyCometScheduler.hpp"
+ #include "Game/System/GalaxyCometState.hpp"
+ #include "Game/System/GalaxyStatusAccessor.hpp"
+@@ -287,7 +288,7 @@ void GalaxyCometTimeTable::advance() {
+ GalaxyCometScheduler::GalaxyCometScheduler() : mTimeTables(), mEnabled(true) {
+     mTimeTables.init(6);
+     for (s32 i = 0; i < mTimeTables.size(); i++) {
+-        mTimeTables[i] = new GalaxyCometTimeTable(sGalaxyCometTimerPaper[i]);
++        mTimeTables[i] = new GalaxyCometTimeTable(port_kaizo_comet_table(i, sGalaxyCometTimerPaper[i]));
+     }
+ }
+ 
+diff --git a/decomp/src/Game/System/GameEventFlagTable.cpp b/decomp/src/Game/System/GameEventFlagTable.cpp
+index 98405a7..b3d736f 100644
+--- a/decomp/src/Game/System/GameEventFlagTable.cpp
++++ b/decomp/src/Game/System/GameEventFlagTable.cpp
+@@ -1,3 +1,4 @@
++#include "port/kaizo.h"
+ #include "Game/System/GameEventFlagTable.hpp"
+ #include "Game/Util/HashUtil.hpp"
+ #include "Game/Util/JMapInfo.hpp"
+@@ -9,7 +10,7 @@
+ extern const JMapData GalaxyIDBCSV;
+ 
+ namespace {
+-    static const GameEventFlag sGameEventFlagStatic[] = {
++    static GameEventFlag sGameEventFlagStatic[] = {
+         {"AppearFlipPanelExGalaxy", GameEventFlag::Type_GalaxyOpenStar, 1, 0, 0, 0, "FlipPanelExGalaxy", 0},
+         {"AppearSurfingLv1Galaxy", GameEventFlag::Type_GalaxyOpenStar, 1, 0, 0, 0, "SurfingLv1Galaxy", 0},
+         {"AppearTamakoroExLv1Galaxy", GameEventFlag::Type_GalaxyOpenStar, 1, 0, 0, 0, "TamakoroExLv1Galaxy", 0},
+@@ -234,6 +235,7 @@ bool GameEventFlagIter::isValid() const {
+ }
+ 
+ GameEventFlagTableInstance::GameEventFlagTableInstance() : mSortTable(nullptr), mLength(0) {
++    port_kaizo_apply_flags(::sGameEventFlagStatic, ARRAY_SIZE(::sGameEventFlagStatic));
+     initSortTable();
+ }
+ 
 diff --git a/decomp/src/Game/System/GameSystem.cpp b/decomp/src/Game/System/GameSystem.cpp
 index e454600..3b7458b 100644
 --- a/decomp/src/Game/System/GameSystem.cpp
@@ -480,6 +732,55 @@ index bb5cffb..4d2f27d 100644
      bool stopSound = isStopSound();
  
      Scene* pScene = mScene;
+diff --git a/decomp/src/Game/Util/SceneUtil.cpp b/decomp/src/Game/Util/SceneUtil.cpp
+index 33ad591..036602c 100644
+--- a/decomp/src/Game/Util/SceneUtil.cpp
++++ b/decomp/src/Game/Util/SceneUtil.cpp
+@@ -1,3 +1,4 @@
++#include "port/kaizo.h"
+ #include "Game/Util/SceneUtil.hpp"
+ #include "Game/NameObj/NameObjFinder.hpp"
+ #include "Game/Scene/PlacementStateChecker.hpp"
+@@ -156,7 +157,7 @@ namespace MR {
+     }
+ 
+     bool isStageSuddenDeathDodoryu() {
+-        return isEqualStageName("CosmosGardenGalaxy") && getCurrentScenarioNo() == 4;
++        return !port_kaizo_enabled() && isEqualStageName("CosmosGardenGalaxy") && getCurrentScenarioNo() == 4;
+     }
+ 
+     void setInitializeStatePlacementPlayer() {
+@@ -262,7 +263,7 @@ namespace MR {
+ 
+     s32 getPlacedHiddenStarScenarioNo(const char* pStageName, s32 starId) {
+         GalaxyStatusAccessor accessor = makeGalaxyStatusAccessor(pStageName);
+-        s32 scenarioNo = getPlacedHiddenStarScenarioNoFromTable(pStageName, starId);
++        s32 scenarioNo = port_kaizo_enabled() ? 0 : getPlacedHiddenStarScenarioNoFromTable(pStageName, starId);
+         if (scenarioNo > 0) {
+             return scenarioNo;
+         }
+diff --git a/decomp/src/Game/Util/SequenceUtil.cpp b/decomp/src/Game/Util/SequenceUtil.cpp
+index 01ca818..fcb2eaa 100644
+--- a/decomp/src/Game/Util/SequenceUtil.cpp
++++ b/decomp/src/Game/Util/SequenceUtil.cpp
+@@ -1,7 +1,9 @@
++#include "port/kaizo.h"
+ #include "Game/Util/SequenceUtil.hpp"
+ #include "Game/Scene/GameSceneFunction.hpp"
+ #include "Game/System/GalaxyMoveArgument.hpp"
+ #include "Game/System/GameSequenceFunction.hpp"
++#include "Game/System/GameDataFunction.hpp"
+ #include "Game/System/GameSystem.hpp"
+ #include "Game/System/GameSystemSceneController.hpp"
+ #include "Game/Util/EventUtil.hpp"
+@@ -42,6 +44,7 @@ namespace MR {
+         argument._C = pSceneController->getCurrentSelectedScenarioNo();
+ 
+         GameSequenceFunction::requestGalaxyMove(argument);
++        if (port_kaizo_enabled()) GameDataFunction::addStarPiece(-999);
+     }
+ 
+     void requestChangeStageInGameMoving(const char* pStageName, s32 scenarioNo, const JMapIdInfo& rInfo) {
 diff --git a/decomp/src/Game/Util/StarPointerUtil.cpp b/decomp/src/Game/Util/StarPointerUtil.cpp
 index e2876d1..f7a21e2 100644
 --- a/decomp/src/Game/Util/StarPointerUtil.cpp
@@ -650,7 +951,7 @@ index 22d1f58..3df4768 100644
  static __GXFifoObj CPUFifo;
  static __GXFifoObj GPFifo;
 diff --git a/installer-mobile/jni/py_bridge.cpp b/installer-mobile/jni/py_bridge.cpp
-index e9526da..2dd650b 100644
+index e9526da..5081764 100644
 --- a/installer-mobile/jni/py_bridge.cpp
 +++ b/installer-mobile/jni/py_bridge.cpp
 @@ -158,15 +158,19 @@ Java_com_galaxy_installer_CookerEngine_runCooker(
@@ -680,10 +981,23 @@ index e9526da..2dd650b 100644
      sendLogToJava("[Native] Python engine initialized.");
  
      if (!setPythonGlobals(scriptsDir, inputDir, outputDir, withMovies)) {
-@@ -212,6 +216,12 @@ Java_com_galaxy_installer_CookerEngine_runCooker(
+@@ -203,6 +207,10 @@ Java_com_galaxy_installer_CookerEngine_runCooker(
+         "    android_bridge.progress_bridge(pct, msg)\n"
+         "try:\n"
+         "    print('[Engine] Beginning conversion...')\n"
++        "    _kaizo = None\n"
++        "    if os.path.isfile(os.path.join(_port_input, '.wiids-kaizo.zip')):\n"
++        "        import kaizo_patch as _kaizo\n"
++        "        _kaizo.apply(_port_input, os.path.join(_port_input, '.wiids-kaizo.zip'))\n"
+         "    ret = cook.convert(\n"
+         "        data_dir=_port_input,\n"
+         "        out_dir=_port_output,\n"
+@@ -212,6 +220,14 @@ Java_com_galaxy_installer_CookerEngine_runCooker(
          "    if ret != 0:\n"
          "        raise RuntimeError(f'cook.convert returned non-zero code {ret}')\n"
          "    print('[Engine] Cooking completed successfully!')\n"
++        "    if _kaizo is not None:\n"
++        "        _kaizo.finish(_port_input, _port_output)\n"
 +        "    import importlib.util\n"
 +        "    lower_path = os.path.join(_port_scripts, 'experiments/galaxy-thor/LowerAssets.py')\n"
 +        "    spec = importlib.util.spec_from_file_location('wiids_lower', lower_path)\n"
@@ -693,7 +1007,7 @@ index e9526da..2dd650b 100644
          "except BaseException as e:\n"
          "    import traceback\n"
          "    print('[ERROR] ' + str(e))\n"
-@@ -224,10 +234,8 @@ Java_com_galaxy_installer_CookerEngine_runCooker(
+@@ -224,10 +240,8 @@ Java_com_galaxy_installer_CookerEngine_runCooker(
          reportPythonException();
      }
  
@@ -920,23 +1234,30 @@ index 3671e01..a43fdf4 100644
  int port_mem_init(void);
  // The disc's ID (game code + maker, 6 characters), which the console's
 diff --git a/platform/mobile/core/GameBooter.cpp b/platform/mobile/core/GameBooter.cpp
-index 5ed0c97..c76386f 100644
+index 5ed0c97..6af3801 100644
 --- a/platform/mobile/core/GameBooter.cpp
 +++ b/platform/mobile/core/GameBooter.cpp
-@@ -45,7 +45,7 @@ void GameBooter::pollAndBoot(bool& gameBooted, std::string& dataRoot, const std:
+@@ -1,3 +1,4 @@
++#include "port/profile.h"
+ #include "GameBooter.h"
+ 
+ #include <android/log.h>
+@@ -45,7 +46,7 @@ void GameBooter::pollAndBoot(bool& gameBooted, std::string& dataRoot, const std:
          if (now - lastLog > 2000000000ll) {
              lastLog = now;
              missingCount++;
 -            LOGI("Waiting for game files in /sdcard/GalaxyData or %s/game (attempt %d)", extDir.c_str(), missingCount);
-+            LOGI("Waiting for game files in /sdcard/Android/data/io.github.maddex712.wiids/files/galaxy/GalaxyData or %s/game (attempt %d)", extDir.c_str(), missingCount);
++            LOGI("Waiting for game files in the active profile or %s/game (attempt %d)", extDir.c_str(), missingCount);
              dataRoot = mobile_system::StorageManager::findGameData(extDir);
              if (dataRoot.empty() && missingCount >= 2) {
                  mobile_system::SystemManager::returnToLauncher(app);
 diff --git a/platform/mobile/core/MobileApp.cpp b/platform/mobile/core/MobileApp.cpp
-index b00cf4a..fd5a973 100644
+index b00cf4a..70e4230 100644
 --- a/platform/mobile/core/MobileApp.cpp
 +++ b/platform/mobile/core/MobileApp.cpp
-@@ -1,6 +1,7 @@
+@@ -1,6 +1,9 @@
++#include "port/profile.h"
++#include "port/kaizo.h"
  #include "MobileApp.h"
  
  #include <android/log.h>
@@ -944,7 +1265,7 @@ index b00cf4a..fd5a973 100644
  #include <atomic>
  #include <ctype.h>
  #include <math.h>
-@@ -14,6 +15,8 @@
+@@ -14,6 +17,8 @@
  #include "../render/VulkanLifecycle.h"
  #include "../system/StorageManager.h"
  #include "../system/SystemManager.h"
@@ -953,7 +1274,7 @@ index b00cf4a..fd5a973 100644
  #include "../ui/UIOverlay.h"
  #include "port/port.h"
  
-@@ -76,8 +79,11 @@ void MobileApp::handleAppCmd(int32_t cmd) {
+@@ -76,8 +81,11 @@ void MobileApp::handleAppCmd(int32_t cmd) {
          break;
      case APP_CMD_RESUME:
          LOGI("APP_CMD_RESUME");
@@ -967,7 +1288,7 @@ index b00cf4a..fd5a973 100644
          break;
      case APP_CMD_PAUSE:
          LOGI("APP_CMD_PAUSE");
-@@ -130,6 +136,16 @@ int32_t MobileApp::handleInputEvent(AInputEvent* event) {
+@@ -130,6 +138,16 @@ int32_t MobileApp::handleInputEvent(AInputEvent* event) {
              return 1;
          }
      } else if (eventType == AINPUT_EVENT_TYPE_KEY) {
@@ -984,7 +1305,7 @@ index b00cf4a..fd5a973 100644
          if (mGamepad.handleKeyEvent(event, mPad, mSpinFrames)) {
              updateInputState();
              return 1;
-@@ -138,6 +154,44 @@ int32_t MobileApp::handleInputEvent(AInputEvent* event) {
+@@ -138,6 +156,44 @@ int32_t MobileApp::handleInputEvent(AInputEvent* event) {
      return 0;
  }
  
@@ -1029,7 +1350,7 @@ index b00cf4a..fd5a973 100644
  void MobileApp::updateInputState() {
      if (mobile_ui::UIOverlay::get().isStickActive()) {
          mPad.stickX = mobile_ui::UIOverlay::get().getTouchStickX();
-@@ -171,16 +225,19 @@ void MobileApp::run(android_app* app, uintptr_t windowBase, size_t windowSize) {
+@@ -171,16 +227,19 @@ void MobileApp::run(android_app* app, uintptr_t windowBase, size_t windowSize) {
  
      mobile_input::Sensors::get().init(app);
      port_mem_set_reserved_window(windowBase, windowSize);
@@ -1042,25 +1363,25 @@ index b00cf4a..fd5a973 100644
      port_skip_set_hold_seconds(0.0f);
  
 -    std::string internalPath = app->activity->internalDataPath ? app->activity->internalDataPath : "/data/data/com.openport.galaxyandroid/files";
-+    std::string internalPath = app->activity->internalDataPath ? app->activity->internalDataPath : "/data/data/io.github.maddex712.wiids/files/galaxy";
++    std::string internalPath = app->activity->internalDataPath ? app->activity->internalDataPath : port_profile_internal_root();
      bool isPlus = (internalPath.find("plus") != std::string::npos);
      mobile_ui::UIOverlay::get().setPlusEdition(isPlus);
  
 -    std::string ext = app->activity->externalDataPath ? app->activity->externalDataPath : "/sdcard/Android/data/com.openport.galaxyandroid/files";
-+    std::string ext = app->activity->externalDataPath ? app->activity->externalDataPath : "/sdcard/Android/data/io.github.maddex712.wiids/files/galaxy";
++    std::string ext = app->activity->externalDataPath ? app->activity->externalDataPath : std::string(port_profile_data_root()).substr(0, std::string(port_profile_data_root()).size() - 11);
      mSaveRoot = internalPath + "/nand";
      mkdir(mSaveRoot.c_str(), 0770);
      mobile_ui::UIOverlay::get().setSavePath(mSaveRoot + (isPlus ? "/touch_settings_plus.ini" : "/touch_settings.ini"));
-@@ -189,7 +246,7 @@ void MobileApp::run(android_app* app, uintptr_t windowBase, size_t windowSize) {
+@@ -189,7 +248,7 @@ void MobileApp::run(android_app* app, uintptr_t windowBase, size_t windowSize) {
      if (mobile_ui::UIOverlay::get().settings().batterySaver) initialFps = 30;
      mobile_system::SystemManager::setPreferredRefreshRate(app, (float)initialFps);
  
 -    std::string primaryLog = "/sdcard/GalaxyData/galaxy_log.txt";
-+    std::string primaryLog = "/sdcard/Android/data/io.github.maddex712.wiids/files/galaxy/GalaxyData/galaxy_log.txt";
++    std::string primaryLog = ext + "/GalaxyData/galaxy_log.txt";
      FILE* tst = fopen(primaryLog.c_str(), "a");
      if (tst) {
          fclose(tst);
-@@ -206,6 +263,7 @@ void MobileApp::run(android_app* app, uintptr_t windowBase, size_t windowSize) {
+@@ -206,6 +265,7 @@ void MobileApp::run(android_app* app, uintptr_t windowBase, size_t windowSize) {
      }
  
      bool running = true;
@@ -1068,7 +1389,7 @@ index b00cf4a..fd5a973 100644
      while (running && !app->destroyRequested) {
          int events;
          android_poll_source* source = nullptr;
-@@ -225,14 +283,19 @@ void MobileApp::run(android_app* app, uintptr_t windowBase, size_t windowSize) {
+@@ -225,14 +285,19 @@ void MobileApp::run(android_app* app, uintptr_t windowBase, size_t windowSize) {
              timeout = 0;
          }
  
@@ -1472,16 +1793,40 @@ index fd88e4f..69d67c2 100644
  };
  
  }  // namespace mobile_input
+diff --git a/platform/mobile/mobile_app.cpp b/platform/mobile/mobile_app.cpp
+index 630b9bb..178e280 100644
+--- a/platform/mobile/mobile_app.cpp
++++ b/platform/mobile/mobile_app.cpp
+@@ -1,3 +1,5 @@
++#include "port/profile.h"
++#include "port/kaizo.h"
+ // Flat-screen Android Mobile application entry point (AOSP / Phones).
+ // Modularized into decoupled OOP components under ui/, system/, display/, input/, render/, and core/.
+ 
+@@ -12,6 +14,8 @@ extern "C" {
+ 
+ __attribute__((visibility("default"))) void port_android_main(
+     struct android_app* app, uintptr_t windowBase, size_t windowSize) {
++    port_profile_configure(app->activity->internalDataPath, app->activity->externalDataPath);
++    port_kaizo_configure(app->activity->internalDataPath, app->activity->externalDataPath);
+     mobile_core::MobileApp::get().run(app, windowBase, windowSize);
+ }
+ 
 diff --git a/platform/mobile/render/VulkanLifecycle.cpp b/platform/mobile/render/VulkanLifecycle.cpp
-index 5c8c8fe..bcae9b1 100644
+index 5c8c8fe..0722716 100644
 --- a/platform/mobile/render/VulkanLifecycle.cpp
 +++ b/platform/mobile/render/VulkanLifecycle.cpp
-@@ -86,7 +86,7 @@ bool VulkanLifecycle::handleDeviceLoss(ANativeWindow* window, int& screenW, int&
+@@ -1,3 +1,4 @@
++#include "port/profile.h"
+ #include "VulkanLifecycle.h"
+ 
+ #include <android/log.h>
+@@ -86,7 +87,7 @@ bool VulkanLifecycle::handleDeviceLoss(ANativeWindow* window, int& screenW, int&
  void VulkanLifecycle::initCaches(const std::string& internalPath) {
      gpu::setVkPipelineCachePath((internalPath + "/vk_pipeline_cache.bin").c_str());
      gpu::setVulkanShaderCachePath((internalPath + "/vk_shaders.bin").c_str());
 -    gpu::ShaderInventory::get().init(internalPath, "/sdcard/GalaxyData");
-+    gpu::ShaderInventory::get().init(internalPath, "/sdcard/Android/data/io.github.maddex712.wiids/files/galaxy/GalaxyData");
++    gpu::ShaderInventory::get().init(internalPath, port_profile_data_path("").c_str());
      // Stage A: Compile missing SPIR-V shaders before device bringup with bounded workers (4 threads)
      gpu::ShaderInventory::get().compileAllSpirv(4);
  }
@@ -1573,10 +1918,15 @@ index d6a5da9..80d7a25 100644
  
  void StorageManager::promptStoragePermissionIfMissing(ANativeActivity* activity) {
 diff --git a/platform/mobile/system/SystemManager.cpp b/platform/mobile/system/SystemManager.cpp
-index 675b9a0..af633b0 100644
+index 675b9a0..bc9b747 100644
 --- a/platform/mobile/system/SystemManager.cpp
 +++ b/platform/mobile/system/SystemManager.cpp
-@@ -11,6 +11,7 @@
+@@ -1,3 +1,4 @@
++#include "port/profile.h"
+ #include "SystemManager.h"
+ 
+ #include <android/log.h>
+@@ -11,6 +12,7 @@
  #include <sys/resource.h>
  #include <time.h>
  #include <unistd.h>
@@ -1584,7 +1934,7 @@ index 675b9a0..af633b0 100644
  
  #define LOGI(...) __android_log_print(ANDROID_LOG_INFO, "GalaxySystem", __VA_ARGS__)
  #define LOGE(...) __android_log_print(ANDROID_LOG_ERROR, "GalaxySystem", __VA_ARGS__)
-@@ -20,7 +21,6 @@ namespace mobile_system {
+@@ -20,7 +22,6 @@ namespace mobile_system {
  namespace {
  
  static void crashSignalHandler(int sig, siginfo_t* info, void* ucontext) {
@@ -1592,7 +1942,7 @@ index 675b9a0..af633b0 100644
      const char* sigName = "UNKNOWN";
      if (sig == SIGSEGV) sigName = "SIGSEGV (Segmentation Fault)";
      else if (sig == SIGBUS) sigName = "SIGBUS (Bus Error / Alignment)";
-@@ -30,8 +30,25 @@ static void crashSignalHandler(int sig, siginfo_t* info, void* ucontext) {
+@@ -30,8 +31,25 @@ static void crashSignalHandler(int sig, siginfo_t* info, void* ucontext) {
  
      LOGE("================ FATAL NATIVE CRASH ================");
      LOGE("Signal: %d (%s) at address %p", sig, sigName, info ? info->si_addr : nullptr);
@@ -1615,7 +1965,7 @@ index 675b9a0..af633b0 100644
 +#endif
  
 -    FILE* f = fopen("/sdcard/GalaxyData/galaxy_crash.log", "a");
-+    FILE* f = fopen("/sdcard/Android/data/io.github.maddex712.wiids/files/galaxy/GalaxyData/galaxy_crash.log", "a");
++    FILE* f = fopen(port_profile_data_path("/galaxy_crash.log").c_str(), "a");
      if (f) {
          time_t t = time(nullptr);
          char* ct = ctime(&t);
@@ -1636,79 +1986,134 @@ index 15a5f46..98a956c 100644
          float tabH = 44.0f * uiScale;
          float tabY = 20.0f * uiScale;
 diff --git a/platform/mobile/ui/SaveManager.cpp b/platform/mobile/ui/SaveManager.cpp
-index 273f6d7..139f3d9 100644
+index 273f6d7..fe1abe4 100644
 --- a/platform/mobile/ui/SaveManager.cpp
 +++ b/platform/mobile/ui/SaveManager.cpp
-@@ -157,7 +157,7 @@ std::string SaveManager::triggerLoadSlot(int slot, bool haptics) {
+@@ -1,3 +1,4 @@
++#include "port/profile.h"
+ #include "SaveManager.h"
+ #include "SaveSyncManager.h"
+ 
+@@ -157,7 +158,7 @@ std::string SaveManager::triggerLoadSlot(int slot, bool haptics) {
      std::string slotDir = nandDir + slotSuffix;
  
      if (!validateSaveDir(slotDir)) {
 -        std::string pubSlot = "/sdcard/GalaxyData/saves/" + ((slot == 4) ? std::string("quick") : ("slot" + std::to_string(slot)));
-+        std::string pubSlot = "/sdcard/Android/data/io.github.maddex712.wiids/files/galaxy/GalaxyData/saves/" + ((slot == 4) ? std::string("quick") : ("slot" + std::to_string(slot)));
++        std::string pubSlot = port_profile_data_path("/saves/").c_str() + ((slot == 4) ? std::string("quick") : ("slot" + std::to_string(slot)));
          if (validateSaveDir(pubSlot)) {
              slotDir = pubSlot;
          } else {
-@@ -201,11 +201,11 @@ bool SaveManager::update(std::string& outToastMsg) {
+@@ -201,11 +202,11 @@ bool SaveManager::update(std::string& outToastMsg) {
      if (lastSlash == std::string::npos) return false;
  
      std::string nandDir = mSavePath.substr(0, lastSlash);
 -    mkdir("/sdcard/GalaxyData", 0775);
 -    mkdir("/sdcard/GalaxyData/saves", 0775);
-+    mkdir("/sdcard/Android/data/io.github.maddex712.wiids/files/galaxy/GalaxyData", 0775);
-+    mkdir("/sdcard/Android/data/io.github.maddex712.wiids/files/galaxy/GalaxyData/saves", 0775);
++    mkdir(port_profile_data_path("").c_str(), 0775);
++    mkdir(port_profile_data_path("/saves").c_str(), 0775);
  
      if (slot == 0) {
 -        copyDirVerified(nandDir, "/sdcard/GalaxyData/saves/current");
-+        copyDirVerified(nandDir, "/sdcard/Android/data/io.github.maddex712.wiids/files/galaxy/GalaxyData/saves/current");
++        copyDirVerified(nandDir, port_profile_data_path("/saves/current").c_str());
          outToastMsg = "Progress Saved Anywhere! (Verified)";
          return true;
      } else {
-@@ -218,9 +218,9 @@ bool SaveManager::update(std::string& outToastMsg) {
+@@ -218,9 +219,9 @@ bool SaveManager::update(std::string& outToastMsg) {
              rename(slotDir.c_str(), slotOld.c_str());
              rename(slotStaging.c_str(), slotDir.c_str());
  
 -            std::string pubSlot = "/sdcard/GalaxyData/saves/" + ((slot == 4) ? std::string("quick") : ("slot" + std::to_string(slot)));
-+            std::string pubSlot = "/sdcard/Android/data/io.github.maddex712.wiids/files/galaxy/GalaxyData/saves/" + ((slot == 4) ? std::string("quick") : ("slot" + std::to_string(slot)));
++            std::string pubSlot = port_profile_data_path("/saves/").c_str() + ((slot == 4) ? std::string("quick") : ("slot" + std::to_string(slot)));
              copyDirVerified(slotDir, pubSlot);
 -            copyDirVerified(slotDir, "/sdcard/GalaxyData/saves/current");
-+            copyDirVerified(slotDir, "/sdcard/Android/data/io.github.maddex712.wiids/files/galaxy/GalaxyData/saves/current");
++            copyDirVerified(slotDir, port_profile_data_path("/saves/current").c_str());
  
              char msg[96];
              snprintf(msg, sizeof(msg), (slot == 4) ? "Quick Saved Anywhere! (Verified)" : "Saved to Slot %d! (Verified)", slot);
 diff --git a/platform/mobile/ui/SaveSyncManager.cpp b/platform/mobile/ui/SaveSyncManager.cpp
-index 3f09959..b265cff 100644
+index 3f09959..f21ddef 100644
 --- a/platform/mobile/ui/SaveSyncManager.cpp
 +++ b/platform/mobile/ui/SaveSyncManager.cpp
-@@ -48,7 +48,7 @@ bool SaveSyncManager::exportSave(const std::string& savePath, std::string& outTo
+@@ -1,3 +1,4 @@
++#include "port/profile.h"
+ #include "SaveSyncManager.h"
+ #include "DolphinSaveConverter.h"
+ 
+@@ -48,7 +49,7 @@ bool SaveSyncManager::exportSave(const std::string& savePath, std::string& outTo
          }
      }
      if (!in) {
 -        std::string extCandidate = "/sdcard/GalaxyData/saves/GameData.bin";
-+        std::string extCandidate = "/sdcard/Android/data/io.github.maddex712.wiids/files/galaxy/GalaxyData/saves/GameData.bin";
++        std::string extCandidate = port_profile_data_path("/saves/GameData.bin").c_str();
          in = fopen(extCandidate.c_str(), "rb");
      }
      if (!in) {
-@@ -96,8 +96,8 @@ bool SaveSyncManager::importSave(const std::string& savePath, std::string& outTo
+@@ -65,9 +66,10 @@ bool SaveSyncManager::exportSave(const std::string& savePath, std::string& outTo
+     fclose(in);
+ 
+     mkdir("/sdcard/Download", 0770);
+-    std::string dstSave1 = "/sdcard/Download/GalaxyAndroid_save.bin";
+-    std::string dstSave2 = "/sdcard/Download/GameData.bin";
+-    std::string dstDolphin = "/sdcard/Download/GameData_Dolphin.bin";
++    mkdir(port_profile_exchange_path("").c_str(), 0770);
++    std::string dstSave1 = port_profile_exchange_path("/GalaxyAndroid_save.bin").c_str();
++    std::string dstSave2 = port_profile_exchange_path("/GameData.bin").c_str();
++    std::string dstDolphin = port_profile_exchange_path("/GameData_Dolphin.bin").c_str();
+ 
+     writeAtomic(dstSave1, data.data(), data.size());
+     writeAtomic(dstSave2, data.data(), data.size());
+@@ -77,7 +79,7 @@ bool SaveSyncManager::exportSave(const std::string& savePath, std::string& outTo
+         writeAtomic(dstDolphin, dolphinData.data(), dolphinData.size());
+     }
+ 
+-    outToastMsg = "Exported to Download/ (includes Dolphin save)!";
++    outToastMsg = "Exported to " + port_profile_exchange_path("") + " (includes Dolphin save)!";
+     return true;
+ }
+ 
+@@ -87,22 +89,24 @@ bool SaveSyncManager::importSave(const std::string& savePath, std::string& outTo
+     if (lastSlash == std::string::npos) return false;
+     std::string saveRoot = savePath.substr(0, lastSlash);
+ 
+-    const char* downloadCandidates[] = {
+-        "/sdcard/Download/GalaxyAndroid_save.bin",
+-        "/sdcard/Download/GameData.bin",
+-        "/sdcard/Download/GameData_Dolphin.bin",
+-        "/sdcard/Download/save.bin",
++    const std::string downloadCandidates[] = {
++        port_profile_exchange_path("/GalaxyAndroid_save.bin").c_str(),
++        port_profile_exchange_path("/GameData.bin").c_str(),
++        port_profile_exchange_path("/GameData_Dolphin.bin").c_str(),
++        port_profile_exchange_path("/save.bin").c_str(),
+         "/sdcard/dolphin-emu/Wii/title/00010000/524d4745/data/GameData.bin",
          "/sdcard/dolphin-emu/Wii/title/00010000/524d4750/data/GameData.bin",
          "/sdcard/dolphin-emu/Wii/title/00010000/524d474a/data/GameData.bin",
          "/sdcard/dolphin-emu/Wii/title/00010000/524d474b/data/GameData.bin",
 -        "/sdcard/GalaxyData/saves/GameData.bin",
 -        "/sdcard/GalaxyData/saves/GameData_Dolphin.bin"
-+        "/sdcard/Android/data/io.github.maddex712.wiids/files/galaxy/GalaxyData/saves/GameData.bin",
-+        "/sdcard/Android/data/io.github.maddex712.wiids/files/galaxy/GalaxyData/saves/GameData_Dolphin.bin"
++        port_profile_data_path("/saves/GameData.bin").c_str(),
++        port_profile_data_path("/saves/GameData_Dolphin.bin").c_str()
      };
  
      FILE* in = nullptr;
-@@ -150,9 +150,9 @@ bool SaveSyncManager::importSave(const std::string& savePath, std::string& outTo
+     const char* matchedPath = nullptr;
+-    for (const char* path : downloadCandidates) {
++    for (const std::string& candidate : downloadCandidates) {
++        const char* path = candidate.c_str();
++        if (port_profile_exchange_path("").find("WiiDS-Kaizo") != std::string::npos && candidate.find("/sdcard/dolphin-emu/") == 0) continue;
+         in = fopen(path, "rb");
+         if (in) { matchedPath = path; break; }
+     }
+@@ -150,9 +154,9 @@ bool SaveSyncManager::importSave(const std::string& savePath, std::string& outTo
          writeAtomic(dir + "/save.bin", data.data(), data.size());
      }
  
 -    mkdir("/sdcard/GalaxyData", 0770);
 -    mkdir("/sdcard/GalaxyData/saves", 0770);
 -    writeAtomic("/sdcard/GalaxyData/saves/GameData.bin", data.data(), data.size());
-+    mkdir("/sdcard/Android/data/io.github.maddex712.wiids/files/galaxy/GalaxyData", 0770);
-+    mkdir("/sdcard/Android/data/io.github.maddex712.wiids/files/galaxy/GalaxyData/saves", 0770);
-+    writeAtomic("/sdcard/Android/data/io.github.maddex712.wiids/files/galaxy/GalaxyData/saves/GameData.bin", data.data(), data.size());
++    mkdir(port_profile_data_path("").c_str(), 0770);
++    mkdir(port_profile_data_path("/saves").c_str(), 0770);
++    writeAtomic(port_profile_data_path("/saves/GameData.bin").c_str(), data.data(), data.size());
  
      if (!anySuccess) {
          outToastMsg = "Failed to write save data to storage!";
@@ -1819,47 +2224,62 @@ index 42079c3..2baa89c 100644
      void save(const std::string& path) const;
  };
 diff --git a/platform/mobile/ui/SettingsDrawerRender.cpp b/platform/mobile/ui/SettingsDrawerRender.cpp
-index 413b277..a26acf0 100644
+index 413b277..ec5f6cf 100644
 --- a/platform/mobile/ui/SettingsDrawerRender.cpp
 +++ b/platform/mobile/ui/SettingsDrawerRender.cpp
-@@ -217,7 +217,7 @@ void SettingsMenuHandler::renderDrawer(VertexBatcher& vb, int screenW, int scree
+@@ -1,3 +1,4 @@
++#include "port/profile.h"
+ #include "SettingsMenuHandler.h"
+ #include "PerformanceMonitor.h"
+ #include "SaveManager.h"
+@@ -217,7 +218,7 @@ void SettingsMenuHandler::renderDrawer(VertexBatcher& vb, int screenW, int scree
                  vb.drawText(apiLine, rowX0 + 12.0f * uiScale, drawY + 54.0f * uiScale, 0.24f * uiScale, rgba(0.55f, 0.60f, 0.68f, 0.80f), 0);
              } else if (r.action == ACT_STORAGE_INFO_CARD) {
                  vb.drawText("NAND SAVE SYSTEM & STORAGE", rowX0 + 12.0f * uiScale, drawY + 18.0f * uiScale, 0.30f * uiScale, rgba(1.0f, 0.78f, 0.25f, 0.95f), 0);
 -                vb.drawText("Directory: /sdcard/GalaxyData/saves (Dolphin compatible)", rowX0 + 12.0f * uiScale, drawY + 36.0f * uiScale, 0.25f * uiScale, rgba(0.85f, 0.88f, 0.94f, 0.90f), 0);
-+                vb.drawText("Directory: /sdcard/Android/data/io.github.maddex712.wiids/files/galaxy/GalaxyData/saves (Dolphin compatible)", rowX0 + 12.0f * uiScale, drawY + 36.0f * uiScale, 0.25f * uiScale, rgba(0.85f, 0.88f, 0.94f, 0.90f), 0);
++                vb.drawText("Directory: the active Galaxy profile saves folder (Dolphin compatible)", rowX0 + 12.0f * uiScale, drawY + 36.0f * uiScale, 0.25f * uiScale, rgba(0.85f, 0.88f, 0.94f, 0.90f), 0);
                  vb.drawText("TESTERS: Report bugs & logs on Discord:", rowX0 + 12.0f * uiScale, drawY + 54.0f * uiScale, 0.25f * uiScale, rgba(0.20f, 0.85f, 1.0f, 1.0f), 0);
                  vb.drawText("https://discord.gg/H3qdNWYu2", rowX0 + 12.0f * uiScale, drawY + 72.0f * uiScale, 0.26f * uiScale, rgba(0.40f, 0.75f, 1.0f, 1.0f), 0);
              }
 diff --git a/platform/mobile/ui/SettingsMenuDefs.cpp b/platform/mobile/ui/SettingsMenuDefs.cpp
-index e8c7dde..7e96f9e 100644
+index e8c7dde..2160973 100644
 --- a/platform/mobile/ui/SettingsMenuDefs.cpp
 +++ b/platform/mobile/ui/SettingsMenuDefs.cpp
-@@ -58,8 +58,8 @@ static const MenuRowDef kModsRows[] = {
+@@ -1,3 +1,4 @@
++#include "port/profile.h"
+ #include "SettingsMenuDefs.h"
+ 
+ namespace mobile_ui {
+@@ -58,8 +59,8 @@ static const MenuRowDef kModsRows[] = {
      {ACT_INFINITE_LIVES, ROW_SWITCH, 50.0f, "Infinite Lives (99)", "Lock Mario life pouch to 99 lives", 0, {}, 0.0f, 0.0f, 0.0f, nullptr},
      {ACT_INFINITE_STARBITS, ROW_SWITCH, 50.0f, "Infinite Star Bits (999)", "Max out Star Bits pouch to 999", 0, {}, 0.0f, 0.0f, 0.0f, nullptr},
      {ACT_SECTION_HEADER, ROW_SECTION, 36.0f, "RIIVOLUTION MODDING", "SD card patches and game replacements", 0, {}, 0.0f, 0.0f, 0.0f, nullptr},
 -    {ACT_RIIVOLUTION, ROW_SWITCH, 50.0f, "Enable Riivolution Mods", "Load XML patch files from /sdcard/GalaxyData/mods", 0, {}, 0.0f, 0.0f, 0.0f, nullptr},
 -    {ACT_RELOAD_MODS, ROW_SINGLE_BTN, 48.0f, "Scan & Reload Mod Directory", "Scans /sdcard/GalaxyData/mods", 0, {}, 0.0f, 0.0f, 0.0f, nullptr},
-+    {ACT_RIIVOLUTION, ROW_SWITCH, 50.0f, "Enable Riivolution Mods", "Load XML patch files from /sdcard/Android/data/io.github.maddex712.wiids/files/galaxy/GalaxyData/mods", 0, {}, 0.0f, 0.0f, 0.0f, nullptr},
-+    {ACT_RELOAD_MODS, ROW_SINGLE_BTN, 48.0f, "Scan & Reload Mod Directory", "Scans /sdcard/Android/data/io.github.maddex712.wiids/files/galaxy/GalaxyData/mods", 0, {}, 0.0f, 0.0f, 0.0f, nullptr},
++    {ACT_RIIVOLUTION, ROW_SWITCH, 50.0f, "Enable Riivolution Mods", "Load XML patch files from the active Galaxy profile mods folder", 0, {}, 0.0f, 0.0f, 0.0f, nullptr},
++    {ACT_RELOAD_MODS, ROW_SINGLE_BTN, 48.0f, "Scan & Reload Mod Directory", "Scans the active Galaxy profile mods folder", 0, {}, 0.0f, 0.0f, 0.0f, nullptr},
  };
  
  static const MenuRowDef kSaveRows[] = {
 diff --git a/platform/mobile/ui/SettingsMenuModActions.cpp b/platform/mobile/ui/SettingsMenuModActions.cpp
-index 9708e9d..cdcb4cd 100644
+index 9708e9d..7df6bd2 100644
 --- a/platform/mobile/ui/SettingsMenuModActions.cpp
 +++ b/platform/mobile/ui/SettingsMenuModActions.cpp
-@@ -116,10 +116,10 @@ bool SettingsMenuModActions::dispatch(MenuActionId action, float px, float midX,
+@@ -1,3 +1,4 @@
++#include "port/profile.h"
+ #include "SettingsMenuModActions.h"
+ 
+ #include <algorithm>
+@@ -116,10 +117,10 @@ bool SettingsMenuModActions::dispatch(MenuActionId action, float px, float midX,
          return true;
      case ACT_RIIVOLUTION:
          settings.modRiivolution = !settings.modRiivolution;
 -        outToastMsg = settings.modRiivolution ? "Riivolution Mods: ON (/sdcard/GalaxyData/mods)" : "Riivolution Mods: OFF";
-+        outToastMsg = settings.modRiivolution ? "Riivolution Mods: ON (/sdcard/Android/data/io.github.maddex712.wiids/files/galaxy/GalaxyData/mods)" : "Riivolution Mods: OFF";
++        outToastMsg = settings.modRiivolution ? "Riivolution Mods: ON (the active Galaxy profile mods folder)" : "Riivolution Mods: OFF";
          return true;
      case ACT_RELOAD_MODS:
 -        outToastMsg = "Scanned /sdcard/GalaxyData/mods: Active!";
-+        outToastMsg = "Scanned /sdcard/Android/data/io.github.maddex712.wiids/files/galaxy/GalaxyData/mods: Active!";
++        outToastMsg = "Scanned the active Galaxy profile mods folder: Active!";
          return true;
      case ACT_QUICK_CARDS:
          outToastMsg = (px < midX) ? saveMgr.triggerSaveSlot(4, settings.haptics)
@@ -2000,6 +2420,24 @@ index cca3f25..7d389e3 100644
      std::lock_guard<std::mutex> lk(sMailMutex);
      sMailFromDsp.push_back(a);
      sMailFromDsp.push_back(b);
+diff --git a/platform/src/dvd/dvd_disc.cpp b/platform/src/dvd/dvd_disc.cpp
+index f5019e2..a5b7610 100644
+--- a/platform/src/dvd/dvd_disc.cpp
++++ b/platform/src/dvd/dvd_disc.cpp
+@@ -1,3 +1,4 @@
++#include "port/kaizo.h"
+ #include "dvd_internal.h"
+ 
+ #include <ctype.h>
+@@ -65,6 +66,8 @@ extern "C" const PortDisc* port_dvd_identify(const char* root) {
+         return nullptr;
+     }
+     for (const PortDisc& disc : kDiscs) {
++        // The mod overlays PAL text folders too; they do not change its USA base disc.
++        if (port_kaizo_enabled() && strcmp(disc.id, "RMGE01")) continue;
+         if (hasTexts(root, fst, disc.languages[0])) {
+             return &disc;
+         }
 diff --git a/platform/src/gx/gpu_cp.cpp b/platform/src/gx/gpu_cp.cpp
 index 90c885c..3f51bea 100644
 --- a/platform/src/gx/gpu_cp.cpp
@@ -2027,24 +2465,29 @@ index 2e23e5d..32a305f 100644
  
  struct Frame {
 diff --git a/platform/src/gx/gx_recorder_tex.cpp b/platform/src/gx/gx_recorder_tex.cpp
-index 086d2f1..4b59e3e 100644
+index 086d2f1..083fb8b 100644
 --- a/platform/src/gx/gx_recorder_tex.cpp
 +++ b/platform/src/gx/gx_recorder_tex.cpp
-@@ -154,14 +154,14 @@ void Recorder::decode(TexImage& img, const u8* src, const TexKey& key) {
+@@ -1,3 +1,4 @@
++#include "port/profile.h"
+ #include "gx_recorder_internal.h"
+ 
+ namespace gpu {
+@@ -154,14 +155,14 @@ void Recorder::decode(TexImage& img, const u8* src, const TexKey& key) {
      if (!sCustomTexChecked) {
          sCustomTexChecked = true;
          struct stat st;
 -        sCustomTexFolderExists = (stat("/sdcard/GalaxyData/textures", &st) == 0 && S_ISDIR(st.st_mode));
-+        sCustomTexFolderExists = (stat("/sdcard/Android/data/io.github.maddex712.wiids/files/galaxy/GalaxyData/textures", &st) == 0 && S_ISDIR(st.st_mode));
++        sCustomTexFolderExists = (stat(port_profile_data_path("/textures").c_str(), &st) == 0 && S_ISDIR(st.st_mode));
          if (sCustomTexFolderExists) {
 -            port_log("textures: Custom texture overrides enabled from /sdcard/GalaxyData/textures");
-+            port_log("textures: Custom texture overrides enabled from /sdcard/Android/data/io.github.maddex712.wiids/files/galaxy/GalaxyData/textures");
++            port_log("textures: Custom texture overrides enabled from %s", port_profile_data_path("/textures").c_str());
          }
      }
      if (sCustomTexFolderExists) {
          char customPath[128];
 -        snprintf(customPath, sizeof(customPath), "/sdcard/GalaxyData/textures/tex_%08x_%dx%d.rgba", key.addr, key.width, key.height);
-+        snprintf(customPath, sizeof(customPath), "/sdcard/Android/data/io.github.maddex712.wiids/files/galaxy/GalaxyData/textures/tex_%08x_%dx%d.rgba", key.addr, key.width, key.height);
++        snprintf(customPath, sizeof(customPath), port_profile_data_path("/textures/tex_%08x_%dx%d.rgba").c_str(), key.addr, key.width, key.height);
          FILE* cf = fopen(customPath, "rb");
          if (cf) {
              fseek(cf, 0, SEEK_END);
@@ -2114,15 +2557,20 @@ index 3b8850e..c9bb8d5 100644
          if (mRenderFence != VK_NULL_HANDLE) {
              vkDestroyFence(mDevice, mRenderFence, nullptr);
 diff --git a/platform/src/gx/vk/vk_pipeline_cache_manager.cpp b/platform/src/gx/vk/vk_pipeline_cache_manager.cpp
-index 2b94e4e..6be1d00 100644
+index 2b94e4e..578617e 100644
 --- a/platform/src/gx/vk/vk_pipeline_cache_manager.cpp
 +++ b/platform/src/gx/vk/vk_pipeline_cache_manager.cpp
-@@ -13,7 +13,7 @@ void setVkPipelineCachePath(const char* path) {
+@@ -1,3 +1,4 @@
++#include "port/profile.h"
+ #include "gx/vk/vk_common.h"
+ 
+ namespace gpu {
+@@ -13,7 +14,7 @@ void setVkPipelineCachePath(const char* path) {
  
  static const char* getPipelineCachePath() {
      if (!sPipelineCachePath[0]) {
 -        snprintf(sPipelineCachePath, sizeof(sPipelineCachePath), "/data/data/com.openport.galaxyandroid/files/vk_pipeline_cache.bin");
-+        snprintf(sPipelineCachePath, sizeof(sPipelineCachePath), "/data/data/io.github.maddex712.wiids/files/galaxy/vk_pipeline_cache.bin");
++        snprintf(sPipelineCachePath, sizeof(sPipelineCachePath), "%s", port_profile_internal_path("/vk_pipeline_cache.bin").c_str());
      }
      return sPipelineCachePath;
  }
@@ -2191,15 +2639,20 @@ index 3c771b7..eb3179c 100644
          mStagingBuffersToFree.push_back({item.stagingBuf, item.stagingMem});
          sUploadRecorded++;
 diff --git a/platform/src/gx/vk_shader_manifest.cpp b/platform/src/gx/vk_shader_manifest.cpp
-index 882df74..3da5af2 100644
+index 882df74..3708f88 100644
 --- a/platform/src/gx/vk_shader_manifest.cpp
 +++ b/platform/src/gx/vk_shader_manifest.cpp
-@@ -23,7 +23,7 @@ std::vector<std::string> getManifestCandidates(const std::string& cacheDir,
+@@ -1,3 +1,4 @@
++#include "port/profile.h"
+ #include "gx/vk_shader_manifest.h"
+ #include "port/port.h"
+ #include <cstdio>
+@@ -23,7 +24,7 @@ std::vector<std::string> getManifestCandidates(const std::string& cacheDir,
          cacheDir + "/galaxy_shader_manifest.bin",
          filesDir + "/galaxy_shader_manifest.bin",
          dataRoot + "/galaxy_shader_manifest.bin",
 -        "/sdcard/GalaxyData/galaxy_shader_manifest.bin",
-+        "/sdcard/Android/data/io.github.maddex712.wiids/files/galaxy/GalaxyData/galaxy_shader_manifest.bin",
++        port_profile_data_path("/galaxy_shader_manifest.bin").c_str(),
          "assets/galaxy_shader_manifest.bin"
      };
  }
@@ -2256,25 +2709,30 @@ index acb6de5..ddca2a7 100644
      std::lock_guard<std::mutex> lk(sInputMutex);
      return sPad[0].connected && (sPad[0].buttons & 0x0800) ? 1 : 0;
 diff --git a/platform/src/nand/nand.cpp b/platform/src/nand/nand.cpp
-index d1316d0..5aa0b36 100644
+index d1316d0..d1bd6aa 100644
 --- a/platform/src/nand/nand.cpp
 +++ b/platform/src/nand/nand.cpp
-@@ -156,13 +156,13 @@ s32 NANDClose(NANDFileInfo* info) {
+@@ -1,3 +1,4 @@
++#include "port/profile.h"
+ // NAND flash emulation: save data lives in files under the app's storage.
+ #include <dirent.h>
+ #include <errno.h>
+@@ -156,13 +157,13 @@ s32 NANDClose(NANDFileInfo* info) {
      if (info->fileDescriptor >= 0) {
          if (info->accType != NAND_ACCESS_READ) {
              fsync(info->fileDescriptor);
 -            // Auto-mirror GameData.bin to persistent external storage (/sdcard/GalaxyData/saves) atomically
-+            // Auto-mirror GameData.bin to persistent external storage (/sdcard/Android/data/io.github.maddex712.wiids/files/galaxy/GalaxyData/saves) atomically
++            // Atomically mirror GameData.bin within this Activity profile only.
              if (strstr(info->origPath, "GameData.bin")) {
                  std::string hp = hostPath(info->origPath);
 -                mkdir("/sdcard/GalaxyData", 0770);
 -                mkdir("/sdcard/GalaxyData/saves", 0770);
 -                if (atomicMirrorFile(hp, "/sdcard/GalaxyData/saves/GameData.bin")) {
 -                    port_log("nand: atomically mirrored %s -> /sdcard/GalaxyData/saves/GameData.bin", hp.c_str());
-+                mkdir("/sdcard/Android/data/io.github.maddex712.wiids/files/galaxy/GalaxyData", 0770);
-+                mkdir("/sdcard/Android/data/io.github.maddex712.wiids/files/galaxy/GalaxyData/saves", 0770);
-+                if (atomicMirrorFile(hp, "/sdcard/Android/data/io.github.maddex712.wiids/files/galaxy/GalaxyData/saves/GameData.bin")) {
-+                    port_log("nand: atomically mirrored %s -> /sdcard/Android/data/io.github.maddex712.wiids/files/galaxy/GalaxyData/saves/GameData.bin", hp.c_str());
++                mkdir(port_profile_data_path("").c_str(), 0770);
++                mkdir(port_profile_data_path("/saves").c_str(), 0770);
++                if (atomicMirrorFile(hp, port_profile_data_path("/saves/GameData.bin").c_str())) {
++                    port_log("nand: atomically mirrored %s -> %s", hp.c_str(), port_profile_data_path("/saves/GameData.bin").c_str());
                  } else {
                      port_log("nand: warning - atomic save mirror failed for %s", hp.c_str());
                  }
@@ -2321,15 +2779,20 @@ index 0d33394..41385aa 100644
      port_log("port_host_to_phys: %p is outside the game address space", p);
      return (uint32_t)a;
 diff --git a/platform/src/port/boot.cpp b/platform/src/port/boot.cpp
-index ff4cc51..e9c1845 100644
+index ff4cc51..f88d9db 100644
 --- a/platform/src/port/boot.cpp
 +++ b/platform/src/port/boot.cpp
-@@ -48,7 +48,7 @@ extern "C" void port_boot(const char* dataRoot, const char* saveRoot) {
+@@ -1,3 +1,4 @@
++#include "port/profile.h"
+ // Brings up the emulated Wii environment and starts the game's main().
+ #include "port/port.h"
+ #include <sys/stat.h>
+@@ -48,7 +49,7 @@ extern "C" void port_boot(const char* dataRoot, const char* saveRoot) {
          bool internalValid = (stat(internalSave.c_str(), &stInternal) == 0 && stInternal.st_size >= 512);
  
          if (!internalValid) {
 -            std::string mirrorPath = "/sdcard/GalaxyData/saves/GameData.bin";
-+            std::string mirrorPath = "/sdcard/Android/data/io.github.maddex712.wiids/files/galaxy/GalaxyData/saves/GameData.bin";
++            std::string mirrorPath = port_profile_data_path("/saves/GameData.bin").c_str();
              struct stat stMirror;
              if (stat(mirrorPath.c_str(), &stMirror) == 0 && stMirror.st_size >= 512) {
                  std::string dir = std::string(saveRoot) + "/title/00010000/" + t + "/data";
@@ -2990,6 +3453,45 @@ index 0000000..c2b7af8
 +}
 +
 +#endif  // TARGET_MOBILE
+diff --git a/platform/include/port/kaizo.h b/platform/include/port/kaizo.h
+new file mode 100644
+index 0000000..4e76273
+--- /dev/null
++++ b/platform/include/port/kaizo.h
+@@ -0,0 +1,12 @@
++#pragma once
++#include <stddef.h>
++
++struct GameEventFlag;
++struct GalaxyCometTimePaper;
++
++// Configured exactly once, from the package-internal Activity's scoped paths,
++// before MobileApp creates settings, NAND, Vulkan caches or any game objects.
++void port_kaizo_configure(const char* internalPath, const char* externalPath);
++bool port_kaizo_enabled();
++void port_kaizo_apply_flags(GameEventFlag* flags, size_t count);
++const GalaxyCometTimePaper* port_kaizo_comet_table(int dome, const GalaxyCometTimePaper* original);
+diff --git a/platform/include/port/profile.h b/platform/include/port/profile.h
+new file mode 100644
+index 0000000..09059bf
+--- /dev/null
++++ b/platform/include/port/profile.h
+@@ -0,0 +1,15 @@
++#pragma once
++#ifdef __cplusplus
++#include <string>
++extern "C" {
++#endif
++// Set once from the Activity before settings, caches, NAND or rendering start.
++void port_profile_configure(const char* internal, const char* external);
++const char* port_profile_internal_root(void);
++const char* port_profile_data_root(void);
++#ifdef __cplusplus
++}
++std::string port_profile_data_path(const char* suffix);
++std::string port_profile_internal_path(const char* suffix);
++std::string port_profile_exchange_path(const char* suffix);
++#endif
 diff --git a/platform/include/port/thor_lower.h b/platform/include/port/thor_lower.h
 new file mode 100644
 index 0000000..6a3f3ac
@@ -4065,3 +4567,270 @@ index 0000000..b654f9c
 +void thorCaptureDestroy(VkRenderer& renderer);
 +
 +}  // namespace gpu
+diff --git a/platform/src/port/kaizo.cpp b/platform/src/port/kaizo.cpp
+new file mode 100644
+index 0000000..db71c2b
+--- /dev/null
++++ b/platform/src/port/kaizo.cpp
+@@ -0,0 +1,84 @@
++#include "port/kaizo.h"
++#include "port/port.h"
++#include "Game/System/GameEventFlag.hpp"
++#include "Game/System/GalaxyCometScheduler.hpp"
++#include <stdio.h>
++#include <stdlib.h>
++#include <string.h>
++
++namespace {
++bool enabled = false;
++char tableBytes[32768];
++struct FlagChange { int index; const char* originalName; GameEventFlag flag; } changes[24];
++bool flagsApplied = false;
++GalaxyCometTimePaper comets[4][64];
++int cometCounts[4], changeCount;
++const char* kHeader = "KMGR21|b0b43ee39e3b2c2b7a3dcc4bc33d77718cb97da4b95f490146ec8a80ceddd548";
++bool endsWith(const char* text, const char* suffix) {
++    if (!text) return false;
++    size_t a = strlen(text), b = strlen(suffix);
++    return a >= b && strcmp(text + a - b, suffix) == 0;
++}
++const char* optional(char* text) { return strcmp(text, "-") == 0 ? nullptr : text; }
++int number(const char* text, int limit) {
++    char* end; long value = strtol(text, &end, 10);
++    if (!*text || *end || value < 0 || value > limit) port_fatal("Invalid Kaizo native table number");
++    return (int)value;
++}
++}
++
++bool port_kaizo_enabled() { return enabled; }
++
++void port_kaizo_configure(const char* internalPath, const char* externalPath) {
++    enabled = false; changeCount = 0;
++    memset(comets, 0, sizeof(comets)); memset(cometCounts, 0, sizeof(cometCounts));
++    if (!endsWith(internalPath, "/galaxy-kaizo")) return;
++    if (!endsWith(externalPath, "/galaxy-kaizo")) port_fatal("Kaizo profile paths disagree");
++    char path[2048];
++    if (snprintf(path, sizeof(path), "%s/GalaxyData/sys/KaizoTables.txt", externalPath) >= (int)sizeof(path))
++        port_fatal("Kaizo profile path is too long");
++    FILE* in = fopen(path, "rb");
++    if (!in) port_fatal("Kaizo data is not ready; finish its setup in Your games");
++    size_t size = fread(tableBytes, 1, sizeof(tableBytes) - 1, in);
++    bool tooLarge = fgetc(in) != EOF; fclose(in); tableBytes[size] = 0;
++    if (tooLarge || !size) port_fatal("Invalid Kaizo native tables");
++    char* lineState = nullptr;
++    char* line = strtok_r(tableBytes, "\n", &lineState);
++    if (!line || strcmp(line, kHeader)) port_fatal("Kaizo patch version does not match this engine");
++    while ((line = strtok_r(nullptr, "\n", &lineState))) {
++        char* fields[11]; int count = 0; char* state = nullptr;
++        for (char* f = strtok_r(line, "|", &state); f && count < 11; f = strtok_r(nullptr, "|", &state)) fields[count++] = f;
++        if (count == 4 && !strcmp(fields[0], "C")) {
++            int dome = number(fields[1], 4) - 1;
++            if (dome < 0 || cometCounts[dome] >= 63) port_fatal("Invalid Kaizo comet table");
++            GalaxyCometTimePaper& row = comets[dome][cometCounts[dome]++];
++            row.mGalaxyName = fields[2]; row.mCategory = number(fields[3], 1);
++        } else if (count == 11 && !strcmp(fields[0], "F") && changeCount < 24) {
++            FlagChange& row = changes[changeCount++];
++            row.index = number(fields[1], 4095);
++            row.originalName = fields[2];
++            row.flag = {fields[3], (u8)number(fields[4], 11), (u8)number(fields[5], 1),
++                (u8)number(fields[6], 255), (u8)number(fields[7], 255),
++                (u32)number(fields[8], 0x7fffffff), optional(fields[9]), optional(fields[10])};
++        } else port_fatal("Invalid Kaizo native table row");
++    }
++    if (changeCount != 24) port_fatal("Incomplete Kaizo event table");
++    for (int i = 0; i < 4; ++i) if (!cometCounts[i]) port_fatal("Incomplete Kaizo comet table");
++    enabled = true;
++    port_log("Kaizo Rebalanced 2.1: isolated profile; 24 event rows and four comet tables loaded");
++}
++
++void port_kaizo_apply_flags(GameEventFlag* flags, size_t count) {
++    if (!enabled || flagsApplied) return;
++    for (int i = 0; i < changeCount; ++i) {
++        const FlagChange& row = changes[i];
++        if ((size_t)row.index >= count || !flags[row.index].mName || strcmp(flags[row.index].mName, row.originalName))
++            port_fatal("Kaizo event flag layout differs from the supported engine");
++        flags[row.index] = row.flag;
++    }
++    flagsApplied = true;
++}
++
++const GalaxyCometTimePaper* port_kaizo_comet_table(int dome, const GalaxyCometTimePaper* original) {
++    return enabled && dome >= 1 && dome <= 4 ? comets[dome - 1] : original;
++}
+diff --git a/platform/src/port/profile.cpp b/platform/src/port/profile.cpp
+new file mode 100644
+index 0000000..bf6f93f
+--- /dev/null
++++ b/platform/src/port/profile.cpp
+@@ -0,0 +1,35 @@
++#include "port/profile.h"
++#include "port/heap_routing.h"
++#include "port/port.h"
++#include <stdio.h>
++#include <string.h>
++
++namespace {
++char internalRoot[2048] = ".";
++char dataRoot[2048] = ".";
++bool kaizoExchange = false;
++}
++extern "C" void port_profile_configure(const char* internal, const char* external) {
++    if (!internal || !*internal || !external || !*external)
++        port_fatal("Activity profile storage paths are missing");
++    if (snprintf(internalRoot, sizeof(internalRoot), "%s", internal) >= sizeof(internalRoot) ||
++        snprintf(dataRoot, sizeof(dataRoot), "%s/GalaxyData", external) >= sizeof(dataRoot))
++        port_fatal("Activity profile storage paths are too long");
++    const char* name = strrchr(internalRoot, '/');
++    kaizoExchange = name && strcmp(name, "/galaxy-kaizo") == 0;
++    port_log("Active profile paths: internal=%s data=%s", internalRoot, dataRoot);
++}
++extern "C" const char* port_profile_internal_root() { return internalRoot; }
++extern "C" const char* port_profile_data_root() { return dataRoot; }
++std::string port_profile_data_path(const char* suffix) {
++    PortHostAllocScope host;
++    return std::string(dataRoot) + suffix;
++}
++std::string port_profile_internal_path(const char* suffix) {
++    PortHostAllocScope host;
++    return std::string(internalRoot) + suffix;
++}
++std::string port_profile_exchange_path(const char* suffix) {
++    PortHostAllocScope host;
++    return std::string(kaizoExchange ? "/sdcard/Download/WiiDS-Kaizo" : "/sdcard/Download") + suffix;
++}
+diff --git a/tools/cook/kaizo_patch.py b/tools/cook/kaizo_patch.py
+new file mode 100644
+index 0000000..17cb96d
+--- /dev/null
++++ b/tools/cook/kaizo_patch.py
+@@ -0,0 +1,130 @@
++"""Import the creator's exact Rebalanced 2.1 patch into a PRIVATE disc copy.
++
++No Wii instructions are executed or written to ARM64. XML's data patches become
++portable named tables. Its code patches are implemented by port/kaizo.cpp and
++scoped source adaptations. The ZIP and the player's disc are never bundled here.
++"""
++from pathlib import Path, PurePosixPath
++import hashlib, json, os, shutil, struct, zipfile, xml.etree.ElementTree as ET
++
++PATCH_SHA256='b0b43ee39e3b2c2b7a3dcc4bc33d77718cb97da4b95f490146ec8a80ceddd548'
++DOL_SHA256='2c680585a8f58e1cc9c5521b579057f12b124ff0ef409e470a57606c50a93c09'
++PREFIX='KaizoMarioGalaxyRebalancedV2.1/'
++HEADER='KMGR21|'+PATCH_SHA256
++
++def sha(data): return hashlib.sha256(data).hexdigest()
++
++def rebuild_fst(files):
++    """Host-backed DVD catalogue; original disc offsets are no longer used."""
++    entries=[];strings=bytearray(b'\0')
++    def walk(folder,parent,name):
++        index=len(entries);name_offset=0
++        if name:
++            name_offset=len(strings);strings.extend(name.encode('shift_jis')+b'\0')
++        entries.append([0x01000000|name_offset,parent,0])
++        children=sorted(folder.iterdir(),key=lambda p:p.name.casefold())
++        if len({p.name.casefold() for p in children})!=len(children):raise ValueError('Case-colliding mod paths')
++        for child in children:
++            if child.is_symlink():raise ValueError('Linked input in mod files')
++            if child.is_dir():walk(child,index,child.name)
++            else:
++                off=len(strings);strings.extend(child.name.encode('shift_jis')+b'\0')
++                entries.append([off,0,child.stat().st_size])
++        entries[index][2]=len(entries)
++    walk(Path(files),0,'')
++    return b''.join(struct.pack('>III',*entry) for entry in entries)+strings
++
++def apply(root,patch):
++    root=Path(root).resolve();patch=Path(patch)
++    data=patch.read_bytes()
++    if sha(data)!=PATCH_SHA256:raise ValueError('Choose the official Kaizo Rebalanced 2.1 ZIP; this patch is a different version')
++    boot=(root/'sys/boot.bin').read_bytes()
++    if boot[:6]!=b'RMGE01' or boot[6:8]!=b'\0\0':raise ValueError('Kaizo requires clean USA RMGE01 revision 0')
++    dol=(root/'sys/main.dol').read_bytes()
++    if sha(dol)!=DOL_SHA256:raise ValueError('Kaizo source executable differs from the supported clean USA disc')
++    def offset(address,length=1):
++        for off,count,adr,siz in [(0,7,0x48,0x90),(0x1c,11,0x64,0xac)]:
++            for i in range(count):
++                source=struct.unpack_from('>I',dol,off+i*4)[0]
++                start=struct.unpack_from('>I',dol,adr+i*4)[0]
++                size=struct.unpack_from('>I',dol,siz+i*4)[0]
++                if start<=address and address+length<=start+size:return source+address-start
++        raise ValueError('Patch pointer is outside the supported executable')
++    def string(address):
++        if not address:return '-'
++        off=offset(address);end=dol.find(b'\0',off)
++        if end<0 or end-off>255:raise ValueError('Invalid patch string')
++        text=dol[off:end].decode('shift_jis')
++        if any(c in text for c in '|\r\n'):raise ValueError('Unsafe table string')
++        return text
++    with zipfile.ZipFile(patch) as z:
++        # Fixed ZIP hash is the allowlist. Still reject duplicate/traversal/symlink
++        # entries before writing, and only write beneath this private extraction.
++        names=z.namelist()
++        if len(set(names))!=len(names):raise ValueError('Duplicate patch members')
++        for info in z.infolist():
++            parts=PurePosixPath(info.filename).parts
++            if '\\' in info.filename or '..' in parts or PurePosixPath(info.filename).is_absolute() or (info.external_attr>>16)&0o170000==0o120000:
++                raise ValueError('Unsafe patch entry')
++        xml=ET.fromstring(z.read(PREFIX+'riivolution/KMGR.xml'))
++        selected=[xml.find("patch[@id='%s']"%key) for key in ['KMGALL','KMGUEJ','KMGNTSC']]
++        assert all(p is not None for p in selected)
++        if any(p.is_symlink() for p in (root/'files').rglob('*')):raise ValueError('Linked extraction is not supported')
++        actual={p.relative_to(root/'files').as_posix().casefold():p for p in (root/'files').rglob('*') if p.is_file()}
++        overlays={};tables=[HEADER];sites=[]
++        for group in selected:
++            for elem in group:
++                a=elem.attrib
++                if elem.tag=='savegame':continue # Native isolated NAND; never import bundled progress.
++                if elem.tag=='folder':
++                    folder=PREFIX+a['external'].lstrip('/')+'/'
++                    for name in names:
++                        if name.startswith(folder) and not name.endswith('/'):
++                            rel=a['disc'].lstrip('/')+'/'+name[len(folder):]
++                            target=actual.get(rel.casefold(),root/'files'/rel)
++                            target.parent.mkdir(parents=True,exist_ok=True)
++                            target.write_bytes(z.read(name));overlays[rel]=sha(target.read_bytes())
++                    continue
++                if elem.tag!='memory':raise ValueError('Unexpected patch directive')
++                addr=int(a['offset'],16);sites.append(a)
++                if 'original' in a:
++                    expected=bytes.fromhex(a['original'].removeprefix('0x'))
++                    off=offset(addr,len(expected))
++                    if dol[off:off+len(expected)]!=expected:raise ValueError('Source patch guard differs')
++                if addr in [0x8053af78,0x8053b000,0x8053b088,0x8053b150]:
++                    dome=[0x8053af78,0x8053b000,0x8053b088,0x8053b150].index(addr)+1
++                    blob=bytes.fromhex(a['value'])
++                    for i in range(0,len(blob),8):
++                        ptr,category=struct.unpack_from('>II',blob,i)
++                        if not ptr:break
++                        tables.append('C|%d|%s|%d'%(dome,string(ptr),category))
++                elif addr==0x8053BC94:
++                    blob=z.read(PREFIX+a['valuefile'].lstrip('/'))
++                    if len(blob)!=480:raise ValueError('Unexpected event table size')
++                    for i in range(24):
++                        name,typ,save,c1,c2,unused,p3,p4=struct.unpack_from('>IBBBBIII',blob,i*20)
++                        index=121+i
++                        # This guards native source-array index correspondence.
++                        old_name=struct.unpack_from('>I',dol,offset(0x8053b320+index*20))[0]
++                        tables.append('F|%d|%s|%s|%d|%d|%d|%d|%d|%s|%s'%(index,string(old_name),string(name),typ,save,c1,c2,unused,string(p3),string(p4)))
++                elif addr==0x8053C800:
++                    (root/'sys/KaizoGalaxyID.raw').write_bytes(z.read(PREFIX+a['valuefile'].lstrip('/')))
++                elif addr>=0x80500000:raise ValueError('Unmapped patch data site')
++                # Remaining 19 PPC code sites are NOT applied here. Engine
++                # equivalents are per-profile and audited in PATCH-MAPPING.md.
++        if len(sites)!=25:raise ValueError('Unexpected number of NTSC patch sites')
++        (root/'sys/KaizoTables.txt').write_bytes(('\n'.join(tables)+'\n').encode('ascii'))
++        (root/'sys/KaizoCredits.txt').write_bytes(z.read(PREFIX+'Credits.txt'))
++    (root/'sys/fst.bin').write_bytes(rebuild_fst(root/'files'))
++    receipt={'profile':'kmgr-2.1','patch_sha256':PATCH_SHA256,'base_dol_sha256':sha(dol),
++             'overlay_files':overlays,'memory_sites':sites,'bundled_save_imported':False}
++    (root/'sys/KaizoImport.json').write_text(json.dumps(receipt,indent=2)+'\n')
++    print('Kaizo Rebalanced 2.1: verified patch, %d overlays, 25 mapped memory sites'%len(overlays))
++
++def finish(root,output):
++    import bcsv
++    root,output=Path(root),Path(output)
++    table=bytearray((root/'sys/KaizoGalaxyID.raw').read_bytes());bcsv.swap(table)
++    (output/'sys/GalaxyID.bcsv').write_bytes(table)
++    for name in ['KaizoTables.txt','KaizoCredits.txt','KaizoImport.json']:
++        shutil.copy2(root/'sys'/name,output/'sys'/name)

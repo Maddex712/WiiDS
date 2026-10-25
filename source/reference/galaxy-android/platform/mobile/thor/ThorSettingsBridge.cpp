@@ -42,7 +42,7 @@ namespace {
         jint v[THOR_SET_COUNT];
         v[THOR_SET_RESOLUTION] = s.renderScale;
         v[THOR_SET_FRAME_RATE] = s.batterySaver || s.targetFps <= 30 ? 30 : 60;
-        v[THOR_SET_SMOOTHING] = port_is_post_processing_enabled() ? 1 : 0;
+        v[THOR_SET_SMOOTHING] = std::max(0, std::min(2, port_is_post_processing_enabled()));
         v[THOR_SET_SHOW_FPS] = s.perfHudMode;
         v[THOR_SET_RIGHT_STICK] = s.rightStickMode;
         v[THOR_SET_POINTER_SPEED] = (jint)(s.starStickSensitivity * 100.0f + 0.5f);
@@ -136,7 +136,7 @@ void applySetting(int key, int value) {
         mobile_ui::SettingsMenuActions::applySliderValue(mobile_ui::ACT_TARGET_FPS, value <= 30 ? 30.0f : 60.0f, s, toast);
         break;
     case THOR_SET_SMOOTHING:
-        s.postProcess = value ? 1 : 0;
+        s.postProcess = std::max(0, std::min(2, value));
         port_set_post_processing_enabled(s.postProcess);
         break;
     case THOR_SET_SHOW_FPS:

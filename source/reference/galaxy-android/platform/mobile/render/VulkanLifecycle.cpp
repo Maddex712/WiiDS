@@ -1,3 +1,4 @@
+#include "port/profile.h"
 #include "VulkanLifecycle.h"
 
 #include <android/log.h>
@@ -86,7 +87,7 @@ bool VulkanLifecycle::handleDeviceLoss(ANativeWindow* window, int& screenW, int&
 void VulkanLifecycle::initCaches(const std::string& internalPath) {
     gpu::setVkPipelineCachePath((internalPath + "/vk_pipeline_cache.bin").c_str());
     gpu::setVulkanShaderCachePath((internalPath + "/vk_shaders.bin").c_str());
-    gpu::ShaderInventory::get().init(internalPath, "/sdcard/Android/data/io.github.maddex712.wiids/files/galaxy/GalaxyData");
+    gpu::ShaderInventory::get().init(internalPath, port_profile_data_path("").c_str());
     // Stage A: Compile missing SPIR-V shaders before device bringup with bounded workers (4 threads)
     gpu::ShaderInventory::get().compileAllSpirv(4);
 }

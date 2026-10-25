@@ -1,3 +1,4 @@
+#include "port/profile.h"
 #include "gx/vk_shader_manifest.h"
 #include "port/port.h"
 #include <cstdio>
@@ -23,7 +24,7 @@ std::vector<std::string> getManifestCandidates(const std::string& cacheDir,
         cacheDir + "/galaxy_shader_manifest.bin",
         filesDir + "/galaxy_shader_manifest.bin",
         dataRoot + "/galaxy_shader_manifest.bin",
-        "/sdcard/Android/data/io.github.maddex712.wiids/files/galaxy/GalaxyData/galaxy_shader_manifest.bin",
+        port_profile_data_path("/galaxy_shader_manifest.bin").c_str(),
         "assets/galaxy_shader_manifest.bin"
     };
 }

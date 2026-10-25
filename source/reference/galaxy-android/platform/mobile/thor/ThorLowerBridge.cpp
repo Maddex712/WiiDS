@@ -6,6 +6,8 @@
 // loaded RTLD_LOCAL into its reserved window (platform/android/launcher.c), where the VM's own
 // JNI symbol lookup cannot see it. No heap allocation, no game pointers cross to Java.
 #include "ThorLowerBridge.h"
+#include "TouchPointerMailbox.h"
+#include "TrackpadMailbox.h"
 
 #include <android/log.h>
 #include <string.h>
@@ -21,6 +23,14 @@ extern "C" uint32_t port_thor_space_copy(uint8_t* out, int size, uint32_t have, 
 extern "C" int port_thor_top_level(void);
 
 namespace {
+    mobile_thor::TouchPointerMailbox sTouchPointer;
+    mobile_thor::TrackpadMailbox sTrackpad;
+    void JNICALL nativeTouchTrackpad(JNIEnv*, jclass, jfloat dx, jfloat dy, jint phase) {
+        sTrackpad.send(dx, dy, phase);
+    }
+    void JNICALL nativeTouchPointer(JNIEnv*, jclass, jfloat x, jfloat y, jboolean down) {
+        sTouchPointer.set(x, y, down == JNI_TRUE);
+    }
     ThorLowerState sPublished;
 
     // 620x540 RGBA, rows top first; returns its sequence (0 when nothing newer than `have`),
@@ -126,6 +136,10 @@ extern "C" void port_thor_lower_commit(const ThorLowerState* state) {
 
 namespace mobile_thor {
 
+bool readTouchPointer(float& x, float& y) { return sTouchPointer.read(x, y); }
+bool applyTouchTrackpad(float& x, float& y) { return sTrackpad.apply(x, y); }
+void resetTouchPointer() { sTouchPointer.clear(); sTrackpad.clear(); }
+
 void registerLowerBridge(ANativeActivity* activity) {
     if (activity == nullptr || activity->vm == nullptr || activity->clazz == nullptr) return;
     JNIEnv* env = nullptr;
@@ -140,6 +154,8 @@ void registerLowerBridge(ANativeActivity* activity) {
     jclass clazz = env->GetObjectClass(activity->clazz);
     if (clazz != nullptr) {
         static const JNINativeMethod methods[] = {
+            {"nativeTouchPointer", "(FFZ)V", (void*)nativeTouchPointer},
+            {"nativeTouchTrackpad", "(FFI)V", (void*)nativeTouchTrackpad},
             {"nativeLowerState", "(Ljava/nio/ByteBuffer;)I", (void*)nativeLowerState},
             {"nativeSpace", "(Ljava/nio/ByteBuffer;I[I)I", (void*)nativeSpace},
             {"nativeWorldState", "(Ljava/nio/ByteBuffer;I)I", (void*)nativeWorldState},

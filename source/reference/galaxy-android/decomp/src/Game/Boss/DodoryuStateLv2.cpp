@@ -1,3 +1,4 @@
+#include "port/kaizo.h"
 #include "Game/Boss/DodoryuStateLv2.hpp"
 #include "Game/Boss/Dodoryu.hpp"
 #include "Game/LiveActor/HitSensor.hpp"
@@ -690,7 +691,7 @@ bool DodoryuStateLv2::catchPlayerAttack(u32 msg, HitSensor* pSender, HitSensor* 
         return true;
     }
 
-    if (MR::isMsgPlayerHitAll(msg)) {
+    if (port_kaizo_enabled() ? MR::isMsgJetTurtleAttack(msg) : MR::isMsgPlayerHitAll(msg)) {
         TVec3f attackDir = pReceiver->mPosition;
         attackDir.sub(pSender->mPosition);
         _A0.set(attackDir);

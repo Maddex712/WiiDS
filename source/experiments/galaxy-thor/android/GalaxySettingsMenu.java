@@ -39,7 +39,8 @@ final class GalaxySettingsMenu extends View {
         STICK_RESPONSE = 6, INVERT_CAMERA = 7, LANGUAGE = 8, SKIP_MOVIES = 9, INFINITE_LIVES = 10, INFINITE_HEALTH = 11,
         INFINITE_STAR_BITS = 12, QUICK_SAVE = 13,
         // The Thor's buttons, one setting each (its Galaxy action), then "reset to defaults".
-        BUTTON_BASE = 14, BUTTON_COUNT = 12, BUTTONS_RESET = BUTTON_BASE + BUTTON_COUNT, SETTING_COUNT = BUTTONS_RESET + 1;
+        BUTTON_BASE = 14, BUTTON_COUNT = 12, BUTTONS_RESET = BUTTON_BASE + BUTTON_COUNT,
+        LOWER_TOUCH_MODE = BUTTONS_RESET + 1, SETTING_COUNT = LOWER_TOUCH_MODE + 1;
 
     static final int PAGE_ROOT = 0, PAGE_DISPLAY = 1, PAGE_CONTROLS = 2, PAGE_GAME = 3, PAGE_BUTTONS = 4;
     // Row kinds.
@@ -84,10 +85,11 @@ final class GalaxySettingsMenu extends View {
             Row.action(SAVE, "Quick Save"), Row.action(RESUME, "Resume"), Row.action(WIIDS, "Return to WiiDS")},
         {Row.choice("Resolution", RESOLUTION, new String[]{"480p (Wii)", "720p", "1080p (Thor screen)", "1440p"}, new int[]{0, 1, 2, 3}),
             Row.choice("Frame rate", FRAME_RATE, new String[]{"60 FPS", "30 FPS (battery saver)"}, new int[]{60, 30}),
-            Row.toggle("Smoothing (anti-aliasing and bloom)", SMOOTHING),
+            Row.choice("Picture", SMOOTHING, new String[]{"Original", "Smooth", "Smooth + glow"}, new int[]{0, 1, 2}),
             Row.choice("Show FPS", SHOW_FPS, new String[]{"Off", "FPS", "Full stats"}, new int[]{0, 1, 2})},
         {Row.choice("Right stick", RIGHT_STICK, new String[]{"Camera", "Star Pointer"}, new int[]{0, 1}),
-            Row.step("Pointer and camera speed", POINTER_SPEED, 50, 250, 10),
+            Row.choice("Lower screen", LOWER_TOUCH_MODE, new String[]{"Trackpad", "Planet"}, new int[]{0, 1}),
+            Row.step("Pointer speed", POINTER_SPEED, 50, 250, 10),
             Row.step("Stick response", STICK_RESPONSE, 50, 200, 10),
             Row.toggle("Invert camera", INVERT_CAMERA),
             Row.open("Buttons", PAGE_BUTTONS)},
@@ -101,9 +103,10 @@ final class GalaxySettingsMenu extends View {
     };
     static final String[][] HELP = {
         {"Settings save as soon as they change. Quick Save saves your game right where you are."},
-        {"Resolution and smoothing apply as soon as the game resumes.",
-            "The Thor's screen is 16:9: Galaxy already fills it in widescreen."},
-        {"In the game's menus the left stick also moves the Wii cursor."},
+        {"Original and Smooth keep the game's colors. Smooth + glow adds bloom and color boost.",
+            "Picture and resolution changes apply when the game resumes."},
+        {"Trackpad moves the Wii cursor; Planet turns the lower-screen model.",
+            "Camera: nudge left/right where allowed. The game controls elevation."},
         {"A new language applies the next time Galaxy starts."},
         {"Choose what each Thor button does. The D-pad, sticks and Back keep their jobs."},
     };
@@ -118,6 +121,8 @@ final class GalaxySettingsMenu extends View {
     private final Host host;
     private final int[] values = new int[SETTING_COUNT];
     private int page = PAGE_ROOT, focus;
+    private int touchRow = -1;
+    private boolean touchClose;
     private final int[] lastFocus = new int[5];
     private final float[] lift = new float[16];
     private final long born = SystemClock.uptimeMillis();
@@ -269,16 +274,31 @@ final class GalaxySettingsMenu extends View {
     }
 
     @Override public boolean onTouchEvent(MotionEvent e) {
-        if (e.getActionMasked() != MotionEvent.ACTION_UP) return true;
+        int action = e.getActionMasked();
+        if (action == MotionEvent.ACTION_CANCEL || e.getPointerCount() != 1) {
+            touchRow = -1; touchClose = false; return true;
+        }
         float scale = Math.min(getWidth() / W, getHeight() / H);
+        if (scale <= 0) { touchRow = -1; touchClose = false; return true; }
         float x = (e.getX() - (getWidth() - W * scale) / 2) / scale, y = (e.getY() - (getHeight() - H * scale) / 2) / scale;
-        if (closeRect().contains(x, y)) { back(); return true; }
         Row[] rows = rows();
-        for (int i = 0; i < rows.length; i++) {
-            if (rowRect(i).contains(x, y)) {
-                if (focus == i) select(); else { focus = i; invalidate(); }
-                return true;
+        if (action == MotionEvent.ACTION_DOWN) {
+            touchRow = -1; touchClose = closeRect().contains(x, y);
+            if (!touchClose) for (int i = 0; i < rows.length; i++) {
+                if (rowRect(i).contains(x, y)) { touchRow = i; focus = i; invalidate(); break; }
             }
+            return true;
+        }
+        if (action == MotionEvent.ACTION_MOVE) {
+            if (touchRow >= 0 && !rowRect(touchRow).contains(x, y)) touchRow = -1;
+            if (touchClose && !closeRect().contains(x, y)) touchClose = false;
+            return true;
+        }
+        if (action == MotionEvent.ACTION_UP) {
+            int pressed = touchRow; boolean close = touchClose;
+            touchRow = -1; touchClose = false;
+            if (close && closeRect().contains(x, y)) back();
+            else if (pressed >= 0 && pressed < rows.length && focus == pressed && rowRect(pressed).contains(x, y)) select();
         }
         return true;
     }

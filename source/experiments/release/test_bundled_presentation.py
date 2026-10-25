@@ -121,6 +121,12 @@ def main():
                     val duplicate = entry("launcher/repeated.png")
                     manifest(duplicate, duplicate)
                     expect(runCatching { ThorBundledPresentation.install(context) }.isFailure, "duplicate target rejected")
+                    for (badRevision in listOf("../outside", "name/child", ".", "..", "-leading", "a".repeat(65))) {
+                        manifest(*records.toTypedArray())
+                        val bad = JSONObject(File(assets, "presentation/manifest.json").readText()).put("revision", badRevision)
+                        put(assets, "presentation/manifest.json", bad.toString())
+                        expect(runCatching { ThorBundledPresentation.install(context) }.isFailure, "unsafe revision rejected")
+                    }
                     expect(save.readText() == "owner save" && settings.readText() == "owner settings", "negative fixtures preserve profile")
                     val outside = File(root, "outside").apply { mkdirs() }
                     val link = File(files, "WiiCompiled/ThorMap/symlink")

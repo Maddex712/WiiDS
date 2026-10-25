@@ -16,6 +16,7 @@ internal object ThorGameLaunch {
     const val SUNSHINE = "sunshine"
     const val ECLIPSE = "eclipse"
     const val GALAXY = "galaxy"
+    const val KAIZO = "kaizo"
     private const val GALAXY_ENTRY = "dev.thor.galaxy.ThorLaunchActivity"
     /** MSMBWii ("Just a Little Adventure"): New Super Mario Bros. Wii with MidiGuyDP's level mod. */
     const val MSMBWII = "msmbwii"
@@ -42,6 +43,10 @@ internal object ThorGameLaunch {
     fun launchGalaxy(activity: Activity): Result = launch(activity, GALAXY_ENTRY, GALAXY,
         galaxyInstalled(activity))
 
+    fun kaizoInstalled(context: Context): Boolean = android.os.Build.VERSION.SDK_INT >= 32 && dev.thor.galaxy.GalaxyStorage.kaizoReady(context)
+
+    fun launchKaizo(activity: Activity): Result = launch(activity, "dev.thor.galaxy.KaizoActivities\$Launch", KAIZO, kaizoInstalled(activity))
+
     fun launchNsmb(activity: Activity): Result = launch(activity, NSMB_ENTRY, NSMB_WII, nsmbInstalled(activity))
 
     fun launchSunshine(activity: Activity): Result = launch(activity, SUNSHINE_ENTRY, SUNSHINE, sunshineInstalled(activity))
@@ -53,6 +58,10 @@ internal object ThorGameLaunch {
 
     private fun launch(activity: Activity, entry: String, game: String, ready: Boolean,
                        targetPackage: String = activity.packageName): Result {
+        SaveManagerProfiles.blocker(activity)?.let {
+            android.widget.Toast.makeText(activity, it, android.widget.Toast.LENGTH_LONG).show()
+            return Result.UNAVAILABLE
+        }
         if (!ready) return Result.NOT_INSTALLED
         return try {
             activity.startActivity(Intent(ACTION_PLAY).setComponent(ComponentName(targetPackage, entry))

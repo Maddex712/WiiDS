@@ -31,6 +31,9 @@ public class GameActivity extends SDLActivity
 
     /** Immutable guest-thread snapshot for the lower display; no direct reads of guest RAM. */
     static native int[] nativeReadThorState();
+    static native int[] nativeReadAchievementEvents(int cursor);
+    private com.driftdroid.android.achievements.NsmbAchievementSession achievements;
+    private com.driftdroid.android.achievements.AchievementPopup achievementPopup;
     static native int[] nativeReadThorWorldMap();
     static native int[] nativeReadThorReserve();
     static native void nativeUseThorReserve();
@@ -60,6 +63,7 @@ public class GameActivity extends SDLActivity
     private boolean bootWidescreen;  // the game reads 4:3 versus widescreen once, when it starts
     private TouchControlsView touch;
     private MotionInput motion;
+    private boolean motionResumed;
     private boolean nativeReady;
     private ThorLowerScreen lowerScreen;
     private int touchButtons;
@@ -83,6 +87,8 @@ public class GameActivity extends SDLActivity
         }
         super.onCreate(savedInstanceState);
         nativeReady = !SDLActivity.mBrokenLibraries;
+        // WiiDS shows each game's RetroAchievements sets (imported progress); the native observer's
+        // local rules are no longer recorded or shown.
         if (nativeReady) {
             nativeSetDeviceName(deviceName());
         }
@@ -100,6 +106,7 @@ public class GameActivity extends SDLActivity
         applyControlSettings();
         addContentView(touch, new ViewGroup.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
+
         motion = new MotionInput(this, this);
         if (NsmbBuild.THOR_BUILD && nativeReady) lowerScreen = new ThorLowerScreen(this);
     }
@@ -119,6 +126,7 @@ public class GameActivity extends SDLActivity
         public void run() {
             final long now = android.os.SystemClock.uptimeMillis();
             if (nativeReady) {
+                if (achievements != null) achievements.accept(nativeReadAchievementEvents(achievements.cursor()));
                 // The game's settings window: keep its choices, the config is rewritten at each start.
                 final float[] changed = nativeTakeSettings();
                 if (changed != null) {
@@ -151,6 +159,8 @@ public class GameActivity extends SDLActivity
     @Override
     protected void onResume() {
         super.onResume();
+        motionResumed = true;
+        if (achievementPopup != null) achievementPopup.resume();
         menuPoll.removeCallbacks(pollMenu);
         menuPoll.post(pollMenu);
         hideSystemBars();
@@ -197,6 +207,8 @@ public class GameActivity extends SDLActivity
 
     @Override
     protected void onPause() {
+        motionResumed = false;
+        if (achievementPopup != null) achievementPopup.pause();
         if (lowerScreen != null) lowerScreen.stop();
         menuPoll.removeCallbacks(pollMenu);
         if (motion != null) motion.stop();
@@ -209,8 +221,10 @@ public class GameActivity extends SDLActivity
         super.onWindowFocusChanged(hasFocus);
         if (hasFocus) {
             hideSystemBars();
+            if (motion != null && motionResumed) motion.start(settings.motionTilt(), settings.motionShake());
         } else if (touch != null) {
             touch.release();  // a dialog or the shade took the screen: let go of every button
+            if (motion != null) motion.stop();
         }
     }
 
@@ -289,6 +303,8 @@ public class GameActivity extends SDLActivity
 
     @Override
     protected void onDestroy() {
+        if (achievements != null) { achievements.setListener(null); achievements.close(); }
+        if (achievementPopup != null) { achievementPopup.close(); achievementPopup = null; }
         if (lowerScreen != null) lowerScreen.close();
         if (multicastLock != null && multicastLock.isHeld()) {
             multicastLock.release();
@@ -357,6 +373,7 @@ public class GameActivity extends SDLActivity
                 && getIntent().getBooleanExtra(ThorLaunchActivity.EXTRA_SESSION, false)
                 ? "Main Menu" : "Start Menu";
         items.add(menuLabel);
+        if (NsmbBuild.THOR_BUILD) items.add("Achievements");
         if (inSession) items.add("Leave LAN Game");
         items.add("Quit Game");
         new AlertDialog.Builder(this)
@@ -364,6 +381,9 @@ public class GameActivity extends SDLActivity
                 .setItems(items.toArray(new String[0]), (dialog, which) -> {
                     final String item = items.get(which);
                     if (item.equals(menuLabel)) openStartMenu(inSession);
+                    else if (item.equals("Achievements")) startActivity(new Intent(this,
+                        com.driftdroid.android.achievements.AchievementsActivity.class)
+                        .putExtra(com.driftdroid.android.achievements.AchievementsActivity.EXTRA_GAME, NsmbVariant.current().id));
                     else if (item.equals("Leave LAN Game")) leaveSession();
                     else finish();
                 })

@@ -424,7 +424,7 @@ final class ThorCompanion {
         if (a.has("heroMario")) a.image(c, "heroMario", 620, 330 + bob, 300);
         else a.image(c, "character0", 620, 380 + bob, 220);
         plate(c, r(110, 700, 1130, 820), 46, PLATE, EDGE, 6, true, 0);
-        a.text(c, "New Super Mario Bros. Wii", 620, 726, 70, 960, "main", 0xffffffff, 255);
+        a.text(c, NsmbVariant.current() == NsmbVariant.MSMBWII ? "MSMBWii" : "New Super Mario Bros. Wii", 620, 726, 70, 960, "main", 0xffffffff, 255);
         if (s == null) {
             // Loading: three coins taking turns, nothing else to promise.
             for (int i = 0; i < 3; i++) {

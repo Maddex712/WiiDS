@@ -52,10 +52,13 @@ final class AppSettings {
     float touchOpacity() { return prefs.getFloat("touch_opacity", 0.6f); }
     void setTouchOpacity(float opacity) { prefs.edit().putFloat("touch_opacity", opacity).commit(); }
 
-    boolean motionTilt() { return prefs.getBoolean("motion_tilt", !NsmbBuild.THOR_BUILD); }
+    // The built-in Thor accelerometer is the remote's body too. Only an explicit player choice
+    // disables tilt; hiding the touch buttons must not also disable motion-controlled platforms.
+    boolean motionTilt() { return prefs.getBoolean("motion_tilt", true); }
     void setMotionTilt(boolean on) { prefs.edit().putBoolean("motion_tilt", on).commit(); }
 
-    boolean motionShake() { return prefs.getBoolean("motion_shake", !NsmbBuild.THOR_BUILD); }
+    // A physical jolt is Wii Remote shake input throughout play, including propeller/spin/carry.
+    boolean motionShake() { return prefs.getBoolean("motion_shake", true); }
     void setMotionShake(boolean on) { prefs.edit().putBoolean("motion_shake", on).commit(); }
 
     boolean haptics() { return prefs.getBoolean("haptics", true); }

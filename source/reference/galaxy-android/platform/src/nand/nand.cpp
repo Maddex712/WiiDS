@@ -1,3 +1,4 @@
+#include "port/profile.h"
 // NAND flash emulation: save data lives in files under the app's storage.
 #include <dirent.h>
 #include <errno.h>
@@ -156,13 +157,13 @@ s32 NANDClose(NANDFileInfo* info) {
     if (info->fileDescriptor >= 0) {
         if (info->accType != NAND_ACCESS_READ) {
             fsync(info->fileDescriptor);
-            // Auto-mirror GameData.bin to persistent external storage (/sdcard/Android/data/io.github.maddex712.wiids/files/galaxy/GalaxyData/saves) atomically
+            // Atomically mirror GameData.bin within this Activity profile only.
             if (strstr(info->origPath, "GameData.bin")) {
                 std::string hp = hostPath(info->origPath);
-                mkdir("/sdcard/Android/data/io.github.maddex712.wiids/files/galaxy/GalaxyData", 0770);
-                mkdir("/sdcard/Android/data/io.github.maddex712.wiids/files/galaxy/GalaxyData/saves", 0770);
-                if (atomicMirrorFile(hp, "/sdcard/Android/data/io.github.maddex712.wiids/files/galaxy/GalaxyData/saves/GameData.bin")) {
-                    port_log("nand: atomically mirrored %s -> /sdcard/Android/data/io.github.maddex712.wiids/files/galaxy/GalaxyData/saves/GameData.bin", hp.c_str());
+                mkdir(port_profile_data_path("").c_str(), 0770);
+                mkdir(port_profile_data_path("/saves").c_str(), 0770);
+                if (atomicMirrorFile(hp, port_profile_data_path("/saves/GameData.bin").c_str())) {
+                    port_log("nand: atomically mirrored %s -> %s", hp.c_str(), port_profile_data_path("/saves/GameData.bin").c_str());
                 } else {
                     port_log("nand: warning - atomic save mirror failed for %s", hp.c_str());
                 }

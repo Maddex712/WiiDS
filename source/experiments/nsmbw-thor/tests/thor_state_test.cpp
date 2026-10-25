@@ -104,7 +104,7 @@ int main() {
     Fixture(); Word(0x80315B9Cu,0x0817FF01u); s=Capture();
     Check((s[2]&2)!=0 && s[5]==8 && s[6]==23,"shown special course is retained independently of loaded world");
     Fixture(); Word(0x80428730u,3); s=Capture();
-    Check(s[2]==1 && s[3]==3 && s[4]==-1 && s[8]==-1 && s[10]==-1,"world map clears stale course-only fields");
+    Check(s[2]==5 && s[3]==3 && s[4]==-1 && s[8]==99 && s[10]==-1,"world map retains lives and clears course-only fields");
     Fixture(); bytes.erase(0x80315B98u); s=Capture();
     Check(s[2]==1 && s[4]==-1 && s[5]==-1,"failed mode read cannot expose course fields");
     Fixture(); Word(0x80354E60u,4); s=Capture();
@@ -196,7 +196,7 @@ int main() {
     ExtrasFixture(); Float(0x800700ACu,2125); s=Capture();
     Check(s[12]==1000,"small goal margin clamps to area end");
     ExtrasFixture(); Word(0x80428730u,3); s=Capture();
-    Check(s[2]==1 && s[12]==-1 && s[13]==-1 && s[15]==-1,"world-map transition clears every course extra");
+    Check(s[2]==5 && s[12]==-1 && s[13]==-1 && s[15]==-1,"world-map transition retains lives and clears every course extra");
     // Concurrent UI readers see either complete previous or complete next snapshot.
     Fixture(); Capture(); std::atomic<bool> done{false}, bad{false};
     std::thread reader([&] {
@@ -209,4 +209,5 @@ int main() {
     done.store(true); reader.join();
     Check(!bad.load(),"mutex publication preserves complete snapshots across UI reads");
     std::printf("PASS: %d checks against actual thor_state.cpp; mock Memory has no write API.\n",checks);
+    return 0;
 }

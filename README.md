@@ -10,7 +10,7 @@ Play supported Wii and GameCube games on the AYN Thor, with a companion on its l
 and your own [compatible game dump](#exact-game-files-for-each-game). The region and revision must match.
 **Games are not included.** Leave room for the APK, your dump and the prepared game files.
 
-1. **[Download WiiDS 1.0 for AYN Thor (APK, 1.85 GB)](https://github.com/Maddex712/WiiDS/releases/download/v1.0.0/WiiDS-1.0-arm64.apk)** on your Thor.
+1. **[Download WiiDS 1.1 for AYN Thor (APK, 1.85 GB)](https://github.com/Maddex712/WiiDS/releases/download/v1.1.0/WiiDS-1.1-arm64.apk)** on your Thor.
 2. **Install the APK and open WiiDS.** Allow your browser or file manager to install apps if Android asks.
    Wait for WiiDS to prepare its files. Updating? Install over your existing copy; do not uninstall it.
 3. **Copy your game dump to the Thor.** Open **Options → Your games** (it opens automatically on first use).
@@ -27,13 +27,27 @@ and your own [compatible game dump](#exact-game-files-for-each-game). The region
 - **MSMBWii:** installs automatically after importing the supported NSMB Wii disc. Use **Install mod** or **Retry mod installation** if needed.
 - **Eclipse:** import the supported Sunshine disc, then choose **Install Eclipse** in **Your games**. The patch is included.
 - **Retro Rewind:** import the supported Mario Kart Wii disc, then press **Y** in the library or open **Options → Retro Rewind updates**. This download needs internet access.
+- **Kaizo Mario Galaxy Rebalanced 2.1:** select its card in **Your games**, use your clean USA Galaxy disc, and choose **Set up Rebalanced**. Select the creator's original 2.1 ZIP when prompted; the setup dialog includes an **Official download** link. The mod ZIP is not bundled.
 
-[Check supported discs and formats](#what-youll-need) · [Galaxy setup and storage details](docs/release/GALAXY-SETUP.md) · [Per-game guide](docs/GAMES.md) · [Galaxy gameplay and planet pictures](#super-mario-galaxy)
+[Full 1.1 patch notes](docs/release/V1.1.md) · [Join the WiiDS Discord](https://discord.gg/vTEKP8wpQm) · [Check supported discs and formats](#what-youll-need) · [Galaxy setup and storage details](docs/release/GALAXY-SETUP.md) · [Per-game guide](docs/GAMES.md) · [Galaxy gameplay and planet pictures](#super-mario-galaxy)
 
 <p align="center">
   <img src="docs/images/mkw-retro-rewind-peach-circuit.jpg" width="640"
        alt="Retro Rewind Peach Circuit racing on the AYN Thor's top screen, with a live overhead course map, standings and timer on the bottom screen">
 </p>
+
+## New in 1.1
+
+- **Kaizo Mario Galaxy Rebalanced 2.1** joins the library, with its own saves and lower-screen assets generated from the patched data.
+- **Save manager:** dated backups, export/restore and supported Dolphin in-game save imports for all eight game/mod profiles.
+- **Game shortcuts:** launch individual games and mods from Cocoon or another compatible Android launcher, and resume an existing game through its shortcut.
+- **Galaxy controls and graphics:** relative lower-screen Trackpad, native camera limits, a brief mode hint, Original/Smooth/Smooth + glow choices, and corrected opening-attack colors and Toad palettes.
+- **NSMB motion and resume:** tilt and physical shake enabled by default, with fixes for the reproduced NSMB/MSMBWii resume crash.
+- **RetroAchievements browser:** sets, subsets, badges and existing connected-account progress. WiiDS does not submit new gameplay unlocks.
+- **Presentation and touch fixes:** included menu music/art install correctly on first use, with clearer focus and first-tap behavior.
+
+Read the [full patch notes and known limits](docs/release/V1.1.md), [save guide](docs/SAVE_MANAGER.md),
+or [shortcut guide](docs/FRONTEND_LAUNCHING.md). Install 1.1 over your existing WiiDS app to keep its data.
 
 ## Games
 
@@ -46,8 +60,9 @@ and your own [compatible game dump](#exact-game-files-for-each-game). The region
 | **Super Mario Sunshine** | Decompilation port, built for Android | Enlarged area map and Mario marker, moving cloud backdrop, postcard, episode Shines and original-art counters; live title sky in menus | USA, `GMSE01` revision 0 |
 | **Super Mario Eclipse 1.1.0** | Sunshine expansion in its own native runtime processes | The same live-map companion, with Eclipse-specific area and menu handling | Uses your USA Sunshine disc; official patch and installer included |
 | **Super Mario Galaxy 1** | Native Galaxy-Android/Petari port inside WiiDS; own-disc conversion and lower bake are integrated | Live counters, textured GPU planet with matched actor visibility/matrices and player marker; Gardens flat map | USA `RMGE01` revision 0; Android API 32+ |
+| **Kaizo Mario Galaxy Rebalanced 2.1** | Galaxy challenge mod in a separate native profile | Galaxy companion generated from the modded data, with independent settings and saves | Same clean USA Galaxy disc plus the creator's exact Rebalanced 2.1 ZIP |
 
-Galaxy setup automatically generates its private lower-screen art and models from your disc. Read [Galaxy setup/migration and current limits](docs/release/GALAXY-SETUP.md). **The new integration was validated on desktop/Android emulation, not a physical Thor.** Earlier Thor images retain their original development-build scope.
+Galaxy setup automatically generates its private lower-screen art and models from your disc. Read [Galaxy setup/migration and current limits](docs/release/GALAXY-SETUP.md). The 1.1 development builds passed bounded physical Thor checks for original Galaxy and Kaizo: existing-save loading, lower-screen pointing, camera controls, sleep/wake and normal exit. Clean dev28 also verified the corrected opening-attack colors. This is not an all-stage compatibility guarantee; each screenshot retains its actual capture-build label.
 
 Read the [game guide](docs/GAMES.md) for each game's setup, companion screen and current limitations.
 
@@ -67,7 +82,7 @@ legacy-save migration and current limits.
 ## Highlights
 
 - **The complete presentation:** selected retail/fan covers and discs, Wii Menu music and UI sounds, original HUD/fonts/settings artwork and cached lower-screen maps are bundled. Existing user overrides and saves are preserved.
-- **Seven cases with matching artwork:** white Mario Kart/Retro Rewind, red NSMB/MSMBWii, black Sunshine/Eclipse.
+- **Eight game/mod entries:** Mario Kart/Retro Rewind, NSMB/MSMBWii, Sunshine/Eclipse and Galaxy/Kaizo, with each mod keeping its own profile.
 - **Printed case spines:** Mario Kart, NSMB Wii and Sunshine use crops from retail full-cover scans;
   Retro Rewind and Eclipse use community cover artwork. MSMBWii's spine is an explicit custom
   adaptation. [Artwork sources](docs/GAMES.md#case-artwork).
@@ -86,7 +101,7 @@ legacy-save migration and current limits.
   stays at 60 Hz. The Sunshine/Eclipse 120 FPS option is also experimental; it is not a sustained-performance guarantee.
 - **Retro Rewind** 6.13.0–6.13.1, installed and updated in-app from the official servers. Newer versions need a matching engine build first.
 
-## New in 1.0
+## Introduced in 1.0
 
 Galaxy uses relocated native memory inside a non-debuggable WiiDS process, with its own
 NAND/settings/import profile. Its Back menu includes Quick Save and Controls > Buttons.
@@ -95,29 +110,55 @@ See [1.0 release/validation notes](docs/release/V1.0.md).
 
 ## Screenshots
 
-Genuine captures from an AYN Thor, with capture context in the captions. Where both screens are shown, the top screen is above and the bottom screen below.
-Game titles identify Original, Retro Rewind and the other mod entries separately. Mario Kart and
-Retro Rewind retain their existing gameplay captures because their presentation is unchanged.
-Original Sunshine's Airstrip and title-sky images below were captured in **WiiDS 0.9.0-beta.5**.
-The unchanged launcher, NSMB and Eclipse images retain their **beta.3** labels, as do Sunshine's
-older file-selection and case captures. Mario Kart images retain their existing capture context.
-Each image identifies the build that actually produced it.
-Captures document their named scene, rather than implying every course or stage was retested.
+Genuine AYN Thor captures, with the upper display above the centered lower display.
+The new 1.1 images are unchanged screenshots from the named October 24–25 development builds,
+stacked without cropping or stretching. Each caption names the build that produced
+the capture; these selected scenes do not imply that every stage was retested.
+Older images below keep their original build labels where the presentation is still useful.
+
+### WiiDS 1.1 features
+
+**Save manager and Dolphin imports** — 1.1 nightly review and dev17. Originals and mods have separate destinations.
+
+<p align="center">
+  <img src="docs/images/wiids-1.1-save-manager.png" width="420" alt="WiiDS 1.1 nightly review: save backup, export and restore controls above, selected NSMB save profile below">
+  <img src="docs/images/wiids-1.1-dolphin-import.png" width="420" alt="WiiDS 1.1-dev17: Dolphin import guidance for NSMB above, matching save profile below">
+</p>
+
+**Galaxy Trackpad and Picture choices** — dev19 and dev17. These settings captures show the paused companion below.
+
+<p align="center">
+  <img src="docs/images/wiids-1.1-trackpad-controls.png" width="420" alt="WiiDS 1.1-dev19 Galaxy Controls: lower-screen Trackpad and native camera guidance above, Settings pause companion below">
+  <img src="docs/images/wiids-1.1-galaxy-picture.png" width="420" alt="WiiDS 1.1-dev17 Galaxy Picture settings: Original, Smooth and Smooth plus glow choices above, Settings pause companion below">
+</p>
+
+**Cocoon shortcut and achievement browser** — 1.1 Thor polish/nightly review captures. The browser displays existing RetroAchievements progress; it does not submit unlocks.
+
+<p align="center">
+  <img src="docs/images/wiids-1.1-cocoon-shortcut.png" width="420" alt="WiiDS 1.1 Thor polish capture: Retro Rewind disc above and its selected Cocoon shortcut below">
+  <img src="docs/images/wiids-1.1-achievements.png" width="420" alt="WiiDS 1.1 nightly review: NSMB achievement list above and the selected badge requirements below">
+</p>
+
+**Kaizo Castle Gardens and corrected attack colors** — clean dev28. Toads retain their separate palettes, and the town follows its scene color transition. The scene's warm rim lighting remains.
+
+<p align="center">
+  <img src="docs/images/wiids-1.1-galaxy-attack-colors.png" width="640" alt="WiiDS 1.1-dev28 Kaizo Castle Gardens attack: colored Toads and Mario above, the matching live Gardens map below">
+</p>
 
 ### Super Mario Galaxy
 
 **Gameplay on the upper screen, a 3D world or planet view on the lower screen.**
-These are genuine Thor development captures from October 22, before the one-APK integration.
+The Gateway pair below was captured on October 25 in the integrated, clean **1.1-dev28** build on the Thor.
 
 **Gateway Galaxy:** the game above, with the textured planet and player marker below.
 
 <p align="center">
-  <img src="docs/images/galaxy-dev-gateway-upper.png" width="640" alt="Super Mario Galaxy gameplay on the upper screen: Luigi in Gateway Galaxy, October 22 Thor development build">
+  <img src="docs/images/galaxy-1.1-dev28-gateway-upper.png" width="640" alt="Super Mario Galaxy in WiiDS 1.1-dev28: Luigi in Gateway Galaxy on the Thor upper screen">
   <br>
-  <img src="docs/images/galaxy-dev-gateway-lower.png" width="414" alt="Super Mario Galaxy lower screen: textured 3D Gateway Galaxy planet with Luigi's position marker">
+  <img src="docs/images/galaxy-1.1-dev28-gateway-lower.png" width="414" alt="Super Mario Galaxy lower screen: textured 3D Gateway Galaxy planet with Luigi's position marker">
 </p>
 
-**Castle Gardens:** Mario's opening area above, with its 3D world overview below.
+**Earlier Castle Gardens overview:** October 22 development capture before the one-APK integration. The current 1.1 Kaizo attack/map pair is shown above.
 
 <p align="center">
   <img src="docs/images/galaxy-dev-gardens-upper.png" width="640" alt="Super Mario Galaxy upper screen: Mario at the Star Festival in Castle Gardens, earlier October 22 Thor development build">
@@ -225,6 +266,7 @@ counters. Eclipse's game data and saves stay separate from regular Sunshine.
 | Super Mario Sunshine | Super Mario Sunshine (GameCube) | `GMSE01` | USA | 0 | `8d094f2c5c112aba9660f0478b16c7f2caf63cbf` |
 | Super Mario Eclipse 1.1.0 | the same Sunshine source disc; apply the included official patch | `GMSE01` source → `GMSE04` installed | USA source | 0 (source) | same clean Sunshine source hash above |
 | Super Mario Galaxy 1 | Super Mario Galaxy (Wii), clean ISO | `RMGE01` | USA | **0** | `a36105c9fbfff6041dc5babf4318c6a216ad470a` |
+| Kaizo Mario Galaxy Rebalanced 2.1 | Same clean Galaxy disc plus the original Rebalanced 2.1 ZIP | RMGE01 source | USA | **0** (source) | same clean Galaxy source hash above |
 
 For Eclipse, first import the unchanged supported Sunshine disc, then choose **Install Eclipse**.
 WiiDS checks the source disc, bundled 1.1.0 patch and resulting image, and keeps Eclipse's image,
@@ -255,7 +297,7 @@ Grant storage access and use **Search again** in **Your games** so WiiDS finds a
 
 ## Included mods and presentation
 
-All three mod integrations are included in the one APK:
+All four mod integrations run inside the one APK:
 
 - **Retro Rewind** (Mario Kart Wii): its native runtime and 398 rendered lower-screen maps are bundled.
   The actual track/content pack installs and updates in the app from Retro Rewind's official servers.
@@ -268,6 +310,7 @@ All three mod integrations are included in the one APK:
   on-device installer are bundled. Apply the patch to your own supported Sunshine disc through
   **Your games → Install Eclipse**. No separate Eclipse app or downloaded game image is required.
   **Retry Eclipse installation** uses the bundled patch again after cancellation.
+- **Kaizo Mario Galaxy Rebalanced 2.1** (Galaxy): its native integration is included. Choose the creator's original 2.1 ZIP through its setup dialog; WiiDS checks it and applies it to your own supported Galaxy disc. The patch ZIP is not bundled. Original Galaxy and Kaizo keep separate saves, settings and generated lower-screen data.
 
 The complete selected presentation is also bundled: retail/fan covers and discs, printed case spines, Wii Menu music,
 UI sounds, companion HUDs/fonts, menu/settings art, retail maps and the Retro Rewind map cache.
@@ -278,10 +321,10 @@ for mod and presentation credits and terms.
 
 ## Source and build information
 
-The [1.0 release](https://github.com/Maddex712/WiiDS/releases/tag/v1.0.0) contains the APK, checksums and
-matching `WiiDS-1.0-source.zip`. That named source ZIP includes the large presentation files omitted
+The [1.1 release](https://github.com/Maddex712/WiiDS/releases/tag/v1.1.0) contains the APK, checksums and
+matching `WiiDS-1.1-source.zip`. That named source ZIP includes the large presentation files omitted
 from GitHub's automatic Source code download. The reviewed code is also in [source/](source/).
-See the [build notes](docs/release/SOURCE-RELEASE.md), [release notes](docs/release/V1.0.md)
+See the [build notes](docs/release/SOURCE-RELEASE.md), [release notes](docs/release/V1.1.md)
 and [component credits](docs/release/WIIDS-NOTICE.md).
 
 ## Credits
@@ -292,6 +335,8 @@ WiiDS stands on the work of these projects and people:
 - **NSMB Wii recompilation** (WitherBlitz): the New Super Mario Bros. Wii runtime
 - **sms-pc-port** and **sms-launcher** (Chase Myers / chasem-dev), on the **Super Mario Sunshine decompilation** (doldecomp)
 - **Retro Rewind** (ZPL and the Retro Rewind team)
+- **OpenPort-Labs Galaxy-Android**, **SMGCommunity Petari** and **bigmak94/GalaxyQuest**: the Galaxy runtime and decompilation work
+- **Kaizo Mario Galaxy / Rebalanced creators**: the Rebalanced 2.1 mod; its original credit files are retained during setup
 - **MSMBWii: Just a Little Adventure** (MidiGuyDP and Fredo), using **Another Super Mario Bros. Wii** code (Skawo, Treeki)
 - **Super Mario Eclipse** (Eclipse Team / JoshuaMKW), **BetterSunshineEngine**, **BetterSunshineMoveset** and **SunshineHeaderInterface**
 - **Some-Crappy-Edits**: Eclipse fan disc design; the selected Eclipse cover was supplied by the owner and its creator is unverified

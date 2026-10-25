@@ -79,7 +79,7 @@ void Settings::load(const std::string& path) {
             else if (!strcmp(key, "full_touch_mode")) fullTouchMode = (val > 0.5f);
             else if (!strcmp(key, "screen_orientation")) screenOrientationChoice = std::max(0, std::min(2, (int)val));
             else if (!strcmp(key, "speedrun_hud")) speedrunHud = (val > 0.5f);
-            else if (!strcmp(key, "post_process")) postProcess = std::max(-1, std::min(1, (int)val));
+            else if (!strcmp(key, "post_process")) postProcess = std::max(-1, std::min(2, (int)val));
             else if (!strcmp(key, "camera_inverted")) cameraInverted = (val > 0.5f);
             else if (!strncmp(key, "button_map_", 11)) {
                 const int i = atoi(key + 11);

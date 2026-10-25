@@ -1,3 +1,4 @@
+#include "port/profile.h"
 #include "gx/vk/vk_common.h"
 
 namespace gpu {
@@ -13,7 +14,7 @@ void setVkPipelineCachePath(const char* path) {
 
 static const char* getPipelineCachePath() {
     if (!sPipelineCachePath[0]) {
-        snprintf(sPipelineCachePath, sizeof(sPipelineCachePath), "/data/data/io.github.maddex712.wiids/files/galaxy/vk_pipeline_cache.bin");
+        snprintf(sPipelineCachePath, sizeof(sPipelineCachePath), "%s", port_profile_internal_path("/vk_pipeline_cache.bin").c_str());
     }
     return sPipelineCachePath;
 }

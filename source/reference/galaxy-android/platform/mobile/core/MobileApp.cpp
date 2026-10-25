@@ -1,3 +1,5 @@
+#include "port/profile.h"
+#include "port/kaizo.h"
 #include "MobileApp.h"
 
 #include <android/log.h>
@@ -87,6 +89,7 @@ void MobileApp::handleAppCmd(int32_t cmd) {
         break;
     case APP_CMD_PAUSE:
         LOGI("APP_CMD_PAUSE");
+        mobile_thor::resetTouchPointer();
         if (mVkReady) gpu::VkRenderer::get().savePipelineCache();
         mobile_ui::UIOverlay::get().resetInput();
         mGamepad.reset();
@@ -166,6 +169,7 @@ void MobileApp::applyThorMenuRequests() {
         }
         const bool open = request.kind == mobile_thor::THOR_MENU_OPEN;
         if (open == mobile_thor::settingsMenuOpen()) continue;
+        mobile_thor::resetTouchPointer();
         mGamepad.reset();
         mSpinFrames = 0;
         mPad.buttons = 0;
@@ -233,11 +237,11 @@ void MobileApp::run(android_app* app, uintptr_t windowBase, size_t windowSize) {
     port_input_set(0, &mPad);
     port_skip_set_hold_seconds(0.0f);
 
-    std::string internalPath = app->activity->internalDataPath ? app->activity->internalDataPath : "/data/data/io.github.maddex712.wiids/files/galaxy";
+    std::string internalPath = app->activity->internalDataPath ? app->activity->internalDataPath : port_profile_internal_root();
     bool isPlus = (internalPath.find("plus") != std::string::npos);
     mobile_ui::UIOverlay::get().setPlusEdition(isPlus);
 
-    std::string ext = app->activity->externalDataPath ? app->activity->externalDataPath : "/sdcard/Android/data/io.github.maddex712.wiids/files/galaxy";
+    std::string ext = app->activity->externalDataPath ? app->activity->externalDataPath : std::string(port_profile_data_root()).substr(0, std::string(port_profile_data_root()).size() - 11);
     mSaveRoot = internalPath + "/nand";
     mkdir(mSaveRoot.c_str(), 0770);
     mobile_ui::UIOverlay::get().setSavePath(mSaveRoot + (isPlus ? "/touch_settings_plus.ini" : "/touch_settings.ini"));
@@ -246,7 +250,7 @@ void MobileApp::run(android_app* app, uintptr_t windowBase, size_t windowSize) {
     if (mobile_ui::UIOverlay::get().settings().batterySaver) initialFps = 30;
     mobile_system::SystemManager::setPreferredRefreshRate(app, (float)initialFps);
 
-    std::string primaryLog = "/sdcard/Android/data/io.github.maddex712.wiids/files/galaxy/GalaxyData/galaxy_log.txt";
+    std::string primaryLog = ext + "/GalaxyData/galaxy_log.txt";
     FILE* tst = fopen(primaryLog.c_str(), "a");
     if (tst) {
         fclose(tst);
@@ -293,8 +297,23 @@ void MobileApp::run(android_app* app, uintptr_t windowBase, size_t windowSize) {
         mobile_core::GameBooter::pollAndBoot(mGameBooted, mDataRoot, mSaveRoot, ext, mAndroid);
 
         mobile_ui::UIOverlay::get().update(mPad, mSpinFrames);
+        float lowerX = mobile_ui::UIOverlay::get().getPointerX();
+        float lowerY = mobile_ui::UIOverlay::get().getPointerY();
+        const bool trackpadTouch = mobile_thor::applyTouchTrackpad(lowerX, lowerY);
+        const bool lowerTouch = trackpadTouch || mobile_thor::readTouchPointer(lowerX, lowerY);
+        if (lowerTouch) {
+            mobile_ui::UIOverlay::get().setPointerPos(lowerX, lowerY);
+            mPad.pointerX = lowerX;
+            mPad.pointerY = lowerY;
+            mPad.pointerDist = 2.f;
+            mPad.pointerValid = 1;
+        } else if (mLowerTouchWasDown && !mTouchscreenDown) {
+            mobile_ui::UIOverlay::get().releasePointer();
+            mPad.pointerValid = 0;
+        }
+        mLowerTouchWasDown = lowerTouch;
         const int64_t inputTime = port_host_time_ns();
-        mGamepad.updatePointer(mPad, (float)(inputTime - previousInputTime) * 1e-9f, mTouchscreenDown);
+        mGamepad.updatePointer(mPad, (float)(inputTime - previousInputTime) * 1e-9f, mTouchscreenDown || lowerTouch);
         previousInputTime = inputTime;
         if (mSpinFrames > 0) {
             float s = (mSpinFrames & 1) ? 2.5f : -2.5f;

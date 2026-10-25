@@ -6,16 +6,18 @@ import java.io.File;
 
 /** A package-internal Galaxy profile; never shares NAND/settings with another game. */
 public final class GalaxyStorage extends ContextWrapper {
-    public GalaxyStorage(Context base) { super(base); }
+    private final String namespace;
+    public GalaxyStorage(Context base) { this(base, false); }
+    public GalaxyStorage(Context base, boolean kaizo) { super(base); namespace = kaizo ? "galaxy-kaizo" : "galaxy"; }
     @Override public File getFilesDir() {
-        File dir = new File(super.getFilesDir(), "galaxy");
+        File dir = new File(super.getFilesDir(), namespace);
         if (!dir.isDirectory() && !dir.mkdirs()) throw new IllegalStateException("Galaxy storage unavailable");
         return dir;
     }
     @Override public File getExternalFilesDir(String type) {
         File base = super.getExternalFilesDir(null);
         if (base == null) return null;
-        File dir = new File(base, type == null ? "galaxy" : "galaxy/" + type);
+        File dir = new File(base, type == null ? namespace : namespace + "/" + type);
         if (!dir.isDirectory() && !dir.mkdirs()) throw new IllegalStateException("Galaxy storage unavailable");
         return dir;
     }
@@ -28,5 +30,14 @@ public final class GalaxyStorage extends ContextWrapper {
     public static boolean ready(Context context) {
         Context profile=scoped(context);
         return !GalaxyMigration.pending(profile.getFilesDir()) && ThorLaunchActivity.ready(profile);
+    }
+    public static boolean kaizoReady(Context context) {
+        Context profile = new GalaxyStorage(context, true);
+        if (!ThorLaunchActivity.ready(profile)) return false;
+        File external = profile.getExternalFilesDir(null);
+        try (java.io.BufferedReader in = new java.io.BufferedReader(new java.io.FileReader(
+                new File(external, "GalaxyData/sys/KaizoTables.txt")))) {
+            return KaizoActivities.PATCH_HEADER.equals(in.readLine());
+        } catch (Exception missing) { return false; }
     }
 }

@@ -1,3 +1,4 @@
+#include "port/kaizo.h"
 #include "Game/Enemy/BegomanSpike.hpp"
 #include "Game/Enemy/BegomanSpringHead.hpp"
 #include "Game/LiveActor/HitSensor.hpp"
@@ -211,7 +212,7 @@ void BegomanSpike::control() {
         }
     }
 
-    if (MR::isBindedGroundDamageFire(this)) {
+    if (!port_kaizo_enabled() && MR::isBindedGroundDamageFire(this)) {
         kill();
         MR::emitEffect(this, "Fall");
         return;

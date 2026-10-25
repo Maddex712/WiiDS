@@ -1,4 +1,4 @@
-# Super Mario Galaxy in WiiDS 1.0
+# Super Mario Galaxy and Kaizo in WiiDS 1.1
 
 Galaxy 1 runs **inside the single WiiDS APK**, in its own processes and profile.
 No helper, PC converter or pre-cooked download is needed for a fresh setup.
@@ -7,7 +7,7 @@ the AYN Thor's two displays. Other entries retain their existing requirements.
 
 ## Fresh setup
 
-1. Install `WiiDS-1.0-arm64.apk` from the [v1.0.0 release](https://github.com/Maddex712/WiiDS/releases/tag/v1.0.0).
+1. Install `WiiDS-1.1-arm64.apk` from the [v1.1.0 release](https://github.com/Maddex712/WiiDS/releases/tag/v1.1.0).
    Update WiiDS in place; do not uninstall or clear data.
 2. Copy your own clean **USA RMGE01 revision 0** disc onto the device. ISO is
    the tested input. NKit and patched discs are unsupported setup inputs.
@@ -16,7 +16,10 @@ the AYN Thor's two displays. Other entries retain their existing requirements.
 4. WiiDS extracts/checks the disc, cooks it, then generates the HUD, fonts,
    Gardens map and textured planets. Readiness is published after installation.
 5. Return to the Galaxy case. Back opens the menu: Quick Save, Controls > Buttons
-   and Return to WiiDS. Drag/pinch the lower planet to orbit/zoom; double-tap resets it.
+   and Return to WiiDS. **Controls > Lower screen** selects Trackpad or Planet.
+   In Trackpad mode, slide to move the Star Pointer; lift/reposition without jumping
+   the cursor. Touch and right-stick pointing share one cursor; A/B remain separate.
+   Planet mode keeps drag/pinch orbit/zoom and double-tap reset.
 
 With the disc already copied, setup needs about 7.55 GB free with movies or
 2.73 GB with movies omitted. The disc and APK also consume space. The low-space
@@ -29,6 +32,38 @@ Re-import replaces only cooked `files/`, `sys/` and generated `ThorHud/` using a
 recovery journal. Saves/settings/NAND stay separate. A cross-process file lock
 prevents replacement while Galaxy is running. Retry interrupted setup; keep your
 original disc and saves instead of clearing app data.
+
+## Kaizo Mario Galaxy Rebalanced 2.1
+
+1. Use the same clean **USA RMGE01 revision 0** Galaxy disc as above.
+2. Select **Kaizo Mario Galaxy Rebalanced 2.1** in **Options > Your games**, then
+   choose **Set up Rebalanced**.
+3. Select the creator's original **Rebalanced 2.1 ZIP** using **Choose ZIP**.
+   The dialog includes an **Official download** link if you need the patch.
+   WiiDS accepts the exact supported archive; other versions and repacked ZIPs
+   are refused. Its SHA-256 is
+   b0b43ee39e3b2c2b7a3dcc4bc33d77718cb97da4b95f490146ec8a80ceddd548.
+4. Keep setup open while WiiDS applies the patch privately, cooks the game and
+   generates its own lower-screen art/models. Wait until the card reports ready.
+
+The creator's patch ZIP is not bundled. Kaizo has its own NAND, saves, settings,
+import state and lower-screen data. Original Galaxy progress is not copied into
+the mod, and the author's optional Luigi-unlocked save is not installed. Keep
+additional room for this separate game profile and its prepared files.
+
+## Controls and Picture settings in 1.1
+
+The lower-screen mode hint appears for five seconds after playable control begins;
+it stays hidden after Home/resume. Change modes later through **Controls > Lower
+screen**. Right-stick Camera mode uses the game's permitted horizontal turns;
+camera elevation stays under game control.
+
+**Display > Picture** offers Original, neutral Smooth and optional Smooth + glow.
+Smooth no longer forces bloom or a color boost. The opening-attack palette and
+town color transition are corrected; the scene's intended warm rim lighting remains.
+
+For save backups, restore and supported Dolphin imports, use the shared
+[Save manager](../SAVE_MANAGER.md). Choose Galaxy or Kaizo explicitly.
 
 ## Existing standalone-helper profiles
 
@@ -66,20 +101,25 @@ Colliding layouts fail instead of overwriting Android memory.
 
 Desktop/Android checks cover actual-source memory/loading in fresh non-debuggable
 x86 processes, Python/native dependencies and lower baking, and transaction and
-migration failures. The ARM64 package is compiled, signed and audited. The new
-integrated build was **not tested on a physical Thor**. Earlier Thor captures
-used the separate-helper development build; see the inventory for exact scope.
+migration failures. The ARM64 package is compiled, signed and audited. The 1.1 development builds
+also passed physical Thor checks of original/Kaizo save loading, relative pointing,
+Star Bit collection in Kaizo Gardens, native camera limits, sleep/wake and normal
+exit. Clean dev28 verified corrected attack-scene palettes and original Gateway
+rendering. The release retains its native libraries and game/menu assets. These
+checks cover selected scenes and transitions, not a complete playthrough.
 
 The planet is a simplified diorama driven by matched actor visibility/matrices.
 Enemies, NPC/player models and skeletal/joint animation are omitted; the player
 uses a marker. Some materials stay dark and some pieces are unmatched. Only the
 Gardens has a flat map. Observatory ledger/star chart and CapsuleCage glass remain
 unverified. No all-stage, sustained guest FPS, audible-audio, haptic or long-session
-guarantee is made. A 60 Hz lower draw cap is not a guest-performance measurement.
+guarantee is made. One earlier development build had a selected-file-menu allocation
+panic whose cause remains unestablished; it did not recur in later bounded checks.
+A 60 Hz lower draw cap is not a guest-performance measurement.
 
 ## Source/rebuild
 
-Use `WiiDS-1.0-source.zip` for current source and the exact curated presentation.
+Use `WiiDS-1.1-source.zip` for current source and the exact curated presentation.
 Galaxy-Android is pinned to `1abcb975927ecb4189949bd51f81e73a04d97566`, with local
 changes and CC0 Petari sources included. Restore upstream dependencies, overlay
 the snapshot, then use Build-Native.ps1, Build-Importer.py, Stage-Integrated.py

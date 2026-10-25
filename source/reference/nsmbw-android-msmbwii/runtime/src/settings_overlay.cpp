@@ -16,6 +16,7 @@
 #include "wii_remote_input.h"
 
 #include <imgui.h>
+#include <imgui_internal.h>
 #include <SDL3/SDL_events.h>
 #include <SDL3/SDL_gamepad.h>
 #include <SDL3/SDL_keyboard.h>
@@ -1812,6 +1813,11 @@ void Draw() noexcept {
     // Wait for the frame worker's DONE phase: it has replayed the previous frame's ImGui draw lists
     // and started the next ImGui frame, so all overlay callers can now safely issue ImGui commands.
     aurora_wait_for_frame_worker();
+    // A surface change can leave the renderer without a prepared ImGui frame.
+    // DONE only means the worker stopped; it does not guarantee NewFrame ran.
+    // GetBackgroundDrawList(nullptr) dereferences CurrentWindow->Viewport.
+    const auto* imgui = ImGui::GetCurrentContext();
+    if (imgui == nullptr || !imgui->WithinFrameScope || imgui->CurrentWindow == nullptr) return;
     // Also drive the Wii Remote rescan from here: PADRead runs it too, but this
     // runs once per presented frame whatever the game is doing (e.g. sitting in
     // its "communications interrupted" prompt without polling pads). Same guest

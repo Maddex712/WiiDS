@@ -1,3 +1,4 @@
+#include "port/kaizo.h"
 #include "Game/Enemy/WaterBazooka.hpp"
 #include "Game/Camera/CameraTargetObj.hpp"
 #include "Game/Enemy/ElectricPressureBullet.hpp"
@@ -943,7 +944,7 @@ bool WaterBazooka::tryShotBullet() {
     if (mIsElectric) {
         static_cast< ElectricPressureBullet* >(bullet)->shotElectricBullet(this, posMtx, ::sElectricBulletSpeed);
     } else {
-        static_cast< WaterPressureBullet* >(bullet)->shotWaterBullet(this, posMtx, 40.0f, true, true, false, &mCameraInfo);
+        static_cast< WaterPressureBullet* >(bullet)->shotWaterBullet(this, posMtx, 40.0f, true, true, port_kaizo_enabled(), &mCameraInfo);
     }
 
     return true;

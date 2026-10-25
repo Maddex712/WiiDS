@@ -168,8 +168,8 @@ final class SettingsMenu {
         final String[] items = {
             "Touch Controls: " + (settings.touchControls() ? "On" : "Off"),
             "Touch Control Opacity: " + Math.round(settings.touchOpacity() * 100) + "%",
-            "Tilt (turn the phone): " + (settings.motionTilt() ? "On" : "Off"),
-            "Shake (jolt the phone): " + (settings.motionShake() ? "On" : "Off"),
+            "Tilt (turn the handheld): " + (settings.motionTilt() ? "On" : "Off"),
+            "Shake (jolt the handheld): " + (settings.motionShake() ? "On" : "Off"),
             "Vibration: " + (settings.haptics() ? "On" : "Off"),
         };
         new AlertDialog.Builder(activity)

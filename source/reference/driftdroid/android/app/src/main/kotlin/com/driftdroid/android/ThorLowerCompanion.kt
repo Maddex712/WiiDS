@@ -14,7 +14,8 @@ import android.widget.FrameLayout
 import java.io.File
 
 /** Passive lower-screen information before a native runtime or race map is available. */
-class ThorLowerCompanion(private val activity: Activity, private val folder: File) : DisplayManager.DisplayListener {
+class ThorLowerCompanion @JvmOverloads constructor(private val activity: Activity, private val folder: File,
+    private val productTitle: String = "Mario Kart Wii") : DisplayManager.DisplayListener {
     private val displays = activity.getSystemService(DisplayManager::class.java)
     private val handler = Handler(Looper.getMainLooper())
     private var presentation: StatusPresentation? = null
@@ -22,6 +23,11 @@ class ThorLowerCompanion(private val activity: Activity, private val folder: Fil
     private var title = "Ready to race"
     private var message = "Choose a game on the upper screen."
     private var librarySelection: ThorLibraryCompanionView.Selection? = null
+    /** Touching an achievement preview or View all (game id, achievement id or null). */
+    var onOpenAchievements: ((String, String?) -> Unit)? = null
+
+    /** Re-read achievement previews (back from a game or the browser); never contacts RA. */
+    fun refreshAchievements() { presentation?.library?.refreshAchievements() }
 
     fun setStatus(title: String, message: String) {
         this.title = title
@@ -100,7 +106,7 @@ class ThorLowerCompanion(private val activity: Activity, private val folder: Fil
     override fun onDisplayChanged(displayId: Int) = refresh()
 
     private inner class StatusPresentation(display: Display) : Presentation(activity, display) {
-        val status = ThorLowerStatusView(context, folder)
+        val status = ThorLowerStatusView(context, folder, productTitle)
         var library: ThorLibraryCompanionView? = null
             private set
         private lateinit var content: FrameLayout
@@ -109,17 +115,31 @@ class ThorLowerCompanion(private val activity: Activity, private val folder: Fil
             library?.visibility = View.GONE
             status.visibility = View.VISIBLE
             status.setStatus(title, message)
+            touchable(false)
+        }
+
+        /**
+         * Only the library view takes touches (its achievement cards); the status view and other
+         * lower-screen owners stay pass-through. Never focusable, so the controller keeps driving
+         * the upper screen (as the NSMB lower HUD does).
+         */
+        private fun touchable(value: Boolean) {
+            val window = window ?: return
+            if (value) window.clearFlags(WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE)
+            else window.addFlags(WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE)
         }
 
         fun showLibrary(selection: ThorLibraryCompanionView.Selection) {
             if (!::content.isInitialized) return
             val view = library ?: ThorLibraryCompanionView(context, folder).also {
                 library = it
+                it.onOpenAchievements = { game, item -> onOpenAchievements?.invoke(game, item) }
                 content.addView(it, FrameLayout.LayoutParams(-1, -1))
             }
             status.visibility = View.GONE
             view.visibility = View.VISIBLE
             view.setSelection(selection)
+            touchable(onOpenAchievements != null)
         }
 
         override fun onCreate(savedInstanceState: Bundle?) {
@@ -127,8 +147,6 @@ class ThorLowerCompanion(private val activity: Activity, private val folder: Fil
             status.setStatus(title, message)
             content = FrameLayout(context)
             content.addView(status, FrameLayout.LayoutParams(-1, -1))
-            val selected = librarySelection
-            if (selected != null) showLibrary(selected)
             setContentView(content)
             window?.apply {
                 addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON or
@@ -140,6 +158,9 @@ class ThorLowerCompanion(private val activity: Activity, private val folder: Fil
                     View.SYSTEM_UI_FLAG_LAYOUT_STABLE
                 setLayout(WindowManager.LayoutParams.MATCH_PARENT, WindowManager.LayoutParams.MATCH_PARENT)
             }
+            // After the base flags, so the library's own touch setting applies.
+            val selected = librarySelection
+            if (selected != null) showLibrary(selected)
         }
     }
 }

@@ -66,7 +66,7 @@ bool GamepadInput::handleMotionEvent(AInputEvent* event, PortPadState& pad, int&
 
     if ((rTrig > 0.4f) != mHeld[BTN_R2]) press(BTN_R2, rTrig > 0.4f, pad, spinFrames);
 
-    // Right Stick (Orbital camera & Star Pointer)
+    // Right stick (native camera turns or Star Pointer).
     float rightX = AMotionEvent_getAxisValue(event, AMOTION_EVENT_AXIS_Z, 0);
     float rightY = AMotionEvent_getAxisValue(event, AMOTION_EVENT_AXIS_RZ, 0);
     if (fabsf(rightX) <= 0.05f && fabsf(rightY) <= 0.05f) {
@@ -81,11 +81,16 @@ bool GamepadInput::handleMotionEvent(AInputEvent* event, PortPadState& pad, int&
         rStickX = (rightX / mag) * scale;
         rStickY = (-rightY / mag) * scale;
     }
-    float starSens = mobile_ui::UIOverlay::get().settings().starStickSensitivity;
     if (mobile_ui::UIOverlay::get().settings().rightStickMode == 0) {
-        pad.rightStickX = std::max(-1.0f, std::min(1.0f, -rStickX * starSens));
-        pad.rightStickY = std::max(-1.0f, std::min(1.0f, rStickY * starSens));
+        // Keep the physical axes until the next event; virtual-touch decay must not re-arm
+        // a held camera nudge between Android motion events. Sensitivity remains for pointing.
+        mCameraStickX = -rStickX;
+        mCameraStickY = rStickY;
+        mPointerStickX = mPointerStickY = 0.0f;
+        pad.rightStickX = mCameraStickX;
+        pad.rightStickY = mCameraStickY;
     } else {
+        mCameraStickX = mCameraStickY = 0.0f;
         pad.rightStickX = 0.0f;
         pad.rightStickY = 0.0f;
         mPointerStickX = rStickX;
@@ -229,6 +234,7 @@ void GamepadInput::reset() {
     mPhysicalAxisButtons = 0;
     mPhysicalStickX = mPhysicalStickY = 0.0f;
     mPointerStickX = mPointerStickY = 0.0f;
+    mCameraStickX = mCameraStickY = 0.0f;
     mMenuStickX = mMenuStickY = 0.0f;
     mStickLatched = false;
 }
@@ -241,6 +247,10 @@ void GamepadInput::updatePointer(PortPadState& pad, float seconds, bool touchscr
     // pages by stick does not also turn while the cursor moves.
     const bool menu = mGamepadDetected && port_input_menu_pointer() != 0;
     const bool rightPointer = settings.rightStickMode == 1;
+    if (mGamepadDetected) {
+        pad.rightStickX = !rightPointer && !menu ? mCameraStickX : 0.0f;
+        pad.rightStickY = !rightPointer && !menu ? mCameraStickY : 0.0f;
+    }
     if (menu != mMenuPointer) {
         __android_log_print(ANDROID_LOG_INFO, "GalaxyInput", "menu pointer %s", menu ? "on" : "off");
         if (menu) {
@@ -259,7 +269,7 @@ void GamepadInput::updatePointer(PortPadState& pad, float seconds, bool touchscr
         mMenuPointer = menu;
     }
     if (!mGamepadDetected || (!rightPointer && !menu) || touchscreenDown) return;
-    if (menu) {
+    if (menu || rightPointer) {
         // Carry on from the shared pointer, so where a touch left it is kept.
         mPointerX = overlay.getPointerX();
         mPointerY = overlay.getPointerY();

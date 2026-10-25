@@ -1,3 +1,4 @@
+#include "port/kaizo.h"
 #include "Game/Boss/DodoryuStateLv1.hpp"
 #include "Game/Boss/Dodoryu.hpp"
 #include "Game/LiveActor/HitSensor.hpp"
@@ -342,7 +343,7 @@ bool DodoryuStateLv1::catchPlayerAttack(u32 msg, HitSensor* pSender, HitSensor* 
         return true;
     }
 
-    if (MR::isMsgPlayerHitAll(msg)) {
+    if (port_kaizo_enabled() ? MR::isMsgJetTurtleAttack(msg) : MR::isMsgPlayerHitAll(msg)) {
         _98.set(pReceiver->mPosition - pSender->mPosition);
 
         if (!calcVerticalizedDir(&_98, _98)) {

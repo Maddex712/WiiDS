@@ -129,14 +129,19 @@ std::string genVulkanVertexShader(const ShaderUid& u) {
                 if (diffuse == 0) {
                     o.w("      float illum = 1.0;\n");
                 } else if (diffuse == 1) {
-                    o.w("      float illum = max(0.0, dot(nrm, lvec));\n");
+                    // GX_DF_SIGN subtracts back-facing light before accumulator clamp.
+                    // Character rim alpha uses this separately from clamped RGB lighting.
+                    o.w("      float illum = dot(nrm, lvec);\n");
                 } else {
                     o.w("      float illum = clamp((dot(nrm, lvec) >= 0.0 ? dot(nrm, lvec) : 0.0), 0.0, 1.0);\n");
                 }
-                o.w("      lit += %s * (fetch_st(b).%s * (illum * a));\n", mat, sw);
+                o.w("      lit += fetch_st(b).%s * (illum * a);\n", sw);
                 o.w("    }\n");
             }
-            o.w("    v_clr%d.%s = clamp(lit, %s(0.0), %s(1.0));\n  }\n", c, sw, alpha ? "float" : "vec3", alpha ? "float" : "vec3");
+            // GX clamps the ambient + light accumulator before modulating the entire result
+            // by the material. Applying material per-light leaves ambient uncolored and lets
+            // bright lights exceed the material's maximum (notably on character materials).
+            o.w("    v_clr%d.%s = clamp(lit, %s(0.0), %s(1.0)) * %s;\n  }\n", c, sw, alpha ? "float" : "vec3", alpha ? "float" : "vec3", mat);
         }
     }
 

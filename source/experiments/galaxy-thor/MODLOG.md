@@ -473,3 +473,58 @@ the import page), "delete the other releases off the WiiDS repo", and a Codex ha
     access screen were verified via the UI.
   - Test files and the ISO were deleted afterwards and the add-on's file access reset to default.
     The installed game stayed ready.
+
+## 2026-10-22 — local Kaizo Rebalanced 2.1 engine slice completed
+
+All25active USA patch sites have native semantics, with imported24event rows,
+4comet schedules, GalaxyID table and private modified assets. One WiiDS APK adds
+case7 in the Galaxy family; game/import processes and both storage roots are
+separate. Exact creator ZIP plus verified owner USA rev0 ISO passed physical
+setup (2368cooker files without movies;157reported lower files/44planet sets).
+ARM64+x86 builds,67transaction assertions, actual native flags and actual native
+NAND/profile mirror regressions passed. Native/frontend patches forward/reverse
+checked against pinned sources without changing indexes.
+
+The first physical candidate exposed an inherited hardcoded external save mirror.
+Its task-created file was preserved locally and renamed intact on device; it did
+not replace an existing owner/helper save. New profile roots now route mirror/
+restore/quick saves, exchange, textures, shader manifests/caches and crash logs.
+The final packaged ARM64 library was checked for corrected staged bytes and no
+fixed original-profile storage paths. Final APK owner-signed/nondebuggable/code906:
+`13ad3816d77b2b27ade61066241713d112bf49df175e328cd8b0e3111ded02b9`.
+
+Before the path-only final fix, Kaizo Gardens movement, airborne jump, live flat-map
+marker, pause/resume, Home/recents resume and clean Return were observed. Final
+PID5826 committed a normal new zero-star Yoshi-icon save to the Kaizo mirror while
+original mirror stayed absent; freshPID6993 reloaded it. Original profile copy
+verified2545backupfiles and preserved helper NAND/settings. FinalPID7545 loaded
+the old Luigi file (Mario icon/0stars/1bankedbit/oldtimestamp), entered Gateway and
+rendered the GPU planet:195liveobjects,105/109piecesmatched; movement sampled.
+All3finalprocesses exited cleanly. Kaizo mirror hash remained unchanged afterwards.
+
+All50readable old save/settings/art and6helper NAND hashes are unchanged, as are
+all13previous installed native libraries and1472other assets versus release
+baseline.22protected paths/main nondbg internal remain inaccessible to shell; no
+uninstall/clear. Source provenance of the retained historical Sunshine binary is
+not newly established. No physical Kaizo 3D-planet/per-boss/all-stage/FPS/audio/
+haptic claim; its case uses text fallback. The device Gateway mod GPL4 matches
+host geometry/placements/decodedtextures after PNG encoding normalization.
+
+Thor left library/no games, temporary input JAR removed. No push/upload/publication;
+published1.0 untouched. Detailed Claude handoff: `kaizo/CLAUDE_HANDOFF.md`.
+Receipt: `build/galaxy-kaizo/physical-final-verification.json`, supporting native,
+preservation, source and screenshot records alongside it.
+
+## 2026-10-22: Kaizo presentation polish (Claude)
+
+- **Kaizo case art.** Built from Galaxy's retail art with the mod's own title logo (credited
+  to TheDes7royer) by `kaizo/Compose-KaizoArt.py`. Staged by `kaizo/Stage-KaizoArt.py`; the
+  21 existing images were unchanged.
+- **Setup wording.** The setup text now names each card's own action (`kaizo/Polish-Frontend.py`).
+- **APK.** Rebuilt as code 906 (`8cecb458…`); only the dex and baseline profile changed. Installed in place.
+- **Checked on the Thor.** The collage, the fanned stack (cover and spine) and the open case
+  (cover and disc).
+- **Kaizo planet framing: still unverified.** Injected-input play reached the Gardens
+  invasion, but not the first galaxy.
+- **Clean-up.** Thor left on the library; the temporary input JAR was removed.
+  `Export-Source.py` passed. Nothing was pushed or published.

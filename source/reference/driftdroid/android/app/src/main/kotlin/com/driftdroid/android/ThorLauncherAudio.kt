@@ -21,8 +21,9 @@ import java.util.concurrent.Executors
 
 /**
  * Launcher music and UI sounds from the owner's own disc, rendered privately by
- * scripts/Extract-ThorLauncherAudio.py into WiiCompiled/ThorMap/launcher-audio. Nothing
- * here is bundled in the APK; without that folder the launcher is simply silent.
+ * scripts/Extract-ThorLauncherAudio.py. The release bundles the curated set and
+ * ThorLauncherFolders selects a custom override, the installed APK bundle, or
+ * disc-generated audio in that order. Without a usable set the launcher is silent.
  *
  * One process-wide music track: Activity or lower-display recreation calls [show] again
  * and reuses it, so music can never overlap itself. The title theme loops with its

@@ -116,6 +116,9 @@ PPC_NATIVE_OVERRIDE_VOID(801c6130, GX__SetDispCopyGamma_8016fc24, (uint32_t g), 
 
 extern "C" void GX__CopyDisp_8016fc38(uint32_t da, uint32_t c) {
     EnsureAuroraFrameActive();
+    // The bounded retry can expire while Android has no usable surface. Do not
+    // copy/present an unstarted frame; the next GX call retries after resume.
+    if (!g_auroraFrameActive.load(std::memory_order_acquire)) return;
     // GX copies are FIFO-ordered on hardware. Drain submitted draws before
     // resolving the EFB so high-level copies see the same contents.
     GXDrawDone();
@@ -139,6 +142,7 @@ PPC_NATIVE_OVERRIDE_VOID(801c6150, GX__CopyDisp_8016fc38, (uint32_t da, uint32_t
 
 extern "C" void GX__CopyTex_8016fd74(uint32_t da, uint32_t c) {
     EnsureAuroraFrameActive();
+    if (!g_auroraFrameActive.load(std::memory_order_acquire)) return;
     // Match GX FIFO ordering: texture copies observe all prior draws.
     GXDrawDone();
     const uint16_t rawSrcLeft = g_texCopyState.srcLeft;

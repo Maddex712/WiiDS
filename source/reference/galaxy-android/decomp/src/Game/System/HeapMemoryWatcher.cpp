@@ -4,6 +4,9 @@
 #include <JSystem/JKernel/JKRSolidHeap.hpp>
 #include <revolution/os.h>
 #include <revolution/wpad.h>
+#include "port/port.h"
+#include <unwind.h>
+#include <dlfcn.h>
 
 JKRExpHeap* HeapMemoryWatcher::sRootHeapGDDR3;
 
@@ -169,7 +172,18 @@ HeapMemoryWatcher::HeapMemoryWatcher()
     createHeaps();
 }
 
-void HeapMemoryWatcher::memoryErrorCallback(void*, u32, int) {
+void HeapMemoryWatcher::memoryErrorCallback(void* heap, u32 bytes, int alignment) {
+    port_log("heapfailure: heap=%p requested=%u align=%d",heap,bytes,alignment);
+    struct Trace { unsigned count; } trace{};
+    _Unwind_Backtrace([](_Unwind_Context* context,void* opaque) {
+        auto* trace=static_cast<Trace*>(opaque);
+        uintptr_t pc=_Unwind_GetIP(context);
+        Dl_info info{};dladdr(reinterpret_cast<void*>(pc),&info);
+        port_log("heapfailure: frame %u pc=%llx offset=%llx module=%s",trace->count++,
+                 static_cast<unsigned long long>(pc),static_cast<unsigned long long>(pc-reinterpret_cast<uintptr_t>(info.dli_fbase)),
+                 info.dli_fname?info.dli_fname:"?");
+        return trace->count>=32?_URC_END_OF_STACK:_URC_NO_REASON;
+    },&trace);
     OSPanic(__FILE__, 537, "");
 }
 

@@ -134,6 +134,9 @@ final class GalaxyLowerScreen extends View implements Runnable {
         int space(ByteBuffer out, int have, int[] mode);
         /** The stage's live world pieces (port/thor_world.h): its sequence, 0 when nothing newer than [have]. */
         int world(ByteBuffer out, int have);
+        void trackpad(float dx, float dy, int phase);
+        int touchMode();
+        void setTouchMode(int mode);
     }
 
     // The game's own space, captured from its 3D picture (platform/src/gx/vk/vk_thor_capture.cpp).
@@ -145,6 +148,7 @@ final class GalaxyLowerScreen extends View implements Runnable {
     private boolean spaceWarned;
 
     private final Source source;
+    private final GalaxyTouchHint touchHint;
     private final Handler handler = new Handler(Looper.getMainLooper());
     private final ByteBuffer buffer = ByteBuffer.allocateDirect(SIZE).order(ByteOrder.LITTLE_ENDIAN);
     private State state;
@@ -153,9 +157,12 @@ final class GalaxyLowerScreen extends View implements Runnable {
     private boolean polling, bridgeWarned;
     private final Map<String, Bitmap> art = new HashMap<>();
 
-    GalaxyLowerScreen(Context context, File artFolder, Source source) {
+    GalaxyLowerScreen(Context context, File artFolder, Source source, GalaxyTouchHint touchHint) {
         super(context);
         this.source = source;
+        this.touchHint = touchHint;
+        pointerMode = source.touchMode() == 0;
+        trackpad = new GalaxyTrackpad((dx, dy, phase) -> source.trackpad(dx, dy, phase));
         setFocusable(false); setClickable(false);
         fallback.setTypeface(Typeface.create("sans-serif-medium", Typeface.NORMAL));
         loadArt(artFolder);
@@ -187,12 +194,16 @@ final class GalaxyLowerScreen extends View implements Runnable {
                 // The game stopped publishing (closing, stalled): no longer live.
                 state = null;
             }
+            touchHint.update(now, state != null && state.phase == PHASE_PLAY && state.has(V_MARIO)
+                    && !GalaxyActivity.settingsShowing);
             handler.postDelayed(this, 66);
         }
     }
 
     void start() { if (polling) return; polling = true; lastSeq = 0; state = null; handler.post(this); invalidate(); }
     void stop() {
+        touchHint.update(SystemClock.uptimeMillis(), false);
+        releasePointer();
         polling = false; handler.removeCallbacks(this); state = null; baseKey = "";
         if (renderer != null) { renderer.release(); renderer = null; }
     }
@@ -438,10 +449,57 @@ final class GalaxyLowerScreen extends View implements Runnable {
     // Touch: one finger turns the planet, two pinch to zoom, a double tap returns to Mario.
     private float touchX, touchY, pinchDistance;
     private long lastTap;
+    private boolean pointerMode = true, modeGesture;
+    private int pointerFinger = -1;
+    private final GalaxyTrackpad trackpad;
+    private final RectF pointerArea = new RectF(30, 245, W - 30, 245 + (W - 60) * 9f / 16f);
+    private final RectF touchModeButton = new RectF(30, 12, 340, 72);
+
+    private void releasePointer() {
+        pointerFinger = -1;
+        trackpad.cancel();
+    }
+    void setPointerMode(boolean enabled) {
+        releasePointer(); pointerMode = enabled; modeGesture = false; lastTap = 0;
+        invalidate();
+    }
 
     @Override public boolean onTouchEvent(android.view.MotionEvent e) {
         float scale = Math.min(getWidth() / W, getHeight() / H);
         float ox = (getWidth() - W * scale) / 2, oy = (getHeight() - H * scale) / 2;
+        if (scale <= 0 || GalaxyActivity.settingsShowing) { releasePointer(); return true; }
+        float x = (e.getX() - ox) / scale, y = (e.getY() - oy) / scale;
+        int action = e.getActionMasked();
+        if (action == android.view.MotionEvent.ACTION_DOWN && touchHint.visible() && touchModeButton.contains(x, y)) {
+            source.setTouchMode(pointerMode ? 1 : 0); modeGesture = true; lastTap = 0;
+            invalidate(); return true;
+        }
+        if (modeGesture) {
+            if (action == android.view.MotionEvent.ACTION_UP || action == android.view.MotionEvent.ACTION_CANCEL) modeGesture = false;
+            return true;
+        }
+        if (pointerMode) {
+            if (action == android.view.MotionEvent.ACTION_CANCEL) { releasePointer(); return true; }
+            if (action == android.view.MotionEvent.ACTION_DOWN && pointerArea.contains(x, y)) {
+                pointerFinger = e.getPointerId(0); trackpad.begin(x, y); return true;
+            }
+            int index = e.findPointerIndex(pointerFinger);
+            if (index >= 0) {
+                x = (e.getX(index) - ox) / scale; y = (e.getY(index) - oy) / scale;
+                boolean lifted = action == android.view.MotionEvent.ACTION_UP
+                        || (action == android.view.MotionEvent.ACTION_POINTER_UP && e.getActionIndex() == index);
+                if (lifted) {
+                    trackpad.end(x, y, pointerArea.width(), pointerArea.height()); pointerFinger = -1;
+                } else if (action == android.view.MotionEvent.ACTION_MOVE) {
+                    // Historical samples preserve direction reversals at the cursor's screen edges.
+                    for (int h = 0; h < e.getHistorySize(); h++) trackpad.move(
+                            (e.getHistoricalX(index, h) - ox) / scale, (e.getHistoricalY(index, h) - oy) / scale,
+                            pointerArea.width(), pointerArea.height());
+                    trackpad.move(x, y, pointerArea.width(), pointerArea.height());
+                }
+            } else if (pointerFinger != -1) releasePointer();
+            return true;
+        }
         switch (e.getActionMasked()) {
             case android.view.MotionEvent.ACTION_DOWN:
                 touchX = e.getX(); touchY = e.getY();
@@ -583,6 +641,16 @@ final class GalaxyLowerScreen extends View implements Runnable {
             else counters(c, s);
         }
         veil(c, s);
+        if (!GalaxyActivity.settingsShowing && touchHint.visible()) {
+            paint.setStyle(Paint.Style.FILL); paint.setColor(0xdd142a50);
+            c.drawRoundRect(touchModeButton, 16, 16, paint);
+            fallback.setTextSize(30); fallback.setColor(0xffffffff); fallback.setTextAlign(Paint.Align.CENTER);
+            c.drawText(pointerMode ? "Touch: Trackpad" : "Touch: Planet", touchModeButton.centerX(), 53, fallback);
+            if (pointerMode) {
+                paint.setStyle(Paint.Style.STROKE); paint.setStrokeWidth(2); paint.setColor(0x807bbfff);
+                c.drawRect(pointerArea, paint); paint.setStyle(Paint.Style.FILL);
+            }
+        }
         if (GalaxyActivity.settingsShowing) settingsNote(c);
     }
 

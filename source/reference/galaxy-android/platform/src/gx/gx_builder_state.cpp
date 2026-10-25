@@ -56,13 +56,10 @@ void Builder::fillLights(LightState& b) {
             b.lights[l][3][k] = m[10 + k];
             b.lights[l][4][k] = m[13 + k];
         }
-        float lposLenSq = b.lights[l][3][0] * b.lights[l][3][0] + b.lights[l][3][1] * b.lights[l][3][1] + b.lights[l][3][2] * b.lights[l][3][2];
-        if (lposLenSq > 1e10f) {
-            float inv = 10000.0f / sqrtf(lposLenSq);
-            b.lights[l][3][0] *= inv;
-            b.lights[l][3][1] *= inv;
-            b.lights[l][3][2] *= inv;
-        }
+        // GX light positions are points in view space, not unit directions.
+        // Moving a distant light toward the origin can put it on the opposite
+        // side of characters (notably the orange Castle Gardens attack light).
+        // Keep the submitted position; the shader normalizes light - vertex.
         b.lights[l][1][3] = b.lights[l][2][3] = b.lights[l][3][3] = b.lights[l][4][3] = 0.0f;
     }
     rgba8ToVec(xfRegs[0x0C], b.matColor[0]);

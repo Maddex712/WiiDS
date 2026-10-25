@@ -1,3 +1,4 @@
+#include "port/profile.h"
 // Brings up the emulated Wii environment and starts the game's main().
 #include "port/port.h"
 #include <sys/stat.h>
@@ -48,7 +49,7 @@ extern "C" void port_boot(const char* dataRoot, const char* saveRoot) {
         bool internalValid = (stat(internalSave.c_str(), &stInternal) == 0 && stInternal.st_size >= 512);
 
         if (!internalValid) {
-            std::string mirrorPath = "/sdcard/Android/data/io.github.maddex712.wiids/files/galaxy/GalaxyData/saves/GameData.bin";
+            std::string mirrorPath = port_profile_data_path("/saves/GameData.bin").c_str();
             struct stat stMirror;
             if (stat(mirrorPath.c_str(), &stMirror) == 0 && stMirror.st_size >= 512) {
                 std::string dir = std::string(saveRoot) + "/title/00010000/" + t + "/data";

@@ -1,3 +1,4 @@
+#include "port/kaizo.h"
 #include "Game/Enemy/BegomanBaby.hpp"
 #include "Game/LiveActor/Nerve.hpp"
 #include "Game/Util/ActorMovementUtil.hpp"
@@ -172,7 +173,7 @@ void BegomanBaby::control() {
         }
     }
 
-    if (MR::isBindedGroundDamageFire(this)) {
+    if (!port_kaizo_enabled() && MR::isBindedGroundDamageFire(this)) {
         killWithGenItem();
         MR::emitEffect(this, "Fall");
         return;

@@ -254,7 +254,7 @@ final class ThorLowerScreen implements DisplayManager.DisplayListener {
                 canvas.translate((getWidth() - 1240 * scale) / 2, (getHeight() - 1080 * scale) / 2);
                 canvas.scale(scale, scale);
                 fallback.setColor(Color.DKGRAY); fallback.setTextSize(40); fallback.setTextAlign(Paint.Align.CENTER);
-                canvas.drawText("New Super Mario Bros. Wii", 620, 500, fallback);
+                canvas.drawText(NsmbVariant.current() == NsmbVariant.MSMBWII ? "MSMBWii" : "New Super Mario Bros. Wii", 620, 500, fallback);
                 fallback.setTextSize(28);
                 canvas.drawText("Lower-screen artwork unavailable", 620, 560, fallback);
                 canvas.restore(); return;

@@ -58,6 +58,7 @@ private:
     float mPhysicalStickX = 0.0f;
     float mPhysicalStickY = 0.0f;
     float mPointerStickX = 0.0f, mPointerStickY = 0.0f;
+    float mCameraStickX = 0.0f, mCameraStickY = 0.0f;
     float mMenuStickX = 0.0f, mMenuStickY = 0.0f;  // left stick, for the pointer in menus
     float mPointerX = 0.0f, mPointerY = 0.0f;
     bool mMenuPointer = false;  // the left stick is steering the pointer
