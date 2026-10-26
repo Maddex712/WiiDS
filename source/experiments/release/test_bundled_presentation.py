@@ -1,5 +1,6 @@
 """Run the actual Kotlin presentation installer against curated payload and negative fixtures."""
 from pathlib import Path
+import argparse
 import subprocess
 import textwrap
 
@@ -14,6 +15,10 @@ def jar(group, name, version):
 
 
 def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--assets', type=Path, default=ROOT / 'build/wiids-merge/assets')
+    parser.add_argument('--previous-assets', type=Path)
+    args = parser.parse_args()
     OUT.mkdir(parents=True, exist_ok=True)
     fixtures = {
         'Assets.kt': '''package android.content.res
@@ -28,6 +33,38 @@ def main():
             class Context(val filesDir: File, val external: File, assetsRoot: File) {
                 val assets = AssetManager(assetsRoot)
                 fun getExternalFilesDir(type: String?): File? = external
+            }''',
+        'Bitmap.kt': '''package android.graphics
+            import java.io.File
+            import javax.imageio.ImageIO
+            class Bitmap(val width: Int, val height: Int) {
+                val isRecycled = false
+                enum class Config { ARGB_8888 }
+            }
+            object BitmapFactory {
+                class Options {
+                    var inJustDecodeBounds = false; var outWidth = 0; var outHeight = 0
+                    var outMimeType: String = ""; var inSampleSize = 1; var inScaled = false
+                    var inPreferredConfig = Bitmap.Config.ARGB_8888
+                }
+                fun decodeFile(path: String, o: Options): Bitmap? {
+                    val input = ImageIO.createImageInputStream(File(path)) ?: return null
+                    input.use {
+                        val readers = ImageIO.getImageReaders(input)
+                        if (!readers.hasNext()) return null
+                        val reader = readers.next()
+                        try {
+                            reader.input = input
+                            o.outWidth = reader.getWidth(0); o.outHeight = reader.getHeight(0)
+                            o.outMimeType = if (reader.formatName.equals("png", true)) "image/png" else "image/jpeg"
+                            if (o.inJustDecodeBounds) return null
+                            val options = reader.defaultReadParam
+                            options.setSourceSubsampling(o.inSampleSize, o.inSampleSize, 0, 0)
+                            val decoded = reader.read(0, options)
+                            return Bitmap(decoded.width, decoded.height)
+                        } finally { reader.dispose() }
+                    }
+                }
             }''',
         'Test.kt': '''package com.driftdroid.android
             import android.content.Context
@@ -140,10 +177,30 @@ def main():
                     val realAssets = File(args[0])
                     if (File(realAssets, "presentation/manifest.json").isFile) {
                         val real = Context(File(root, "real-internal").apply { mkdirs() }, File(root, "real-external").apply { mkdirs() }, realAssets)
+                        var previous: File? = null
+                        if (args.size > 1) {
+                            val old = Context(real.filesDir, real.external, File(args[1]))
+                            ThorBundledPresentation.install(old)
+                            previous = ThorBundledPresentation.root(old)
+                            expect(previous != null, "previous published presentation installed")
+                            expect(ThorLauncherArtwork.bitmap(File(previous, "launcher"), "kaizo-cover") == null,
+                                   "previous published package reproduces absent Kaizo cover")
+                        }
                         var count = 0
                         ThorBundledPresentation.install(real) { done, _ -> count = done }
                         val declared = JSONObject(File(realAssets, "presentation/manifest.json").readText()).getJSONArray("files").length()
                         expect(count == declared && ThorBundledPresentation.root(real) != null, "complete curated real payload installed")
+                        val current = ThorBundledPresentation.root(real)!!
+                        if (previous != null) expect(current != previous, "upgrade selects corrected revision without uninstall")
+                        val cases = ThorLauncherFolders.cases(real, File(real.filesDir, "WiiCompiled/ThorMap"))
+                        expect(cases == File(current, "launcher"), "clean storage selects bundled artwork without owner custom art")
+                        for (profile in listOf("original", "retro-rewind", "nsmbw", "sunshine", "msmbwii", "eclipse", "galaxy", "kaizo")) {
+                            for (part in listOf("cover", "disc", "spine")) {
+                                expect(ThorLauncherArtwork.bitmap(cases, "$profile-$part") != null, "production loader decodes $profile-$part")
+                            }
+                        }
+                        ThorBundledPresentation.install(real)
+                        expect(ThorBundledPresentation.root(real) == current, "corrected revision remains selected after repeat startup")
                         println("Verified all $count curated presentation entries")
                     }
                     println("$checks actual-source presentation installer checks passed")
@@ -152,11 +209,7 @@ def main():
     }
     for name, content in fixtures.items():
         (OUT / name).write_text(textwrap.dedent(content), encoding='utf-8')
-    folder_source = (ROOT / 'reference/driftdroid/android/app/src/main/kotlin/com/driftdroid/android/ThorLauncherArtwork.kt').read_text(encoding='utf-8')
-    start = folder_source.index('internal object ThorLauncherFolders {')
-    end = folder_source.index('\n}', start) + 2
-    folder_fixture = OUT / 'ActualFolders.kt'
-    folder_fixture.write_text('package com.driftdroid.android\nimport android.content.Context\nimport java.io.File\n' + folder_source[start:end], encoding='utf-8')
+    folder_fixture = ROOT / 'reference/driftdroid/android/app/src/main/kotlin/com/driftdroid/android/ThorLauncherArtwork.kt'
     kotlin = jar('org.jetbrains.kotlin', 'kotlin-stdlib', '1.9.24')
     json = jar('org.json', 'json', '20240303')
     compiler = [jar('org.jetbrains.kotlin', module, '1.9.24') for module in
@@ -168,7 +221,7 @@ def main():
                     '-no-stdlib', '-no-reflect', '-jvm-target', '17', '-classpath', f'{kotlin};{json}',
                     '-d', str(classes), str(source), str(folder_fixture), *[str(OUT / name) for name in fixtures]], check=True)
     subprocess.run([str(JAVA), '-cp', f'{classes};{kotlin};{json}', 'com.driftdroid.android.TestKt',
-                    str(ROOT / 'build/wiids-merge/assets')], check=True)
+                    str(args.assets), *([str(args.previous_assets)] if args.previous_assets else [])], check=True)
 
 
 if __name__ == '__main__':

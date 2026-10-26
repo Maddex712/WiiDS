@@ -6,6 +6,8 @@ Play supported Wii and GameCube games on the AYN Thor, with a companion on its l
 
 ## Quick start
 
+**1.1 artwork hotfix:** The current APK includes Kaizo’s missing cover, disc and spine. Already installed 1.1? Download it again and install over your existing copy, then reopen WiiDS. [Hotfix details](docs/release/1.1-ARTWORK-HOTFIX.md).
+
 **You need:** an **AYN Thor with both screens**, Android **11 or newer** (**12L or newer for Galaxy**),
 and your own [compatible game dump](#exact-game-files-for-each-game). The region and revision must match.
 **Games are not included.** Leave room for the APK, your dump and the prepared game files.

@@ -94,7 +94,7 @@
   ],
   "missing_roots": [],
   "source_coverage": {
-    "expected_source_files": 11948,
+    "expected_source_files": 11949,
     "roots": {
       "reference/driftdroid": 1550,
       "reference/nsmbw-android-e1": 1204,
@@ -109,7 +109,7 @@
       "wiids": 213,
       "release": 0,
       "docs/release": 0,
-      "experiments/release": 61,
+      "experiments/release": 62,
       "experiments/eclipse-thor": 15,
       "experiments/nsmbw-thor": 47,
       "experiments/sunshine-thor": 16,
@@ -124,10 +124,10 @@
     "omissions": []
   },
   "presentation_assets": {
-    "revision": "thor-2026-10-22-v1.0",
-    "manifest_sha256": "3afaf06a08474cf5bc576188ce708b3bc10518a80ac7389cec251481d0d9217a",
-    "files": 1390,
-    "bytes": 556764878,
+    "revision": "thor-2026-10-25-v1.1-artfix1",
+    "manifest_sha256": "73c27da52c9a03042eb80ea3777de2b1b310993efaa63615d03b22152a44e4df",
+    "files": 1393,
+    "bytes": 557654564,
     "source": "Exact owner-approved current presentation snapshot; attribution in WIIDS-NOTICE.md"
   },
   "excluded": "ROMs; disc/game data; translated/generated game code; unlisted extracted assets; saves; keys; native binaries; private logs; other build trees",
@@ -783,8 +783,8 @@
       "bytes": 53700
     },
     "build/wiids-merge/assets/presentation/files/launcher/artwork.json": {
-      "sha256": "9e584b324a0b9f86c959b4e406cf3245e790343b3e0da4805cc9302cdcad3887",
-      "bytes": 5920
+      "sha256": "3e8efff63dc0b6476ac85694465061acdd4ec2f292affbd75c4e27147fd12217",
+      "bytes": 7000
     },
     "build/wiids-merge/assets/presentation/files/launcher/eclipse-cover.png": {
       "sha256": "1ecfb21ca5d46160ed4d3f661ad480620d1c260c0f1b384b138d9dc1eaeeed10",
@@ -5715,8 +5715,8 @@
       "bytes": 5444
     },
     "build/wiids-merge/assets/presentation/manifest.json": {
-      "sha256": "3afaf06a08474cf5bc576188ce708b3bc10518a80ac7389cec251481d0d9217a",
-      "bytes": 345636
+      "sha256": "73c27da52c9a03042eb80ea3777de2b1b310993efaa63615d03b22152a44e4df",
+      "bytes": 346334
     },
     "diagnostics/AndroidManifest.xml": {
       "sha256": "03f66006d8a9babb242a2ce2c4317ac0330f8c9f5418d5f350f9294a7d8c6b3f",
@@ -6611,8 +6611,8 @@
       "bytes": 4142
     },
     "experiments/release/audit_release_apk.py": {
-      "sha256": "7830723d64ee8c6c3e610769bd2b1b6551c30c29139f8cb4cf70315fd0b1a938",
-      "bytes": 13672
+      "sha256": "00164e6ad41ae4e7783e12152940db48897085f9bdb882df6431d9c725ca2add",
+      "bytes": 15387
     },
     "experiments/release/build_galaxy_attack_preview.py": {
       "sha256": "bea8148c5684314ebf9d850b3450a63efff74e613e680d6a31b3eed50ca7e4a5",
@@ -6739,8 +6739,8 @@
       "bytes": 10569
     },
     "experiments/release/test_bundled_presentation.py": {
-      "sha256": "28c7eb0d9a200ed374f8e352f186b0ebf34c0859c67b2f5a9f645d9aadadc2f2",
-      "bytes": 13006
+      "sha256": "483782fcebc3b0249cc9514b6186e541a0833614ed7a6157d9ac44421133b276",
+      "bytes": 16422
     },
     "experiments/release/test_dolphin_android.py": {
       "sha256": "dc6aef1a48fd42069f6d5536fafda28bf6b08331e2f5141b90f3535f917c4895",
@@ -6831,8 +6831,8 @@
       "bytes": 8640
     },
     "experiments/release/test_release_audit.py": {
-      "sha256": "972a61002d2c356d21ef6306a4b472c54b4c4018bcd4a88cdb89e2126961ebc2",
-      "bytes": 4006
+      "sha256": "c7c8b20539d9bbe0bd2fced3c557582fab4da12b33aca0c2a24972e401cee8fb",
+      "bytes": 5483
     },
     "experiments/release/test_save_android.py": {
       "sha256": "e0b84b2259202b4352a76579a888357428955fb47e06e5778892ca5bc89b3180",
@@ -50331,8 +50331,8 @@
       "bytes": 6033
     },
     "release/version.properties": {
-      "sha256": "165a0a8ce70eeb0c2e4a25ffcdd5cf5b04fc08250cc8d1a965cb0345d987dd8f",
-      "bytes": 121
+      "sha256": "2a1ef49a34de940638c1d77aafe19659f723b11299369bfc8f0b75685b86e8b1",
+      "bytes": 118
     },
     "scripts/Bake-ThorCustomMaps.py": {
       "sha256": "76edc5adab77e84b2d1b884fce912acc161340fb0d67a632d9bff5d030136d32",
@@ -50411,8 +50411,8 @@
       "bytes": 2023
     },
     "scripts/Stage-Presentation.py": {
-      "sha256": "12bc40815205b72d036845bb7dd9daace2320b271330ca29dfaa949b1f2b840b",
-      "bytes": 15558
+      "sha256": "b03aacdd618b26e847d92873680d24f572c89b6d8b0bc1506b26fe9a86222b31",
+      "bytes": 15988
     },
     "scripts/Stage-RetroRewind.py": {
       "sha256": "6d97cb1fb7243dd8ad6834222993fb0d2d507f9f449c485df7a4526c8c3d2e58",
@@ -59681,6 +59681,32 @@
     "wiids/disc/tools/wiids_disc_tool.cpp": {
       "sha256": "3962e38ef4236c5c0694b76b12dc04173f7034aebd58c0c60b7b9f79e2aa5dad",
       "bytes": 1960
+    },
+    "experiments/release/repackage_presentation_hotfix.py": {
+      "sha256": "7d8339179b3f8fbf37350d213cf46c0684ae53228dbeb616dda3c2872e563dc9",
+      "bytes": 3777
+    },
+    "docs/release/1.1-ARTWORK-HOTFIX.md": {
+      "sha256": "fa250a4dd0a0585c83ebb30d8fa505a19b499213f6d8fc2479e1a298505059e4",
+      "bytes": 1699
+    },
+    "build/wiids-merge/assets/presentation/files/launcher/kaizo-cover.png": {
+      "sha256": "90113f98f03cc675e33d747825d03423961cc7523d2329349bcce021ec825d81",
+      "bytes": 564884
+    },
+    "build/wiids-merge/assets/presentation/files/launcher/kaizo-disc.png": {
+      "sha256": "e73fc516be3167c51ec72b8f51aacead793fd38b7ada1a77a9f1bdccb0ce2950",
+      "bytes": 305352
+    },
+    "build/wiids-merge/assets/presentation/files/launcher/kaizo-spine.png": {
+      "sha256": "eccfd0fab3c00a977428e9a9c2d0b74b58f69513288d5e7794762fdbfd1b8845",
+      "bytes": 18370
     }
+  },
+  "hotfix": {
+    "base_source_sha256": "b6a5162fd6aa636aabbc5d17decfd4ea83cc17935f0ceeb6dbe88df676baa059",
+    "scope": "Kaizo cover/disc/spine; artwork staging and audit guards; actual-source installer/loader regression; asset-only packaging helper; release metadata",
+    "versionCode": 1101,
+    "unchanged_source_snapshot_preserved": true
   }
 }

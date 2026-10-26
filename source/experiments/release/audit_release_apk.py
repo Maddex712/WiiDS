@@ -23,6 +23,33 @@ MOD_PATCHES = {'25c6b08333802bca17c1e6571c7289a6382a32a85af1aa5bd224acfbac6a8bf0
                'Eclipse 1.1.0 official VCDIFF patch'}
 WINDOW = 64
 PRESENTATION_GROUPS = {'launcher', 'launcher-audio', 'thor-map', 'nsmbw-hud', 'msmbwii-hud', 'sms-hud', 'eclipse-hud'}
+LAUNCHER_PROFILES = ('original', 'retro-rewind', 'nsmbw', 'sunshine', 'msmbwii', 'eclipse', 'galaxy', 'kaizo')
+
+
+def launcher_artwork_audit(archive, targets):
+    """Require complete case art for every shipped profile, even on a clean install."""
+    prefix = 'assets/presentation/files/launcher/'
+    artwork = json.loads(archive.read(prefix + 'artwork.json'))
+    images = artwork.get('images', {})
+    required = {profile + '-' + part for profile in LAUNCHER_PROFILES for part in ('cover', 'disc', 'spine')}
+    missing = sorted(required - images.keys())
+    if missing:
+        raise ValueError('missing launcher artwork: ' + ', '.join(missing))
+    for stem in sorted(required):
+        entry = images[stem]
+        filename = entry['file']
+        if (not isinstance(filename, str) or PurePosixPath(filename).name != filename or
+                '\\' in filename or 'launcher/' + filename not in targets):
+            raise ValueError('unbundled launcher artwork: ' + stem)
+        data = archive.read(prefix + filename)
+        if hashlib.sha256(data).hexdigest() != entry['sha256']:
+            raise ValueError('launcher metadata hash mismatch: ' + stem)
+        size = entry['size']
+        if not isinstance(size, list) or len(size) != 2 or any(not isinstance(n, int) or n <= 0 for n in size):
+            raise ValueError('invalid launcher dimensions: ' + stem)
+        if data.startswith(b'\x89PNG\r\n\x1a\n') and list(struct.unpack('>II', data[16:24])) != size:
+            raise ValueError('launcher PNG dimensions mismatch: ' + stem)
+    return len(required)
 
 
 def stream_sha(stream):
@@ -99,7 +126,9 @@ def presentation_audit(archive):
             raise ValueError('presentation exceeds total limit')
         if approved != names:
             raise ValueError('unlisted or absent presentation files')
+        launcher_images = launcher_artwork_audit(archive, targets)
         return [], {'revision': revision, 'files': len(entries), 'bytes': total,
+                    'required_launcher_images_verified': launcher_images,
                     'manifest_sha256': hashlib.sha256(archive.read(manifest_name)).hexdigest(),
                     'all_payload_hashes_verified': True}
     except (ValueError, KeyError, TypeError, AttributeError, UnicodeError) as error:

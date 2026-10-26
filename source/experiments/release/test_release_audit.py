@@ -4,6 +4,7 @@ import hashlib
 import json
 from pathlib import Path
 import random
+import struct
 import tempfile
 import unittest
 import zipfile
@@ -58,12 +59,33 @@ class ReleaseAuditTests(unittest.TestCase):
         self.assertEqual(self.check_apk({'assets/retail/Race.szs': b'private game pixels'})['status'], 'failed')
 
     def presentation(self):
-        data = b'\x89PNG\r\n\x1a\n' + bytes(16)
-        target = 'launcher/original-cover.png'
-        asset = 'presentation/files/' + target
+        data = b'\x89PNG\r\n\x1a\n' + bytes(8) + struct.pack('>II', 10, 20)
+        images = {profile + '-' + part: {'file': profile + '-' + part + '.png',
+                  'sha256': hashlib.sha256(data).hexdigest(), 'size': [10, 20]}
+                  for profile in AUDIT.LAUNCHER_PROFILES for part in ('cover', 'disc', 'spine')}
+        payload = {'launcher/' + entry['file']: data for entry in images.values()}
+        payload['launcher/artwork.json'] = json.dumps({'schema': 1, 'images': images}).encode()
         manifest = {'schema': 1, 'kind': 'wiids-bundled-presentation', 'revision': 'test-r1',
-                    'files': [{'asset': asset, 'target': target, 'sha256': hashlib.sha256(data).hexdigest(), 'bytes': len(data)}]}
-        return {'assets/' + asset: data, 'assets/presentation/manifest.json': json.dumps(manifest).encode()}
+                    'files': [{'asset': 'presentation/files/' + target, 'target': target,
+                               'sha256': hashlib.sha256(content).hexdigest(), 'bytes': len(content)}
+                              for target, content in payload.items()]}
+        return {**{'assets/presentation/files/' + n: d for n, d in payload.items()},
+                'assets/presentation/manifest.json': json.dumps(manifest).encode()}
+
+    def test_missing_kaizo_rejected_even_with_consistent_hashes(self):
+        entries = self.presentation()
+        artname = 'assets/presentation/files/launcher/artwork.json'
+        art = json.loads(entries[artname])
+        for part in ('cover', 'disc', 'spine'):
+            art['images'].pop('kaizo-' + part)
+        entries[artname] = json.dumps(art).encode()
+        manifest = json.loads(entries['assets/presentation/manifest.json'])
+        for row in manifest['files']:
+            if row['target'] == 'launcher/artwork.json':
+                row.update(bytes=len(entries[artname]), sha256=hashlib.sha256(entries[artname]).hexdigest())
+        entries['assets/presentation/manifest.json'] = json.dumps(manifest).encode()
+        report = self.check_apk(entries)
+        self.assertTrue(any('missing launcher artwork: kaizo-cover, kaizo-disc, kaizo-spine' in x for x in report['findings']))
 
     def test_approved_presentation_hash_checked(self):
         report = self.check_apk(self.presentation())

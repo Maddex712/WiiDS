@@ -41,6 +41,12 @@ def sha(path):
 
 def selected(manifest, marker):
     """Select output references, not the source archives described beside them."""
+    if marker == 'artwork.json':
+        profiles = ('original', 'retro-rewind', 'nsmbw', 'sunshine', 'msmbwii', 'eclipse', 'galaxy', 'kaizo')
+        required = {profile + '-' + part for profile in profiles for part in ('cover', 'disc', 'spine')}
+        missing = sorted(required - manifest.get('images', {}).keys())
+        if missing:
+            raise ValueError('Incomplete shipped launcher artwork: ' + ', '.join(missing))
     names = {marker}
     def add(value):
         if isinstance(value, str) and Path(value).suffix.lower() in ART_EXT - {'.json'}:
