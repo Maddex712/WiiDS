@@ -14,6 +14,7 @@ internal object SaveManagerProfiles {
     // Resolve only trusted Context bases; SaveArchive still rejects links beneath them.
     fun work(context: Context) = File(context.filesDir.canonicalFile, "save-manager")
     fun blocker(context: Context): String? = when {
+        WiiDsUpdater.installing.get() -> "Finish or cancel the WiiDS update installation first."
         busy.get() -> "Wait for the save operation to finish."
         SaveArchive.pending(work(context)) -> "Open Options > Save manager to recover the interrupted restore first."
         else -> null

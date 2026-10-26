@@ -27,7 +27,7 @@ object GameInstaller {
 
     fun start(context: Context, disc: GameCatalog.Disc, source: WiiDsDisc.Source): Boolean {
         synchronized(this) {
-            if (state.running || EclipseMod.state.running) return false
+            if (state.running || EclipseMod.state.running || com.driftdroid.android.WiiDsUpdater.installing.get()) return false
             // Before Cancel is shown: a tap from here on must reach the extraction.
             WiiDsDisc.resetCancel()
             importCancelled = false

@@ -6,7 +6,7 @@ Play supported Wii and GameCube games on the AYN Thor, with a companion on its l
 
 ## Quick start
 
-**1.1 artwork hotfix:** The current APK includes Kaizo’s missing cover, disc and spine. Already installed 1.1? Download it again and install over your existing copy, then reopen WiiDS. [Hotfix details](docs/release/1.1-ARTWORK-HOTFIX.md).
+**1.1 update:** The current APK includes **Options → Check for updates** and Kaizo’s missing cover, disc and spine. Install this copy over your existing WiiDS once; future updates can be downloaded and installed from inside WiiDS with Android’s confirmation. [Update guide](docs/release/1.1-IN-APP-UPDATES.md).
 
 **You need:** an **AYN Thor with both screens**, Android **11 or newer** (**12L or newer for Galaxy**),
 and your own [compatible game dump](#exact-game-files-for-each-game). The region and revision must match.
@@ -40,6 +40,7 @@ and your own [compatible game dump](#exact-game-files-for-each-game). The region
 
 ## New in 1.1
 
+- **In-app updates:** check GitHub, download in the background, and install over WiiDS with checksum/signature verification and Android confirmation.
 - **Kaizo Mario Galaxy Rebalanced 2.1** joins the library, with its own saves and lower-screen assets generated from the patched data.
 - **Save manager:** dated backups, export/restore and supported Dolphin in-game save imports for all eight game/mod profiles.
 - **Game shortcuts:** launch individual games and mods from Cocoon or another compatible Android launcher, and resume an existing game through its shortcut.

@@ -32,6 +32,7 @@ object ThorGameSession {
  fun isUpdating() = updating
 }
 object ThorRetroRewindUpdateStatus { object snapshot { var running = false } }
+object WiiDsUpdater { val installing = java.util.concurrent.atomic.AtomicBoolean(false) }
 ''',
 'Test.kt': '''package com.driftdroid.android
 import android.content.Context
@@ -75,6 +76,8 @@ fun main(args: Array<String>) {
  ThorGameSession.updating = true; reject("Runtime update blocked") { SaveManagerProfiles.requireStopped(c) }; ThorGameSession.updating = false
  ThorRetroRewindUpdateStatus.snapshot.running = true; reject("RR update blocked") { SaveManagerProfiles.requireStopped(c) }; ThorRetroRewindUpdateStatus.snapshot.running = false
  verify(SaveManagerProfiles.blocker(c) == null,"No save blocker at idle")
+ WiiDsUpdater.installing.set(true); verify(SaveManagerProfiles.blocker(c)?.contains("update installation") == true,"App update blocks new games and save work"); WiiDsUpdater.installing.set(false)
+ verify(SaveManagerProfiles.blocker(c) == null,"Cancelled app update releases launch gate")
  SaveManagerProfiles.busy.set(true); verify(SaveManagerProfiles.blocker(c) != null,"Save worker blocks game launch"); SaveManagerProfiles.busy.set(false)
  File(SaveManagerProfiles.work(c),"restore.properties").apply { parentFile.mkdirs(); writeText("pending") }
  verify(SaveManagerProfiles.blocker(c)?.contains("recover") == true,"Interrupted restore blocks launching")

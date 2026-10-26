@@ -67,6 +67,11 @@
             android:configChanges="orientation|screenSize|screenLayout|keyboardHidden"
             android:theme="@android:style/Theme.Material.NoActionBar" />
 
+        <activity android:name=".WiiDsUpdateActivity" android:exported="false"
+            android:screenOrientation="sensorLandscape"
+            android:configChanges="orientation|screenSize|screenLayout|keyboardHidden"
+            android:theme="@android:style/Theme.Material.Light.NoActionBar" />
+
         <activity android:name=".FrontendLaunchActivity" android:exported="true"
             android:launchMode="singleTask" android:screenOrientation="sensorLandscape"
             android:taskAffinity="${applicationId}.frontend" android:excludeFromRecents="true">

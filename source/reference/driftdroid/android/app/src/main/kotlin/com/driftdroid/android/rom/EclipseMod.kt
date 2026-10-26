@@ -32,7 +32,7 @@ object EclipseMod {
     /** A raw official xdelta may be selected when a source-only build lacks the bundled patch. */
     fun start(context: Context, picked: Uri? = null): Boolean {
         synchronized(GameInstaller) {
-            if (state.running || GameInstaller.running) return false
+            if (state.running || GameInstaller.running || com.driftdroid.android.WiiDsUpdater.installing.get()) return false
             state = State(running = true, phase = "Checking your Sunshine disc", total = DISC_BYTES)
             cancelled = false
         }

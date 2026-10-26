@@ -94,9 +94,9 @@
   ],
   "missing_roots": [],
   "source_coverage": {
-    "expected_source_files": 11949,
+    "expected_source_files": 11953,
     "roots": {
-      "reference/driftdroid": 1550,
+      "reference/driftdroid": 1553,
       "reference/nsmbw-android-e1": 1204,
       "reference/nsmbw-android-msmbwii": 1203,
       "reference/sms-thor": 249,
@@ -109,7 +109,7 @@
       "wiids": 213,
       "release": 0,
       "docs/release": 0,
-      "experiments/release": 62,
+      "experiments/release": 63,
       "experiments/eclipse-thor": 15,
       "experiments/nsmbw-thor": 47,
       "experiments/sunshine-thor": 16,
@@ -6843,8 +6843,8 @@
       "bytes": 11285
     },
     "experiments/release/test_save_profiles.py": {
-      "sha256": "899eae94f356089bb9d6f915d6e7bc3f8056d52d3c48969697adc5087c485426",
-      "bytes": 8025
+      "sha256": "c41afb020f49eff0879c3facf72fbfd0e89704d1a9d1aefdac053d54e279fc85",
+      "bytes": 8403
     },
     "experiments/release/test_source_export.py": {
       "sha256": "9ca630cd7411e8780177110af822e55b66b1b87e9259ac95f3146b25d3e186a3",
@@ -7187,8 +7187,8 @@
       "bytes": 5495
     },
     "reference/driftdroid/android/app/src/main/AndroidManifest.xml": {
-      "sha256": "3fc7d65e6cab79d207bb1d701bf449c1ba297343ea407f77f6282c29e6a54167",
-      "bytes": 15109
+      "sha256": "77b62170baa3726e7d67c35f59e92ac215ac74bfab377ac45fe40082316e65d4",
+      "bytes": 15416
     },
     "reference/driftdroid/android/app/src/main/cpp/CMakeLists.txt": {
       "sha256": "5d45079cc84501c32ac163e18358bc47311b06a037ac3c71346c9891bdcb1107",
@@ -7667,8 +7667,8 @@
       "bytes": 18209
     },
     "reference/driftdroid/android/app/src/main/kotlin/com/driftdroid/android/ModePickerActivity.kt": {
-      "sha256": "8495dff02cbdac354bf2cf8d759f9f21f474d7d3c087b182abc363c8ec3b5a30",
-      "bytes": 102232
+      "sha256": "cfbfcf2e97ea5297e8e67df98e22291ec6f117b08ebcc799193b4603bece102f",
+      "bytes": 102775
     },
     "reference/driftdroid/android/app/src/main/kotlin/com/driftdroid/android/MotionSteering.kt": {
       "sha256": "83509009de2dabe1c8559483e757eca415200916e7c9b8e9e909ef2ceaa86381",
@@ -7699,8 +7699,8 @@
       "bytes": 19235
     },
     "reference/driftdroid/android/app/src/main/kotlin/com/driftdroid/android/SaveManagerProfiles.kt": {
-      "sha256": "1c0acd1ddadfb5382fdb4ce0717ef6f4d9188b4899ac605066b1d781025c5d24",
-      "bytes": 4684
+      "sha256": "fd9003de5cc2b783a028be4eec5fda6bf823042df82f3891a3c0f1efe7fe6a55",
+      "bytes": 4781
     },
     "reference/driftdroid/android/app/src/main/kotlin/com/driftdroid/android/ThermalMonitor.kt": {
       "sha256": "4c8ef2206b248167aef2d110327a103c93c18eb722cdb63525e8183e738d8937",
@@ -7803,16 +7803,16 @@
       "bytes": 2667
     },
     "reference/driftdroid/android/app/src/main/kotlin/com/driftdroid/android/rom/EclipseMod.kt": {
-      "sha256": "bbcfedd6762cb424afe30331f73f1dceabc8a1c308000f677a32ed39226b2e38",
-      "bytes": 5537
+      "sha256": "e4cd8a25c7b6fce70b59d32f6afe664c06c85bc1d6449d02ff201469b58e158b",
+      "bytes": 5593
     },
     "reference/driftdroid/android/app/src/main/kotlin/com/driftdroid/android/rom/GameCatalog.kt": {
       "sha256": "1892fd2b9902ca8065c43aa71458b906bde96baaf1815927b09b1c8e36ed9778",
       "bytes": 5395
     },
     "reference/driftdroid/android/app/src/main/kotlin/com/driftdroid/android/rom/GameInstaller.kt": {
-      "sha256": "6d71b0977a4dc4775fdaf691452da1da397259c03408e814a21b17e190710c3b",
-      "bytes": 5736
+      "sha256": "c5f4fb97219face7596bb0e7b33aadc7d65d03ba50a74cb3516a2d1315b828c0",
+      "bytes": 5792
     },
     "reference/driftdroid/android/app/src/main/kotlin/com/driftdroid/android/rom/GameScanner.kt": {
       "sha256": "d89ca35c6878ba19b64a0149a204a24f4e1b4ed1b1aec9983d3fec955516145d",
@@ -7823,8 +7823,8 @@
       "bytes": 6654
     },
     "reference/driftdroid/android/app/src/main/kotlin/com/driftdroid/android/rom/MsmbwiiMod.kt": {
-      "sha256": "bc90b0db5307acf2942a33614baf2d418a5fbd9ba63f082f0e8ba28d6cbcec8f",
-      "bytes": 7723
+      "sha256": "20073470a9e4f717aef74989a8a16f42d89e3ec2fa34e2adec8f2ebd04a66021",
+      "bytes": 7788
     },
     "reference/driftdroid/android/app/src/main/kotlin/com/driftdroid/android/rom/RomImportOverlay.kt": {
       "sha256": "e0a418b58c12cf907d3972d2ed15036e443c29517f5ce2520ef1bfa127a6bbd0",
@@ -50331,7 +50331,7 @@
       "bytes": 6033
     },
     "release/version.properties": {
-      "sha256": "2a1ef49a34de940638c1d77aafe19659f723b11299369bfc8f0b75685b86e8b1",
+      "sha256": "570b3d0cc98876fb4b1c9f735599ceffa0877c4a3eddfc4fcfae4631af303ca5",
       "bytes": 118
     },
     "scripts/Bake-ThorCustomMaps.py": {
@@ -59701,12 +59701,39 @@
     "build/wiids-merge/assets/presentation/files/launcher/kaizo-spine.png": {
       "sha256": "eccfd0fab3c00a977428e9a9c2d0b74b58f69513288d5e7794762fdbfd1b8845",
       "bytes": 18370
+    },
+    "reference/driftdroid/android/app/src/main/kotlin/com/driftdroid/android/WiiDsUpdateRelease.kt": {
+      "sha256": "864e5aaf9da1c6fe97090886c6058367abb1d4b9464d9f37d14e365c9b0e8eae",
+      "bytes": 9220
+    },
+    "reference/driftdroid/android/app/src/main/kotlin/com/driftdroid/android/WiiDsUpdater.kt": {
+      "sha256": "c394b9a028137f17f772ffdf65f63c225bcc44703a54f1448921f12e88d71ebb",
+      "bytes": 6234
+    },
+    "reference/driftdroid/android/app/src/main/kotlin/com/driftdroid/android/WiiDsUpdateActivity.kt": {
+      "sha256": "da5c2782b56e5ed98a278511287ab435e34b0cc0a6f160c7bbfc87adbdff6eab",
+      "bytes": 17926
+    },
+    "experiments/release/test_wiids_update.py": {
+      "sha256": "2c1312ef5a305b89fdf9c96a5fccb001ba91c7edb66b093ead062edca672b910",
+      "bytes": 7829
+    },
+    "docs/release/1.1-IN-APP-UPDATES.md": {
+      "sha256": "ec91d3fc9b75f4374e2af881be5366e5423b1df59c5cb6419c54a94254b03536",
+      "bytes": 2721
     }
   },
   "hotfix": {
     "base_source_sha256": "b6a5162fd6aa636aabbc5d17decfd4ea83cc17935f0ceeb6dbe88df676baa059",
     "scope": "Kaizo cover/disc/spine; artwork staging and audit guards; actual-source installer/loader regression; asset-only packaging helper; release metadata",
     "versionCode": 1101,
+    "unchanged_source_snapshot_preserved": true
+  },
+  "in_app_updater": {
+    "base_source_sha256": "8482cbcb3d515d518e30a42458c3d2c9ca4475d36d759a3ef92838f785289b21",
+    "version": "1.1",
+    "versionCode": 1102,
+    "scope": "Android update screen, verified GitHub metadata/download/install flow, operation gates, policy tests and documentation",
     "unchanged_source_snapshot_preserved": true
   }
 }

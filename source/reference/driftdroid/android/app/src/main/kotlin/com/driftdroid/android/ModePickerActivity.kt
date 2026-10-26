@@ -358,6 +358,9 @@ class ModePickerActivity : Activity() {
                 ThorLauncherView.Entry("Kaizo Mario Galaxy Rebalanced", "Play the 2.1 challenge rework with separate saves.", { kaizoInstalled },
                     art = "kaizo", updatesShortcut = false) { launchKaizoFromLibrary() },
                 ThorLauncherView.Entry("Your games", "Find and import your own game discs.") { openGames() },
+                ThorLauncherView.Entry("Check for updates", "Download and install the latest WiiDS release.") {
+                    startActivity(Intent(this, WiiDsUpdateActivity::class.java))
+                },
                 ThorLauncherView.Entry("Controller buttons", "Change what each controller button does, game by game.") { showControllerButtons() },
                 ThorLauncherView.Entry("Game shortcuts", "Add a game or mod directly to Cocoon or your home screen.") { GameShortcuts.show(this) },
                 ThorLauncherView.Entry("Save manager", "Back up, export or restore each game's in-game saves.") {
@@ -947,6 +950,9 @@ class ModePickerActivity : Activity() {
             otherGameButtons[button] = shown
         }
         gameButton("Your games", Color.rgb(0x4C, 0x8D, 0xF2), Color.rgb(0x1E, 0x5B, 0xC6), { true }) { openGames() }
+        if (BuildConfig.THOR_BUILD) gameButton("Check for updates", Color.rgb(0x4C, 0x8D, 0xF2), Color.rgb(0x1E, 0x5B, 0xC6), { true }) {
+            startActivity(Intent(this, WiiDsUpdateActivity::class.java))
+        }
         if (BuildConfig.THOR_BUILD) gameButton("Game shortcuts", Color.rgb(0x4C, 0x8D, 0xF2), Color.rgb(0x1E, 0x5B, 0xC6), { true }) { GameShortcuts.show(this) }
         if (BuildConfig.THOR_BUILD) gameButton("Save manager", Color.rgb(0x4C, 0x8D, 0xF2), Color.rgb(0x1E, 0x5B, 0xC6), { true }) {
             startActivity(Intent(this, SaveManagerActivity::class.java))
@@ -1165,6 +1171,7 @@ class ModePickerActivity : Activity() {
     }
     /** The Games screen: finds the player's disc images and imports each game's exact disc. */
     private fun openGames() {
+        SaveManagerProfiles.blocker(this)?.let { Toast.makeText(this, it, Toast.LENGTH_LONG).show(); return }
         if (!isFinishing && !isDestroyed) startActivity(Intent(this, GamesActivity::class.java))
     }
 

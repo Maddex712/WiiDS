@@ -49,8 +49,8 @@ object MsmbwiiMod {
 
     /** Downloads from the official page ([picked] == null) or installs the player's own copy. */
     fun start(context: Context, picked: Uri? = null): Boolean {
-        synchronized(this) {
-            if (state.running) return false
+        synchronized(GameInstaller) {
+            if (state.running || com.driftdroid.android.WiiDsUpdater.installing.get()) return false
             state = State(running = true)
             cancelled = false
         }
