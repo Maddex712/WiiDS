@@ -105,6 +105,7 @@ private:
 
     std::string mToastMessage;
     float mToastTimer = 0.0f;
+    int64_t mToastExpiresNs = 0;
 };
 
 inline UIOverlay& get() {

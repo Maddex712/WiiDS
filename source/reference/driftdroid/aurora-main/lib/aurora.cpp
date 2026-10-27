@@ -7,6 +7,7 @@
 #include "gx/shader_info.hpp"
 #include "imgui.hpp"
 #include "webgpu/gpu.hpp"
+#include "webgpu/lsfg.hpp"
 #include <webgpu/webgpu_cpp.h>
 #endif
 
@@ -1205,6 +1206,84 @@ void stop_presenter() noexcept {
 
 // `presentSource` is latched in the seal prologue: by the time this encodes, the producer's next
 // gfx::begin_frame() may already have cleared the display-copy override.
+void encode_imgui_overlay(const wgpu::CommandEncoder& encoder, const PresentationImage& image) {
+  const std::array attachments{
+      wgpu::RenderPassColorAttachment{
+          .view = image.texture.view,
+          .loadOp = wgpu::LoadOp::Load,
+          .storeOp = wgpu::StoreOp::Store,
+      },
+  };
+  const wgpu::RenderPassDescriptor renderPassDescriptor{
+      .label = "Snapshot ImGui pass",
+      .colorAttachmentCount = attachments.size(),
+      .colorAttachments = attachments.data(),
+  };
+  const auto pass = encoder.BeginRenderPass(&renderPassDescriptor);
+  pass.SetViewport(0.f, 0.f, static_cast<float>(image.texture.size.width),
+                   static_cast<float>(image.texture.size.height), 0.f, 1.f);
+  imgui::render(pass);
+  pass.End();
+}
+
+// The real frame, letterboxed like a presentation image, into `view` without the overlays: the
+// input Lossless Scaling generates from (overlays are drawn onto every slot afterwards).
+void encode_frame_image(const wgpu::CommandEncoder& encoder, const webgpu::PresentSource& presentSource,
+                        const wgpu::TextureView& view, uint32_t width, uint32_t height) {
+  auto viewport = webgpu::calculate_present_viewport(width, height, presentSource.size.width,
+                                                     presentSource.size.height);
+  float presentAspect = 0.f;
+  if (window::get_present_aspect_ratio(presentAspect)) {
+    viewport = webgpu::calculate_present_viewport_for_aspect(width, height, presentAspect);
+  }
+  const std::array attachments{
+      wgpu::RenderPassColorAttachment{
+          .view = view,
+          .loadOp = wgpu::LoadOp::Clear,
+          .storeOp = wgpu::StoreOp::Store,
+      },
+  };
+  const wgpu::RenderPassDescriptor renderPassDescriptor{
+      .label = "Frame generation input pass",
+      .colorAttachmentCount = attachments.size(),
+      .colorAttachments = attachments.data(),
+  };
+  const auto pass = encoder.BeginRenderPass(&renderPassDescriptor);
+  pass.SetPipeline(webgpu::g_CopyPipeline);
+  pass.SetBindGroup(0, presentSource.bindGroup, 0, nullptr);
+  pass.SetViewport(viewport.left, viewport.top, viewport.width, viewport.height, viewport.znear,
+                   viewport.zfar);
+  pass.Draw(3);
+  pass.End();
+}
+
+// A generated frame (already letterboxed at the image size) plus the overlays into its slot.
+void encode_generated_image(const wgpu::CommandEncoder& encoder, const wgpu::BindGroup& generated,
+                            const PresentationImage& image) {
+  {
+    const std::array attachments{
+        wgpu::RenderPassColorAttachment{
+            .view = image.texture.view,
+            .loadOp = wgpu::LoadOp::Clear,
+            .storeOp = wgpu::StoreOp::Store,
+        },
+    };
+    const wgpu::RenderPassDescriptor renderPassDescriptor{
+        .label = "Generated frame pass",
+        .colorAttachmentCount = attachments.size(),
+        .colorAttachments = attachments.data(),
+    };
+    const auto pass = encoder.BeginRenderPass(&renderPassDescriptor);
+    pass.SetPipeline(webgpu::g_CopyPipeline);
+    pass.SetBindGroup(0, generated, 0, nullptr);
+    pass.SetViewport(0.f, 0.f, static_cast<float>(image.texture.size.width),
+                     static_cast<float>(image.texture.size.height), 0.f, 1.f);
+    pass.Draw(3);
+    pass.End();
+  }
+  encode_imgui_overlay(encoder, image);
+}
+
 void encode_presentation_snapshot(const wgpu::CommandEncoder& encoder,
                                   const webgpu::PresentSource& presentSource,
                                   const PresentationImage& image,
@@ -1241,23 +1320,7 @@ void encode_presentation_snapshot(const wgpu::CommandEncoder& encoder,
     pass.End();
   }
   if (includeImGui) {
-    const std::array attachments{
-        wgpu::RenderPassColorAttachment{
-            .view = image.texture.view,
-            .loadOp = wgpu::LoadOp::Load,
-            .storeOp = wgpu::StoreOp::Store,
-        },
-    };
-    const wgpu::RenderPassDescriptor renderPassDescriptor{
-        .label = "Snapshot ImGui pass",
-        .colorAttachmentCount = attachments.size(),
-        .colorAttachments = attachments.data(),
-    };
-    const auto pass = encoder.BeginRenderPass(&renderPassDescriptor);
-    pass.SetViewport(0.f, 0.f, static_cast<float>(image.texture.size.width),
-                     static_cast<float>(image.texture.size.height), 0.f, 1.f);
-    imgui::render(pass);
-    pass.End();
+    encode_imgui_overlay(encoder, image);
   }
 }
 #endif
@@ -1270,6 +1333,7 @@ void shutdown() noexcept {
   stop_frame_worker();
 #ifdef AURORA_ENABLE_GX
   stop_presenter();
+  lsfg::shutdown();
   g_presentationImagePools = {};
   imgui::shutdown();
   gfx::shutdown();
@@ -1494,21 +1558,50 @@ std::vector<PresentationJob> encode_sealed_frame(gfx::SealedFrame& sealedFrame, 
   // completion is harvested in gfx::after_submit, never waited on here.
   gfx::efb_ram::encode_async_downloads(encoder);
   if (!ctx.replayInterpolatedFrames) {
+    // Lossless Scaling: the real frame goes to the generator first. The slots before it show the
+    // frames it generates between the previous real frame and this one; any it could not make
+    // repeat the real frame.
+    uint32_t generatedFrames = 0;
+    const bool generation = ctx.interpolatedFrameCount != 0 && gx::frame_generation_lsfg();
+    if (generation) {
+      lsfg::push_error_scope();
+      wgpu::TextureView generationInput;
+      if (lsfg::begin_input(ctx.snapshotWidth, ctx.snapshotHeight, ctx.interpolatedFrameCount,
+                            generationInput)) {
+        encode_frame_image(encoder, ctx.presentSource, generationInput, ctx.snapshotWidth,
+                           ctx.snapshotHeight);
+        submitEncodedSlot(encoder);
+        encoder = g_device.CreateCommandEncoder(&encoderDescriptor);
+        generatedFrames = lsfg::submit_input(ctx.interpolatedFrameCount);
+      }
+    }
     for (uint32_t interpolatedFrame = 0; interpolatedFrame < ctx.interpolatedFrameCount;
          ++interpolatedFrame) {
       auto image =
           acquire_presentation_image(interpolatedFrame, ctx.snapshotWidth, ctx.snapshotHeight);
-      encode_presentation_snapshot(encoder, ctx.presentSource, *image, true);
+      wgpu::BindGroup generated =
+          interpolatedFrame < generatedFrames ? lsfg::begin_output(interpolatedFrame) : wgpu::BindGroup{};
+      if (generated) {
+        encode_generated_image(encoder, generated, *image);
+      } else {
+        encode_presentation_snapshot(encoder, ctx.presentSource, *image, true);
+      }
       presentationJobs.push_back({
           .image = std::move(image),
           .surfaceGeneration = ctx.surfaceGeneration,
           .logicalFrame = ctx.logicalFrame,
           .presentAt = slotPresentDeadline(interpolatedFrame),
           .interpolated = true,
-          .duplicated = true,
+          .duplicated = !generated,
       });
       submitEncodedSlot(encoder);
+      if (generated) {
+        lsfg::end_output(interpolatedFrame);
+      }
       encoder = g_device.CreateCommandEncoder(&encoderDescriptor);
+    }
+    if (generation) {
+      lsfg::pop_error_scope();
     }
   }
   auto finalImage =
@@ -1898,6 +1991,30 @@ void aurora_set_frame_interpolation_fps(uint32_t targetFps) {
   aurora::gx::set_frame_interpolation_fps(targetFps);
 #else
   (void)targetFps;
+#endif
+}
+void aurora_set_lsfg(const char* dllPath, float flowScale, bool performance) {
+#ifdef AURORA_ENABLE_GX
+  aurora::lsfg::configure(dllPath, flowScale, performance);
+  aurora::gx::set_frame_generation_lsfg(aurora::lsfg::enabled());
+#else
+  (void)dllPath;
+  (void)flowScale;
+  (void)performance;
+#endif
+}
+const char* aurora_get_lsfg_status() {
+#ifdef AURORA_ENABLE_GX
+  return aurora::lsfg::status();
+#else
+  return "";
+#endif
+}
+uint32_t aurora_get_lsfg_active_frames() {
+#ifdef AURORA_ENABLE_GX
+  return aurora::lsfg::active_frames();
+#else
+  return 0;
 #endif
 }
 uint32_t aurora_get_frame_interpolation_fps() {

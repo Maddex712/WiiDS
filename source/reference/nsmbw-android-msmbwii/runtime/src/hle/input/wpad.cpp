@@ -156,10 +156,18 @@ extern "C" int32_t WPADProbe_HLE(uint32_t chan, uint32_t typePtr)
 }
 PPC_NATIVE_OVERRIDE(801E0F40, WPADProbe_HLE, int32_t, (uint32_t chan, uint32_t typePtr), (chan, typePtr));
 
+// pad.cpp: the player's controller motor, through the "Controller vibration" setting.
+extern "C" void PAD__ControlMotor_HLE(int32_t chan, uint32_t command);
+
 extern "C" void WPADControlMotor_HLE(uint32_t chan, uint32_t command)
 {
-    (void)chan;
-    (void)command;
+    // The Wii Remote motor is on (WPAD_MOTOR_RUMBLE, 1) or off: player N's controller follows it,
+    // as the GameCube motor does (PAD_MOTOR_RUMBLE, or PAD_MOTOR_STOP_HARD to stop at once).
+    constexpr uint32_t kWpadMotorRumble = 1, kPadMotorRumble = 1, kPadMotorStopHard = 2;
+    if (chan >= WpadContract::kChannelCount) {
+        return;
+    }
+    PAD__ControlMotor_HLE(static_cast<int32_t>(chan), command == kWpadMotorRumble ? kPadMotorRumble : kPadMotorStopHard);
 }
 PPC_NATIVE_OVERRIDE(801E14E0, WPADControlMotor_HLE, void, (uint32_t chan, uint32_t command), (chan, command));
 

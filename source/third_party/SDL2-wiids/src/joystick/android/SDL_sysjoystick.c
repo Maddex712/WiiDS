@@ -591,7 +591,15 @@ static int ANDROID_JoystickOpen(SDL_Joystick *joystick, int device_index)
 
 static int ANDROID_JoystickRumble(SDL_Joystick *joystick, Uint16 low_frequency_rumble, Uint16 high_frequency_rumble)
 {
-    return SDL_Unsupported();
+    /* WiiDS: as in SDL 3, Java plays it (and finds the motor); SDL's joystick core stops it when
+       the requested duration runs out, so the Java side just needs a long enough length. */
+    SDL_joylist_item *item = (SDL_joylist_item *)joystick->hwdata;
+    if (!item) {
+        return SDL_SetError("Rumble failed, device disconnected");
+    }
+    Android_JNI_HapticRumble(item->device_id, low_frequency_rumble / 65535.0f,
+                             high_frequency_rumble / 65535.0f, 5000);
+    return 0;
 }
 
 static int ANDROID_JoystickRumbleTriggers(SDL_Joystick *joystick, Uint16 left_rumble, Uint16 right_rumble)

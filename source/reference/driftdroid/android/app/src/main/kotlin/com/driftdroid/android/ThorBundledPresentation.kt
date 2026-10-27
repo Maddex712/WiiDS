@@ -23,7 +23,10 @@ internal object ThorBundledPresentation {
     // This remains one bounded path component; safe() rejects traversal segments.
     private val revisionPattern = Regex("[A-Za-z0-9][A-Za-z0-9_.-]{0,63}")
     private val hashPattern = Regex("[0-9a-f]{64}")
-    private data class Entry(val asset: String, val group: String, val relative: String, val sha: String, val bytes: Long)
+    // replaces: earlier bundled versions of this file (SHA-256). A file the game or a customizer
+    // made is never overwritten, but one that is exactly an older bundled copy is updated.
+    private data class Entry(val asset: String, val group: String, val relative: String, val sha: String, val bytes: Long,
+                             val replaces: Set<String>)
 
     fun available(context: Context): Boolean = runCatching { context.assets.open(MANIFEST).use { true } }.getOrDefault(false)
 
@@ -72,6 +75,10 @@ internal object ThorBundledPresentation {
             val target = record.getString("target")
             val sha = record.getString("sha256")
             val length = record.getLong("bytes")
+            val earlier = record.optJSONArray("replaces")
+            if (earlier != null && earlier.length() > 8) throw IOException("Invalid bundled presentation entry.")
+            val replaces = (0 until (earlier?.length() ?: 0)).map { earlier!!.getString(it) }.toSet()
+            if (replaces.any { !it.matches(hashPattern) }) throw IOException("Invalid bundled presentation entry.")
             requirePath(target)
             if (asset != "presentation/files/$target") throw IOException("Presentation asset and target do not match.")
             val group = target.substringBefore('/')
@@ -81,7 +88,7 @@ internal object ThorBundledPresentation {
                 throw IOException("Invalid bundled presentation entry.")
             total += length
             if (total > MAX_TOTAL) throw IOException("Bundled presentation exceeds the size limit.")
-            Entry(asset, group, relative, sha, length)
+            Entry(asset, group, relative, sha, length, replaces)
         }
         val hash = hex(MessageDigest.getInstance("SHA-256").digest(bytes))
         val base = File(context.filesDir.canonicalFile, "bundled-presentation")
@@ -151,8 +158,19 @@ internal object ThorBundledPresentation {
         return target
     }
 
+    /** An installed file that is exactly an earlier bundled version of this entry. */
+    private fun outdated(entry: Entry, target: File): Boolean {
+        if (entry.replaces.isEmpty() || !target.isFile) return false
+        val digest = MessageDigest.getInstance("SHA-256")
+        target.inputStream().use { input ->
+            val buffer = ByteArray(256 * 1024)
+            while (true) { val n = input.read(buffer); if (n < 0) break; digest.update(buffer, 0, n) }
+        }
+        return hex(digest.digest()) in entry.replaces
+    }
+
     private fun copy(context: Context, entry: Entry, target: File, missingOnly: Boolean) {
-        if (missingOnly && target.isFile && target.length() > 0) return
+        if (missingOnly && target.isFile && target.length() > 0 && !outdated(entry, target)) return
         if (missingOnly && target.exists() && !target.isFile) throw IOException("A presentation filename is occupied by a directory.")
         target.parentFile?.mkdirs()
         val temp = File(target.parentFile, target.name + ".wiids-bundled-part")
@@ -177,9 +195,9 @@ internal object ThorBundledPresentation {
             if (missingOnly) {
                 // Recheck after the potentially lengthy copy: an importer/customizer may
                 // have created a valid file while this worker was reading the APK asset.
-                if (target.isFile && target.length() > 0) return
+                if (target.isFile && target.length() > 0 && !outdated(entry, target)) return
                 if (target.exists() && !target.isFile) throw IOException("A presentation filename is occupied by a directory.")
-                if (target.exists()) Files.delete(target.toPath()) // only an empty placeholder
+                if (target.exists()) Files.delete(target.toPath()) // an empty placeholder or an earlier bundled copy
                 try {
                     // Same-directory rename, deliberately without REPLACE_EXISTING:
                     // a file created by another writer wins instead of being replaced.

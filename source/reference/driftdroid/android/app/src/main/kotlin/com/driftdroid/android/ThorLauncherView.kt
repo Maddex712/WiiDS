@@ -416,10 +416,13 @@ internal class ThorLauncherView(
                 val badge = RectF(1336f, 848f, 1496f, 898f)
                 paint.color = Color.argb(labelAlpha, 47, 143, 224); c.drawRoundRect(badge, 25f, 25f, paint)
                 stroke.color = Color.argb(labelAlpha, 255, 255, 255); stroke.strokeWidth = 4f; c.drawRoundRect(badge, 25f, 25f, stroke)
-                textAlpha(c, "${bundles[bundleOf[front]].size} games", badge.centerX(), badge.top + 7f, 30f, badge.width() - 20f, labelAlpha)
+                val count = "${bundles[bundleOf[front]].size} games"
+                if (ThorMenuTheme.wii(context)) ThorMenuTheme.text(c, count, badge.centerX(), badge.top + 7f, 30f, badge.width() - 20f, true, 0xffffffff.toInt(), labelAlpha)
+                else textAlpha(c, count, badge.centerX(), badge.top + 7f, 30f, badge.width() - 20f, labelAlpha)
             }
             // Chevrons show there are more games to either side.
-            paint.color = Color.argb(labelAlpha * 7 / 10, 255, 255, 255)
+            paint.color = if (ThorMenuTheme.wii(context)) Color.argb(labelAlpha * 7 / 10, 112, 119, 128)
+                else Color.argb(labelAlpha * 7 / 10, 255, 255, 255)
             for (side in intArrayOf(-1, 1)) {
                 if (neighbour(front, side) == front) continue
                 val x = 960f + side * 336f
@@ -848,10 +851,12 @@ internal class ThorLauncherView(
         val list = optionEntries()
         // Keep added save/shortcut rows above the status/footer, including seven-row menus.
         val rowStep = minOf(132f, 520f / maxOf(1, (list.size + 1) / 2 - 1))
+        // Eight or more rows: rows shorten so they never overlap.
+        val rowHeight = minOf(84f, rowStep - 8f)
         list.forEachIndexed { index, entry ->
             val x = 180f + (index % 2) * 810f
             val y = 230f + (index / 2) * rowStep
-            row(c, RectF(x, y, x + 750f, y + 84f), index, entry.label, entry.description)
+            row(c, RectF(x, y, x + 750f, y + rowHeight), index, entry.label, entry.description)
         }
         if (musicPanel) drawMusicPanel(c)
         val message = status()
@@ -864,7 +869,8 @@ internal class ThorLauncherView(
     private fun row(c: Canvas, area: RectF, index: Int, label: String, description: String) {
         val focused = selection == index && !musicPanel
         panel(c, if (focused) "button_selected" else "button", area)
-        text(c, label, area.left + 38f, area.top + 12f, 46f, area.width() - 76f)
+        val size = minOf(46f, area.height() * 0.55f)
+        text(c, label, area.left + 38f, area.top + 12f * area.height() / 84f, size, area.width() - 76f)
         bounds.add(area to index)
         if (focused) text(c, description, 960f, 880f, 35f, 1560f, true)
     }
@@ -891,11 +897,14 @@ internal class ThorLauncherView(
 
     // ================================================================ text/chrome helpers
     private fun text(c: Canvas, value: String, x: Float, y: Float, size: Float, width: Float, centered: Boolean = false) {
-        if (value.isNotEmpty()) art.text(c, value, x, y, size, width, centered)
+        if (value.isEmpty()) return
+        if (ThorMenuTheme.wii(context)) ThorMenuTheme.text(c, value, x, y, size, width, centered)
+        else art.text(c, value, x, y, size, width, centered)
     }
 
     private fun textAlpha(c: Canvas, value: String, x: Float, y: Float, size: Float, width: Float, alpha: Int) {
         if (alpha <= 0 || value.isEmpty()) return
+        if (ThorMenuTheme.wii(context)) { ThorMenuTheme.text(c, value, x, y, size, width, true, alpha = alpha); return }
         if (alpha >= 255) { art.text(c, value, x, y, size, width, true); return }
         val layer = c.saveLayerAlpha(x - width / 2f - 20f, y - 20f, x + width / 2f + 20f, y + size * 1.6f, alpha)
         art.text(c, value, x, y, size, width, true)
@@ -903,6 +912,7 @@ internal class ThorLauncherView(
     }
 
     private fun panel(c: Canvas, role: String, area: RectF, alpha: Int = 255) {
+        if (ThorMenuTheme.wii(context) && ThorMenuTheme.chrome(c, role, area, alpha)) return
         chrome[role]?.let {
             when (role) {
                 "button", "button_selected" -> art.button(c, it, area, alpha)

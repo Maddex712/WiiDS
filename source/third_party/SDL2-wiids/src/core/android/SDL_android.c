@@ -362,6 +362,7 @@ static jmethodID midPollInputDevices;
 static jmethodID midPollHapticDevices;
 static jmethodID midHapticRun;
 static jmethodID midHapticStop;
+static jmethodID midHapticRumble;
 
 /* Accelerometer data storage */
 static SDL_DisplayOrientation displayOrientation;
@@ -723,6 +724,11 @@ JNIEXPORT void JNICALL SDL_JAVA_CONTROLLER_INTERFACE(nativeSetupJNI)(JNIEnv *env
                                              "hapticRun", "(IFI)V");
     midHapticStop = (*env)->GetStaticMethodID(env, mControllerManagerClass,
                                               "hapticStop", "(I)V");
+    midHapticRumble = (*env)->GetStaticMethodID(env, mControllerManagerClass,
+                                                "hapticRumble", "(IFFI)V");
+    if (!midHapticRumble) {
+        (*env)->ExceptionClear(env);
+    }
 
     if (!midPollInputDevices || !midPollHapticDevices || !midHapticRun || !midHapticStop) {
         __android_log_print(ANDROID_LOG_WARN, "SDL", "Missing some Java callbacks, do you have the latest version of SDLControllerManager.java?");
@@ -2181,6 +2187,15 @@ void Android_JNI_HapticStop(int device_id)
 {
     JNIEnv *env = Android_JNI_GetEnv();
     (*env)->CallStaticVoidMethod(env, mControllerManagerClass, midHapticStop, device_id);
+}
+
+void Android_JNI_HapticRumble(int device_id, float low_frequency_intensity, float high_frequency_intensity, int length)
+{
+    JNIEnv *env = Android_JNI_GetEnv();
+    if (midHapticRumble) {
+        (*env)->CallStaticVoidMethod(env, mControllerManagerClass, midHapticRumble, device_id,
+                                     low_frequency_intensity, high_frequency_intensity, length);
+    }
 }
 
 /* See SDLActivity.java for constants. */

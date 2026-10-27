@@ -39,6 +39,7 @@ namespace detail {
 // Defined in frame_interpolation.cpp, exposed so the early-outs below stay inline: the shipped
 // build compiles shards without LTO, so a cross-TU call would land on every draw in the frame.
 extern std::atomic_uint32_t g_frameInterpolationFps;
+extern std::atomic_bool g_frameGenerationLsfg;
 } // namespace detail
 
 // 0 when interpolation is disabled; otherwise the configured target (120/180/240).
@@ -47,7 +48,14 @@ inline uint32_t frame_interpolation_fps() noexcept {
 }
 inline bool frame_interpolation_active() noexcept { return frame_interpolation_fps() != 0; }
 
+// Lossless Scaling fills the inserted slots from the presented images (webgpu/lsfg.cpp): the slot
+// schedule above still applies, but draws are not recorded and the seal never replays.
+inline bool frame_generation_lsfg() noexcept {
+  return detail::g_frameGenerationLsfg.load(std::memory_order_acquire);
+}
+
 void set_frame_interpolation_fps(uint32_t targetFps) noexcept;
+void set_frame_generation_lsfg(bool enabled) noexcept;
 
 // Feedback for the adaptive slot controller: whether the producer met its
 // retrace boundary for the frame that just presented.

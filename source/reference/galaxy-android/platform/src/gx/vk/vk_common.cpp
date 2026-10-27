@@ -52,7 +52,12 @@ void VkRenderer::flushDeferredDeletes() {
     }
     for (const VkPendingDelete& d : list) {
         if (d.generation != sVkDeviceGeneration) continue;
-        if (d.view) vkDestroyImageView(mDevice, (VkImageView)d.view, nullptr);
+        if (d.view) {
+            // Movie frames retire TexImages continually. A recycled view handle
+            // must not retrieve a cached descriptor for the destroyed resource.
+            invalidateSamplerDescSetsForView((VkImageView)d.view);
+            vkDestroyImageView(mDevice, (VkImageView)d.view, nullptr);
+        }
         if (d.image) vkDestroyImage(mDevice, (VkImage)d.image, nullptr);
         if (d.memory) vkFreeMemory(mDevice, (VkDeviceMemory)d.memory, nullptr);
     }

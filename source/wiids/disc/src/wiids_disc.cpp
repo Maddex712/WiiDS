@@ -805,6 +805,50 @@ void ExtractTree(const ReadFn& read, bool wii, const fs::path& dest, Progress& p
     fs::rename(sys / "main.dol.part", sys / "main.dol");
 }
 
+// Trimmed images may omit unused padding, but never referenced game data.
+void ValidateGameCubeData(Blob& blob, uint64_t available) {
+    auto range = [&](uint64_t offset, uint64_t size) {
+        if (offset > available || size > available - offset)
+            Fail("This GameCube image is incomplete: required game data is missing. Choose a complete disc image and import it again.");
+    };
+    range(0, 0x2460);
+    uint8_t boot[0x440], loader[0x20], dolHeader[0x100];
+    blob.Read(0, boot, sizeof(boot));
+    blob.Read(0x2440, loader, sizeof(loader));
+    range(0x2440, 0x20ull + Be32(loader + 0x14) + Be32(loader + 0x18));
+    const uint64_t dol = Be32(boot + 0x420), fstAt = Be32(boot + 0x424);
+    const uint64_t fstSize = Be32(boot + 0x428);
+    if (!dol || !fstAt || fstSize < 12 || fstSize > (64u << 20))
+        Fail("This GameCube image has a damaged executable or file table.");
+    range(dol, sizeof(dolHeader));
+    blob.Read(dol, dolHeader, sizeof(dolHeader));
+    bool hasSection = false;
+    for (int i = 0; i < 18; ++i) {
+        const uint32_t offset = Be32(dolHeader + 4 * i), size = Be32(dolHeader + 0x90 + 4 * i);
+        if (!size) continue;
+        if (offset < sizeof(dolHeader)) Fail("This GameCube image has a damaged executable.");
+        range(dol + offset, size);
+        hasSection = true;
+    }
+    if (!hasSection) Fail("This GameCube image has no executable data.");
+    range(fstAt, fstSize);
+    Bytes fst(static_cast<size_t>(fstSize));
+    blob.Read(fstAt, fst.data(), fst.size());
+    const uint32_t count = Be32(fst.data() + 8);
+    if (fst[0] != 1 || !count || uint64_t(count) * 12 > fst.size())
+        Fail("This GameCube image has a damaged file table.");
+    for (uint32_t i = 1; i < count; ++i) {
+        const uint8_t* entry = fst.data() + 12 * i;
+        if (entry[0]) {
+            const uint32_t end = Be32(entry + 8);
+            if (end <= i || end > count) Fail("This GameCube image has a damaged file table.");
+        } else {
+            const uint32_t size = Be32(entry + 8);
+            if (size) range(Be32(entry + 4), size);
+        }
+    }
+}
+
 } // namespace
 
 const char* FormatName(Format format) {
@@ -848,6 +892,8 @@ void ExtractGameCubeIso(std::vector<std::unique_ptr<Part>>& parts, const std::st
     // the real size) and a trimmed ISO stops early; the missing tail is padding, written as zeros.
     constexpr uint64_t kGameCubeDiscSize = 1459978240;
     const uint64_t have = std::min<uint64_t>(info.discSize, kGameCubeDiscSize);
+    // CISO explicitly represents unallocated blocks as zeroes, including its tail.
+    ValidateGameCubeData(*o.blob, info.format == Format::Ciso ? kGameCubeDiscSize : have);
     const fs::path dest = fs::u8path(destIso), part = fs::u8path(destIso + ".part");
     progress.total.store(kGameCubeDiscSize);
     WriteRange([&](uint64_t off, void* out, size_t n) {

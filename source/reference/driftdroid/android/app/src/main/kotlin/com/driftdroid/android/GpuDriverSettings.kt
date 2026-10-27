@@ -137,7 +137,7 @@ object GpuDriverSettings {
                     when {
                         !ok -> "Could not save the driver choice."
                         selected == 0 -> "Using the system driver."
-                        else -> "Driver selected. It is used with the Vulkan renderer the next time a game starts."
+                        else -> "Driver selected. Mario Kart Wii and Retro Rewind use it with the Vulkan renderer the next time they start."
                     }
                 Toast.makeText(activity, message, Toast.LENGTH_LONG).show()
             }

@@ -1,0 +1,8 @@
+{
+  "upstream": "https://github.com/bylaws/libadrenotools",
+  "commit": "8fae8ce254dfc1344527e05301e43f37dea2df80",
+  "linkernsbypass_commit": "aa3975893d83ef1bc84c321ec60c65fbf1287887",
+  "license": "BSD-2-Clause (both)",
+  "use": "MKW_ANDROID_CUSTOM_GPU_DRIVERS=ON builds the four hook libraries and links the loader into libWiiCompiled.so/libRetroRewind.so.",
+  "dawn": "Dawn's DynamicLib dlopen/dlclose are renamed to wiids_dawn_dlopen/wiids_dawn_dlclose with llvm-objcopy --redefine-sym (see experiments/release/1.1.1/build_native_drivers.py) so a custom Vulkan driver can be substituted without wrapping dlopen, which linkernsbypass inspects."
+}

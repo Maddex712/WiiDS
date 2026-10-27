@@ -102,7 +102,7 @@ final class GalaxySettingsMenu extends View {
         buttonRows(),
     };
     static final String[][] HELP = {
-        {"Settings save as soon as they change. Quick Save saves your game right where you are."},
+        {"Settings save as soon as they change. Quick Save writes game progress, not your exact position."},
         {"Original and Smooth keep the game's colors. Smooth + glow adds bloom and color boost.",
             "Picture and resolution changes apply when the game resumes."},
         {"Trackpad moves the Wii cursor; Planet turns the lower-screen model.",

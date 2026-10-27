@@ -94,6 +94,13 @@ public class SDLControllerManager
         mHapticHandler.stop(device_id);
     }
 
+    /**
+     * This method is called by SDL using JNI (WiiDS: SDL_sysjoystick.c ANDROID_JoystickRumble).
+     */
+    public static void hapticRumble(int device_id, float low_frequency_intensity, float high_frequency_intensity, int length) {
+        SDLGamepadRumble.rumble(device_id, low_frequency_intensity, high_frequency_intensity, length);
+    }
+
     // Check if a given device is considered a possible SDL joystick
     public static boolean isDeviceSDLJoystick(int deviceId) {
         InputDevice device = InputDevice.getDevice(deviceId);

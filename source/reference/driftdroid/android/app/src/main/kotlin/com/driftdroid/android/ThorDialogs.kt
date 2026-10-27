@@ -90,6 +90,7 @@ internal object ThorDialogs {
                 hide(android.view.WindowInsets.Type.systemBars())
             }
         }
+        if (ThorMenuTheme.wii(activity)) { styleWii(activity, dialog); return }
         val art = runCatching {
             artCache[activity] ?: ThorMenuArtwork(File(activity.filesDir, "WiiCompiled/ThorMap")).also { artCache[activity] = it }
         }.getOrNull() ?: return
@@ -163,6 +164,63 @@ internal object ThorDialogs {
             root.viewTreeObserver.addOnGlobalLayoutListener { visit(root) }
             buttons?.let { (_, focus) -> dialog.listView?.selector = ButtonArt(art, focus) }
         }
+    }
+
+    /** The Wii Menu style: the same dialogs with Wii buttons, a white panel and the system font. */
+    private fun styleWii(activity: Activity, dialog: AlertDialog) {
+        val density = activity.resources.displayMetrics.density
+        dialog.window?.setBackgroundDrawable(WiiArt("panel", density))
+        val choiceColors = android.content.res.ColorStateList(arrayOf(intArrayOf(android.R.attr.state_checked), intArrayOf()),
+            intArrayOf(ThorMenuTheme.WII_BLUE, Color.rgb(150, 157, 165)))
+        fun visit(view: View) {
+            if (view is TextView && styledViews.put(view, true) != true) {
+                if (view is EditText) {
+                    view.setTextColor(ThorMenuTheme.TEXT)
+                    view.setHintTextColor(ThorMenuTheme.TEXT_SOFT)
+                    view.backgroundTintList = choiceColors
+                } else {
+                    if (view is android.widget.Button) {
+                        view.isAllCaps = false
+                        view.setSingleLine(false)
+                        view.maxLines = Int.MAX_VALUE
+                        view.ellipsize = null
+                        view.gravity = android.view.Gravity.CENTER
+                        view.backgroundTintList = null
+                        view.background = StateListDrawable().apply {
+                            addState(intArrayOf(android.R.attr.state_pressed), WiiArt("button_selected", density))
+                            addState(intArrayOf(android.R.attr.state_focused), WiiArt("button_selected", density))
+                            addState(intArrayOf(), WiiArt("button", density))
+                        }
+                        view.setPadding(28, 12, 28, 12)
+                    }
+                    view.setTextColor(ThorMenuTheme.TEXT)
+                    if (view is android.widget.CompoundButton) androidx.core.widget.CompoundButtonCompat.setButtonTintList(view, choiceColors)
+                    if (view is android.widget.CheckedTextView) androidx.core.widget.CheckedTextViewCompat.setCheckMarkTintList(view, choiceColors)
+                    view.compoundDrawables.filterNotNull().forEach { it.mutate().setTintList(choiceColors) }
+                    view.compoundDrawablesRelative.filterNotNull().forEach { it.mutate().setTintList(choiceColors) }
+                }
+            }
+            if (view is ViewGroup) for (index in 0 until view.childCount) visit(view.getChildAt(index))
+        }
+        dialog.window?.decorView?.let { root ->
+            visit(root)
+            root.viewTreeObserver.addOnGlobalLayoutListener { visit(root) }
+            dialog.listView?.selector = WiiArt("button_selected", density)
+        }
+    }
+
+    /** A Wii Menu chrome role (ThorMenuTheme) as a drawable. */
+    private class WiiArt(private val role: String, private val density: Float) : Drawable() {
+        private val target = RectF()
+        private var opacity = 255
+        override fun draw(canvas: Canvas) {
+            target.set(bounds)
+            if (role == "panel") target.inset(4f * density, 4f * density)
+            ThorMenuTheme.chrome(canvas, role, target, opacity)
+        }
+        override fun setAlpha(alpha: Int) { opacity = alpha; invalidateSelf() }
+        override fun setColorFilter(filter: android.graphics.ColorFilter?) {}
+        @Deprecated("Deprecated in Android") override fun getOpacity() = android.graphics.PixelFormat.TRANSLUCENT
     }
 
     /** Keep the original end caps in proportion while the center stretches to the label. */

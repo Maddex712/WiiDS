@@ -32,21 +32,12 @@ final class ThorLowerScreen implements DisplayManager.DisplayListener {
     private boolean running, closed;
     private long lastSequence = -1, lastAdvance, lastLog;
     private String lastIdentity = "";
-    // NSMB2-style world bubbles: the highest world each save has reached, remembered per save slot
-    // (and per game where NSMB and MSMBWii share one app).
-    private final android.content.SharedPreferences progressPrefs;
-    private final String progressKey;
-    private int reachedWorld, lastSlot = -1;
     private String loggedMap = "";
     private long lastVisual;
 
     ThorLowerScreen(Activity activity) {
         this.activity = activity;
         displays = activity.getSystemService(DisplayManager.class);
-        progressPrefs = activity.getSharedPreferences("thor_lower_screen", Context.MODE_PRIVATE);
-        String process = android.app.Application.getProcessName();
-        progressKey = process != null && process.contains(":msmbwii") ? "msmbwii" : "nsmbw";
-        lastSlot = progressPrefs.getInt(progressKey + "_slot", -1);
         final File folder = new File(AppFiles.dataDir(activity), "ThorHud");
         new Thread(() -> {
             ThorHudAssets loaded = null;
@@ -148,29 +139,20 @@ final class ThorLowerScreen implements DisplayManager.DisplayListener {
             for (int v : new int[]{reserve.item, reserve.canUse ? 1 : 0, reserve.queued ? 1 : 0, reserve.uses, reserve.stores})
                 h = (h ^ v) * 1099511628211L;
         }
-        return (h ^ reachedWorld) * 1099511628211L;
+        return h;
     }
 
-    /** Keeps the highest world reached per save slot, and logs each map's stop names once. */
+    /** Uses the current save's world flags; old cached maximum-world preferences are ignored. */
     private void rememberProgress() {
-        if (reserve != null && reserve.context >= 0 && reserve.context <= 2 && reserve.context != lastSlot) {
-            lastSlot = reserve.context;
-            progressPrefs.edit().putInt(progressKey + "_slot", lastSlot).apply();
-        }
-        String key = progressKey + "_reached_" + Math.max(0, lastSlot);
-        reachedWorld = progressPrefs.getInt(key, 0);
-        if (worldMap != null && worldMap.world >= 0 && worldMap.world < 9 && worldMap.world + 1 > reachedWorld) {
-            reachedWorld = worldMap.world + 1;
-            progressPrefs.edit().putInt(key, reachedWorld).apply();
-        }
-        if (presentation != null) presentation.view.companion.setReachedWorld(reachedWorld);
+        if (presentation != null) presentation.view.companion.setUnlockedWorlds(
+                worldMap != null ? worldMap.unlockedWorlds() : 0);
         if (worldMap != null) {
             String id = worldMap.world + ":" + worldMap.submap;
             if (!id.equals(loggedMap)) {
                 loggedMap = id;
                 StringBuilder names = new StringBuilder();
                 for (ThorWorldMap.Point p : worldMap.points) if (p.kind == 1) names.append(p.name).append(' ');
-                Log.i(TAG, "map world=" + worldMap.world + " submap=" + worldMap.submap + " reached=" + reachedWorld
+                Log.i(TAG, "map world=" + worldMap.world + " submap=" + worldMap.submap + " unlocked=" + worldMap.unlockedWorlds()
                         + " stops=" + names.toString().trim());
             }
         }

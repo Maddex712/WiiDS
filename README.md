@@ -6,13 +6,13 @@ Play supported Wii and GameCube games on the AYN Thor, with a companion on its l
 
 ## Quick start
 
-**1.1 update:** The current APK includes **Options → Check for updates** and Kaizo’s missing cover, disc and spine. Install this copy over your existing WiiDS once; future updates can be downloaded and installed from inside WiiDS with Android’s confirmation. [Update guide](docs/release/1.1-IN-APP-UPDATES.md).
+**1.1.1:** Retro Rewind 6.13.4 with online play, Lossless Scaling frame generation, rumble, custom GPU drivers and a Wii Menu theme. Already on 1.1? Open **Options → Check for updates**, or install this APK over your existing copy (do not uninstall). [Full 1.1.1 patch notes](docs/release/V1.1.1.md).
 
 **You need:** an **AYN Thor with both screens**, Android **11 or newer** (**12L or newer for Galaxy**),
 and your own [compatible game dump](#exact-game-files-for-each-game). The region and revision must match.
 **Games are not included.** Leave room for the APK, your dump and the prepared game files.
 
-1. **[Download WiiDS 1.1 for AYN Thor (APK, 1.85 GB)](https://github.com/Maddex712/WiiDS/releases/download/v1.1.0/WiiDS-1.1-arm64.apk)** on your Thor.
+1. **[Download WiiDS 1.1.1 for AYN Thor (APK, 1.85 GB)](https://github.com/Maddex712/WiiDS/releases/download/v1.1.1/WiiDS-1.1.1-arm64.apk)** on your Thor.
 2. **Install the APK and open WiiDS.** Allow your browser or file manager to install apps if Android asks.
    Wait for WiiDS to prepare its files. Updating? Install over your existing copy; do not uninstall it.
 3. **Copy your game dump to the Thor.** Open **Options → Your games** (it opens automatically on first use).
@@ -31,12 +31,20 @@ and your own [compatible game dump](#exact-game-files-for-each-game). The region
 - **Retro Rewind:** import the supported Mario Kart Wii disc, then press **Y** in the library or open **Options → Retro Rewind updates**. This download needs internet access.
 - **Kaizo Mario Galaxy Rebalanced 2.1:** select its card in **Your games**, use your clean USA Galaxy disc, and choose **Set up Rebalanced**. Select the creator's original 2.1 ZIP when prompted; the setup dialog includes an **Official download** link. The mod ZIP is not bundled.
 
-[Full 1.1 patch notes](docs/release/V1.1.md) · [Join the WiiDS Discord](https://discord.gg/vTEKP8wpQm) · [Check supported discs and formats](#what-youll-need) · [Galaxy setup and storage details](docs/release/GALAXY-SETUP.md) · [Per-game guide](docs/GAMES.md) · [Galaxy gameplay and planet pictures](#super-mario-galaxy)
+[Full 1.1.1 patch notes](docs/release/V1.1.1.md) · [1.1 patch notes](docs/release/V1.1.md) · [Join the WiiDS Discord](https://discord.gg/vTEKP8wpQm) · [Check supported discs and formats](#what-youll-need) · [Galaxy setup and storage details](docs/release/GALAXY-SETUP.md) · [Per-game guide](docs/GAMES.md) · [Galaxy gameplay and planet pictures](#super-mario-galaxy)
 
 <p align="center">
   <img src="docs/images/mkw-retro-rewind-peach-circuit.jpg" width="640"
        alt="Retro Rewind Peach Circuit racing on the AYN Thor's top screen, with a live overhead course map, standings and timer on the bottom screen">
 </p>
+
+## New in 1.1.1
+
+- **Retro Rewind 6.13.4** with Retro WFC online, and an updater that steps through releases WiiDS can't run.
+- **Lossless Scaling frame generation** for Mario Kart Wii and Retro Rewind, with your own `Lossless.dll` (not included).
+- **Rumble** in every game, on the Thor's motor or a controller's own. Android's Vibration setting must be on.
+- **Custom GPU drivers** for Mario Kart Wii and Retro Rewind, and a **Wii Menu theme**.
+- Fixes for NSMB tilt and world unlocks, GameCube import, microSD imports, Galaxy movies, spin and Quick Save.
 
 ## New in 1.1
 

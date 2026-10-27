@@ -20,8 +20,17 @@
 
 #include <adrenotools/driver.h>
 
+#include <android/log.h>
 #include <dlfcn.h>
 #include <sys/stat.h>
+
+// Each outcome also goes to logcat ("WiiDS-GPU"): the runtime log sits in private app storage,
+// and which driver a game used is the first thing a driver report needs.
+#define GPU_LOGF(...)                                                     \
+    do {                                                                  \
+        RT_LOGF(RT_TAG_RUNTIME, __VA_ARGS__);                             \
+        __android_log_print(ANDROID_LOG_INFO, "WiiDS-GPU", __VA_ARGS__);  \
+    } while (false)
 
 #include <string>
 
@@ -62,13 +71,12 @@ void LoadAndroidCustomGpuDriver() {
         driverDir += '/';
     }
     if (dawn::native::vulkan::SetVulkanLibraryOverride == nullptr) {
-        RT_LOGF(RT_TAG_RUNTIME,
-                "custom GPU driver requested, but this build's Dawn cannot take one; using the "
+        GPU_LOGF("custom GPU driver requested, but this build's Dawn cannot take one; using the "
                 "system driver\n");
         return;
     }
     if (!IsFile(driverDir + driverLib)) {
-        RT_LOGF(RT_TAG_RUNTIME, "custom GPU driver %s%s is missing; using the system driver\n",
+        GPU_LOGF("custom GPU driver %s%s is missing; using the system driver\n",
                 driverDir.c_str(), driverLib.c_str());
         return;
     }
@@ -81,8 +89,7 @@ void LoadAndroidCustomGpuDriver() {
         hookDir = parent == std::string::npos ? std::string{} : driverDir.substr(0, parent + 1) + "hooks/";
     }
     if (hookDir.empty() || !IsFile(hookDir + "libmain_hook.so")) {
-        RT_LOGF(RT_TAG_RUNTIME,
-                "custom GPU driver hooks not found next to the runtime (%s); using the system "
+        GPU_LOGF("custom GPU driver hooks not found next to the runtime (%s); using the system "
                 "driver\n",
                 hookDir.c_str());
         return;
@@ -91,19 +98,18 @@ void LoadAndroidCustomGpuDriver() {
     void* handle = adrenotools_open_libvulkan(RTLD_NOW, ADRENOTOOLS_DRIVER_CUSTOM, nullptr, hookDir.c_str(),
                                               driverDir.c_str(), driverLib.c_str(), nullptr, nullptr);
     if (handle == nullptr) {
-        RT_LOGF(RT_TAG_RUNTIME, "custom GPU driver %s failed to load (%s); using the system driver\n",
+        GPU_LOGF("custom GPU driver %s failed to load (%s); using the system driver\n",
                 driverLib.c_str(), dlerror());
         return;
     }
     if (dlsym(handle, "vkGetInstanceProcAddr") == nullptr) {
-        RT_LOGF(RT_TAG_RUNTIME,
-                "custom GPU driver %s exports no vkGetInstanceProcAddr; using the system driver\n",
+        GPU_LOGF("custom GPU driver %s exports no vkGetInstanceProcAddr; using the system driver\n",
                 driverLib.c_str());
         return;
     }
     // Deliberately never dlclose()d: Dawn keeps using it for the life of the process.
     dawn::native::vulkan::SetVulkanLibraryOverride(handle);
-    RT_LOGF(RT_TAG_RUNTIME, "custom GPU driver loaded: %s%s\n", driverDir.c_str(), driverLib.c_str());
+    GPU_LOGF("custom GPU driver loaded: %s%s\n", driverDir.c_str(), driverLib.c_str());
 }
 
 #endif

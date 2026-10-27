@@ -370,11 +370,23 @@ class ModePickerActivity : Activity() {
                     openAchievements(lastLibraryGame.id, null)
                 },
                 ThorLauncherView.Entry("Graphics", "Choose a renderer before starting the game.") { graphicsButton.performClick() },
+                ThorLauncherView.Entry("Frame generation", "120 FPS from Lossless Scaling, with your own Lossless.dll.") {
+                    FrameGenerationSettings.show(this)
+                },
+                ThorLauncherView.Entry("Rumble", "Test the Thor's rumble, or turn on Android's Vibration setting.") {
+                    RumbleSettings.show(this)
+                },
                 ThorLauncherView.Entry("Mii Data", "Import and manage your own Mii data.") { miiDataButton.performClick() },
                 ThorLauncherView.Entry("Retro Rewind updates", "Check and download compatible Retro Rewind updates.", { BuildConfig.THOR_RETRO_REWIND }) { if (isRetroRewindInstalled()) showRetroRewindMenuDialog() else showInstallRetroRewindDialog() },
                 ThorLauncherView.Entry("Texture Packs", "Manage texture packs before starting the game.") { modsButton.performClick() },
                 ThorLauncherView.Entry("Diagnostics", "Export logs to help investigate a problem.") { diagnosticsButton.performClick() },
                 ThorLauncherView.Entry("App Icon", "Choose an icon for your launcher.") { iconButton.performClick() },
+                ThorLauncherView.Entry("Menu Theme", "Switch the menus between the Mario Kart Wii and Wii Menu styles.") {
+                    val style = ThorMenuTheme.next(this)
+                    thorLauncher?.invalidate()
+                    updateLowerStatus()
+                    Toast.makeText(this, "Menu theme: ${style.label}", Toast.LENGTH_SHORT).show()
+                },
                 ThorLauncherView.Entry("Server Settings", "Configure an optional private server.") { serverSettingsButton.performClick() },
             )
             val view = ThorLauncherView(this, artwork, chrome, entries, LIBRARY_CASES, LIBRARY_BUNDLES,
@@ -1402,6 +1414,7 @@ class ModePickerActivity : Activity() {
             REQUEST_CODE_IMPORT_SINGLE_MII -> handleSingleMiiSourcePicked(data?.data)
             ModManager.REQUEST_CODE_PICK_ZIP -> ModManager.onZipPicked(this, data?.data)
             GpuDriverSettings.REQUEST_CODE_PICK_ZIP -> GpuDriverSettings.onZipPicked(this, data?.data)
+            FrameGenerationSettings.REQUEST_CODE_PICK_DLL -> FrameGenerationSettings.onDllPicked(this, data?.data)
             IconSettings.REQUEST_CODE_PICK_IMAGE -> IconSettings.onImagePicked(this, data?.data)
         }
     }

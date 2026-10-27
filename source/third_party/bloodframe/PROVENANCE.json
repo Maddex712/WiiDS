@@ -1,0 +1,8 @@
+{
+  "upstream": "https://github.com/ducvd89/bloodframe",
+  "commit": "eadfad2974153d49bc560a276931bbde686efa3c",
+  "license": "MIT (bloodframe, framegen); dxbc, pe-parse and volk under their own licences (bundled in the APK under assets/licenses/bloodframe)",
+  "wiids_patch": "wiids-ahb-storage-fallback.patch: test-allocate a GPU_DATA_BUFFER AHardwareBuffer before choosing direct-storage transport; gralloc 4.0 (AYN Thor) refuses it, so Bloodframe uses direct-input-copy-output.",
+  "build": "build_bloodframe.ps1 (NDK 29, arm64-v8a, android-30, c++_shared, Release, stripped)",
+  "loaded_at_runtime": "libbloodframe.so is opened with dlopen only when Lossless Scaling is selected; it reads the player's own Lossless.dll, which is not distributed."
+}

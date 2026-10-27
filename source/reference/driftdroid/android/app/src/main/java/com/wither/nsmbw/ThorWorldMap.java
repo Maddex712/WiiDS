@@ -34,6 +34,11 @@ final class ThorWorldMap {
         }
     }
     boolean hasPlayer() { return (fields & 2) != 0; }
+    /** Exact selected-save flags; older/unavailable snapshots establish only the current world. */
+    int unlockedWorlds() {
+        return (fields & 4) != 0 ? (fields >>> 8) & 0x1ff
+                : world >= 0 && world < 9 ? 1 << world : 0;
+    }
     static ThorWorldMap read() {
         int[] words = GameActivity.nativeReadThorWorldMap();
         if (words == null || words.length < 12 || words[0] != 1 || (words[2] & 1) == 0

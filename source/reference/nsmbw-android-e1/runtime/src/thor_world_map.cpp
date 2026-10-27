@@ -28,6 +28,28 @@ bool Pointer(uint32_t address, uint32_t length) {
            address < 0x81800000u && length <= 0x81800000u - address &&
            Memory::Contains(address, length);
 }
+bool Byte(uint32_t address, uint32_t& value) {
+    uint32_t word = 0;
+    if (!Word(address & ~3u, word)) return false;
+    value = (word >> (24u - (address & 3u) * 8u)) & 255u;
+    return true;
+}
+uint32_t WorldUnlockFlags() {
+    // E1 IsWorldOpen (800FB2D0) uses getSaveGame(-1) and world flag bit 0.
+    // getSaveGame (800E0380): manager + 0x6C0 + selected slot * 0x980.
+    // isWorldDataFlag (800CE350): byte at game + 0x32 + world.
+    uint32_t manager = 0, slot = 0;
+    if (!Word(0x8042A040u, manager) || !Pointer(manager, 0x28u) ||
+        !Byte(manager + 0x26u, slot) || slot >= 3u ||
+        !Pointer(manager, 0x6C0u + slot * 0x980u + 0x3Cu)) return 0;
+    uint32_t mask = 0;
+    for (uint32_t world = 0; world < 9u; ++world) {
+        uint32_t flags = 0;
+        if (!Byte(manager + 0x6C0u + slot * 0x980u + 0x32u + world, flags)) return 0;
+        if (flags & 1u) mask |= 1u << world;
+    }
+    return 4u | (mask << 8u);
+}
 bool Coordinate(uint32_t address, uint32_t& bits) {
     if (!Word(address, bits)) return false;
     const float value = std::bit_cast<float>(bits);
@@ -106,7 +128,7 @@ void Capture() {
         }
     }
     if (!haveBounds) { Publish(next); return; }
-    next[2] = 1;
+    next[2] = static_cast<int32_t>(1u | WorldUnlockFlags());
     uint32_t world = 0;
     if (Word(kWorldWord, world) && ((world >> 16) & 0xffu) < 9u) next[3] = (world >> 16) & 0xffu;
     next[4] = static_cast<int32_t>(sub);

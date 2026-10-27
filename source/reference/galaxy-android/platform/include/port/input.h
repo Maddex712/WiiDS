@@ -30,6 +30,10 @@ typedef struct PortPadState {
 // Called by the input layer (any thread).
 void port_input_set(int chan, const PortPadState* state);
 
+// Button-generated shake: consumed by guest KPAD reads, not render-loop ticks.
+// Refreshes at most six samples; zero cancels pending samples on focus/menu reset.
+void port_input_spin(int chan, int samples);
+
 // Query right analog stick deflection (-1..1).
 void port_input_get_right_stick(int chan, float* x, float* y);
 

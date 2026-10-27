@@ -47,8 +47,8 @@ final class ThorCompanion {
     private boolean touchable;
     private float placeX, placeY, placeScale = 1;
     private long pressedAt;
-    // Highest world (1-based) this save has reached, from the map; earlier worlds show their bubble.
-    private int reachedWorld;
+    // The selected save's individual world-unlock bits; a warp never opens skipped worlds.
+    private int unlockedWorlds;
     // Everything that doesn't change on a screen (background, frame, plates and their shadows, the
     // map's route and bubbles) is drawn once into this bitmap; each frame stamps it and draws only
     // the live values on top, so the lower screen costs the game almost nothing.
@@ -84,8 +84,8 @@ final class ThorCompanion {
     /** True while something on screen is moving and wants display-rate redraws. */
     boolean animating() { return animating; }
 
-    /** The highest world this save has reached (1-based; 0 unknown). */
-    void setReachedWorld(int world) { reachedWorld = Math.max(0, Math.min(9, world)); }
+    /** Individual W1..W9 unlock bits from the current native world-map snapshot. */
+    void setUnlockedWorlds(int worlds) { unlockedWorlds = worlds & 0x1ff; }
 
     void draw(Canvas canvas, int width, int height, ThorHudAssets a, ThorGameState s, ThorWorldMap map,
               ThorReserveState reserve, long now) {
@@ -104,7 +104,7 @@ final class ThorCompanion {
         boolean framed = kind.equals("course") || kind.equals("map");
         if (framed) {
             String key = kind.equals("course") ? "course"
-                    : "map:" + map.world + ":" + map.submap + ":" + map.points.length + ":" + Math.max(reachedWorld, map.world + 1);
+                    : "map:" + map.world + ":" + map.submap + ":" + map.points.length + ":" + unlockedWorlds;
             if (base == null || !key.equals(baseKey)) {
                 if (base == null) base = android.graphics.Bitmap.createBitmap((int) W, (int) H, android.graphics.Bitmap.Config.ARGB_8888);
                 base.eraseColor(0);
@@ -374,10 +374,9 @@ final class ThorCompanion {
             a.image(c, "reserve" + reserve.item, 1124, 937, 84);
     }
 
-    /** W1..W9 in NSMB2's linked zigzag; reached worlds show their own course picture, others "W?". */
+    /** W1..W9 in NSMB2's linked zigzag; unlocked worlds show their own course picture, others "W?". */
     private void bubbles(Canvas c, ThorHudAssets a, int current) {
         float radius = 82;
-        int reached = Math.max(reachedWorld, current + 1);
         fill.setStyle(Paint.Style.STROKE); fill.setStrokeCap(Paint.Cap.ROUND); fill.setStrokeWidth(26); fill.setColor(GOLD);
         for (int i = 0; i < 8; i++) c.drawLine(bx(i), by(i), bx(i + 1), by(i + 1), fill);
         fill.setStyle(Paint.Style.FILL);
@@ -385,7 +384,7 @@ final class ThorCompanion {
             float x = bx(i), y = by(i);
             shadow.setColor(0x50000000);
             c.drawCircle(x, y + 10, radius + 2, shadow);
-            if (i < reached && a.has("course" + (i + 1))) {
+            if ((unlockedWorlds & (1 << i)) != 0 && a.has("course" + (i + 1))) {
                 fill.setColor(BUBBLE_RING); c.drawCircle(x, y, radius + 8, fill);
                 fill.setColor(0xffffffff); c.drawCircle(x, y, radius + 2, fill);
                 a.imageCircle(c, "course" + (i + 1), x, y, radius - 4, 255);

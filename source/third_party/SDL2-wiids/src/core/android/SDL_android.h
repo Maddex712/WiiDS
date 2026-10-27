@@ -91,6 +91,9 @@ void Android_JNI_PollInputDevices(void);
 /* Haptic support */
 void Android_JNI_PollHapticDevices(void);
 void Android_JNI_HapticRun(int device_id, float intensity, int length);
+/* WiiDS: gamepad rumble, played by SDLControllerManager.hapticRumble (the gamepad's own motors, or
+   the device's vibrator for a handheld's built-in controls). */
+void Android_JNI_HapticRumble(int device_id, float low_frequency_intensity, float high_frequency_intensity, int length);
 void Android_JNI_HapticStop(int device_id);
 
 /* Video */

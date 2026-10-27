@@ -1,9 +1,11 @@
 #include "port/profile.h"
+#include "port/port.h"
 #include "SaveManager.h"
 #include "SaveSyncManager.h"
 
 #include <android/log.h>
 #include <dirent.h>
+#include <errno.h>
 #include <stdio.h>
 #include <string.h>
 #include <sys/stat.h>
@@ -17,6 +19,7 @@ extern "C" void port_trigger_quick_save(void);
 extern "C" void port_trigger_quick_load(int slot);
 extern "C" uint64_t port_get_save_generation(void);
 extern "C" int port_is_save_in_progress(void);
+extern "C" int64_t port_host_time_ns(void);
 extern "C" void port_android_vibrate(int ms);
 
 namespace mobile_ui {
@@ -48,11 +51,11 @@ bool SaveManager::copyFileVerified(const std::string& src, const std::string& ds
         }
         total += n;
     }
-    fflush(out);
+    if (ferror(in) || fflush(out) != 0) writeErr = true;
     int fd = fileno(out);
-    if (fd >= 0) fsync(fd);
-    fclose(out);
-    fclose(in);
+    if (fd < 0 || fsync(fd) != 0) writeErr = true;
+    if (fclose(out) != 0) writeErr = true;
+    if (fclose(in) != 0) writeErr = true;
 
     if (writeErr || total != (size_t)st.st_size) {
         unlink(tmpDst.c_str());
@@ -67,12 +70,18 @@ bool SaveManager::copyFileVerified(const std::string& src, const std::string& ds
 }
 
 bool SaveManager::copyDirVerified(const std::string& src, const std::string& dst) {
-    mkdir(dst.c_str(), 0770);
+    if (mkdir(dst.c_str(), 0770) != 0 && errno != EEXIST) return false;
     DIR* dir = opendir(src.c_str());
     if (!dir) return false;
     struct dirent* entry;
     bool success = true;
-    while ((entry = readdir(dir)) != nullptr) {
+    for (;;) {
+        errno = 0;
+        entry = readdir(dir);
+        if (entry == nullptr) {
+            if (errno != 0) success = false;
+            break;
+        }
         if (!strcmp(entry->d_name, ".") || !strcmp(entry->d_name, "..")) continue;
         if (strstr(entry->d_name, ".tmp") || strstr(entry->d_name, "_rollback") || strstr(entry->d_name, "_staging")) continue;
 
@@ -91,9 +100,12 @@ bool SaveManager::copyDirVerified(const std::string& src, const std::string& dst
                     break;
                 }
             }
+        } else {
+            success = false;
+            break;
         }
     }
-    closedir(dir);
+    if (closedir(dir) != 0) success = false;
     return success;
 }
 
@@ -128,20 +140,20 @@ bool SaveManager::validateSaveDir(const std::string& dir) {
 }
 
 std::string SaveManager::triggerSaveAnywhere(bool haptics) {
-    port_trigger_quick_save();
+    if (mPendingSaveSlot >= 0) return "A save is already pending.";
     mPendingSaveSlot = 0;
-    mPendingSaveStartGen = port_get_save_generation();
-    mPendingSaveWaitFrames = 0;
+    mPendingSaveStartNs = port_host_time_ns();
+    port_trigger_quick_save();
     if (haptics) port_android_vibrate(50);
     LOGI("Save anywhere requested; waiting for game sequence to commit");
     return "Saving game progress anywhere...";
 }
 
 std::string SaveManager::triggerSaveSlot(int slot, bool haptics) {
-    port_trigger_quick_save();
+    if (mPendingSaveSlot >= 0) return "A save is already pending.";
     mPendingSaveSlot = slot;
-    mPendingSaveStartGen = port_get_save_generation();
-    mPendingSaveWaitFrames = 0;
+    mPendingSaveStartNs = port_host_time_ns();
+    port_trigger_quick_save();
     if (haptics) port_android_vibrate(50);
     LOGI("Save to slot %d requested; waiting for game sequence to commit", slot);
     char msg[64];
@@ -188,43 +200,84 @@ std::string SaveManager::triggerLoadSlot(int slot, bool haptics) {
 bool SaveManager::update(std::string& outToastMsg) {
     if (mPendingSaveSlot < 0) return false;
 
-    mPendingSaveWaitFrames++;
-    bool committed = (port_get_save_generation() > mPendingSaveStartGen) ||
-                     (mPendingSaveWaitFrames > 6 && !port_is_save_in_progress());
-
-    if (!committed && mPendingSaveWaitFrames <= 120) return false;
+    // Track this Quick Save, not unrelated mail/system-only NAND writes.
+    const int status = port_get_quick_save_status();
+    if (status == PORT_QUICK_SAVE_FAILED || status == PORT_QUICK_SAVE_REJECTED) {
+        mPendingSaveSlot = -1;
+        outToastMsg = status == PORT_QUICK_SAVE_REJECTED
+            ? "Cannot save right now. Resume play and try again." : "Game save failed. Please try again.";
+        return true;
+    }
+    const bool committed = status == PORT_QUICK_SAVE_SUCCEEDED && !port_is_save_in_progress();
+    if (!committed) {
+        if (port_host_time_ns() - mPendingSaveStartNs < 15000000000LL) return false;
+        mPendingSaveSlot = -1;
+        outToastMsg = "Save not confirmed. Resume play and try again.";
+        return true;
+    }
 
     int slot = mPendingSaveSlot;
     mPendingSaveSlot = -1;
 
-    if (mSavePath.empty()) return false;
+    if (mSavePath.empty()) {
+        outToastMsg = "Game saved; backup path is unavailable.";
+        return true;
+    }
     size_t lastSlash = mSavePath.find_last_of('/');
-    if (lastSlash == std::string::npos) return false;
+    if (lastSlash == std::string::npos) {
+        outToastMsg = "Game saved; backup path is invalid.";
+        return true;
+    }
 
     std::string nandDir = mSavePath.substr(0, lastSlash);
     mkdir(port_profile_data_path("").c_str(), 0775);
     mkdir(port_profile_data_path("/saves").c_str(), 0775);
 
     if (slot == 0) {
-        copyDirVerified(nandDir, port_profile_data_path("/saves/current").c_str());
-        outToastMsg = "Progress Saved Anywhere! (Verified)";
+        const std::string backupDir = port_profile_data_path("/saves/current");
+        if (validateSaveDir(nandDir) && copyDirVerified(nandDir, backupDir) && validateSaveDir(backupDir)) {
+            outToastMsg = "Game progress saved.";
+        } else {
+            outToastMsg = "Game saved; backup copy failed.";
+        }
         return true;
     } else {
         std::string slotSuffix = (slot == 4) ? "_quick" : ("_slot" + std::to_string(slot));
         std::string slotDir = nandDir + slotSuffix;
-        std::string slotStaging = slotDir + "_staging";
+        const std::string suffix = std::to_string(port_host_time_ns());
+        std::string slotStaging = slotDir + "_staging_" + suffix;
+        std::string slotOld = slotDir + "_old_" + suffix;
+        // Refuse an existing staging directory instead of merging stale files.
+        if (mkdir(slotStaging.c_str(), 0770) != 0) {
+            outToastMsg = "Game saved; snapshot staging failed.";
+            return true;
+        }
 
         if (copyDirVerified(nandDir, slotStaging) && validateSaveDir(slotStaging)) {
-            std::string slotOld = slotDir + "_old";
-            rename(slotDir.c_str(), slotOld.c_str());
-            rename(slotStaging.c_str(), slotDir.c_str());
+            struct stat st;
+            const bool hadPrevious = stat(slotDir.c_str(), &st) == 0;
+            if ((!hadPrevious && errno != ENOENT) ||
+                (hadPrevious && rename(slotDir.c_str(), slotOld.c_str()) != 0)) {
+                outToastMsg = "Game saved; previous snapshot could not be replaced.";
+                return true;
+            }
+            if (rename(slotStaging.c_str(), slotDir.c_str()) != 0) {
+                const bool restored = !hadPrevious || rename(slotOld.c_str(), slotDir.c_str()) == 0;
+                outToastMsg = restored ? "Snapshot replacement failed; previous snapshot kept."
+                                      : "Snapshot replacement failed; previous backup retained.";
+                LOGE("Snapshot replacement failed; rollback restored=%d, backup=%s", restored, slotOld.c_str());
+                return true;
+            }
 
             std::string pubSlot = port_profile_data_path("/saves/").c_str() + ((slot == 4) ? std::string("quick") : ("slot" + std::to_string(slot)));
-            copyDirVerified(slotDir, pubSlot);
-            copyDirVerified(slotDir, port_profile_data_path("/saves/current").c_str());
+            if (!copyDirVerified(slotDir, pubSlot) ||
+                !copyDirVerified(slotDir, port_profile_data_path("/saves/current"))) {
+                outToastMsg = "Game and snapshot saved; shared backup copy failed.";
+                return true;
+            }
 
             char msg[96];
-            snprintf(msg, sizeof(msg), (slot == 4) ? "Quick Saved Anywhere! (Verified)" : "Saved to Slot %d! (Verified)", slot);
+            snprintf(msg, sizeof(msg), (slot == 4) ? "Game progress and snapshot saved." : "Game progress saved to Slot %d.", slot);
             outToastMsg = std::string(msg);
             LOGI("NAND verified saved to slot %d: %s", slot, slotDir.c_str());
             return true;

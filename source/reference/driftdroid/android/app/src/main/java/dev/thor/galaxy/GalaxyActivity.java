@@ -188,7 +188,24 @@ public class GalaxyActivity extends NativeActivity implements DisplayManager.Dis
         });
     }
 
-    public static void triggerHaptic(int ms) { }
+    /**
+     * The game's Wii Remote rumble (platform/mobile/core/MobileApp.cpp re-sends this while the motor
+     * is on). The Thor's controls have no motor of their own, so the device's vibrator plays it, as
+     * media vibration (Android's Vibration setting still turns it off).
+     */
+    public static void triggerHaptic(int ms) {
+        GalaxyActivity current = instance;
+        if (current == null || ms <= 0) return;
+        android.os.VibratorManager manager = current.getSystemService(android.os.VibratorManager.class);
+        android.os.Vibrator vibrator = manager != null ? manager.getDefaultVibrator() : null;
+        if (vibrator == null || !vibrator.hasVibrator()) return;
+        android.os.VibrationEffect buzz = android.os.VibrationEffect.createOneShot(ms, 200);
+        if (android.os.Build.VERSION.SDK_INT >= 33) {
+            vibrator.vibrate(buzz, android.os.VibrationAttributes.createForUsage(android.os.VibrationAttributes.USAGE_MEDIA));
+        } else {
+            vibrator.vibrate(buzz);
+        }
+    }
     public static void setPreferredRefreshRate(float rate) {
         GalaxyActivity current = instance;
         if (current == null) return;

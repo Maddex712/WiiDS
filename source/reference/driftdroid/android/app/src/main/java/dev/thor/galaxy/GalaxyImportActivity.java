@@ -61,6 +61,10 @@ public class GalaxyImportActivity extends Activity {
     private Button action;
     private final ArrayDeque<String> lines = new ArrayDeque<>();
     private String discPath;
+    // A disc chosen in a file app that WiiDS can't name by path (another file manager, or no All
+    // files access): read through its content URI and copied next to the import first.
+    private Uri discUri;
+    private String discName;
     private boolean verifyOnly, started, finished;
 
     @Override protected void onCreate(Bundle state) {
@@ -68,18 +72,21 @@ public class GalaxyImportActivity extends Activity {
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
         Intent intent = getIntent();
         discPath = intent.getStringExtra("disc_path");
+        discUri = intent.getData();
+        discName = intent.getStringExtra("disc_name");
+        if (discName == null || discName.isEmpty()) discName = "the chosen disc";
         verifyOnly = intent.getBooleanExtra("verify_only", false);
         buildUi();
-        if (discPath == null || discPath.isEmpty()) {
+        if ((discPath == null || discPath.isEmpty()) && discUri == null) {
             finish(false, "No disc was given. Choose Super Mario Galaxy in WiiDS, Your games.");
         }
     }
 
     @Override protected void onResume() {
         super.onResume();
-        if (started || finished || discPath == null) return;
+        if (started || finished || (discPath == null && discUri == null)) return;
         if (!prepareStart()) return;
-        if (!Environment.isExternalStorageManager()) {
+        if (discUri == null && !Environment.isExternalStorageManager()) {
             status.setText("To read your Galaxy disc image, WiiDS needs All files access. "
                 + "Only the disc you chose is read.");
             action.setText("Allow access");
@@ -109,11 +116,16 @@ public class GalaxyImportActivity extends Activity {
     private void start() {
         started = true;
         action.setVisibility(View.GONE);
-        File disc = new File(discPath);
-        if (!disc.isFile()) { finish(false, "Can't read " + disc.getName() + ". Copy it to this device and try again."); return; }
+        File disc = discUri == null ? new File(discPath) : null;
+        if (disc != null && !disc.isFile()) { finish(false, "Can't read " + disc.getName() + ". Choose it again in Your games."); return; }
         File external = getExternalFilesDir(null);
         if (external == null) { finish(false, "Storage isn't available right now."); return; }
         long free = new StatFs(external.getPath()).getAvailableBytes();
+        if (discUri != null) {
+            long size = documentSize(discUri);
+            if (size <= 0) { finish(false, "Can't read " + discName + ". Choose it again in Your games."); return; }
+            free -= size; // the disc is copied next to the import before it is read
+        }
         final boolean movies;
         if (free >= NEED_WITH_MOVIES) movies = true;
         else if (free >= NEED_WITHOUT_MOVIES) movies = false;
@@ -129,7 +141,9 @@ public class GalaxyImportActivity extends Activity {
         worker.start();
     }
 
-    private void run(File disc, File external, boolean movies) {
+    private void run(File chosen, File external, boolean movies) {
+        File copyDir = new File(external, "GalaxyImport.disc");
+        File disc = chosen;
         File work = new File(external, "GalaxyImport");
         File extracted = new File(work, "extracted");
         File pending = new File(external, "GalaxyData.pending");
@@ -145,12 +159,14 @@ public class GalaxyImportActivity extends Activity {
             File python = new File(getFilesDir(), "pythonhome"), scripts = new File(getFilesDir(), "cooker-scripts");
             unpackOnce("galaxy/pythonhome.zip", python);
             unpackOnce("galaxy/cooker-scripts.zip", scripts);
+            if (disc == null) disc = copyChosenDisc(copyDir);
 
             step(5, "Reading " + disc.getName() + "...");
             deleteTree(work);
             deleteTree(pending);
             if (!extracted.mkdirs()) throw new IOException("Can't create " + extracted);
             extract(disc, extracted, movies);
+            deleteTree(copyDir);
             File root = dataRoot(extracted);
             checkDisc(root);
             prepareExtraction(root);
@@ -175,9 +191,42 @@ public class GalaxyImportActivity extends Activity {
             done(true, gameTitle() + " is ready. Your saves were kept.");
         } catch (Exception failure) {
             Log.e(TAG, "import failed", failure);
-            if (workOwned) { deleteTree(work); deleteTree(pending); }
+            if (workOwned) { deleteTree(work); deleteTree(pending); deleteTree(copyDir); }
             done(false, failure.getMessage() != null ? failure.getMessage() : failure.toString());
         }
+    }
+
+    /** Byte size of the chosen document, or -1 when the provider can't say. */
+    private long documentSize(Uri uri) {
+        try (android.content.res.AssetFileDescriptor fd = getContentResolver().openAssetFileDescriptor(uri, "r")) {
+            return fd == null ? -1 : fd.getLength();
+        } catch (Exception unreadable) {
+            return -1;
+        }
+    }
+
+    /** Copies the chosen document next to the import, under its own name, so both readers can open it by path. */
+    private File copyChosenDisc(File dir) throws IOException {
+        deleteTree(dir);
+        if (!dir.mkdirs()) throw new IOException("Can't create " + dir);
+        String safe = discName.replaceAll("[^A-Za-z0-9._ ()-]", "_");
+        File copy = new File(dir, safe.isEmpty() ? "disc.iso" : safe);
+        long total = documentSize(discUri), done = 0;
+        try (InputStream in = getContentResolver().openInputStream(discUri);
+             FileOutputStream out = new FileOutputStream(copy)) {
+            if (in == null) throw new IOException("Can't read " + discName + ".");
+            byte[] buffer = new byte[1 << 20];
+            int lastPercent = -1;
+            for (int n; (n = in.read(buffer)) > 0; ) {
+                out.write(buffer, 0, n);
+                done += n;
+                int percent = total > 0 ? (int) (done * 100 / total) : 0;
+                if (percent != lastPercent) { lastPercent = percent; step(3, "Copying " + discName + "... " + percent + "%"); }
+            }
+            out.getFD().sync();
+        }
+        if (total > 0 && done != total) throw new IOException("Only part of " + discName + " could be read. Choose it again.");
+        return copy;
     }
 
     /** nodtool (the upstream installer's extractor) for any format; the built-in reader for ISO/WBFS otherwise. */

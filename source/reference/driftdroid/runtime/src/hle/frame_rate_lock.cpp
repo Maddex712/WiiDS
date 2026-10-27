@@ -11,8 +11,8 @@
 // scene's own call is touched (by its return address): menus and every other scene keep choosing
 // for themselves, exactly as they do in a four-player race on a console.
 //
-// Retro Rewind (pack 6.13.0, the Code.pul this build is tied to) decides again after the game has:
-// its own routine at 0x8183A6D0 calls setFramerate with the pack's "30 FPS" setting, which put a
+// Retro Rewind (pack 6.13.4, the Code.pul this build is tied to) decides again after the game has:
+// its own routine at 0x8183B7B4 calls setFramerate with the pack's "30 FPS" setting, which put a
 // race back to 60 whenever that setting was off - so this option did nothing there. That call is
 // turned into "30 FPS" as well, except where Retro Rewind itself insists on 60 whatever its
 // setting says (scene field 0x28 == 2 in game modes 2 and 5), which is left alone.
@@ -27,7 +27,7 @@
 namespace {
 
 constexpr uint32_t kSetFramerateReturnInRaceScene = 0x80554274u;
-constexpr uint32_t kSetFramerateReturnInRetroRewind = 0x8183A748u;
+constexpr uint32_t kSetFramerateReturnInRetroRewind = 0x8183B82Cu;
 constexpr uint32_t kThirtyFramesPerSecond = 1u;
 constexpr uint32_t kRacedataPointer = 0x809BD728u;    // Racedata::sInstance
 constexpr uint32_t kGameModeOffset = 0xB70u;

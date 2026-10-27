@@ -11,7 +11,9 @@ void Capture();
 // Schema 1: header 12 words, followed by count * 12 point words.
 // Header: schema, sequence, flags, world, submap, count, playerX(float bits),
 // playerZ(float bits), minX, maxX, minZ, maxZ (also float bits).
-// Flags: 1 = graph available, 2 = player position available. World is zero based
+// Flags: 1 = graph available, 2 = player position available, 4 = save-world flags
+// available. When 4 is set, bits 8..16 contain the selected save's W1..W9 unlock
+// mask. No range or earlier-world unlocks are inferred. World is zero based
 // or -1. An absent player's coordinate words must not be used as a marker.
 // Point: original ID, kind (0 path / 1 named W stop), first four name characters
 // packed big-endian, fifth character in low byte, x bits, z bits, six linked IDs.

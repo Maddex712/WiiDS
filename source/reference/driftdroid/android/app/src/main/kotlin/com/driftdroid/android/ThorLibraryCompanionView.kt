@@ -46,6 +46,8 @@ internal class ThorLibraryCompanionView(context: Context, private val folder: Fi
     private data class VideoSettings(val resolution: String, val frameRate: String, val renderer: String)
     private var selection = Selection(0, false, true, "", "")
     private var artwork: Artwork? = null
+    /** The menu style of the last frame; the poll redraws when Options switches it. */
+    private var drawnStyle: ThorMenuTheme.Style? = null
     private var installedVersion: String? = null
     private var videoSettings: VideoSettings? = null
     private var snapshot = ThorRetroRewindUpdateStatus.snapshot
@@ -81,6 +83,7 @@ internal class ThorLibraryCompanionView(context: Context, private val folder: Fi
         override fun run() {
             if (closed || !isAttachedToWindow) return
             if (refreshMetadata()) { updateDescription(); invalidate() }
+            if (ThorMenuTheme.current(context) != drawnStyle) invalidate()
             // Cases composed while this screen is showing (art built after an import).
             val key = artKey()
             if (key != cacheKey) {
@@ -279,14 +282,19 @@ internal class ThorLibraryCompanionView(context: Context, private val folder: Fi
         canvas.translate((width - 1280f * scale) / 2f, (height - 1080f * scale) / 2f)
         canvas.scale(scale, scale)
         val font = art.font
+        drawnStyle = ThorMenuTheme.current(context)
+        val wii = drawnStyle == ThorMenuTheme.Style.WII_MENU
         fun image(role: String, left: Float, top: Float, right: Float, bottom: Float, rounded: Boolean = false, alpha: Int = 255) {
+            area.set(left, top, right, bottom)
+            if (wii && ThorMenuTheme.chrome(canvas, role, area, alpha)) return
             art.images[role]?.let {
-                area.set(left, top, right, bottom)
                 if (rounded) font.roundedImage(canvas, it, area, 26f, alpha) else font.image(canvas, it, area, alpha)
             }
         }
         fun text(value: String, x: Float, y: Float, height: Float, width: Float, center: Boolean = false) {
-            if (value.isNotEmpty()) font.text(canvas, value, x, y, height, width, center)
+            if (value.isEmpty()) return
+            if (wii) ThorMenuTheme.text(canvas, value, x, y, height, width, center)
+            else font.text(canvas, value, x, y, height, width, center)
         }
         image("background", 0f, 0f, 1280f, 1080f)
         image("header", 0f, 60f, 1280f, 230f)

@@ -19,6 +19,7 @@ void port_set_infinite_lives(int enabled);
 void port_set_infinite_starbits(int enabled);
 void port_set_post_processing_enabled(int enabled);
 void port_input_set_camera_inverted(int inverted);
+int64_t port_host_time_ns(void);
 }
 
 namespace mobile_ui {
@@ -70,8 +71,9 @@ void UIOverlay::update(PortPadState& pad, int& spinFrames) {
     }
 
     if (mToastTimer > 0.0f) {
-        mToastTimer -= 0.016f;
-        if (mToastTimer < 0.0f) mToastTimer = 0.0f;
+        // No-frame rendering can poll every 1 ms; feedback lasts real time.
+        const int64_t remaining = mToastExpiresNs - port_host_time_ns();
+        mToastTimer = remaining > 0 ? static_cast<float>(remaining) * 1e-9f : 0.0f;
         mDirty = true;
     }
 }
@@ -79,6 +81,7 @@ void UIOverlay::update(PortPadState& pad, int& spinFrames) {
 void UIOverlay::showToast(const std::string& msg) {
     mToastMessage = msg;
     mToastTimer = 2.8f;
+    mToastExpiresNs = port_host_time_ns() + 2800000000LL;
     mDirty = true;
 }
 

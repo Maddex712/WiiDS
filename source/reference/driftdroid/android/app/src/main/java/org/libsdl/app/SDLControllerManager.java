@@ -17,6 +17,7 @@ import android.os.Build;
 import android.os.Handler;
 import android.os.Looper;
 import android.os.SystemClock;
+import android.os.VibrationAttributes;
 import android.os.VibrationEffect;
 import android.os.Vibrator;
 import android.os.VibratorManager;
@@ -249,7 +250,7 @@ class SDLJoystickHandler {
                     if (Build.VERSION.SDK_INT >= 31 /* Android 12.0 (S) */) {
                         VibratorManager vibratorManager = joystickDevice.getVibratorManager();
                         int[] vibrators = vibratorManager.getVibratorIds();
-                        if (vibrators.length > 0) {
+                        if (vibrators.length > 0 || BuiltInRumble.vibrator(joystickDevice) != null) {
                             can_rumble = true;
                         }
                         LightsManager lightsManager = joystickDevice.getLightsManager();
@@ -515,6 +516,48 @@ class SDLJoystickHandler {
     }
 }
 
+/**
+ * WiiDS: a handheld's built-in controls whose motor is the device's own vibrator. The AYN Thor's
+ * "Odin Controller" has no force feedback of its own (Android lists no InputDevice vibrator, and
+ * Android counts it as external because it sits on USB), so its rumble goes to the system vibrator.
+ */
+final class BuiltInRumble {
+    private static final String[] NAMES = { "Odin Controller" };
+    private static Vibrator sVibrator;
+
+    private BuiltInRumble() {}
+
+    /** The vibrator to rumble for this controller, or null when it is not built in or the device has none. */
+    static synchronized Vibrator vibrator(InputDevice device) {
+        if (device == null || Build.VERSION.SDK_INT < 31 /* Android 12.0 (S) */) {
+            return null;
+        }
+        boolean builtIn = false;
+        for (String name : NAMES) {
+            builtIn |= name.equals(device.getName());
+        }
+        if (!builtIn) {
+            return null;
+        }
+        if (sVibrator == null) {
+            Context context = SDL.getContext();
+            VibratorManager manager = context != null ? context.getSystemService(VibratorManager.class) : null;
+            Vibrator vibrator = manager != null ? manager.getDefaultVibrator() : null;
+            sVibrator = vibrator != null && vibrator.hasVibrator() ? vibrator : null;
+        }
+        return sVibrator;
+    }
+
+    /** Game rumble is media vibration, which Android's own Vibration setting still turns off. */
+    static void vibrate(Vibrator vibrator, VibrationEffect effect) {
+        if (vibrator == sVibrator && Build.VERSION.SDK_INT >= 33 /* Android 13 (T) */) {
+            vibrator.vibrate(effect, VibrationAttributes.createForUsage(VibrationAttributes.USAGE_MEDIA));
+        } else {
+            vibrator.vibrate(effect);
+        }
+    }
+}
+
 class SDLHapticHandler_API31 extends SDLHapticHandler {
     // WiiCompiled's own guest rumble calls (PADControlMotor -> controller_rumble) always pass
     // duration_ms=0 and rely on a separate stop call instead of an effect timeout - and the game
@@ -553,12 +596,17 @@ class SDLHapticHandler_API31 extends SDLHapticHandler {
 
         VibratorManager manager = device.getVibratorManager();
         int[] vibrators = manager.getVibratorIds();
+        float intensity = (low_frequency_intensity * 0.6f) + (high_frequency_intensity * 0.4f);
         if (vibrators.length >= 2) {
             vibrate(manager.getVibrator(vibrators[0]), low_frequency_intensity, length);
             vibrate(manager.getVibrator(vibrators[1]), high_frequency_intensity, length);
         } else if (vibrators.length == 1) {
-            float intensity = (low_frequency_intensity * 0.6f) + (high_frequency_intensity * 0.4f);
             vibrate(manager.getVibrator(vibrators[0]), intensity, length);
+        } else {
+            Vibrator builtIn = BuiltInRumble.vibrator(device);
+            if (builtIn != null) {
+                vibrate(builtIn, intensity, length);
+            }
         }
     }
 
@@ -607,7 +655,7 @@ class SDLHapticHandler_API31 extends SDLHapticHandler {
         }
         mVibrateStartTimes.put(vibrator, SystemClock.uptimeMillis());
         try {
-            vibrator.vibrate(VibrationEffect.createOneShot(length, value));
+            BuiltInRumble.vibrate(vibrator, VibrationEffect.createOneShot(length, value));
         }
         catch (Exception e) {
             // Fall back to the generic method, which uses DEFAULT_AMPLITUDE, but works even if

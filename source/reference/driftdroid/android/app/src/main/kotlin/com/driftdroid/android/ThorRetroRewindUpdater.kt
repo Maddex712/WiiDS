@@ -23,7 +23,8 @@ import java.util.zip.ZipFile
 /**
  * Updates an installed pack, or installs the first one. Network/cache work never overwrites the
  * installed pack. Every delta is checked first, then applied to a sibling copy, verified, and
- * published by rename. Ghosts, MyStuff and unknown user files are copied unchanged; NAND and
+ * published by rename. Ghosts (apart from the official expert ghosts a release refreshes), MyStuff
+ * and unknown user files are copied unchanged; NAND and
  * riivolution are outside this transaction. A completed update intentionally does not claim
  * compatibility for new code.
  *
@@ -107,18 +108,19 @@ internal class ThorRetroRewindUpdater(
                 "The installed Retro Rewind pack is incomplete. Replace it with a complete copy from your PC.")
             return null
         }
-        if (!supportedCode(code)) {
-            emit(ThorRetroRewindUpdateStatus.State.BLOCKED, NEED_BUILD)
-            return null
-        }
         ensureRegularDirectory(root)
         val releases = fetchReleases()
         val latest = RetroRewindCatalog.newest(releases)!!
         snapshot = snapshot.copy(latestVersion = latest.version)
         publish()
         val chain = RetroRewindCatalog.deltaChain(releases, installed, latest.version)
+        // What counts is the code each step leaves installed. A release whose code this build can't
+        // run may be passed through when a later one in the same update replaces it with code it
+        // can: an install from before this build's Retro Rewind (6.13.1 -> 6.13.3 -> 6.13.4) is
+        // brought forward instead of refused. update() checks the staged pack's code again.
+        var runnable = supportedCode(code)
         val compatible = mutableListOf<RetroRewindCatalog.Release>()
-        var blocked = false
+        val pending = mutableListOf<RetroRewindCatalog.Release>()
         for (group in chain.groupBy { normalizedVersion(it.version) }.values) {
             // A multipart version is all-or-nothing. Never mark half a release as installed.
             for (release in group) {
@@ -126,19 +128,21 @@ internal class ThorRetroRewindUpdater(
                 val verdict = repository.inspect(release)
                 stopIfCancelled()
                 when (verdict) {
-                    is RetroRewindCatalog.DeltaVerdict.AssetsOnly,
-                    is RetroRewindCatalog.DeltaVerdict.SupportedCodeChange -> Unit
-                    is RetroRewindCatalog.DeltaVerdict.UnsupportedCodeChange -> { blocked = true; break }
+                    is RetroRewindCatalog.DeltaVerdict.AssetsOnly -> Unit
+                    is RetroRewindCatalog.DeltaVerdict.SupportedCodeChange -> runnable = true
+                    is RetroRewindCatalog.DeltaVerdict.UnsupportedCodeChange -> runnable = false
                     is RetroRewindCatalog.DeltaVerdict.Failed -> throw IOException(verdict.error)
                 }
             }
-            if (blocked) break
-            compatible += group
+            pending += group
+            if (runnable) { compatible += pending; pending.clear() }
         }
+        val blocked = pending.isNotEmpty()
         snapshot = snapshot.copy(compatibleVersion = compatible.lastOrNull()?.version ?: installed)
         if (compatible.isEmpty()) {
-            emit(if (blocked) ThorRetroRewindUpdateStatus.State.BLOCKED else ThorRetroRewindUpdateStatus.State.UP_TO_DATE,
-                if (blocked) NEED_BUILD else "Retro Rewind $installed is up to date.")
+            val needBuild = blocked || !supportedCode(code)
+            emit(if (needBuild) ThorRetroRewindUpdateStatus.State.BLOCKED else ThorRetroRewindUpdateStatus.State.UP_TO_DATE,
+                if (needBuild) NEED_BUILD else "Retro Rewind $installed is up to date.")
             return null
         }
         val plan = Plan(installed, code, latest.version, compatible.toList())
@@ -577,9 +581,11 @@ internal class ThorRetroRewindUpdater(
                 // Official deltas also carry the unchanged external loader XML. Validate its
                 // complete bytes, but never extract it or write anything outside the pack.
                 if (name == LOADER_XML) require(supportedLoaderXml(hash)) { needBuild() }
+                // An intermediate release may carry code this build can't run when a later one in
+                // the same update replaces it; update() requires the staged pack's code to be
+                // supported before anything is published.
                 if (name.equals("Binaries/Code.pul", true)) {
                     require(name == "Binaries/Code.pul") { "Ambiguous code path in update" }
-                    require(supportedCode(hash)) { needBuild() }
                 }
             }
         }
@@ -597,8 +603,13 @@ internal class ThorRetroRewindUpdater(
         val relative = if (parts.first() == "RetroRewind6") parts.drop(1) else parts
         if (relative.isEmpty()) { require(directory); return "" }
         val first = relative.first()
-        // No update archive may write personal content or arbitrary application data.
-        require(first in STATIC_ROOTS || relative == listOf("version.txt")) {
+        // No update archive may write personal content or arbitrary application data. Official
+        // updates (6.13.3) do refresh the expert staff ghosts the full archive seeds; only those
+        // folders and their track-name index are accepted under Ghosts.
+        val officialGhosts = first == "Ghosts" && (relative.size == 1 && directory ||
+            relative.size >= 2 && relative[1] in EXPERT_GHOST_FOLDERS ||
+            relative.size == 2 && !directory && GHOST_TRACK_INDEX.matches(relative[1]))
+        require(first in STATIC_ROOTS || officialGhosts || relative == listOf("version.txt")) {
             "The update contains a protected or unrecognized folder: $first"
         }
         return relative.joinToString("/")
@@ -785,6 +796,9 @@ internal class ThorRetroRewindUpdater(
         private val STATIC_ROOTS = setOf("Assets", "Binaries", "BT", "Character", "CT", "Language", "Patches", "strm", "Tracks", "UI", "xml")
         /** Personal folders a full archive seeds (expert ghosts, an empty MyStuff); updates never write them. */
         private val SEED_ROOTS = setOf("Ghosts", "MyStuff")
+        /** Official expert ghosts inside Ghosts that releases replace; player ghosts live elsewhere. */
+        private val EXPERT_GHOST_FOLDERS = setOf("ExpertsCT", "ExpertsRT")
+        private val GHOST_TRACK_INDEX = Regex("FolderToTrackName(CT|RT)\\.txt")
         /** Newest versions judged when looking for a runnable code lineage, and full archives tried. */
         private const val MAX_SUPPORT_PROBES = 8
         private const val MAX_FULL_PROBES = 4

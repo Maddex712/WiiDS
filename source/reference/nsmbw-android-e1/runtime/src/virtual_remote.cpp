@@ -162,9 +162,9 @@ Intent PadIntent(const PADStatus& pad) {
     return intent;
 }
 
-// Accelerometer for the requested motion, in KPAD's frame (rest: y = -1). Tilting clockwise lowers
-// the right end and raises the left one, where the remote's pointer end is, so gravity shows up on
-// the remote's long axis (KPAD z) as +sin(angle).
+// Accelerometer for the requested motion, in KPAD's frame (rest: y = -1).
+// Clockwise/right intent must give the game a positive tilt angle. KPAD derives
+// acc_vertical.y from -acc.z, so the virtual remote's z must be -sin(angle).
 void ApplyMotion(Motion& motion, const Intent& intent, WiiRemoteInput::KpadSample& sample) {
     if (intent.shake) {
         motion.shakeFramesLeft = std::max(motion.shakeFramesLeft, kShakeFrames);
@@ -176,7 +176,7 @@ void ApplyMotion(Motion& motion, const Intent& intent, WiiRemoteInput::KpadSampl
     const float angle = motion.tilt * kMaxTiltRadians;
     sample.acc[0] = 0.0f;
     sample.acc[1] = -std::cos(angle);
-    sample.acc[2] = std::sin(angle);
+    sample.acc[2] = -std::sin(angle);
     if (motion.shakeFramesLeft > 0) {
         --motion.shakeFramesLeft;
         sample.acc[1] += (motion.shakePhase++ & 1u) != 0 ? kShakeSwingG : -kShakeSwingG;

@@ -1943,7 +1943,7 @@ static void handle_draw_unmerged(GXPrimitive prim, GXVtxFmt fmt, u16 vtxCount,
 
 // The per-draw geometry signature, matrix-usage mask and draw-identity hashes exist purely to feed frame interpolation (build_uniform consumes them only after its `frame_interpolation_fps() == 0` early-out).
 static inline bool frame_interpolation_identity_needed() noexcept {
-  return frame_interpolation_active() && g_gxState.projType == GX_PERSPECTIVE;
+  return frame_interpolation_active() && !frame_generation_lsfg() && g_gxState.projType == GX_PERSPECTIVE;
 }
 
 static uint32_t matrix_index_prefix_size(GXVtxFmt fmt) noexcept {

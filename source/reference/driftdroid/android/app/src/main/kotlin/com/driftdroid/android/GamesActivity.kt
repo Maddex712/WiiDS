@@ -52,6 +52,8 @@ class GamesActivity : Activity() {
     private var eclipseMessage: String? = null
     // Galaxy: a disc chosen with Choose file (its path), and the card's "Import again" button.
     private var galaxyChosen: String? = null
+    // A chosen Galaxy disc WiiDS can't name by path; the add-on copies it from the document.
+    private var galaxyChosenDocument: WiiDsDisc.Source.Document? = null
     private var galaxyAgain: Button? = null
     private var kaizoAgain: Button? = null
     private var foreground = false
@@ -152,7 +154,13 @@ class GamesActivity : Activity() {
             return
         }
         if (requestCode == REQUEST_GALAXY_IMPORT) {
-            if (resultCode == RESULT_OK) { messages.remove(GameCatalog.Disc.GALAXY_USA); galaxyChosen = null }
+            if (resultCode == RESULT_OK) {
+                messages.remove(GameCatalog.Disc.GALAXY_USA); galaxyChosen = null
+                galaxyChosenDocument?.let { doc ->
+                    runCatching { contentResolver.releasePersistableUriPermission(doc.uri, Intent.FLAG_GRANT_READ_URI_PERMISSION) }
+                }
+                galaxyChosenDocument = null
+            }
             refresh()
             return
         }
@@ -185,10 +193,14 @@ class GamesActivity : Activity() {
                 if (message != null) messages[game.disc] = message
                 else if (game == Game.GALAXY || game == Game.KAIZO) {
                     galaxyChosen = discPath(source)
+                    // No usable path (another file app, or no All files access): the add-on reads
+                    // the document itself, so keep its read grant across the import process.
+                    galaxyChosenDocument = if (galaxyChosen == null) source else null
+                    if (galaxyChosen == null) runCatching {
+                        contentResolver.takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                    }
                     // One disc for both cards: each card adds its own action (refreshGalaxy).
-                    messages[game.disc] = if (galaxyChosen != null) "${source.name} is the right disc."
-                        else "${source.name} is the right disc, but setup can only read it from this device's storage. " +
-                            "Copy it there (a ROMs folder is fine) and choose it again."
+                    messages[game.disc] = "${source.name} is the right disc."
                 }
                 else if (!GameInstaller.start(this, game.disc, source)) messages[game.disc] = BUSY
                 else messages.remove(game.disc)
@@ -292,10 +304,7 @@ class GamesActivity : Activity() {
                 }
                 disc.isInstalled(this) -> {
                     show(card, if (message == "") "Imported. Ready to play." else "Installed. Ready to play.", GREEN)
-                    val source = found.firstOrNull()?.source
-                    button(card, "Import again", source != null && !installBusy) {
-                        if (source != null && !GameInstaller.start(this, disc, source)) messages[disc] = BUSY
-                    }
+                    button(card, "Import again", !installBusy) { chooseFile(game) }
                 }
                 found.isNotEmpty() -> {
                     val pick = found.first()
@@ -334,12 +343,14 @@ class GamesActivity : Activity() {
         val message = messages[disc]
         val found = scan?.matching(disc).orEmpty()
         val foundPath = found.firstNotNullOfOrNull { discPath(it.source) }
-        val path = galaxyChosen ?: foundPath
+        val document = if (galaxyChosen == null) galaxyChosenDocument else null
+        val path = galaxyChosen ?: if (document == null) foundPath else null
+        val chosen = galaxyChosen != null || document != null
         val ready = if (kaizo) ThorGameLaunch.kaizoInstalled(this) else disc.isInstalled(this)
         when {
             ready -> show(card, "Installed. Ready to play.", GREEN)
             message != null && message.isNotEmpty() ->
-                show(card, if (galaxyChosen != null) "$message ${setupAction(kaizo)}." else message, if (galaxyChosen != null) GREEN else AMBER)
+                show(card, if (chosen) "$message ${setupAction(kaizo)}." else message, if (chosen) GREEN else AMBER)
             path != null -> show(card, "Found ${java.io.File(path).name}, the right disc. ${setupAction(kaizo)} " +
                 "(about 15 minutes; keep the device charging).", GREEN)
             scanning -> show(card, "Searching this device...", MUTED)
@@ -354,32 +365,49 @@ class GamesActivity : Activity() {
         }
         when {
             ready -> button(card, "Play", true) { if (kaizo) ThorGameLaunch.launchKaizo(this) else ThorGameLaunch.launchGalaxy(this) }
-            path != null -> button(card, if (kaizo) "Set up Rebalanced" else "Set up Galaxy", !GameInstaller.running) { importGalaxy(path, kaizo) }
+            path != null || document != null ->
+                button(card, if (kaizo) "Set up Rebalanced" else "Set up Galaxy", !GameInstaller.running) { importGalaxy(path, document, kaizo) }
             else -> button(card, "Choose file", !GameInstaller.running) { chooseFile(if (kaizo) Game.KAIZO else Game.GALAXY) }
         }
         (if (kaizo) kaizoAgain else galaxyAgain)?.let { again ->
-            again.visibility = if (ready && path != null) View.VISIBLE else View.GONE
-            again.setOnClickListener { if (path != null) importGalaxy(path, kaizo) }
+            again.visibility = if (ready && (path != null || document != null)) View.VISIBLE else View.GONE
+            again.setOnClickListener { if (path != null || document != null) importGalaxy(path, document, kaizo) }
         }
     }
 
     /** A disc WiiDS can name by path (the add-on reads it there with its own All files access). */
     private fun discPath(source: WiiDsDisc.Source): String? = when (source) {
         is WiiDsDisc.Source.Files -> source.parts.first().path
-        is WiiDsDisc.Source.Document -> runCatching {
+        // Without All files access a picked SD-card file still exists by path (isFile is true) but
+        // the importer can't open it there, so it must read the document instead.
+        is WiiDsDisc.Source.Document -> if (Build.VERSION.SDK_INT >= 30 &&
+            !android.os.Environment.isExternalStorageManager()) null else runCatching {
             val id = android.provider.DocumentsContract.getDocumentId(source.uri)
             when {
                 id.startsWith("raw:") -> id.removePrefix("raw:")
                 id.startsWith("primary:") -> android.os.Environment.getExternalStorageDirectory().path + "/" + id.removePrefix("primary:")
+                Build.VERSION.SDK_INT >= 30 && source.uri.authority == "com.android.externalstorage.documents" -> {
+                    // Removable-volume documents use UUID:path, not primary:path.
+                    val volumeId = id.substringBefore(':', "")
+                    val relative = id.substringAfter(':', "")
+                    val root = getSystemService(android.os.storage.StorageManager::class.java)?.storageVolumes
+                        ?.firstOrNull { it.uuid?.equals(volumeId, ignoreCase = true) == true }?.directory
+                    if (root == null || relative.isEmpty()) null
+                    else java.io.File(root, relative).canonicalFile.takeIf {
+                        it.path.startsWith(root.canonicalPath + java.io.File.separator)
+                    }?.path
+                }
                 else -> null
             }
         }.getOrNull()?.takeIf { java.io.File(it).isFile }
     }
 
-    private fun importGalaxy(path: String, kaizo: Boolean = false) {
+    private fun importGalaxy(path: String?, document: WiiDsDisc.Source.Document?, kaizo: Boolean = false) {
         val intent = Intent("dev.thor.galaxy.action.IMPORT_DISC")
             .setClassName(packageName, if (kaizo) "dev.thor.galaxy.KaizoActivities\$Import" else "dev.thor.galaxy.GalaxyImportActivity")
-            .putExtra("disc_path", path)
+        if (path != null) intent.putExtra("disc_path", path)
+        else if (document != null) intent.setData(document.uri).putExtra("disc_name", document.name)
+            .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
         if (runCatching { startActivityForResult(intent, REQUEST_GALAXY_IMPORT) }.isFailure)
             messages[GameCatalog.Disc.GALAXY_USA] = "Galaxy setup is unavailable on this Android version."
     }

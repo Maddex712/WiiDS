@@ -164,6 +164,12 @@ void port_set_game_speed(float speed);
 float port_get_game_speed(void);
 void port_trigger_quick_save(void);
 int port_check_quick_save_request(void);
+enum PortQuickSaveStatus {
+    PORT_QUICK_SAVE_IDLE, PORT_QUICK_SAVE_REQUESTED, PORT_QUICK_SAVE_WRITING,
+    PORT_QUICK_SAVE_SUCCEEDED, PORT_QUICK_SAVE_FAILED, PORT_QUICK_SAVE_REJECTED
+};
+int port_get_quick_save_status(void);
+void port_reject_quick_save(void);
 void port_save_notify_started(void);
 void port_save_notify_completed(int success);
 int port_is_save_in_progress(void);

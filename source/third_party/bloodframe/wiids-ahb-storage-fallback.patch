@@ -1,0 +1,55 @@
+diff --git a/framegen/src/core/device.cpp b/framegen/src/core/device.cpp
+index 40dc2c5..242939d 100644
+--- a/framegen/src/core/device.cpp
++++ b/framegen/src/core/device.cpp
+@@ -1,5 +1,8 @@
+ #include <volk.h>
+ #include <vulkan/vulkan_core.h>
++#ifdef __ANDROID__
++#include <android/hardware_buffer.h>
++#endif
+ 
+ #include "core/capabilities.hpp"
+ #include "core/device.hpp"
+@@ -95,6 +98,32 @@ bool probeAhbImageUsage(VkPhysicalDevice physicalDevice, VkFormat format,
+ #endif
+ }
+ 
++// bloodframe: the Vulkan query above can accept STORAGE for AHB images that gralloc then refuses to
++// allocate: before gralloc 4.1 a non-BLOB format with GPU_DATA_BUFFER usage fails (AYN Thor,
++// Adreno 740). Allocate a small buffer with the usage ahb_usage() would ask the host for.
++bool ahbAllocatorAcceptsStorage(VkFormat format) {
++#ifdef __ANDROID__
++    AHardwareBuffer_Desc desc{
++        .width = 64,
++        .height = 64,
++        .layers = 1,
++        .format = format == VK_FORMAT_R16G16B16A16_SFLOAT
++            ? AHARDWAREBUFFER_FORMAT_R16G16B16A16_FLOAT
++            : AHARDWAREBUFFER_FORMAT_R8G8B8A8_UNORM,
++        .usage = AHARDWAREBUFFER_USAGE_GPU_SAMPLED_IMAGE | AHARDWAREBUFFER_USAGE_GPU_COLOR_OUTPUT
++            | AHARDWAREBUFFER_USAGE_GPU_DATA_BUFFER,
++    };
++    AHardwareBuffer* buffer = nullptr;
++    if (AHardwareBuffer_allocate(&desc, &buffer) != 0 || buffer == nullptr)
++        return false;
++    AHardwareBuffer_release(buffer);
++    return true;
++#else
++    (void)format;
++    return true;
++#endif
++}
++
+ struct ExternalSemaphoreProbe {
+     bool extensionPresent{false};
+     bool queryAvailable{false};
+@@ -406,7 +435,7 @@ Device::Device(const Instance& instance, const LSFG::DeviceIdentity& requestedId
+     const bool sampledInput = probeAhbImageUsage(physicalDevice, sharedFormat,
+         VK_IMAGE_USAGE_SAMPLED_BIT);
+     const bool storageOutput = probeAhbImageUsage(physicalDevice, sharedFormat,
+-        VK_IMAGE_USAGE_STORAGE_BIT);
++        VK_IMAGE_USAGE_STORAGE_BIT) && ahbAllocatorAcceptsStorage(sharedFormat);
+     const bool transferInput = probeAhbImageUsage(physicalDevice, sharedFormat,
+         VK_IMAGE_USAGE_TRANSFER_SRC_BIT);
+     const bool transferOutput = probeAhbImageUsage(physicalDevice, sharedFormat,

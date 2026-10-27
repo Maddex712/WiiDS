@@ -44,8 +44,7 @@ private:
 
     // Transactional save state
     int mPendingSaveSlot = -1;
-    uint64_t mPendingSaveStartGen = 0;
-    int mPendingSaveWaitFrames = 0;
+    int64_t mPendingSaveStartNs = 0;
 };
 
 }  // namespace mobile_ui

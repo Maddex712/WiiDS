@@ -78,20 +78,39 @@ __attribute__((weak)) int port_input_real_z(void) { return 0; }
 static int sQuickSaveRequested = 0;
 static int sSaveInProgress = 0;
 static uint64_t sSaveGeneration = 1;
+static int sQuickSaveStatus = PORT_QUICK_SAVE_IDLE;
 
 __attribute__((weak)) void port_trigger_quick_save(void) {
+    __atomic_store_n(&sQuickSaveStatus, PORT_QUICK_SAVE_REQUESTED, __ATOMIC_RELEASE);
     __atomic_store_n(&sQuickSaveRequested, 1, __ATOMIC_RELEASE);
 }
 __attribute__((weak)) int port_check_quick_save_request(void) {
     return __atomic_exchange_n(&sQuickSaveRequested, 0, __ATOMIC_ACQ_REL);
 }
+__attribute__((weak)) int port_get_quick_save_status(void) {
+    return __atomic_load_n(&sQuickSaveStatus, __ATOMIC_ACQUIRE);
+}
+__attribute__((weak)) void port_reject_quick_save(void) {
+    int expected = PORT_QUICK_SAVE_REQUESTED;
+    __atomic_compare_exchange_n(&sQuickSaveStatus, &expected, PORT_QUICK_SAVE_REJECTED,
+                               false, __ATOMIC_ACQ_REL, __ATOMIC_ACQUIRE);
+}
 __attribute__((weak)) void port_save_notify_started(void) {
+    int expected = PORT_QUICK_SAVE_REQUESTED;
+    __atomic_compare_exchange_n(&sQuickSaveStatus, &expected, PORT_QUICK_SAVE_WRITING,
+                               false, __ATOMIC_ACQ_REL, __ATOMIC_ACQUIRE);
     __atomic_store_n(&sSaveInProgress, 1, __ATOMIC_RELEASE);
 }
 __attribute__((weak)) void port_save_notify_completed(int success) {
     if (success) {
         __atomic_add_fetch(&sSaveGeneration, 1, __ATOMIC_ACQ_REL);
     }
+    // System/mail-only writes also call this hook. Only an accepted Quick Save
+    // may complete the UI's pending request.
+    int expected = PORT_QUICK_SAVE_WRITING;
+    __atomic_compare_exchange_n(&sQuickSaveStatus, &expected,
+                               success ? PORT_QUICK_SAVE_SUCCEEDED : PORT_QUICK_SAVE_FAILED,
+                               false, __ATOMIC_ACQ_REL, __ATOMIC_ACQUIRE);
     __atomic_store_n(&sSaveInProgress, 0, __ATOMIC_RELEASE);
 }
 __attribute__((weak)) int port_is_save_in_progress(void) {

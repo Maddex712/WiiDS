@@ -94,9 +94,9 @@
   ],
   "missing_roots": [],
   "source_coverage": {
-    "expected_source_files": 11953,
+    "expected_source_files": 11965,
     "roots": {
-      "reference/driftdroid": 1553,
+      "reference/driftdroid": 1560,
       "reference/nsmbw-android-e1": 1204,
       "reference/nsmbw-android-msmbwii": 1203,
       "reference/sms-thor": 249,
@@ -109,7 +109,7 @@
       "wiids": 213,
       "release": 0,
       "docs/release": 0,
-      "experiments/release": 63,
+      "experiments/release": 67,
       "experiments/eclipse-thor": 15,
       "experiments/nsmbw-thor": 47,
       "experiments/sunshine-thor": 16,
@@ -119,7 +119,8 @@
       "third_party/BetterSunshineEngine": 143,
       "third_party/BetterSunshineMoveset": 20,
       "third_party/SunshineHeaderInterface": 332,
-      "third_party/SDL2-wiids": 1258
+      "third_party/SDL2-wiids": 1258,
+      "third_party/bloodframe": 1
     },
     "omissions": []
   },
@@ -7323,8 +7324,8 @@
       "bytes": 8596
     },
     "reference/driftdroid/android/app/src/main/java/com/wither/nsmbw/ThorCompanion.java": {
-      "sha256": "27ad2ab377a4375f2d2604e5e5b8b9ff754516715c599daa0478bfced4100dbe",
-      "bytes": 27001
+      "sha256": "b9105e009a1c2e56778033be9bc2235f1beda4220de37a673bdc998fb21dfffc",
+      "bytes": 26933
     },
     "reference/driftdroid/android/app/src/main/java/com/wither/nsmbw/ThorGameState.java": {
       "sha256": "1d65e9215b60b1257f598af63aeb03c47b5dd8597c48d9e9b9c358f2fe026fce",
@@ -7339,16 +7340,16 @@
       "bytes": 2497
     },
     "reference/driftdroid/android/app/src/main/java/com/wither/nsmbw/ThorLowerScreen.java": {
-      "sha256": "281e84c19ef3fe3b1c039c952b82004824786e304842b39128d07134e0d5fe98",
-      "bytes": 14307
+      "sha256": "a9c134006f493feb3b8f32e7456704110f686aff7744ad0f3ac5f35a4e279495",
+      "bytes": 13103
     },
     "reference/driftdroid/android/app/src/main/java/com/wither/nsmbw/ThorReserveState.java": {
       "sha256": "5be5d3b2e10c17a7e53bbf7ed6d1a6e5cbb68f9de9da5fc40ade0591f16b1549",
       "bytes": 657
     },
     "reference/driftdroid/android/app/src/main/java/com/wither/nsmbw/ThorWorldMap.java": {
-      "sha256": "2a5fde9ec1dc1736c467c3d99cf33f16404ffa711c5288c18c52988e7cc758bb",
-      "bytes": 2592
+      "sha256": "f1eac5bd337a02cab7cf52eeaba9ece899ea514ee0be4b24dd99f1cc34ee7bd5",
+      "bytes": 2843
     },
     "reference/driftdroid/android/app/src/main/java/com/wither/nsmbw/TouchControlsView.java": {
       "sha256": "6677a6dcb9f70c88720edbe22aee1dea1523e866ab92f384381a4b91a087c372",
@@ -7471,16 +7472,16 @@
       "bytes": 55458
     },
     "reference/driftdroid/android/app/src/main/java/dev/thor/galaxy/GalaxyActivity.java": {
-      "sha256": "5976fe572adcaa9bfcc9325534d0f56009a7c055a286877af7917a7361afc3a3",
-      "bytes": 10963
+      "sha256": "ae47d80dd917d0ee393931bc3d85a7f54ec23aa25ffbc9bcb94000222d76c8b0",
+      "bytes": 11951
     },
     "reference/driftdroid/android/app/src/main/java/dev/thor/galaxy/GalaxyBackupActivity.java": {
       "sha256": "0ef5107fde00a198b9c3e8326eb236245849c84d779291538b50e9ce513bf25c",
       "bytes": 2115
     },
     "reference/driftdroid/android/app/src/main/java/dev/thor/galaxy/GalaxyImportActivity.java": {
-      "sha256": "4a2f179f3f57cb4a214708ad344771b32871d9fafaa57eece7dcb4d37ed33686",
-      "bytes": 17233
+      "sha256": "dcb7501133addf37ccc6766e7c8ef73f76b1c24e8409e915076fd6c3ccddc950",
+      "bytes": 19976
     },
     "reference/driftdroid/android/app/src/main/java/dev/thor/galaxy/GalaxyInstall.java": {
       "sha256": "2d33ec388027bca22d1b6bb5deb55e3b1ea58efc6cc174709181b30850ac9fab",
@@ -7507,8 +7508,8 @@
       "bytes": 3442
     },
     "reference/driftdroid/android/app/src/main/java/dev/thor/galaxy/GalaxySettingsMenu.java": {
-      "sha256": "93a78eb6830af1d81dbc3930efe8630afd48f0896d022013e59d97857c8d77cd",
-      "bytes": 29259
+      "sha256": "8c237ddc576b13d4a9618210b65c630a3a7bfed841b376952e29813919960111",
+      "bytes": 29269
     },
     "reference/driftdroid/android/app/src/main/java/dev/thor/galaxy/GalaxyStorage.java": {
       "sha256": "153b0d4b0f65c7603e4609c54e786d7dc906109a267d80caf80599f1bfcc2979",
@@ -7563,8 +7564,8 @@
       "bytes": 4808
     },
     "reference/driftdroid/android/app/src/main/java/org/libsdl/app/SDLControllerManager.java": {
-      "sha256": "0f66e48a5fee6a5670907a431d802ae56b9cde2f11e7515c285af01c6c52ac87",
-      "bytes": 37750
+      "sha256": "dc86bd20382b7d762a0a9af465863b0bb8c7cf78bed31390a1cc2ebaab02c033",
+      "bytes": 39881
     },
     "reference/driftdroid/android/app/src/main/java/org/libsdl/app/SDLDummyEdit.java": {
       "sha256": "1d7f5ef912395f419db83d93690753a536569d8eaae8b06da6dd286f5ab1e8b5",
@@ -7607,8 +7608,8 @@
       "bytes": 19821
     },
     "reference/driftdroid/android/app/src/main/java/org/libsdl/sdl2/app/SDLControllerManager.java": {
-      "sha256": "c7d227fd377b18fbcda35b28ff2259ea2fc35d0a73c281ae81e7623e43d6798e",
-      "bytes": 30608
+      "sha256": "441f250d25055a631b94b68ace0696b6f48f364cf7c8b0381be462d0e5d89c7c",
+      "bytes": 30959
     },
     "reference/driftdroid/android/app/src/main/java/org/libsdl/sdl2/app/SDLSurface.java": {
       "sha256": "6456baf814698befc2cd7517f4555f0d84b9143b24508ae9f0151203bae41fa3",
@@ -7639,12 +7640,12 @@
       "bytes": 3971
     },
     "reference/driftdroid/android/app/src/main/kotlin/com/driftdroid/android/GamesActivity.kt": {
-      "sha256": "1463b4ccad265b52478795e0b71abee335aa30207723ce47d507b14e99f5660f",
-      "bytes": 28805
+      "sha256": "a84266ad0be094007c4e547c3d1f4c6d652503a87d31f94d5c54b9a2ac527ded",
+      "bytes": 30862
     },
     "reference/driftdroid/android/app/src/main/kotlin/com/driftdroid/android/GpuDriverSettings.kt": {
-      "sha256": "ea1e79f07fced175d1019a133822f7ad0be88edc1d8a4c1dea7356ec2fa092a4",
-      "bytes": 10233
+      "sha256": "701cee4482f28c0775c7a119b916ff95c3ed20158f6f5b8a91248fc4a57fcde4",
+      "bytes": 10258
     },
     "reference/driftdroid/android/app/src/main/kotlin/com/driftdroid/android/GraphicsSettings.kt": {
       "sha256": "b8fa461a1de4dc6b9e9db6c5850f1e4e6b87975a8788d3d78390c44494d9df26",
@@ -7667,8 +7668,8 @@
       "bytes": 18209
     },
     "reference/driftdroid/android/app/src/main/kotlin/com/driftdroid/android/ModePickerActivity.kt": {
-      "sha256": "cfbfcf2e97ea5297e8e67df98e22291ec6f117b08ebcc799193b4603bece102f",
-      "bytes": 102775
+      "sha256": "6cafc4c92f64e20f3588ed1ed01913b132111197af838f5d01dd40f303a1ae17",
+      "bytes": 103654
     },
     "reference/driftdroid/android/app/src/main/kotlin/com/driftdroid/android/MotionSteering.kt": {
       "sha256": "83509009de2dabe1c8559483e757eca415200916e7c9b8e9e909ef2ceaa86381",
@@ -7691,8 +7692,8 @@
       "bytes": 2286
     },
     "reference/driftdroid/android/app/src/main/kotlin/com/driftdroid/android/RetroRewindRelease.kt": {
-      "sha256": "bc712b562daef1da59d972d854757e9221bf095d4c3569f0f6a1ea85b65c4e5c",
-      "bytes": 4048
+      "sha256": "67d70bc7450d9dd6f76e96fc3baabbc01a6288bce7047b6b0f07cf8cf1a5abc3",
+      "bytes": 4163
     },
     "reference/driftdroid/android/app/src/main/kotlin/com/driftdroid/android/SaveManagerActivity.kt": {
       "sha256": "591e26d37db32437d52acde699b500e557bf1eea6954a5920b7cc454fca77b9a",
@@ -7715,12 +7716,12 @@
       "bytes": 1541
     },
     "reference/driftdroid/android/app/src/main/kotlin/com/driftdroid/android/ThorBundledPresentation.kt": {
-      "sha256": "27358e53d1644b7defb0aff8a64c366fca496c53169586877f20953a1c1a3d0f",
-      "bytes": 11593
+      "sha256": "6f89ef2125862abbdcd6d3c7bd523897440d7b174cbb86b439088d0c8f9e2116",
+      "bytes": 12860
     },
     "reference/driftdroid/android/app/src/main/kotlin/com/driftdroid/android/ThorDialogs.kt": {
-      "sha256": "c33deddab5fb4fa4786a995d3d97014292e06e59111f333041de71c124475354",
-      "bytes": 10781
+      "sha256": "4dfe646cedbb8a0bd0fe75b441c5e9079f0bcc88cd67fc9006f63a92192c4441",
+      "bytes": 14273
     },
     "reference/driftdroid/android/app/src/main/kotlin/com/driftdroid/android/ThorGameLaunch.kt": {
       "sha256": "0f23a5e6044a07621eabdf2ef4e804e7ae9b4df677699a232613c8e369f6a39b",
@@ -7739,12 +7740,12 @@
       "bytes": 14208
     },
     "reference/driftdroid/android/app/src/main/kotlin/com/driftdroid/android/ThorLauncherView.kt": {
-      "sha256": "f2ac9f8aa73b8a07391adbee9d4c2c9d918a8b9688e00302ccc999fc57048a03",
-      "bytes": 70400
+      "sha256": "69e69971d0c1ce8c88326146e5dee50c4c8d946c75569af2e33092313dae6da7",
+      "bytes": 71240
     },
     "reference/driftdroid/android/app/src/main/kotlin/com/driftdroid/android/ThorLibraryCompanionView.kt": {
-      "sha256": "ba2e58e6b18c52926ab04a4f5d86976b767d7c37d61c573123d8e8bab376b9e9",
-      "bytes": 32285
+      "sha256": "ec8f798ac4c74fb00cf09affe4a63f8b0363a3150210c52a19bcef04ee079a74",
+      "bytes": 32797
     },
     "reference/driftdroid/android/app/src/main/kotlin/com/driftdroid/android/ThorLowerCompanion.kt": {
       "sha256": "1ece83625113c9b8f0007ab4c3eb2a322623acb97e49d795e713b48812fc3c60",
@@ -7775,8 +7776,8 @@
       "bytes": 859
     },
     "reference/driftdroid/android/app/src/main/kotlin/com/driftdroid/android/ThorRetroRewindUpdater.kt": {
-      "sha256": "1525056e09030ae9c11120711de012640237ca118fff459cc88591377e340d9e",
-      "bytes": 53021
+      "sha256": "b138048424feca5937b089b368836c3afa963eee81c06eec1c2fcb4237f058f7",
+      "bytes": 54456
     },
     "reference/driftdroid/android/app/src/main/kotlin/com/driftdroid/android/ThorRetroRewindUpdatesActivity.kt": {
       "sha256": "fb754a754b8a5724d526d91a9b00f43674aa8f0782662fb91435e3dbea45966e",
@@ -7963,8 +7964,8 @@
       "bytes": 581
     },
     "reference/driftdroid/aurora-main/cmake/aurora_core.cmake": {
-      "sha256": "c25cd6e35e4771b0f98665619e62d188933592959126dd4c798948eac6f2fe92",
-      "bytes": 3953
+      "sha256": "a2c7e68434131f11dea3e16ab1778eb5eb46bee6963e85a8bc6032a412c29132",
+      "bytes": 3973
     },
     "reference/driftdroid/aurora-main/cmake/aurora_dvd.cmake": {
       "sha256": "20bec50fd3a58da67ab644fb9afeff6631ef4529a02afc096e0f4dca0c59fd65",
@@ -8103,8 +8104,8 @@
       "bytes": 730
     },
     "reference/driftdroid/aurora-main/include/aurora/gfx.h": {
-      "sha256": "b3ee64afb7b2ed5ed8f323bf2bde955a47218b367741e5862f15553909a0b357",
-      "bytes": 4193
+      "sha256": "fd47b21cae620efef420a0eb501258885a66ee07838a62f1015b8661148ff1f2",
+      "bytes": 4925
     },
     "reference/driftdroid/aurora-main/include/aurora/imgui.h": {
       "sha256": "9940851d3f5676223f20d2e668338e17c63d10f8af76c8c9c14ed61663918c4c",
@@ -8503,8 +8504,8 @@
       "bytes": 43404
     },
     "reference/driftdroid/aurora-main/lib/aurora.cpp": {
-      "sha256": "c39d1daee2ea3981b5e9ffc1ac02566f123ad48b727beb3cb7a028b9142f2e2d",
-      "bytes": 82178
+      "sha256": "865bf2fe804a68a5431fbf31739c52f652f273ed7539cf1f8f31e0d6bb5421c0",
+      "bytes": 86880
     },
     "reference/driftdroid/aurora-main/lib/card/BlockAllocationTable.cpp": {
       "sha256": "a2276981a0bad3c8c90b6d639cbaefebe664ae76333c9a7f80540b38a7e5c62d",
@@ -8943,8 +8944,8 @@
       "bytes": 537
     },
     "reference/driftdroid/aurora-main/lib/gx/command_processor.cpp": {
-      "sha256": "125e866c0de94d0b8274aac108ec0cb325801f9795d616e1c43246febbc8731f",
-      "bytes": 100567
+      "sha256": "032c636aa915a532af199af064c1fc9ed807afe855793fee0ba9db5d01a2f3dd",
+      "bytes": 100595
     },
     "reference/driftdroid/aurora-main/lib/gx/command_processor.hpp": {
       "sha256": "7d38a8b26493978598deef0d0f3153f95fb5c844459e63c676093a78c6335dfb",
@@ -8959,12 +8960,12 @@
       "bytes": 4374
     },
     "reference/driftdroid/aurora-main/lib/gx/frame_interpolation.cpp": {
-      "sha256": "ec1b96e31e181ea0df215afb598192e98fb47e887a03672b72f3f05ca7fe8f0a",
-      "bytes": 68511
+      "sha256": "322a9e38083950f464aecaebe27bbb93e44f2491daadca3f5c8de5e649360c62",
+      "bytes": 69243
     },
     "reference/driftdroid/aurora-main/lib/gx/frame_interpolation.hpp": {
-      "sha256": "e78a3e5cb64ad4d4c1128cc1cac45ac200b24b31bd7964bcbbcb2b7269a68683",
-      "bytes": 4529
+      "sha256": "fedba9ab287c1c651028cf0059368bb03b3392d4dfcd6baee18eddd8fecc6f82",
+      "bytes": 4948
     },
     "reference/driftdroid/aurora-main/lib/gx/gx.cpp": {
       "sha256": "df30038d6cf03de96edda0a83a64443b3620dba8b764307b66853afc09f0cdde",
@@ -8991,8 +8992,8 @@
       "bytes": 92063
     },
     "reference/driftdroid/aurora-main/lib/gx/shader_info.cpp": {
-      "sha256": "bde5ff9c7b150c9807dddb604005b33324b380c9f8b938cc8893f31c522f981b",
-      "bytes": 31306
+      "sha256": "1203d92d6ba55dbff657f7cfcdfe874f85c2a56090f24f4acb7f0e608904b71a",
+      "bytes": 31333
     },
     "reference/driftdroid/aurora-main/lib/gx/shader_info.hpp": {
       "sha256": "e001751a9a27cd1f10b89e830fa6e777dd1a903ce17341617ee314d5168c8656",
@@ -9083,8 +9084,8 @@
       "bytes": 308
     },
     "reference/driftdroid/aurora-main/lib/webgpu/gpu.cpp": {
-      "sha256": "aa3f237563e96b09bf00fdc370ba8976a99ed985587f480450fbc444b5c4852d",
-      "bytes": 47817
+      "sha256": "6599297733ed670e18bb5b81d113c0506f3c193b007c7be58a3c325877c1f109",
+      "bytes": 48193
     },
     "reference/driftdroid/aurora-main/lib/webgpu/gpu.hpp": {
       "sha256": "c101a50a6aef841c1dc945d81ae9f05d7c99d8aace9139167849523b2c5cb6cf",
@@ -9347,8 +9348,8 @@
       "bytes": 3250
     },
     "reference/driftdroid/runtime/include/runtime_config.h": {
-      "sha256": "21201ad251d75a544da7f5f490a5bfe3aa5e47f7dc0b621ca4f38efc454040aa",
-      "bytes": 48536
+      "sha256": "6acdd8c465e3d7c63e98a704856a9991a8672a3941c4a00b2217d02e69c28805",
+      "bytes": 50088
     },
     "reference/driftdroid/runtime/include/runtime_log.h": {
       "sha256": "f8abcb274339680a0898b8b4d7f5202b1d8ed5dc52f3dc62431e32bdb4600392",
@@ -9415,8 +9416,8 @@
       "bytes": 26354
     },
     "reference/driftdroid/runtime/src/android_gpu_driver.cpp": {
-      "sha256": "e8a24bd1f44da837b105e1b948a5aa52f69b071338d13a4e25c4e7acfe978ce6",
-      "bytes": 4898
+      "sha256": "628c26079c13617060d32808e65fe7aadf1077dbffe3686bd2da6db96f71a6f8",
+      "bytes": 5286
     },
     "reference/driftdroid/runtime/src/android_jni_bridge.cpp": {
       "sha256": "4d2fc3c759c5c4d2e3305dab961e6885d702c89b47224698bb9783b5465bb7f6",
@@ -9503,7 +9504,7 @@
       "bytes": 3953
     },
     "reference/driftdroid/runtime/src/hle/frame_rate_lock.cpp": {
-      "sha256": "9cc1e8b842ad4e41f11ed1182adce1aca05c1384f932ae51af408ca01e40e1a0",
+      "sha256": "87dc4419f8adee938c4ec26b0aa83dba3b4a1f6a731ff9ba5c5f32efef7a6b4b",
       "bytes": 3037
     },
     "reference/driftdroid/runtime/src/hle/guest_printf.h": {
@@ -9815,8 +9816,8 @@
       "bytes": 30320
     },
     "reference/driftdroid/runtime/src/settings_overlay.cpp": {
-      "sha256": "53f450952dd712697e040d6f1e44c0cedb6539bb211b02e77e9a74bbbfb36c95",
-      "bytes": 133802
+      "sha256": "ff6b2867e10d627c4151ab41748cde459185e4a49bafa044e779a5fcda4f9531",
+      "bytes": 136954
     },
     "reference/driftdroid/runtime/src/switch_bundled_files.cpp": {
       "sha256": "a947e401cb61ebb636cb7cca8ba1f0571002fb49ceea2211df37b994f026e9fe",
@@ -33135,8 +33136,8 @@
       "bytes": 1097
     },
     "reference/galaxy-android/platform/include/port/input.h": {
-      "sha256": "618c2fd26f28d93905bea35ea6d598f9592e9d646ae7d972b17d4186133e4c1e",
-      "bytes": 2048
+      "sha256": "95e2650def01bf264aa6c8b54707e3a7ea4f429e3bc97bd6a58c08c967cc55d5",
+      "bytes": 2258
     },
     "reference/galaxy-android/platform/include/port/input_script.h": {
       "sha256": "c98e709bb9c2662f30bc786739a84fcde7e78889d26d24699af99ca1b1eb2651",
@@ -33151,8 +33152,8 @@
       "bytes": 9380
     },
     "reference/galaxy-android/platform/include/port/port.h": {
-      "sha256": "13483d47eb4ebbcf639caa3dbe5e2a07f59d58b54e1df97f6c0834a01807c21b",
-      "bytes": 10012
+      "sha256": "9b7296b0698ddd88a1a2aa67872ee1844b1684b0bf147499f1efcb6909fef3cf",
+      "bytes": 10279
     },
     "reference/galaxy-android/platform/include/port/ppc_intrinsics.h": {
       "sha256": "c23743136245aa29c5a384d32557b98ca51d9fbc7b3a0b4fd2c768172850df2f",
@@ -33211,8 +33212,8 @@
       "bytes": 412
     },
     "reference/galaxy-android/platform/mobile/core/MobileApp.cpp": {
-      "sha256": "8e88d418363e7711db584a679f813effbfdc08eb188d73d27e52739a1dcc2ca1",
-      "bytes": 14457
+      "sha256": "c93424ea59323eadeac6560f0281ad2a4b8a6258b538d03e617b8f004c31cc18",
+      "bytes": 15116
     },
     "reference/galaxy-android/platform/mobile/core/MobileApp.h": {
       "sha256": "f5e7206290b6fc634a0d0b84271039be38e554a56d87e960c202440f9e75ba8b",
@@ -33463,12 +33464,12 @@
       "bytes": 1476
     },
     "reference/galaxy-android/platform/mobile/ui/SaveManager.cpp": {
-      "sha256": "6b2b32668ff15bbadd5cb284df0337a82b68d0a9a5e1c6f44ff195edb9e3f5c9",
-      "bytes": 8971
+      "sha256": "fed279d26e3fba9ab35907e47ee522ab8cf5e391d35be4a58b14918d41e716f0",
+      "bytes": 11611
     },
     "reference/galaxy-android/platform/mobile/ui/SaveManager.h": {
-      "sha256": "5371fa57c26096050def1a50c0710b60d177c02c7469dff6d9d793803ffa9920",
-      "bytes": 1558
+      "sha256": "6ddd818ed0ed5afc0e1bdf1ec152ecb35ddde4f49f4a06bc36238b67ed03215e",
+      "bytes": 1519
     },
     "reference/galaxy-android/platform/mobile/ui/SaveSyncManager.cpp": {
       "sha256": "37b0797136f94312441f729d2b4a76b57186904944c80e41a148cb050d4cada3",
@@ -33555,12 +33556,12 @@
       "bytes": 956
     },
     "reference/galaxy-android/platform/mobile/ui/UIOverlay.cpp": {
-      "sha256": "3fe3f6e8e38e18f21bc652b0446b5eb43a52766e4d0aa03fb963ad6befcc363c",
-      "bytes": 6508
+      "sha256": "511b9ed5be9a8d738afe09928454a5740b17810b059ec0ec4e90feca7c746f3a",
+      "bytes": 6750
     },
     "reference/galaxy-android/platform/mobile/ui/UIOverlay.h": {
-      "sha256": "9c1c1c7e6dada77d28adf869f6545e76ab61e3c9c91afbd8e08cf603db577516",
-      "bytes": 3736
+      "sha256": "96582483484dc486245eeaf5241dd69f222b7d05b8e57bae502550b794f2de99",
+      "bytes": 3769
     },
     "reference/galaxy-android/platform/mobile/ui/VertexBatcher.cpp": {
       "sha256": "945f910fbe4ad6db830e753f8825627e22f7ca21edf18220f5e59e9bb16717a2",
@@ -33771,8 +33772,8 @@
       "bytes": 13386
     },
     "reference/galaxy-android/platform/src/gx/vk/vk_common.cpp": {
-      "sha256": "a17d73b541302e01946e17be3516eeb6978766068a6bd07a2747a43898db9bd4",
-      "bytes": 2302
+      "sha256": "9b56a2a9924a2b92dc5e5ab4ff31d92f75ae59405210643eb260333f25a381d1",
+      "bytes": 2560
     },
     "reference/galaxy-android/platform/src/gx/vk/vk_common.h": {
       "sha256": "68762234f90feddc04d5111a060245b648af0813a79c84a22c2998718d0ffdf9",
@@ -33951,8 +33952,8 @@
       "bytes": 11898
     },
     "reference/galaxy-android/platform/src/input/wpad.cpp": {
-      "sha256": "709200cd12846de21c6d85245236f4a147ad7166573ae1c732130809d162f2e4",
-      "bytes": 11241
+      "sha256": "ede905ccf0609540e57ff320b1cac50ae225b5c3156bac3b1a336032a1cb1f8a",
+      "bytes": 12379
     },
     "reference/galaxy-android/platform/src/nand/nand.cpp": {
       "sha256": "32ebfc56a2f72a15340afe92602e6790ee0af24ad6d68abadcfde7ed4013b01b",
@@ -34011,8 +34012,8 @@
       "bytes": 4232
     },
     "reference/galaxy-android/platform/src/port/missing_game.cpp": {
-      "sha256": "95f3e16cd587e75dfcae310e9335ab1c7862e553b8371bf975ad8e685abce19d",
-      "bytes": 6768
+      "sha256": "70b7d08f17c559b230d3a7379f6a949ad5fc85d7ce000b83358f9f0d45b53527",
+      "bytes": 7930
     },
     "reference/galaxy-android/platform/src/port/msl_conv.cpp": {
       "sha256": "519d6670ac8fa0a5f331650dccd1c2450aef669134ff0515507833927a4e24b0",
@@ -34887,8 +34888,8 @@
       "bytes": 8596
     },
     "reference/nsmbw-android-e1/android/app/src/main/java/com/wither/nsmbw/ThorCompanion.java": {
-      "sha256": "8b8de0d042151ba61824cce6f4296d613463443668b4ce831c20f56a73741047",
-      "bytes": 26942
+      "sha256": "cf041b929d12c58670a0383c78b343f1e7a7efc5242d01e1625bdc43a324ec42",
+      "bytes": 26874
     },
     "reference/nsmbw-android-e1/android/app/src/main/java/com/wither/nsmbw/ThorGameState.java": {
       "sha256": "ccb96593831db105f35ca387db89d7992efa070a8474ba611fd9aecbe3dfa1c1",
@@ -34903,16 +34904,16 @@
       "bytes": 2527
     },
     "reference/nsmbw-android-e1/android/app/src/main/java/com/wither/nsmbw/ThorLowerScreen.java": {
-      "sha256": "808a4b6c5b2e33facdb33c6d53568560d074942c7df1d93eee7d354e87f93f7a",
-      "bytes": 14248
+      "sha256": "78ce52a36bb77f4a8d20db90386904d2f1c9ba64ac9f88e6e3aa4c0c64b164b0",
+      "bytes": 13044
     },
     "reference/nsmbw-android-e1/android/app/src/main/java/com/wither/nsmbw/ThorReserveState.java": {
       "sha256": "5be5d3b2e10c17a7e53bbf7ed6d1a6e5cbb68f9de9da5fc40ade0591f16b1549",
       "bytes": 657
     },
     "reference/nsmbw-android-e1/android/app/src/main/java/com/wither/nsmbw/ThorWorldMap.java": {
-      "sha256": "2a5fde9ec1dc1736c467c3d99cf33f16404ffa711c5288c18c52988e7cc758bb",
-      "bytes": 2592
+      "sha256": "f1eac5bd337a02cab7cf52eeaba9ece899ea514ee0be4b24dd99f1cc34ee7bd5",
+      "bytes": 2843
     },
     "reference/nsmbw-android-e1/android/app/src/main/java/com/wither/nsmbw/TouchControlsView.java": {
       "sha256": "275ee5fb290abd0f4a65effbe0dff00891a14edbf7c5c8e6b2722692ceb0ce58",
@@ -36611,8 +36612,8 @@
       "bytes": 478
     },
     "reference/nsmbw-android-e1/runtime/include/thor_world_map.h": {
-      "sha256": "6e68b7bd6b3c247c8e94aff017e1ef72a35b9edb7a8e6cdad0bc749085179a99",
-      "bytes": 1051
+      "sha256": "644a38b47df9aaa6f468b2eb2f744c2ac3fc3312482b2c9346efe0ed32c97034",
+      "bytes": 1211
     },
     "reference/nsmbw-android-e1/runtime/include/timebase_contract.h": {
       "sha256": "7c567c98efe22d1245e6fecf79b60b64ae64b3823a2d09e1621cd2f98b8cc69c",
@@ -36851,8 +36852,8 @@
       "bytes": 5504
     },
     "reference/nsmbw-android-e1/runtime/src/hle/input/wpad.cpp": {
-      "sha256": "1be0592f46a4001f2fc7c1506f2b545551b772f93704a0dca6e89c77f0c96bf5",
-      "bytes": 8484
+      "sha256": "cf94d9fb38b1637ecf0238d5fdd91998c610806ac6c66e9ac0a458b9f57750af",
+      "bytes": 9089
     },
     "reference/nsmbw-android-e1/runtime/src/hle/ios.cpp": {
       "sha256": "7504dd84bb2a6a1c9e95516049ba1bd0f472fc2e4558b3d21f8a4b3103c36349",
@@ -37135,12 +37136,12 @@
       "bytes": 12143
     },
     "reference/nsmbw-android-e1/runtime/src/thor_world_map.cpp": {
-      "sha256": "24e1caf76f218e7995260a68c120644a5c8133735b80343f6f54e75975f6a4e3",
-      "bytes": 5730
+      "sha256": "0dcda6ed630aea02d35bbf5c3bb1cdc7e1f74a374ac62250b2de7287ab9a6d67",
+      "bytes": 6711
     },
     "reference/nsmbw-android-e1/runtime/src/virtual_remote.cpp": {
-      "sha256": "e154749784a708b70d96f1e034fb359be1678d9ed030e428680becccded498f5",
-      "bytes": 10771
+      "sha256": "884767fdef8043fb51f2d470c6427351c95105e336a4cfed9c38cccbb00f5849",
+      "bytes": 10755
     },
     "reference/nsmbw-android-e1/runtime/src/wii_remote_input.cpp": {
       "sha256": "64b35f9d034d13798bac125e6cf279db240a660ad356d315f836404b738a13a9",
@@ -40127,8 +40128,8 @@
       "bytes": 8596
     },
     "reference/nsmbw-android-msmbwii/android/app/src/main/java/com/wither/nsmbw/ThorCompanion.java": {
-      "sha256": "8b8de0d042151ba61824cce6f4296d613463443668b4ce831c20f56a73741047",
-      "bytes": 26942
+      "sha256": "cf041b929d12c58670a0383c78b343f1e7a7efc5242d01e1625bdc43a324ec42",
+      "bytes": 26874
     },
     "reference/nsmbw-android-msmbwii/android/app/src/main/java/com/wither/nsmbw/ThorGameState.java": {
       "sha256": "ccb96593831db105f35ca387db89d7992efa070a8474ba611fd9aecbe3dfa1c1",
@@ -40143,16 +40144,16 @@
       "bytes": 2485
     },
     "reference/nsmbw-android-msmbwii/android/app/src/main/java/com/wither/nsmbw/ThorLowerScreen.java": {
-      "sha256": "808a4b6c5b2e33facdb33c6d53568560d074942c7df1d93eee7d354e87f93f7a",
-      "bytes": 14248
+      "sha256": "78ce52a36bb77f4a8d20db90386904d2f1c9ba64ac9f88e6e3aa4c0c64b164b0",
+      "bytes": 13044
     },
     "reference/nsmbw-android-msmbwii/android/app/src/main/java/com/wither/nsmbw/ThorReserveState.java": {
       "sha256": "5be5d3b2e10c17a7e53bbf7ed6d1a6e5cbb68f9de9da5fc40ade0591f16b1549",
       "bytes": 657
     },
     "reference/nsmbw-android-msmbwii/android/app/src/main/java/com/wither/nsmbw/ThorWorldMap.java": {
-      "sha256": "2a5fde9ec1dc1736c467c3d99cf33f16404ffa711c5288c18c52988e7cc758bb",
-      "bytes": 2592
+      "sha256": "f1eac5bd337a02cab7cf52eeaba9ece899ea514ee0be4b24dd99f1cc34ee7bd5",
+      "bytes": 2843
     },
     "reference/nsmbw-android-msmbwii/android/app/src/main/java/com/wither/nsmbw/TouchControlsView.java": {
       "sha256": "275ee5fb290abd0f4a65effbe0dff00891a14edbf7c5c8e6b2722692ceb0ce58",
@@ -41847,8 +41848,8 @@
       "bytes": 310
     },
     "reference/nsmbw-android-msmbwii/runtime/include/thor_world_map.h": {
-      "sha256": "6e68b7bd6b3c247c8e94aff017e1ef72a35b9edb7a8e6cdad0bc749085179a99",
-      "bytes": 1051
+      "sha256": "644a38b47df9aaa6f468b2eb2f744c2ac3fc3312482b2c9346efe0ed32c97034",
+      "bytes": 1211
     },
     "reference/nsmbw-android-msmbwii/runtime/include/timebase_contract.h": {
       "sha256": "7c567c98efe22d1245e6fecf79b60b64ae64b3823a2d09e1621cd2f98b8cc69c",
@@ -42087,8 +42088,8 @@
       "bytes": 5504
     },
     "reference/nsmbw-android-msmbwii/runtime/src/hle/input/wpad.cpp": {
-      "sha256": "1be0592f46a4001f2fc7c1506f2b545551b772f93704a0dca6e89c77f0c96bf5",
-      "bytes": 8484
+      "sha256": "cf94d9fb38b1637ecf0238d5fdd91998c610806ac6c66e9ac0a458b9f57750af",
+      "bytes": 9089
     },
     "reference/nsmbw-android-msmbwii/runtime/src/hle/ios.cpp": {
       "sha256": "7504dd84bb2a6a1c9e95516049ba1bd0f472fc2e4558b3d21f8a4b3103c36349",
@@ -42371,12 +42372,12 @@
       "bytes": 9211
     },
     "reference/nsmbw-android-msmbwii/runtime/src/thor_world_map.cpp": {
-      "sha256": "24e1caf76f218e7995260a68c120644a5c8133735b80343f6f54e75975f6a4e3",
-      "bytes": 5730
+      "sha256": "0dcda6ed630aea02d35bbf5c3bb1cdc7e1f74a374ac62250b2de7287ab9a6d67",
+      "bytes": 6711
     },
     "reference/nsmbw-android-msmbwii/runtime/src/virtual_remote.cpp": {
-      "sha256": "e154749784a708b70d96f1e034fb359be1678d9ed030e428680becccded498f5",
-      "bytes": 10771
+      "sha256": "884767fdef8043fb51f2d470c6427351c95105e336a4cfed9c38cccbb00f5849",
+      "bytes": 10755
     },
     "reference/nsmbw-android-msmbwii/runtime/src/wii_remote_input.cpp": {
       "sha256": "64b35f9d034d13798bac125e6cf279db240a660ad356d315f836404b738a13a9",
@@ -50331,8 +50332,8 @@
       "bytes": 6033
     },
     "release/version.properties": {
-      "sha256": "570b3d0cc98876fb4b1c9f735599ceffa0877c4a3eddfc4fcfae4631af303ca5",
-      "bytes": 118
+      "sha256": "a9804f0a72baf9adbb44a9a72cd73055a848c6fb10cb8e6fcd0fc0e8ad113c8f",
+      "bytes": 120
     },
     "scripts/Bake-ThorCustomMaps.py": {
       "sha256": "76edc5adab77e84b2d1b884fce912acc161340fb0d67a632d9bff5d030136d32",
@@ -52539,12 +52540,12 @@
       "bytes": 1508
     },
     "third_party/SDL2-wiids/src/core/android/SDL_android.c": {
-      "sha256": "246eb1ae6c78ef0d5539bb6619ba6263d31f9bfcd06946669ee454f533fb70ae",
-      "bytes": 96990
+      "sha256": "af49171fb9fa048750e55984ecee557ce9c5bffa51ea614dc610ba09bfc8993e",
+      "bytes": 97639
     },
     "third_party/SDL2-wiids/src/core/android/SDL_android.h": {
-      "sha256": "f1213436bf596fbc312fec7bda27c7f7c141984e6a011cb82e4575e6a45399dc",
-      "bytes": 5479
+      "sha256": "947a7e99ffa05511fbf3b16d0c3630ba77f219fb37d0ad8b8bf12aa48ed47508",
+      "bytes": 5765
     },
     "third_party/SDL2-wiids/src/core/freebsd/SDL_evdev_kbd_default_keyaccmap.h": {
       "sha256": "5089fe420f17ae73e53afbf598e81d7114c2051df69ba28d623019647b3b448d",
@@ -53207,8 +53208,8 @@
       "bytes": 9966
     },
     "third_party/SDL2-wiids/src/joystick/android/SDL_sysjoystick.c": {
-      "sha256": "6a4a55f657e03c81093e3a8b98a03f221278b3e81948586b8c86aae24e4fbf95",
-      "bytes": 20123
+      "sha256": "27918821b509405a18555c14f940612df411741fa7c51701853ad578618f9cab",
+      "bytes": 20604
     },
     "third_party/SDL2-wiids/src/joystick/android/SDL_sysjoystick_c.h": {
       "sha256": "d42e48d15d858bd2acc93f78fcf62f73f53df97a6f07e38c291658f37c39eef9",
@@ -58895,8 +58896,8 @@
       "bytes": 573
     },
     "wiids/disc/src/wiids_disc.cpp": {
-      "sha256": "756bd01f4ac398086cd1d056e02df52ab1d68702d4da1f28c006df56241ea2ec",
-      "bytes": 39804
+      "sha256": "dec139dadc6c020ba28ac9dbcae58559ae9a3fcd733d406dfd09163352c39cb5",
+      "bytes": 42087
     },
     "wiids/disc/third_party/bzip2/LICENSE": {
       "sha256": "9102b70091e84168c468d57dcca64ec1f60c76cefbc83b66e1754725b9dd90cf",
@@ -59721,6 +59722,86 @@
     "docs/release/1.1-IN-APP-UPDATES.md": {
       "sha256": "ec91d3fc9b75f4374e2af881be5366e5423b1df59c5cb6419c54a94254b03536",
       "bytes": 2721
+    },
+    "reference/driftdroid/android/app/src/main/java/org/libsdl/sdl2/app/SDLGamepadRumble.java": {
+      "sha256": "f7aafd150381b327b20417a890acc30cc777a3a703af7808df883bc098c5f80f",
+      "bytes": 5693
+    },
+    "reference/driftdroid/android/app/src/main/kotlin/com/driftdroid/android/FrameGenerationSettings.kt": {
+      "sha256": "d8f6651357f67ea0ace73f9b2ab200b998462bbaf218f8e8cd06193c352d735e",
+      "bytes": 7296
+    },
+    "reference/driftdroid/android/app/src/main/kotlin/com/driftdroid/android/RumbleSettings.kt": {
+      "sha256": "0eeea628476fef3f629a27c8d9ac6c03a37b54eaefeedf4df24585be1c3f8dda",
+      "bytes": 2956
+    },
+    "reference/driftdroid/android/app/src/main/kotlin/com/driftdroid/android/ThorMenuTheme.kt": {
+      "sha256": "8eaebc4762d89860d78ad634b05e769d5c11de6c07fd52a7067c498eeac71e77",
+      "bytes": 6916
+    },
+    "reference/driftdroid/runtime/src/android_vulkan_override.cpp": {
+      "sha256": "911d5c00b8f6e9619ab5f0f017c831162ca60ef4f0c1ff8e9a1252fac3a67a86",
+      "bytes": 2436
+    },
+    "reference/driftdroid/aurora-main/lib/webgpu/lsfg.cpp": {
+      "sha256": "3f50e54ad56d4a455814950c9ff96366743b3876c87710fd8bfabc0f7b347b3c",
+      "bytes": 20562
+    },
+    "reference/driftdroid/aurora-main/lib/webgpu/lsfg.hpp": {
+      "sha256": "1d99ba4df94b2d78c48c7a9bb268d0f1834638537361da4152fe34857cbcb837",
+      "bytes": 1846
+    },
+    "docs/release/V1.1.1.md": {
+      "sha256": "702a15fd1d8118c01213c9d3d04265dc3fbe6753542a6e92f80a5d8b5eadf029",
+      "bytes": 5358
+    },
+    "third_party/bloodframe/wiids-ahb-storage-fallback.patch": {
+      "sha256": "34d951eb502c4bdf42fdb62a27990899f81375c3dbce910811e1df92ddeca2bd",
+      "bytes": 2248
+    },
+    "third_party/bloodframe/LICENSE.md": {
+      "sha256": "828512d34329496a4f73b45fa171173311b7cc21b68c11e21a0ed6660e581c20",
+      "bytes": 1202
+    },
+    "third_party/bloodframe/build_bloodframe.ps1": {
+      "sha256": "5ee8a64eadbd3e44e228c202b3ae2f1ab5410143754e5b6d0136b1b4cd872675",
+      "bytes": 1495
+    },
+    "third_party/bloodframe/PROVENANCE.json": {
+      "sha256": "edbb638c915479892b41eee748f5dd64a384e9d7481209613344aa1f3152b254",
+      "bytes": 754
+    },
+    "third_party/libadrenotools/LICENSE": {
+      "sha256": "25adc710d81a37eb90a453aec3217eda016407ff4cf9616356ec1d9a10b36098",
+      "bytes": 1323
+    },
+    "third_party/libadrenotools/LICENSE-linkernsbypass": {
+      "sha256": "25adc710d81a37eb90a453aec3217eda016407ff4cf9616356ec1d9a10b36098",
+      "bytes": 1323
+    },
+    "third_party/libadrenotools/PROVENANCE.json": {
+      "sha256": "0c849213d6e72038f655e2f570b35446401cab989353d61c38623a1bd36581b4",
+      "bytes": 652
+    },
+    "experiments/release/1.1.1/build_native_drivers.py": {
+      "sha256": "a771143a4263181880f0b9340ec7ff4ee8d21d89d227f861f7a8a053e2822a31",
+      "bytes": 4121
+    },
+    "experiments/release/1.1.1/build_nsmbw_rumble.py": {
+      "sha256": "a68194f27155d785b94e9a9839687f87387b95e62dbd692582ed1d097f96e0ec",
+      "bytes": 4124
+    },
+    "experiments/release/1.1.1/build_release_1_1_1.py": {
+      "sha256": "7576d174f04b47484e17bbab4caae2131887e907e6f732fe9e056dac93316178",
+      "bytes": 4330
+    },
+    "experiments/release/1.1.1/prepare_release_1_1_1.py": {
+      "sha256": "c5764fbe532f13d762cb5ec8ea6dd0d1d607f14c62ddc631a8a399003493ab3b",
+      "bytes": 16756
+    },
+    "experiments/release/1.1.1/README.md": {
+      "sha256": "a5bb7ec6dc3ba912ac0623bbf15a1aff4893570ed56324ffa325bbb9916fa887",
+      "bytes": 1083
     }
   },
   "hotfix": {
@@ -59735,5 +59816,112 @@
     "versionCode": 1102,
     "scope": "Android update screen, verified GitHub metadata/download/install flow, operation gates, policy tests and documentation",
     "unchanged_source_snapshot_preserved": true
+  },
+  "release_1_1_1": {
+    "base_source_sha256": "85599f23914cf5275c1a2f5697256216c8b2d510c7231ba2d4cf235906a6d600",
+    "version": "1.1.1",
+    "versionCode": 1111,
+    "changed": [
+      "reference/driftdroid/android/app/src/main/java/com/wither/nsmbw/ThorCompanion.java",
+      "reference/driftdroid/android/app/src/main/java/com/wither/nsmbw/ThorLowerScreen.java",
+      "reference/driftdroid/android/app/src/main/java/com/wither/nsmbw/ThorWorldMap.java",
+      "reference/driftdroid/android/app/src/main/java/dev/thor/galaxy/GalaxyActivity.java",
+      "reference/driftdroid/android/app/src/main/java/dev/thor/galaxy/GalaxyImportActivity.java",
+      "reference/driftdroid/android/app/src/main/java/dev/thor/galaxy/GalaxySettingsMenu.java",
+      "reference/driftdroid/android/app/src/main/java/org/libsdl/app/SDLControllerManager.java",
+      "reference/driftdroid/android/app/src/main/java/org/libsdl/sdl2/app/SDLControllerManager.java",
+      "reference/driftdroid/android/app/src/main/kotlin/com/driftdroid/android/GamesActivity.kt",
+      "reference/driftdroid/android/app/src/main/kotlin/com/driftdroid/android/GpuDriverSettings.kt",
+      "reference/driftdroid/android/app/src/main/kotlin/com/driftdroid/android/ModePickerActivity.kt",
+      "reference/driftdroid/android/app/src/main/kotlin/com/driftdroid/android/RetroRewindRelease.kt",
+      "reference/driftdroid/android/app/src/main/kotlin/com/driftdroid/android/ThorBundledPresentation.kt",
+      "reference/driftdroid/android/app/src/main/kotlin/com/driftdroid/android/ThorDialogs.kt",
+      "reference/driftdroid/android/app/src/main/kotlin/com/driftdroid/android/ThorLauncherView.kt",
+      "reference/driftdroid/android/app/src/main/kotlin/com/driftdroid/android/ThorLibraryCompanionView.kt",
+      "reference/driftdroid/android/app/src/main/kotlin/com/driftdroid/android/ThorRetroRewindUpdater.kt",
+      "reference/driftdroid/aurora-main/cmake/aurora_core.cmake",
+      "reference/driftdroid/aurora-main/include/aurora/gfx.h",
+      "reference/driftdroid/aurora-main/lib/aurora.cpp",
+      "reference/driftdroid/aurora-main/lib/gx/command_processor.cpp",
+      "reference/driftdroid/aurora-main/lib/gx/frame_interpolation.cpp",
+      "reference/driftdroid/aurora-main/lib/gx/frame_interpolation.hpp",
+      "reference/driftdroid/aurora-main/lib/gx/shader_info.cpp",
+      "reference/driftdroid/aurora-main/lib/webgpu/gpu.cpp",
+      "reference/driftdroid/runtime/include/runtime_config.h",
+      "reference/driftdroid/runtime/src/android_gpu_driver.cpp",
+      "reference/driftdroid/runtime/src/hle/frame_rate_lock.cpp",
+      "reference/driftdroid/runtime/src/settings_overlay.cpp",
+      "reference/galaxy-android/platform/include/port/input.h",
+      "reference/galaxy-android/platform/include/port/port.h",
+      "reference/galaxy-android/platform/mobile/core/MobileApp.cpp",
+      "reference/galaxy-android/platform/mobile/ui/SaveManager.cpp",
+      "reference/galaxy-android/platform/mobile/ui/SaveManager.h",
+      "reference/galaxy-android/platform/mobile/ui/UIOverlay.cpp",
+      "reference/galaxy-android/platform/mobile/ui/UIOverlay.h",
+      "reference/galaxy-android/platform/src/gx/vk/vk_common.cpp",
+      "reference/galaxy-android/platform/src/input/wpad.cpp",
+      "reference/galaxy-android/platform/src/port/missing_game.cpp",
+      "reference/nsmbw-android-e1/android/app/src/main/java/com/wither/nsmbw/ThorCompanion.java",
+      "reference/nsmbw-android-e1/android/app/src/main/java/com/wither/nsmbw/ThorLowerScreen.java",
+      "reference/nsmbw-android-e1/android/app/src/main/java/com/wither/nsmbw/ThorWorldMap.java",
+      "reference/nsmbw-android-e1/runtime/include/thor_world_map.h",
+      "reference/nsmbw-android-e1/runtime/src/hle/input/wpad.cpp",
+      "reference/nsmbw-android-e1/runtime/src/thor_world_map.cpp",
+      "reference/nsmbw-android-e1/runtime/src/virtual_remote.cpp",
+      "reference/nsmbw-android-msmbwii/android/app/src/main/java/com/wither/nsmbw/ThorCompanion.java",
+      "reference/nsmbw-android-msmbwii/android/app/src/main/java/com/wither/nsmbw/ThorLowerScreen.java",
+      "reference/nsmbw-android-msmbwii/android/app/src/main/java/com/wither/nsmbw/ThorWorldMap.java",
+      "reference/nsmbw-android-msmbwii/runtime/include/thor_world_map.h",
+      "reference/nsmbw-android-msmbwii/runtime/src/hle/input/wpad.cpp",
+      "reference/nsmbw-android-msmbwii/runtime/src/thor_world_map.cpp",
+      "reference/nsmbw-android-msmbwii/runtime/src/virtual_remote.cpp",
+      "release/version.properties",
+      "third_party/SDL2-wiids/src/core/android/SDL_android.c",
+      "third_party/SDL2-wiids/src/core/android/SDL_android.h",
+      "third_party/SDL2-wiids/src/joystick/android/SDL_sysjoystick.c",
+      "wiids/disc/src/wiids_disc.cpp"
+    ],
+    "added": [
+      "docs/release/V1.1.1.md",
+      "experiments/release/1.1.1/README.md",
+      "experiments/release/1.1.1/build_native_drivers.py",
+      "experiments/release/1.1.1/build_nsmbw_rumble.py",
+      "experiments/release/1.1.1/build_release_1_1_1.py",
+      "experiments/release/1.1.1/prepare_release_1_1_1.py",
+      "reference/driftdroid/android/app/src/main/java/org/libsdl/sdl2/app/SDLGamepadRumble.java",
+      "reference/driftdroid/android/app/src/main/kotlin/com/driftdroid/android/FrameGenerationSettings.kt",
+      "reference/driftdroid/android/app/src/main/kotlin/com/driftdroid/android/RumbleSettings.kt",
+      "reference/driftdroid/android/app/src/main/kotlin/com/driftdroid/android/ThorMenuTheme.kt",
+      "reference/driftdroid/aurora-main/lib/webgpu/lsfg.cpp",
+      "reference/driftdroid/aurora-main/lib/webgpu/lsfg.hpp",
+      "reference/driftdroid/runtime/src/android_vulkan_override.cpp",
+      "third_party/bloodframe/LICENSE.md",
+      "third_party/bloodframe/PROVENANCE.json",
+      "third_party/bloodframe/build_bloodframe.ps1",
+      "third_party/bloodframe/wiids-ahb-storage-fallback.patch",
+      "third_party/libadrenotools/LICENSE",
+      "third_party/libadrenotools/LICENSE-linkernsbypass",
+      "third_party/libadrenotools/PROVENANCE.json"
+    ],
+    "counted_source_files": [
+      "experiments/release/1.1.1/build_native_drivers.py",
+      "experiments/release/1.1.1/build_nsmbw_rumble.py",
+      "experiments/release/1.1.1/build_release_1_1_1.py",
+      "experiments/release/1.1.1/prepare_release_1_1_1.py",
+      "reference/driftdroid/android/app/src/main/java/org/libsdl/sdl2/app/SDLGamepadRumble.java",
+      "reference/driftdroid/android/app/src/main/kotlin/com/driftdroid/android/FrameGenerationSettings.kt",
+      "reference/driftdroid/android/app/src/main/kotlin/com/driftdroid/android/RumbleSettings.kt",
+      "reference/driftdroid/android/app/src/main/kotlin/com/driftdroid/android/ThorMenuTheme.kt",
+      "reference/driftdroid/aurora-main/lib/webgpu/lsfg.cpp",
+      "reference/driftdroid/aurora-main/lib/webgpu/lsfg.hpp",
+      "reference/driftdroid/runtime/src/android_vulkan_override.cpp",
+      "third_party/bloodframe/build_bloodframe.ps1"
+    ],
+    "excluded": [
+      "paused achievements client (reference/nsmbw-android-e1 thor_ra.*, vi.cpp, CMake product lists)",
+      "staged APK assets and licence copies (bundled presentation stays outside the source archive)",
+      "translated guest code (private, derived from the game)",
+      "machine-local Gradle files"
+    ]
   }
 }

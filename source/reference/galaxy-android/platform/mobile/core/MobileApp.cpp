@@ -5,6 +5,7 @@
 #include <android/log.h>
 #include <android/keycodes.h>
 #include <atomic>
+#include <chrono>
 #include <ctype.h>
 #include <math.h>
 #include <sys/stat.h>
@@ -94,6 +95,7 @@ void MobileApp::handleAppCmd(int32_t cmd) {
         mobile_ui::UIOverlay::get().resetInput();
         mGamepad.reset();
         mSpinFrames = 0;
+        port_input_spin(0, 0);
         mTouchscreenDown = false;
         mPad.buttons = mobile_ui::UIOverlay::get().getTouchButtons();
         port_input_set(0, &mPad);
@@ -172,6 +174,7 @@ void MobileApp::applyThorMenuRequests() {
         mobile_thor::resetTouchPointer();
         mGamepad.reset();
         mSpinFrames = 0;
+        port_input_spin(0, 0);
         mPad.buttons = 0;
         mPad.stickX = mPad.stickY = 0.0f;
         mPad.rightStickX = mPad.rightStickY = 0.0f;
@@ -316,21 +319,26 @@ void MobileApp::run(android_app* app, uintptr_t windowBase, size_t windowSize) {
         mGamepad.updatePointer(mPad, (float)(inputTime - previousInputTime) * 1e-9f, mTouchscreenDown || lowerTouch);
         previousInputTime = inputTime;
         if (mSpinFrames > 0) {
-            float s = (mSpinFrames & 1) ? 2.5f : -2.5f;
-            mPad.accX = s;
-            mPad.accY = s;
-            mSpinFrames--;
-        } else {
-            mPad.accX = 0.0f;
-            mPad.accY = 0.0f;
+            // A render-loop tick can take only 1 ms when no new game frame is ready.
+            // Let KPADRead deliver every shake sample at the game's input cadence.
+            port_input_spin(0, mSpinFrames);
+            mSpinFrames = 0;
         }
+        mPad.accX = 0.0f;
+        mPad.accY = 0.0f;
         updateInputState();
 
         if (mobile_ui::UIOverlay::get().settings().haptics) {
+            // The Wii Remote motor is on or off. While the game holds it on, keep re-sending a
+            // short buzz that outlasts the resend interval, so the motor runs until the game stops
+            // it and then winds down within one buzz.
             static int sLastRumbleState = 0;
+            static std::chrono::steady_clock::time_point sLastRumbleSent{};
             int r = port_input_rumble(0);
-            if (r && !sLastRumbleState) {
-                mobile_system::SystemManager::triggerHaptic(mAndroid, 45);
+            const auto now = std::chrono::steady_clock::now();
+            if (r && (!sLastRumbleState || now - sLastRumbleSent >= std::chrono::milliseconds(50))) {
+                mobile_system::SystemManager::triggerHaptic(mAndroid, 80);
+                sLastRumbleSent = now;
             }
             sLastRumbleState = r;
         }

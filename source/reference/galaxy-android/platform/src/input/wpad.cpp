@@ -11,6 +11,8 @@
 
 static std::mutex sInputMutex;
 static PortPadState sPad[4];
+static int sSpinSamples[4];
+static bool sSpinPositive[4];
 static int sRumble[4];
 static u32 sPrevHold[4];
 static WPADConnectCallback sConnectCb[4];
@@ -30,6 +32,23 @@ extern "C" void port_input_set(int chan, const PortPadState* state) {
         port_input_request_pause();
     }
     sPad[chan] = *state;
+    if (!state->connected) {
+        sSpinSamples[chan] = 0;
+        sSpinPositive[chan] = false;
+    }
+}
+
+extern "C" void port_input_spin(int chan, int samples) {
+    if (chan < 0 || chan >= 4) return;
+    std::lock_guard<std::mutex> lk(sInputMutex);
+    if (samples <= 0 || !sPad[chan].connected) {
+        sSpinSamples[chan] = 0;
+        sSpinPositive[chan] = false;
+        return;
+    }
+    if (samples > 6) samples = 6;
+    if (sSpinSamples[chan] == 0) sSpinPositive[chan] = false;
+    if (samples > sSpinSamples[chan]) sSpinSamples[chan] = samples;
 }
 
 extern "C" void port_input_get_right_stick(int chan, float* x, float* y) {
@@ -148,6 +167,17 @@ static PortPadState snapshot(int chan) {
     return sPad[chan];
 }
 
+static PortPadState readSnapshot(int chan) {
+    std::lock_guard<std::mutex> lk(sInputMutex);
+    PortPadState state = sPad[chan];
+    if (state.connected && sSpinSamples[chan] > 0) {
+        state.accX = state.accY = sSpinPositive[chan] ? 2.5f : -2.5f;
+        sSpinPositive[chan] = !sSpinPositive[chan];
+        --sSpinSamples[chan];
+    }
+    return state;
+}
+
 // Reports connection and Nunchuk changes through the registered callbacks,
 // as the Bluetooth stack does.  Runs on the game thread from KPADRead.
 static void pollConnection(int chan, const PortPadState& s) {
@@ -231,7 +261,12 @@ WPADExtensionCallback WPADSetExtensionCallback(s32 chan, WPADExtensionCallback c
 // KPAD
 // ---------------------------------------------------------------------------
 void KPADInit(void) {}
-void KPADReset(void) { memset(sPrevHold, 0, sizeof(sPrevHold)); }
+void KPADReset(void) {
+    std::lock_guard<std::mutex> lk(sInputMutex);
+    memset(sPrevHold, 0, sizeof(sPrevHold));
+    memset(sSpinSamples, 0, sizeof(sSpinSamples));
+    memset(sSpinPositive, 0, sizeof(sSpinPositive));
+}
 void KPADSetAccParam(s32, f32, f32) {}
 void KPADSetBtnRepeat(s32, f32, f32) {}
 void KPADSetDistParam(s32, f32, f32) {}
@@ -243,7 +278,7 @@ s32 KPADRead(s32 chan, KPADStatus samples[], u32 length) {
     if (chan < 0 || chan >= 4 || length == 0) {
         return 0;
     }
-    PortPadState s = snapshot(chan);
+    PortPadState s = readSnapshot(chan);
     pollConnection(chan, s);
     KPADStatus* k = &samples[0];
     memset(k, 0, sizeof(*k));
