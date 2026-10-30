@@ -50,7 +50,7 @@ object MsmbwiiMod {
     /** Downloads from the official page ([picked] == null) or installs the player's own copy. */
     fun start(context: Context, picked: Uri? = null): Boolean {
         synchronized(GameInstaller) {
-            if (state.running || com.driftdroid.android.WiiDsUpdater.installing.get()) return false
+            if (com.driftdroid.android.GameStorage.blocker(context) != null || state.running || com.driftdroid.android.WiiDsUpdater.installing.get()) return false
             state = State(running = true)
             cancelled = false
         }
@@ -58,6 +58,7 @@ object MsmbwiiMod {
         Thread {
             val error = runCatching { install(app, picked) }.getOrElse { it.message ?: "The mod couldn't be installed." }
             state = State(running = false, done = state.done, error = error, finished = true)
+            if (error == null) com.driftdroid.android.GameStorage.enable(app,com.driftdroid.android.FrontendGame.MSMBWII)
         }.apply { name = "WiiDsMod"; isDaemon = true }.start()
         return true
     }

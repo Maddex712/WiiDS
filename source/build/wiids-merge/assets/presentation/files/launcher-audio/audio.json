@@ -1,0 +1,53 @@
+{
+  "schema": 1,
+  "kind": "private-launcher-audio",
+  "source": "owner Mario Kart Wii dump: sound/revo_kart.brsar",
+  "sounds": {
+    "focus": {
+      "file": "focus.wav",
+      "sha256": "174c7a8a48ac7e85f0bc3be444ea3ab44d1e0e5fd42cb97c1dc5064bdf00bb37",
+      "source": "SE_UI_BTN_IN",
+      "frames": 4262
+    },
+    "open": {
+      "file": "open.wav",
+      "sha256": "9b4de99e3350bc4fd80d257c948658da26cff9abcbde0f9f9da6c4526e5471d0",
+      "source": "SE_UI_CTRL_WIN_POPUP",
+      "frames": 14082
+    },
+    "close": {
+      "file": "close.wav",
+      "sha256": "a1eacab261672f2497fa3e9f49034a5991e82845e22a83638ad5b8c5887ab198",
+      "source": "SE_UI_CTRL_WIN_POPDOWN",
+      "frames": 20666
+    },
+    "select": {
+      "file": "select.wav",
+      "sha256": "4684c699c8d5ce2390fa804eee0ee24c3e8499bd59fecfe93067af52b4b448cb",
+      "source": "SE_UI_BTN_OK",
+      "frames": 13414
+    },
+    "launch": {
+      "file": "launch.wav",
+      "sha256": "d1c9f07012ffc6a58882c92776538d305154afa3dc11c75aaafb8921a99db999",
+      "source": "SE_UI_TITLE_OUT",
+      "frames": 7235
+    },
+    "reject": {
+      "file": "reject.wav",
+      "sha256": "43ddef23ea2ad4d5e3594c43db5126b9c19281df1f5d91922e30be89ac196703",
+      "source": "SE_UI_CTRL_REJECT",
+      "frames": 15713
+    }
+  },
+  "music": {
+    "file": "music.wav",
+    "sha256": "d7d2e1093f6bf4af133e183ffe316c6406f0f1d20492a2bb5eb5b3d6c94f4d99",
+    "source": "owner-supplied file: 10. Menu 01 (Wii Music).mp3",
+    "rate": 32000,
+    "channels": 2,
+    "frames": 1762780,
+    "loopStart": 355761,
+    "loopEnd": 1762779
+  }
+}

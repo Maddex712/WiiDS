@@ -4,6 +4,14 @@
 
 Play supported Wii and GameCube games on the AYN Thor, with a companion on its lower screen.
 
+## 1.1.2 prerelease preview
+
+[Download the 355 MB preview](https://github.com/Maddex712/WiiDS/releases/tag/v1.1.2) · [Full preview notes](docs/release/V1.1.2.md)
+
+Brawl is integrated into the single WiiDS APK. Options > Manage games lets you offload imported game data while keeping saves and settings. Brawl requires your own **USA RSBE01 revision 2** disc.
+
+**Preview limitations:** the original Nintendo-byte payloads in Brawl's native engine have not yet been moved entirely to own-disc loading, and upstream distribution permission has not been recorded. This preview does not represent completion of that cleanup or licensing review. Fresh Project+ downloading/SD-image construction and broader device/gameplay acceptance remain unfinished. Read the full notes before choosing this preview. The stable 1.1.1 release below remains available.
+
 ## Quick start
 
 **1.1.1:** Retro Rewind 6.13.4 with online play, Lossless Scaling frame generation, rumble, custom GPU drivers and a Wii Menu theme. Already on 1.1? Open **Options → Check for updates**, or install this APK over your existing copy (do not uninstall). [Full 1.1.1 patch notes](docs/release/V1.1.1.md).

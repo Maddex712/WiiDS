@@ -1,0 +1,24 @@
+{
+  "version": "1.1.2",
+  "package": {
+    "status": "PASS",
+    "package": "io.github.maddex712.wiids",
+    "versionName": "1.1.2",
+    "versionCode": 1112,
+    "bytes": 355306168,
+    "sha256": "b5a61ee79a37e4419c7bc07e839d5c73fcc870974172ca3984ffbfd63381010d",
+    "signer_sha256": "72eef06b956bc1c6848a09bf4956b158095736a6e81f43131cf93cb30788345f",
+    "debuggable": false,
+    "all_native_libraries_exact": 33,
+    "all_assets_exact": 642,
+    "changed_zip_members": [
+      "AndroidManifest.xml",
+      "assets/dexopt/baseline.prof",
+      "classes.dex"
+    ],
+    "original_preview_preserved": true,
+    "device_installation_performed": false
+  },
+  "known_original_Nintendo_byte_payloads_remain": true,
+  "licence_clearance_claimed": false
+}

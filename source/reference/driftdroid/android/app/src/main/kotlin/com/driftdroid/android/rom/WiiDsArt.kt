@@ -41,6 +41,7 @@ object WiiDsArt {
             GameCatalog.Disc.ECLIPSE_110 -> listOf(
                 Job("sms-hud", disc.installedFile(context), File(external(context), "eclipse/ThorHud"), "manifest.json", true))
             // Galaxy's art comes with its add-on.
+            GameCatalog.Disc.BRAWL_USA_REV2 -> emptyList()
             GameCatalog.Disc.GALAXY_USA -> emptyList()
             GameCatalog.Disc.MARIO_KART_PAL -> listOf(
                 Job("mkw-art", root, thorMap(context), "menu.json", false),
@@ -55,16 +56,18 @@ object WiiDsArt {
         private set
 
     fun missing(context: Context, disc: GameCatalog.Disc): Boolean =
-        disc.isInstalled(context) && jobs(context, disc).any { !complete(it) }
+        disc.isInstalled(context) && (if(disc==GameCatalog.Disc.BRAWL_USA_REV2) !dev.wiids.brawl.BrawlArt.ready(context) else jobs(context, disc).any { !complete(it) })
 
     /** Blocking. Returns null on success or the first reason; never touches the imported disc. */
     @Synchronized
     fun build(context: Context, disc: GameCatalog.Disc, onlyMissing: Boolean = false): String? {
+        if (com.driftdroid.android.GameStorage.blocker(context) != null) return "Manage games is busy."
         building = disc
         try { return buildJobs(context, disc, onlyMissing) } finally { building = null }
     }
 
     private fun buildJobs(context: Context, disc: GameCatalog.Disc, onlyMissing: Boolean): String? {
+        if(disc==GameCatalog.Disc.BRAWL_USA_REV2)return dev.wiids.brawl.BrawlArt.build(context,disc.installDir(context),java.io.File(dev.wiids.brawl.BrawlStorage.data(context),"ThorHud"))
         var firstError: String? = null
         for (job in jobs(context, disc)) {
             if (onlyMissing && complete(job)) continue
@@ -163,6 +166,7 @@ object WiiDsArt {
         val app = context.applicationContext
         Thread {
             synchronized(this) {
+                if (com.driftdroid.android.GameStorage.blocker(app) != null) return@Thread
                 building = GameCatalog.Disc.MARIO_KART_PAL
                 try {
                     WiiDsDisc.ensureLoaded()

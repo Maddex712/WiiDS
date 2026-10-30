@@ -1,0 +1,397 @@
+{
+  "schema": 1,
+  "source": "Scene/UI/Race.szs",
+  "source_sha256": "20ec7c0d1684174582c052f00f94924db8b91e1c158d782a85e227d31f924e3c",
+  "layout": "game_image/blyt/item.brlyt",
+  "layout_sha256": "76584b67b6064df6ac9a2ad098be04928b17399ce58558fa64e064a61a0aa684",
+  "mapping_function": "PAL RMCP01 GetItemIconPaneName 0x80860AF0",
+  "none_icon": -1,
+  "triple_mushroom_counts": {
+    "1": 4,
+    "2": 19,
+    "3": 5
+  },
+  "conversion": "Original TPL decoded to RGBA PNG; no scaling, padding or redraw",
+  "items": [
+    {
+      "id": 0,
+      "name": "Green Shell",
+      "raw_kind": 0,
+      "count": null,
+      "pane": "kame_green",
+      "source_tpl": "game_image/timg/tt_item_kame_green.tpl",
+      "source_tpl_sha256": "ab5350e9f1749524cc0659e6ea5546a5cb0e46e8020920c33cf26337d8b683b6",
+      "file": "item_00.png",
+      "sha256": "a2c618fa2bb0184219d136969b3169ba5d2185a01ab9d49e14ae81f319b0768f",
+      "rgba_sha256": "aa6952a4999021bd3682747f0869b9ec1ca5e7f8399db9cb25b884b66d217189",
+      "size": [
+        64,
+        64
+      ],
+      "alpha_min": 0,
+      "alpha_max": 255,
+      "alpha_nonzero": 1998
+    },
+    {
+      "id": 1,
+      "name": "Red Shell",
+      "raw_kind": 1,
+      "count": null,
+      "pane": "kame_red",
+      "source_tpl": "game_image/timg/tt_item_kame_red.tpl",
+      "source_tpl_sha256": "442e3a3234f3c8c55de732aa0a0bf683e3ff8f122c6628eeb46b38cc45981f75",
+      "file": "item_01.png",
+      "sha256": "3b3a5795a7b72e8fa59e6e71a3219b9f7d16585ad8619bb2686c29b01984e51b",
+      "rgba_sha256": "55e2d1b613ab31894a084b89dc117c03decc0577b662e7ee4ee57b353667eddc",
+      "size": [
+        64,
+        64
+      ],
+      "alpha_min": 0,
+      "alpha_max": 255,
+      "alpha_nonzero": 1999
+    },
+    {
+      "id": 2,
+      "name": "Banana",
+      "raw_kind": 2,
+      "count": null,
+      "pane": "banana",
+      "source_tpl": "game_image/timg/tt_item_banana.tpl",
+      "source_tpl_sha256": "af1372d74bffbee88129583f865979d8d2698bcea60571aacde7deb46fadb8a4",
+      "file": "item_02.png",
+      "sha256": "501036103cbfa0cb964589675c9cc5a4a55d2c590eafe13715731cfedccb74d1",
+      "rgba_sha256": "3f896f30e0315fdd289d83756669f57d60beeacfd19a529d4a3e989c82a50719",
+      "size": [
+        64,
+        64
+      ],
+      "alpha_min": 0,
+      "alpha_max": 255,
+      "alpha_nonzero": 1068
+    },
+    {
+      "id": 3,
+      "name": "Fake Item Box",
+      "raw_kind": 3,
+      "count": null,
+      "pane": "dummybox",
+      "source_tpl": "game_image/timg/tt_item_dummybox.tpl",
+      "source_tpl_sha256": "f6e2dbdb08bff92e45560fd663eefca93ebea3c8503c6428094865a764d7b791",
+      "file": "item_03.png",
+      "sha256": "44c28326a8a0c23a6e3ff52eff5956ea343b8723df9154991416567b2e837c66",
+      "rgba_sha256": "460b25eca34f84df9cb20dad099719ab1cf5b9e618a2e24eb66e1478a72fdd1a",
+      "size": [
+        64,
+        64
+      ],
+      "alpha_min": 0,
+      "alpha_max": 255,
+      "alpha_nonzero": 2475
+    },
+    {
+      "id": 4,
+      "name": "Mushroom",
+      "raw_kind": 4,
+      "count": null,
+      "pane": "kinoko",
+      "source_tpl": "game_image/timg/tt_item_kinoko.tpl",
+      "source_tpl_sha256": "ebac2128a55957ae2b1da77d4b1748cf060d6edc95610355ff7b0ceca2a4fc1a",
+      "file": "item_04.png",
+      "sha256": "4a0582a9268f460f0318f7c52e028d5ddefc63acc2e97117ae6bcad2b1fc0b74",
+      "rgba_sha256": "7373e053a613b9d0a1fe3014ada64d78ee9451bc0b18bf052f4468e351b9b715",
+      "size": [
+        64,
+        64
+      ],
+      "alpha_min": 0,
+      "alpha_max": 255,
+      "alpha_nonzero": 2442
+    },
+    {
+      "id": 5,
+      "name": "Triple Mushrooms",
+      "raw_kind": 5,
+      "count": null,
+      "pane": "kinoko_3",
+      "source_tpl": "game_image/timg/tt_item_kinoko_3.tpl",
+      "source_tpl_sha256": "4a3be3c1944030518c83149192708aa0e9e7271afbbc50502711dc730c0d5ccf",
+      "file": "item_05.png",
+      "sha256": "ac2860addfce1cda4e7d0a6cf0616ee38d93c60a3f8f666de9935636c2763d57",
+      "rgba_sha256": "abfe0a23e2e42d482fb3dd751ef8b5b13adb934c8f639265e60caa3bd21f8472",
+      "size": [
+        64,
+        64
+      ],
+      "alpha_min": 0,
+      "alpha_max": 255,
+      "alpha_nonzero": 2207
+    },
+    {
+      "id": 6,
+      "name": "Bob-omb",
+      "raw_kind": 6,
+      "count": null,
+      "pane": "bomb_hei",
+      "source_tpl": "game_image/timg/tt_item_bomb_hei.tpl",
+      "source_tpl_sha256": "99ef276ec9b4b559317f2627ae548ca7fad712245762716ac8fa351eb2f297fd",
+      "file": "item_06.png",
+      "sha256": "e35146df953e414428e5efd9b4d01f9d37315971d6f43b0c9fe0f59f2c3437d6",
+      "rgba_sha256": "a7694931f82a713183027bf0324f51a605267e9dbcf5d605585774fab12a1d2f",
+      "size": [
+        64,
+        64
+      ],
+      "alpha_min": 0,
+      "alpha_max": 255,
+      "alpha_nonzero": 1846
+    },
+    {
+      "id": 7,
+      "name": "Spiny Shell",
+      "raw_kind": 7,
+      "count": null,
+      "pane": "kame_wing",
+      "source_tpl": "game_image/timg/tt_item_kame_wing.tpl",
+      "source_tpl_sha256": "9c2dd1a61272421b4cff996e160ce02ab28e53b7adaf9bf8ed4a9da7702e69ee",
+      "file": "item_07.png",
+      "sha256": "654a41a7dcbf13f938f81dc8a42628263863da8076f0722e0b84c68bbb8c4c2e",
+      "rgba_sha256": "76d3be7ccb31518e3177b325fcf6d110201dcb28f0e5d7b9d39c1ab99678bb45",
+      "size": [
+        64,
+        64
+      ],
+      "alpha_min": 0,
+      "alpha_max": 255,
+      "alpha_nonzero": 1904
+    },
+    {
+      "id": 8,
+      "name": "Lightning",
+      "raw_kind": 8,
+      "count": null,
+      "pane": "thunder",
+      "source_tpl": "game_image/timg/tt_item_thunder.tpl",
+      "source_tpl_sha256": "d0089133f9bd754a07e0f8ec7a3373ff4b74de4cb258bb0f60f467c26b6473e2",
+      "file": "item_08.png",
+      "sha256": "f49bf23f7f5ed42fd4384bde4c32af27f9d6955a08981f265c850985bfa11cf3",
+      "rgba_sha256": "0437a6dd5bf32d564bdc34c01c3d056b6810ff5d9368b23c53c11d8a14bbacee",
+      "size": [
+        64,
+        64
+      ],
+      "alpha_min": 0,
+      "alpha_max": 255,
+      "alpha_nonzero": 973
+    },
+    {
+      "id": 9,
+      "name": "Star",
+      "raw_kind": 9,
+      "count": null,
+      "pane": "star",
+      "source_tpl": "game_image/timg/tt_item_star.tpl",
+      "source_tpl_sha256": "ea40e866efc99572790bcbb25545ec5af1366c99c6d515a679d989c639767aad",
+      "file": "item_09.png",
+      "sha256": "2cfefc04230eac825203becbe5c79fe32f41f3291b1d3badb6e073fa9209e438",
+      "rgba_sha256": "72c6953ba7860af7f21d559c39f516b9b1427d40d4739ded0d47263434f3e4e7",
+      "size": [
+        64,
+        64
+      ],
+      "alpha_min": 0,
+      "alpha_max": 255,
+      "alpha_nonzero": 1538
+    },
+    {
+      "id": 10,
+      "name": "Golden Mushroom",
+      "raw_kind": 10,
+      "count": null,
+      "pane": "GoldenKinoko",
+      "source_tpl": "game_image/timg/tt_item_GoldenKinoko.tpl",
+      "source_tpl_sha256": "02a329113472e2c4f207cffa709bd2234f0f2de91e8fe0cb2508f36b9595f4fc",
+      "file": "item_10.png",
+      "sha256": "af7d26c48831c127caa9352906fa66fc993208333774186d5f005ace5ac65bc9",
+      "rgba_sha256": "d1ecace276faf30cce88be0ebc88ddeb7383e03ee06da2980b31c69e6f6aa70b",
+      "size": [
+        64,
+        64
+      ],
+      "alpha_min": 0,
+      "alpha_max": 255,
+      "alpha_nonzero": 1961
+    },
+    {
+      "id": 11,
+      "name": "Mega Mushroom",
+      "raw_kind": 11,
+      "count": null,
+      "pane": "kinoko_big",
+      "source_tpl": "game_image/timg/fm_item_kinoko_l.tpl",
+      "source_tpl_sha256": "5db4ea23ded84fd3264dedd0b59f09248b0a1ab8f975c164383c33d2ed8174f4",
+      "file": "item_11.png",
+      "sha256": "e6787fb4be25993dfe370ac0986c2435c38ad674fc499ca6ec237ef96a11642c",
+      "rgba_sha256": "f1563da7aa5118804b612c17a4fb65df3ef314d030f4bc4192993089e98a233b",
+      "size": [
+        64,
+        64
+      ],
+      "alpha_min": 0,
+      "alpha_max": 255,
+      "alpha_nonzero": 2760
+    },
+    {
+      "id": 12,
+      "name": "Blooper",
+      "raw_kind": 12,
+      "count": null,
+      "pane": "gesso",
+      "source_tpl": "game_image/timg/fm_item_gesso.tpl",
+      "source_tpl_sha256": "0e906ff4c26701494cc873611c7672b4ae00f27f03c731a08b80a7a918b230dc",
+      "file": "item_12.png",
+      "sha256": "56674c2738a62e811fef5fe57a969814ed6328755a12fe3dee3db5be0888c642",
+      "rgba_sha256": "3a76e422b5b3f06526c05516e4e7b3dc4a78cd0c7dcd3520c68480b4bc315b57",
+      "size": [
+        64,
+        64
+      ],
+      "alpha_min": 0,
+      "alpha_max": 255,
+      "alpha_nonzero": 1564
+    },
+    {
+      "id": 13,
+      "name": "POW Block",
+      "raw_kind": 13,
+      "count": null,
+      "pane": "pow",
+      "source_tpl": "game_image/timg/fm_item_pow.tpl",
+      "source_tpl_sha256": "a35d7d9af6460d72bf7764b2ef5d68efcc23fd8c50661d3f7e8df69ce74e11be",
+      "file": "item_13.png",
+      "sha256": "79664825c369803c25a6cb9e3b1cb0aea6d7ec7b009c4b13436cca507507bd4d",
+      "rgba_sha256": "f4494350d38ece52f54a28c11e67b6bd9f230a5aeedb2d942200cbcce7d5e7eb",
+      "size": [
+        64,
+        64
+      ],
+      "alpha_min": 0,
+      "alpha_max": 255,
+      "alpha_nonzero": 2775
+    },
+    {
+      "id": 14,
+      "name": "Thunder Cloud",
+      "raw_kind": 14,
+      "count": null,
+      "pane": "thunder_c",
+      "source_tpl": "game_image/timg/fm_item_pikakumo.tpl",
+      "source_tpl_sha256": "c974ea46609934337c9388fa12827c1fd14d0a72e4f043cee7e4fd08b81985f5",
+      "file": "item_14.png",
+      "sha256": "b6bed3f3ffc6078afb4e760f35e5392395d1a9117e760fdfb9feed6ef1f6d6b3",
+      "rgba_sha256": "ac4c7f685f4548f4d3861eef967ffec14ab7236f7f4c26e2f179424b8a2c5f42",
+      "size": [
+        64,
+        64
+      ],
+      "alpha_min": 0,
+      "alpha_max": 255,
+      "alpha_nonzero": 1743
+    },
+    {
+      "id": 15,
+      "name": "Bullet Bill",
+      "raw_kind": 15,
+      "count": null,
+      "pane": "killer",
+      "source_tpl": "game_image/timg/tt_item_killer.tpl",
+      "source_tpl_sha256": "bc3ee9c756525bdaca5de9385acfc716818b8fe66186cd5390974cf18b291adb",
+      "file": "item_15.png",
+      "sha256": "c18212bcc048e2d0cc47f4429caaab2cdb0660a49159c418777078f0e1051fac",
+      "rgba_sha256": "e79238d93805acc7e71e328856c835fa727325767f63a807f601c798dd3a0848",
+      "size": [
+        64,
+        64
+      ],
+      "alpha_min": 0,
+      "alpha_max": 255,
+      "alpha_nonzero": 1942
+    },
+    {
+      "id": 16,
+      "name": "Triple Green Shells",
+      "raw_kind": 16,
+      "count": null,
+      "pane": "kame_green_3",
+      "source_tpl": "game_image/timg/tt_item_kame_green_3.tpl",
+      "source_tpl_sha256": "f1f0af65230bdc64c8f618b3c2bccb2b6374a93596f0345a167dbd6f95ac4d29",
+      "file": "item_16.png",
+      "sha256": "32125c044b9adb940e51a3c955487f27978dcbd17d060f55bdeb9171a8879f8d",
+      "rgba_sha256": "62f3561acb0d128ea1e41c5c6b9516f07f97a85fac0da4beb3211d5e99d43fd2",
+      "size": [
+        64,
+        64
+      ],
+      "alpha_min": 0,
+      "alpha_max": 255,
+      "alpha_nonzero": 2154
+    },
+    {
+      "id": 17,
+      "name": "Triple Red Shells",
+      "raw_kind": 17,
+      "count": null,
+      "pane": "kame_red_3",
+      "source_tpl": "game_image/timg/tt_item_kame_red_3.tpl",
+      "source_tpl_sha256": "e96e033e431ceb25bbe3cc24200c1126a016a6a6fc3981876afc72d6ed1f77c7",
+      "file": "item_17.png",
+      "sha256": "448da24f27f44e5792ab4f18c773f823b973a50e522a02e659d88dc3c3a85e86",
+      "rgba_sha256": "3a7f3b45e82bb1fc396f51736f2f20be2c413358e54966afff371361b23fbc10",
+      "size": [
+        64,
+        64
+      ],
+      "alpha_min": 0,
+      "alpha_max": 255,
+      "alpha_nonzero": 2122
+    },
+    {
+      "id": 18,
+      "name": "Triple Bananas",
+      "raw_kind": 18,
+      "count": null,
+      "pane": "banana_3",
+      "source_tpl": "game_image/timg/item_banana_3.tpl",
+      "source_tpl_sha256": "1225136085cfc8dcc645de19f5b0e36833e0157ad31e6e99124936a46708c482",
+      "file": "item_18.png",
+      "sha256": "3b9d377a61f64a9efc6d3eed03f503e2112a934c7dfd718dd0305e00e9ce5ada",
+      "rgba_sha256": "ed907fbc21c899f923c2a5236635c2a50259e80d34d5d15ca3c5832ebd44899e",
+      "size": [
+        64,
+        64
+      ],
+      "alpha_min": 0,
+      "alpha_max": 255,
+      "alpha_nonzero": 1574
+    },
+    {
+      "id": 19,
+      "name": "Two Mushrooms",
+      "raw_kind": 5,
+      "count": 2,
+      "pane": "kinoko_2",
+      "source_tpl": "game_image/timg/tt_item_kinoko_2.tpl",
+      "source_tpl_sha256": "2f080b32d7283d966f8d48dc57e36e0bcd00d4d52d0e4eacee574e7e7b7438be",
+      "file": "item_19.png",
+      "sha256": "8df3bd3e3bfb5912778d454e289058432665bcbf6ccf7dd06b8e2c34ff59a327",
+      "rgba_sha256": "beec80595670852560755987b7b7418946d891cdab6bf878de8c22bd5aff2fa2",
+      "size": [
+        64,
+        64
+      ],
+      "alpha_min": 0,
+      "alpha_max": 255,
+      "alpha_nonzero": 1924
+    }
+  ]
+}

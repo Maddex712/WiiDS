@@ -194,10 +194,10 @@ internal class ThorLibraryCompanionView(context: Context, private val folder: Fi
 
     /** Separate games validate their own data and never inherit Mario Kart update/video state. */
     private fun separateGame() = (selection.product == NSMB || selection.product == SUNSHINE ||
-        selection.product == MSMBWII || selection.product == ECLIPSE || selection.product == GALAXY || selection.product == KAIZO) && !selection.options
+        selection.product == MSMBWII || selection.product == ECLIPSE || selection.product == GALAXY || selection.product == KAIZO || selection.product == BRAWL) && !selection.options
     /** MSMBWii's disc is there but its mod isn't (yet). */
     private fun modPending() = selection.product == MSMBWII && nsmbDiscImported && !selection.available
-    private fun separateGameName() = when (selection.product) { KAIZO -> "Kaizo Rebalanced"; GALAXY -> "Galaxy"; SUNSHINE -> "Sunshine"; ECLIPSE -> "Eclipse"; MSMBWII -> "MSMBWii"; else -> "NSMB Wii" }
+    private fun separateGameName() = when (selection.product) { BRAWL -> "Brawl"; KAIZO -> "Kaizo Rebalanced"; GALAXY -> "Galaxy"; SUNSHINE -> "Sunshine"; ECLIPSE -> "Eclipse"; MSMBWII -> "MSMBWii"; else -> "NSMB Wii" }
 
     private fun updateGated() = BuildConfig.THOR_RETRO_REWIND && !separateGame() &&
         (snapshot.running || pendingUpdate || recoveryRequired)
@@ -243,6 +243,7 @@ internal class ThorLibraryCompanionView(context: Context, private val folder: Fi
         ECLIPSE -> "Super Mario Eclipse"
         GALAXY -> "Super Mario Galaxy"
         KAIZO -> "Kaizo Mario Galaxy Rebalanced"
+        BRAWL -> "Super Smash Bros. Brawl"
         MSMBWII -> "MSMBWii: Just a Little Adventure"
         else -> "Mario Kart Wii"
     }
@@ -257,6 +258,7 @@ internal class ThorLibraryCompanionView(context: Context, private val folder: Fi
         ECLIPSE -> FrontendGame.ECLIPSE.id
         GALAXY -> FrontendGame.GALAXY.id
         KAIZO -> FrontendGame.KAIZO.id
+        BRAWL -> FrontendGame.BRAWL.id
         else -> null
     }
 
@@ -267,6 +269,7 @@ internal class ThorLibraryCompanionView(context: Context, private val folder: Fi
         ECLIPSE -> "eclipse"
         GALAXY -> "galaxy"
         KAIZO -> "kaizo"
+        BRAWL -> "brawl"
         MSMBWII -> "msmbwii"
         else -> "original"
     }
@@ -391,6 +394,7 @@ internal class ThorLibraryCompanionView(context: Context, private val folder: Fi
                 selection.product == ECLIPSE -> "Install the Eclipse Thor app to play"
                 selection.product == KAIZO -> "Set up Kaizo Rebalanced on Your games"
                 selection.product == GALAXY -> "Set up Super Mario Galaxy to play"
+                selection.product == BRAWL -> "Import your Brawl USA revision 2 disc"
                 else -> "Import your ${if (selection.product == MSMBWII) "NSMB Wii" else separateGameName()} disc to play"
             } to "Left / Right  Choose a game     X  Options$achievementsKey"
             else -> (selection.status.trim().ifEmpty { "Left / Right  Choose a game" }) to "A  Open case     X  Options$achievementsKey"
@@ -417,6 +421,7 @@ internal class ThorLibraryCompanionView(context: Context, private val folder: Fi
             separateGame() -> listOf(when {
                 selection.product == KAIZO -> if (selection.available) "Rebalanced 2.1 ready" else "Set up Rebalanced first"
                 selection.product == GALAXY -> if (selection.available) "Galaxy ready" else "Set up Galaxy first"
+                selection.product == BRAWL -> if (selection.available) "Brawl ready" else "Import your Brawl disc"
                 selection.product == ECLIPSE -> if (selection.available) "Eclipse app installed" else "Install the Eclipse Thor app"
                 selection.available -> "Disc imported"
                 modPending() -> "Finish it on Your games"
@@ -424,6 +429,7 @@ internal class ThorLibraryCompanionView(context: Context, private val folder: Fi
             }, when (selection.product) {
                 KAIZO -> "Own Galaxy disc + official 2.1 patch"
                 GALAXY -> "USA Wii disc"
+                BRAWL -> "Import your USA Wii disc, revision 2, in WiiDS"
                 SUNSHINE -> "USA GameCube disc"
                 ECLIPSE -> "Separate game data and saves"
                 MSMBWII -> "Mod included, on your NSMB Wii disc"
@@ -532,6 +538,7 @@ internal class ThorLibraryCompanionView(context: Context, private val folder: Fi
         const val ECLIPSE = 5
         const val GALAXY = 6
         const val KAIZO = 7
+        const val BRAWL = 8
         private val main = Handler(Looper.getMainLooper())
         private val achievementWorker = Executors.newSingleThreadExecutor { task ->
             Thread(task, "ThorLibraryAchievements").apply { isDaemon = true }
@@ -559,12 +566,12 @@ internal class ThorLibraryCompanionView(context: Context, private val folder: Fi
                         runCatching { font.bitmap(roles.getJSONObject(role).getString("texture")) }
                             .getOrNull()?.let { images[role] = it }
                     }
-                    for (game in listOf("original", "retro-rewind", "nsmbw", "msmbwii", "sunshine", "eclipse", "galaxy", "kaizo")) for (kind in listOf("cover", "disc")) {
+                    for (game in listOf("original", "retro-rewind", "nsmbw", "msmbwii", "sunshine", "eclipse", "galaxy", "kaizo", "brawl")) for (kind in listOf("cover", "disc")) {
                         ThorLauncherArtwork.bitmap(cases, "$game-$kind")?.let { images["$game-$kind"] = it }
                     }
                     // Round, hole-punched discs prepared once here (the supplied original disc
                     // is a square JPEG; drawing it raw showed a white box on the lower screen).
-                    for (name in listOf("original-disc", "retro-rewind-disc", "nsmbw-disc", "msmbwii-disc", "sunshine-disc", "eclipse-disc", "galaxy-disc", "kaizo-disc")) images[name]?.let {
+                    for (name in listOf("original-disc", "retro-rewind-disc", "nsmbw-disc", "msmbwii-disc", "sunshine-disc", "eclipse-disc", "galaxy-disc", "kaizo-disc", "brawl-disc")) images[name]?.let {
                         images["$name-round"] = roundDisc(it, discScale(name.removeSuffix("-disc")))
                     }
                     Artwork(font, images)

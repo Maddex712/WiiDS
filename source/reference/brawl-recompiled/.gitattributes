@@ -1,0 +1,2 @@
+# Linux scripts must keep LF line endings on any checkout
+*.sh text eol=lf

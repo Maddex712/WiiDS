@@ -1,0 +1,9 @@
+app = "brawl-online"
+primary_region = "iad"
+
+[[services]]
+  internal_port = 52200
+  protocol = "udp"
+
+  [[services.ports]]
+    port = 52200

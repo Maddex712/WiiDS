@@ -1,0 +1,54 @@
+plugins {
+    id 'com.android.application'
+}
+
+android {
+    namespace 'com.wither.nsmbw'
+    compileSdk 34
+
+    defaultConfig {
+        applicationId 'com.wither.nsmbw'
+        // Guest RAM uses memfd_create, which bionic has from Android 11 (API 30).
+        minSdk 30
+        targetSdk 34
+        versionCode 15
+        versionName '0.1.1'
+        ndk {
+            abiFilters 'arm64-v8a'
+        }
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+            // Personal builds: sign with the local debug key so the APK installs directly.
+            signingConfig signingConfigs.debug
+        }
+    }
+
+    lint {
+        // Release builds skip lint's vital checks: this machine builds offline, without lint's jars.
+        checkReleaseBuilds false
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+
+    sourceSets {
+        main {
+            // libmain.so and the runtime's data files are staged by tools/stage-android.ps1 from
+            // the native build (wiicompiled/android-build); they are not checked in.
+            jniLibs.srcDirs = ['../native/jniLibs']
+            assets.srcDirs = ['../native/assets']
+        }
+    }
+
+    packagingOptions {
+        jniLibs {
+            // Keep libmain.so uncompressed and page-aligned in the APK so it is mapped in place.
+            useLegacyPackaging false
+        }
+    }
+}

@@ -59,6 +59,7 @@
             </intent-filter>
         </activity>
 
+        <activity android:name=".GameStorageActivity" android:exported="false" android:screenOrientation="sensorLandscape" />
         <activity android:name=".achievements.AchievementsActivity" android:exported="false"
             android:screenOrientation="sensorLandscape" android:theme="@android:style/Theme.Black.NoTitleBar.Fullscreen" />
 
@@ -99,6 +100,14 @@
             android:name=".RetroRewindInstallService"
             android:exported="false"
             android:foregroundServiceType="dataSync" />
+
+        <!-- Brawl is a game inside WiiDS, with its own profile and fresh native process. -->
+        <activity android:name="dev.wiids.brawl.ThorLaunchActivity" android:exported="false" android:process=":brawl" android:screenOrientation="sensorLandscape" />
+        <activity android:name="dev.wiids.brawl.LauncherActivity" android:exported="false" android:process=":brawl" android:screenOrientation="sensorLandscape" />
+        <activity android:name="dev.wiids.brawl.GameActivity" android:exported="false" android:process=":brawl_game"
+            android:launchMode="singleTask" android:screenOrientation="sensorLandscape" android:resizeableActivity="false"
+            android:preferMinimalPostProcessing="true" android:theme="@android:style/Theme.Material.NoActionBar.Fullscreen"
+            android:configChanges="layoutDirection|locale|grammaticalGender|fontScale|fontWeightAdjustment|orientation|uiMode|screenLayout|screenSize|smallestScreenSize|keyboard|keyboardHidden|navigation" />
 
         <!-- New Super Mario Bros. Wii: launcher-side screens in ":nsmbw", the game in ":nsmbw_game". The native
              runtime starts once per process, so leaving the game ends that process. -->

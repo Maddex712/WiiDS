@@ -1,0 +1,27 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <UseWindowsForms>true</UseWindowsForms>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <AssemblyName>Brawl Recompiled</AssemblyName>
+    <RootNamespace>BrawlRecompiled</RootNamespace>
+    <ApplicationHighDpiMode>PerMonitorV2</ApplicationHighDpiMode>
+    <Version>0.4.0</Version>
+    <Product>Brawl Recompiled</Product>
+    <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
+    <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
+    <InvariantGlobalization>true</InvariantGlobalization>
+    <DebugType>embedded</DebugType>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <ApplicationIcon>smash.ico</ApplicationIcon>
+  </PropertyGroup>
+  <ItemGroup>
+    <!-- linux\ is its own project -->
+    <Compile Remove="linux/**" />
+    <None Remove="linux/**" />
+    <!-- tools/make_launcher_art.py: fighter portraits, the Smash Ball and the game's title font, from the game's files -->
+    <EmbeddedResource Include="art/*.png;art/*.txt" LogicalName="art.%(Filename)%(Extension)" />
+  </ItemGroup>
+</Project>

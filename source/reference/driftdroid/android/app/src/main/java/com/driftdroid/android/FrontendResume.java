@@ -22,6 +22,7 @@ public final class FrontendResume {
             case ECLIPSE: return ":eclipse_game";
             case GALAXY: return ":galaxy_game";
             case KAIZO: return ":galaxy_kaizo_game";
+            case BRAWL: return ":brawl_game";
             default: return null;
         }
     }
@@ -34,6 +35,7 @@ public final class FrontendResume {
             case ECLIPSE: return "dev.chasem.eclipselauncher.GameActivity";
             case GALAXY: return "dev.thor.galaxy.GalaxyActivity";
             case KAIZO: return "dev.thor.galaxy.KaizoActivities$Game";
+            case BRAWL: return "dev.wiids.brawl.GameActivity";
             default: return null;
         }
     }

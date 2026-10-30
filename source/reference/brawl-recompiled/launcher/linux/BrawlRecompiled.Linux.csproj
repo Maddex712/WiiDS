@@ -1,0 +1,35 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- The Linux launcher: the Windows launcher's pages (MainForm.cs) rebuilt with Avalonia, sharing its non-window
+       code (settings file, disc extraction, save import, gamepads). Published by tools\build-launcher.ps1 into launcher\linux\publish. -->
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <AssemblyName>Brawl Recompiled</AssemblyName>
+    <RootNamespace>BrawlRecompiled</RootNamespace>
+    <!-- The one version number is the Windows launcher's <Version>. -->
+    <Version>$([System.Text.RegularExpressions.Regex]::Match($([System.IO.File]::ReadAllText('$(MSBuildThisFileDirectory)../BrawlRecompiled.Launcher.csproj')), '&lt;Version&gt;([^&lt;]+)').Groups[1].Value)</Version>
+    <Product>Brawl Recompiled</Product>
+    <RuntimeIdentifier>linux-x64</RuntimeIdentifier>
+    <SelfContained>true</SelfContained>
+    <PublishSingleFile>true</PublishSingleFile>
+    <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
+    <InvariantGlobalization>true</InvariantGlobalization>
+    <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
+    <DebugType>embedded</DebugType>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Avalonia" Version="11.2.3" />
+    <PackageReference Include="Avalonia.Desktop" Version="11.2.3" />
+    <PackageReference Include="Avalonia.Themes.Fluent" Version="11.2.3" />
+    <PackageReference Include="Avalonia.Fonts.Inter" Version="11.2.3" />
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Include="../GameConfig.cs;../WiiDisc.cs;../WiiSave.cs;../Gamepads.cs;../ModInstall.cs" />
+    <EmbeddedResource Include="../smash.ico" LogicalName="smash.ico" />
+    <!-- tools/make_launcher_art.py: fighter portraits, the Smash Ball and the labels in the game's title font -->
+    <EmbeddedResource Include="../art/*.png" LogicalName="art.%(Filename)%(Extension)" />
+  </ItemGroup>
+</Project>

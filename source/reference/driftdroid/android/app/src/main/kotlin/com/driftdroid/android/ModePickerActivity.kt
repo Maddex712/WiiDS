@@ -166,6 +166,7 @@ class ModePickerActivity : Activity() {
                 FrontendGame.ECLIPSE -> launchEclipseFromLibrary()
                 FrontendGame.GALAXY -> launchGalaxyFromLibrary()
                 FrontendGame.KAIZO -> launchKaizoFromLibrary()
+                FrontendGame.BRAWL -> launchBrawlFromLibrary()
             }
         }
         return true
@@ -298,6 +299,7 @@ class ModePickerActivity : Activity() {
                 GALAXY_CASE -> galaxyInstalled
                 KAIZO_CASE -> kaizoInstalled
                 MSMBWII_CASE -> msmbwiiInstalled
+                BRAWL_CASE -> brawlInstalled
                 else -> true
             }
             thorCompanion?.setLibrarySelection(thorLibraryProduct, thorLibraryOptions, ready, status = status,
@@ -357,6 +359,12 @@ class ModePickerActivity : Activity() {
                     art = "galaxy", updatesShortcut = false) { launchGalaxyFromLibrary() },
                 ThorLauncherView.Entry("Kaizo Mario Galaxy Rebalanced", "Play the 2.1 challenge rework with separate saves.", { kaizoInstalled },
                     art = "kaizo", updatesShortcut = false) { launchKaizoFromLibrary() },
+                // Brawl is embedded and uses the common game importer and storage controls.
+                ThorLauncherView.Entry("Super Smash Bros. Brawl", "Brawl with up to four fighters.", { brawlInstalled },
+                    art = "brawl", updatesShortcut = false) { launchBrawlFromLibrary() },
+                ThorLauncherView.Entry("Manage games", "Install or offload games while keeping saves and settings.") {
+                    startActivity(Intent(this, GameStorageActivity::class.java))
+                },
                 ThorLauncherView.Entry("Your games", "Find and import your own game discs.") { openGames() },
                 ThorLauncherView.Entry("Check for updates", "Download and install the latest WiiDS release.") {
                     startActivity(Intent(this, WiiDsUpdateActivity::class.java))
@@ -490,6 +498,21 @@ class ModePickerActivity : Activity() {
         updateLowerStatus()
     }
 
+    private fun openGamesForBrawl() {
+        startActivity(Intent(this,GamesActivity::class.java).putExtra("storage_game","brawl"))
+    }
+
+    private fun launchBrawlFromLibrary() {
+        val message = when (ThorGameLaunch.launchBrawl(this)) {
+            ThorGameLaunch.Result.OPENED -> return
+            ThorGameLaunch.Result.NOT_INSTALLED -> { openGamesForBrawl(); return }
+            ThorGameLaunch.Result.UNAVAILABLE -> "Super Smash Bros. Brawl could not be opened. Try again."
+        }
+        statusText.text = message
+        thorLauncher?.launchFailed(message)
+        updateLowerStatus()
+    }
+
     private fun launchGalaxyFromLibrary() {
         val message = when (ThorGameLaunch.launchGalaxy(this)) {
             ThorGameLaunch.Result.OPENED -> return
@@ -506,6 +529,7 @@ class ModePickerActivity : Activity() {
     private var kaizoInstalled = false
     private var eclipseInstalled = false
     private var msmbwiiInstalled = false
+    private var brawlInstalled = false
     private fun refreshNsmbInstalled() {
         nsmbInstalled = runCatching { ThorGameLaunch.nsmbInstalled(this) }.getOrDefault(false)
         sunshineInstalled = runCatching { ThorGameLaunch.sunshineInstalled(this) }.getOrDefault(false)
@@ -513,6 +537,7 @@ class ModePickerActivity : Activity() {
         kaizoInstalled = runCatching { ThorGameLaunch.kaizoInstalled(this) }.getOrDefault(false)
         eclipseInstalled = runCatching { ThorGameLaunch.eclipseInstalled(this) }.getOrDefault(false)
         msmbwiiInstalled = runCatching { ThorGameLaunch.msmbwiiInstalled(this) }.getOrDefault(false)
+        brawlInstalled = runCatching { ThorGameLaunch.brawlInstalled(this) }.getOrDefault(false)
     }
 
     /** Looks for a newer release in the background and shows the button when there is one.
@@ -961,6 +986,9 @@ class ModePickerActivity : Activity() {
             root.addView(button, LinearLayout.LayoutParams(dp(280), dp(56)).apply { topMargin = dp(10) })
             otherGameButtons[button] = shown
         }
+        gameButton("Manage games", Color.rgb(0x4C, 0x8D, 0xF2), Color.rgb(0x1E, 0x5B, 0xC6), { true }) {
+            startActivity(Intent(this, GameStorageActivity::class.java))
+        }
         gameButton("Your games", Color.rgb(0x4C, 0x8D, 0xF2), Color.rgb(0x1E, 0x5B, 0xC6), { true }) { openGames() }
         if (BuildConfig.THOR_BUILD) gameButton("Check for updates", Color.rgb(0x4C, 0x8D, 0xF2), Color.rgb(0x1E, 0x5B, 0xC6), { true }) {
             startActivity(Intent(this, WiiDsUpdateActivity::class.java))
@@ -1127,6 +1155,11 @@ class ModePickerActivity : Activity() {
             refreshNsmbInstalled()
             if (!kaizoInstalled) mainHandler.post { openGames() }
             return if (kaizoInstalled) null else "Set up Kaizo Rebalanced first."
+        }
+        if (product == BRAWL_CASE) {
+            refreshNsmbInstalled()
+            if(!brawlInstalled)mainHandler.post { openGamesForBrawl() }
+            return if (brawlInstalled) null else BRAWL_NOT_INSTALLED
         }
         if (product == GALAXY_CASE) {
             refreshNsmbInstalled()
@@ -1893,18 +1926,20 @@ class ModePickerActivity : Activity() {
         private const val REQUEST_CODE_IMPORT_MII_DATA = 0x52520004
         private const val REQUEST_CODE_IMPORT_SINGLE_MII = 0x52520005
         /** Existing shelf order is stable; Eclipse follows Sunshine in its GameCube stack. */
-        private const val LIBRARY_CASES = 8
+        private const val LIBRARY_CASES = 9
         /** Base game first, then its mods: they share one stack on the main shelf. */
-        private val LIBRARY_BUNDLES = listOf(listOf(0, 1), listOf(2, 3), listOf(4, 5), listOf(6, 7))
+        private val LIBRARY_BUNDLES = listOf(listOf(0, 1), listOf(2, 3), listOf(4, 5), listOf(6, 7), listOf(8))
         /** Stable game identity of each library case, in shelf order. */
         private val LIBRARY_GAMES = listOf(FrontendGame.MARIO_KART, FrontendGame.RETRO_REWIND, FrontendGame.NSMB, FrontendGame.MSMBWII,
-            FrontendGame.SUNSHINE, FrontendGame.ECLIPSE, FrontendGame.GALAXY, FrontendGame.KAIZO)
+            FrontendGame.SUNSHINE, FrontendGame.ECLIPSE, FrontendGame.GALAXY, FrontendGame.KAIZO, FrontendGame.BRAWL)
         private const val GALAXY_CASE = ThorLibraryCompanionView.GALAXY
         private const val KAIZO_CASE = ThorLibraryCompanionView.KAIZO
         private const val NSMB_CASE = ThorLibraryCompanionView.NSMB
         private const val SUNSHINE_CASE = ThorLibraryCompanionView.SUNSHINE
         private const val ECLIPSE_CASE = ThorLibraryCompanionView.ECLIPSE
         private const val MSMBWII_CASE = ThorLibraryCompanionView.MSMBWII
+        private const val BRAWL_CASE = ThorLibraryCompanionView.BRAWL
+        private const val BRAWL_NOT_INSTALLED = "Import your USA Brawl revision 2 disc in Your games first."
         private const val NSMB_NOT_INSTALLED = "Import your New Super Mario Bros. Wii disc on the Your games screen first."
         private const val SUNSHINE_NOT_INSTALLED = "Import your Super Mario Sunshine disc on the Your games screen first."
         private const val ECLIPSE_NOT_INSTALLED = "Import your patched Super Mario Eclipse 1.1.0 disc on the Your games screen first. Eclipse keeps its own saves."

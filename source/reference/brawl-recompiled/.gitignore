@@ -1,0 +1,51 @@
+# New Super Paper Bros. - only sources, project files and scripts are tracked.
+# Game data (the user's own disc), the game's code, and everything built or downloaded stays out.
+/Disc/
+/Disc_PAL/
+/game/
+/game_pal/
+/toolchain/
+/autotest/
+/build-logs/
+/dist/
+/UserData/
+/_to_delete/
+/extras/
+/graphify-out/
+/.graphifyignore
+/Play/*
+!/Play/portable.txt
+
+# Agent notes and local reports
+AGENTS.md
+/CODEX_CLAUDE_HANDOFF.md
+/PLAN.md
+/last_run_report.json
+
+# Mod downloads (credited in tools/CREDITS.txt) and local logs
+/tools/*.7z
+/tools/extract.log
+
+# wiicompiled build output, downloaded dependencies and translator binaries
+/wiicompiled/generated/
+/wiicompiled/pal/
+/wiicompiled/native-build/
+/wiicompiled/build/
+/wiicompiled/Dependencies/
+/wiicompiled/translator/**/bin/
+/wiicompiled/translator/**/obj/
+/wiicompiled/Launcher/**/bin/
+/wiicompiled/Launcher/**/obj/
+/launcher/bin/
+/launcher/obj/
+/launcher/publish/
+__pycache__/
+*.pyc
+wiicompiled/buildtools/artifacts/
+launcher/linux/bin/
+launcher/linux/obj/
+launcher/linux/publish/
+
+# The matchmaking Worker's local tooling
+/server/worker/node_modules/
+/server/worker/.wrangler/

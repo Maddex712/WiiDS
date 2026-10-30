@@ -1,0 +1,48 @@
+schema_version: 1
+# The PAL engine builds in its own mini workspace wiicompiled\pal (runtime = make_pal_runtime.py copy, generated,
+# native-build, aurora-main junction); tools\build-spm.ps1 -Pal sets it up.
+workspace_root: ../../../pal
+
+# Super Paper Mario, Europe (R8PP01 rev 0, spm-decomp EU0): main.dol + relF.bin (pre-linked, see inputs.rel).
+project:
+  id: spm-r8pp01
+  display_name: Super Paper Mario (Europe)
+  game_id: R8PP01
+  region: P
+  base_manifest_format: spm-recomp-base-manifest
+  base_manifest_stem: spm_base
+
+memory:
+  base: 0x80000000
+  size: 0x01800000
+  sda_base: 0x805B5F00
+  sda2_base: 0x805B7260
+
+inputs:
+  dol:
+    path: ../../game_pal/main.dol
+    sha256: b3c3f0d7609f33a6cac5e039895e288ad51ef8fa47d69144299d14c9edfb447a  # HQ audio mod code patches at 0x8023BED4, 0x8023C218 (original: game_pal/main.dol.orig)
+  # relF.bin pre-linked offline by projects/spm/tools/prelink_spm_rel.py at its boot heap address
+  # (image 0x80C40000, bss 0x80F5EB20: above where relmgr's __memAlloc lands in any language; runtime/src/hle/spm_rel_pin.cpp pads the heap up to it. The USA image is 0x80BF6840).
+  rel:
+    path: ../../game_pal/spm_linked.rel
+    load_address: 0x80C40000
+
+translation:
+  entry_points:
+    - 0x80006124
+  function_map:
+    path: ../projects/spm/pal/MAP.txt
+  allow_unsupported_instructions: false
+
+runtime:
+  native_registration_root: runtime/src
+  native_abi_directories:
+    - runtime/src/hle/gx
+
+output:
+  root: generated
+  functions: functions
+  runtime_config: RuntimeConfig.h
+  data_initializer: data_sections_init.cpp
+  base_manifest: ../build/base/spm_base_manifest.json

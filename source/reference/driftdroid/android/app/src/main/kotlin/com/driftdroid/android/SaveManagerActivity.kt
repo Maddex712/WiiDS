@@ -75,6 +75,7 @@ class SaveManagerActivity : Activity() {
         }
         button("Import a Dolphin save...") {
             val game = selected
+            if(game==FrontendGame.BRAWL) { status.text="Brawl supports WiiDS backup and restore here. Dolphin save-file import is not supported yet.";return@button }
             ThorDialogs.builder(this).setTitle("Import for ${game.label}")
                 .setMessage(DolphinSaveImport.instructions(game.id) + "\n\nCopy the file to Downloads, then choose it here. No root is needed. Dolphin save states and full NAND/card backups are not supported.")
                 .setPositiveButton("Choose save") { _, _ ->
@@ -275,6 +276,7 @@ class SaveManagerActivity : Activity() {
         buttons.forEach { it.isEnabled = false }
         Thread {
             val result = runCatching {
+                GameStorage.blocker(this)?.let { error(it) }
                 SaveManagerProfiles.requireStopped(this)
                 val work = SaveManagerProfiles.work(this); SaveArchive.mkdir(work)
                 if (!recovery && SaveArchive.pending(work)) error("Recover the interrupted restore by reopening Save manager first.")

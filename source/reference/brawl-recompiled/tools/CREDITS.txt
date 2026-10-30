@@ -1,0 +1,36 @@
+BRAWL RECOMPILED - credits and licenses
+=======================================
+Made by JosiahG.
+
+Engine
+- Based on WiiCompiled (https://github.com/patchzyy/Wiicompiled) by patchzyy and contributors,
+  GNU General Public License v3.0 (LICENSE.txt). This port's source code is published in the GitHub
+  repository this release comes from.
+- aurora (WebGPU GameCube/Wii graphics), MIT, Copyright (c) 2022 Luke Street.
+- Bundled libraries and their licenses: engine\licenses\THIRD-PARTY-NOTICES.md and the license
+  files next to it (SDL3 zlib, Dawn BSD-3-Clause, DirectXShaderCompiler NCSA, Dear ImGui MIT,
+  libpng, zlib, FreeType FTL, Zstandard BSD-3-Clause, xxHash BSD-2-Clause, Abseil Apache-2.0,
+  {fmt} MIT, libusb LGPL-2.1, Tracy BSD-3-Clause, SQLite public domain).
+- Portions of this software are copyright (c) The FreeType Project (www.freetype.org).
+  All rights reserved.
+- FatFs (the virtual SD card's file system) by ChaN, 1-clause BSD (engine\licenses\FatFs-LICENSE.txt).
+- The Gecko code handler is USB Loader GX's codehandleronly (Gecko OS), GPL: what Project+'s own
+  loader installs on a Wii.
+- engine\dsp_coef.bin and engine\wii_bootstrap: Dolphin Emulator data files, GPL-2.0-or-later,
+  Copyright (c) 2003+ Dolphin Emulator Project. The SD card slot and card image follow Dolphin's.
+- Function names from the Super Smash Bros. Brawl decompilation (https://github.com/doldecomp/brawl).
+- engine\msvcp140*.dll and engine\vcruntime140*.dll: Microsoft Visual C++ runtime, redistributed
+  under the Visual Studio redistributable terms.
+- The launcher runs on .NET (MIT, Copyright (c) .NET Foundation and Contributors).
+- The launcher and window icon is a drawing of the series' Smash Ball emblem, Nintendo's.
+
+Mods are the work of their own authors and are not included; they load here the way they do on a Wii:
+Project+ (https://projectplusgame.com) by the Project+ Development Team, Project+Ex
+(https://github.com/KingJigglypuff/project-plus-ex) by KingJigglypuff and contributors, Super Smash REX
+(https://www.rexbuild.site) by the REX Development Team, Brawl Minus (https://brawlminus.net) by the
+Brawl Minus team, Legacy XP (https://unofficialsmashlegacy.weebly.com) by the Smash 2 / Legacy teams.
+
+Super Smash Bros. Brawl and its characters are trademarks and copyrights of Nintendo, HAL Laboratory,
+Sora Ltd. and the other rights holders of the series' characters. This project is not affiliated with
+or endorsed by them. It contains no game disc data: you supply your own legally dumped disc, which the
+launcher extracts on your computer.

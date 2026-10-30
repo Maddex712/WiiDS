@@ -50,6 +50,7 @@ class ThorRetroRewindUpdateService : Service() {
         val thread = Thread({
             var leased = false
             try {
+                GameStorage.blocker(this)?.let { error(it) }
                 if (action != CHECK) {
                     check(ThorGameSession.tryBeginUpdate()) { "Close the game before installing an update." }
                     leased = true

@@ -9,7 +9,8 @@ public enum FrontendGame {
     SUNSHINE("sunshine", "Super Mario Sunshine", "sunshine"),
     ECLIPSE("eclipse", "Super Mario Eclipse", "eclipse"),
     GALAXY("galaxy", "Super Mario Galaxy", "galaxy"),
-    KAIZO("kaizo", "Kaizo Mario Galaxy Rebalanced", "kaizo");
+    KAIZO("kaizo", "Kaizo Mario Galaxy Rebalanced", "kaizo"),
+    BRAWL("brawl", "Super Smash Bros. Brawl", "brawl");
 
     public final String id;
     public final String label;

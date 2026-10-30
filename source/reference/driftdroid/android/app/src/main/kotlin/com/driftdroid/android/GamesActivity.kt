@@ -253,8 +253,8 @@ class GamesActivity : Activity() {
                 game == Game.ECLIPSE && !disc.isInstalled(this) && GameCatalog.Disc.SUNSHINE_USA.isInstalled(this) -> {
                     val failed = !eclipseMessage.isNullOrEmpty()
                     if (EclipseMod.bundled(this)) {
-                        show(card, if (failed) "$eclipseMessage You can retry with the included Eclipse 1.1.0 patch." else
-                            "Your Sunshine disc is ready. Eclipse Team's 1.1.0 patch is included; your original game and saves are kept.",
+                        show(card, if (failed) "$eclipseMessage You can retry with the verified Eclipse 1.1.0 patch." else
+                            "Your Sunshine disc is ready. Eclipse Team's 1.1.0 patch is ready; your original game and saves are kept.",
                             if (failed) AMBER else GREEN)
                         button(card, if (failed) "Retry Eclipse installation" else "Install Eclipse", !installBusy) {
                             eclipseMessage = null
@@ -480,7 +480,19 @@ class GamesActivity : Activity() {
         }
         column.addView(accessRow, LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = dp(16) })
 
-        val games = Game.values().toList()
+        val requested = FrontendGame.fromId(intent.getStringExtra("storage_game"))
+        val selected = when(requested) {
+            FrontendGame.MARIO_KART -> Game.MARIO_KART
+            FrontendGame.NSMB -> Game.NSMB
+            FrontendGame.MSMBWII -> Game.MSMBWII
+            FrontendGame.SUNSHINE -> Game.SUNSHINE
+            FrontendGame.ECLIPSE -> Game.ECLIPSE
+            FrontendGame.BRAWL -> Game.BRAWL
+            FrontendGame.GALAXY -> Game.GALAXY
+            FrontendGame.KAIZO -> Game.KAIZO
+            else -> null
+        }
+        val games = if(selected!=null) listOf(selected) else Game.values().toList()
         for (row in games.chunked(2)) {
             val line = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
             row.forEachIndexed { index, game ->

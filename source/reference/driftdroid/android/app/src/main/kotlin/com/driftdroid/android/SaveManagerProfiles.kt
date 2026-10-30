@@ -14,6 +14,7 @@ internal object SaveManagerProfiles {
     // Resolve only trusted Context bases; SaveArchive still rejects links beneath them.
     fun work(context: Context) = File(context.filesDir.canonicalFile, "save-manager")
     fun blocker(context: Context): String? = when {
+        GameStorage.blocker(context) != null -> GameStorage.blocker(context)
         WiiDsUpdater.installing.get() -> "Finish or cancel the WiiDS update installation first."
         busy.get() -> "Wait for the save operation to finish."
         SaveArchive.pending(work(context)) -> "Open Options > Save manager to recover the interrupted restore first."
@@ -62,6 +63,11 @@ internal object SaveManagerProfiles {
             FrontendGame.SUNSHINE, FrontendGame.ECLIPSE -> {
                 if (external == null) throw IOException("Game save storage is unavailable.")
                 root("main", external, (if (game == FrontendGame.SUNSHINE) "sms" else "eclipse") + "/saves/card-a")
+            }
+            FrontendGame.BRAWL -> {
+                if(external==null)throw IOException("Brawl save storage is unavailable.")
+                defaultNand(File(external,"brawl/Config.toml"))
+                root("main",external,"brawl/NAND/title/00010000/52534245/data")
             }
             FrontendGame.GALAXY, FrontendGame.KAIZO -> {
                 if (external == null) throw IOException("Galaxy save storage is unavailable.")

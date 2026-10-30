@@ -25,14 +25,14 @@ object EclipseMod {
     @Volatile var state = State()
         private set
     @Volatile private var cancelled = false
-    fun bundled(context: Context) = runCatching { context.assets.open(BUNDLED).use { true } }.getOrDefault(false)
+    fun bundled(context: Context) = com.driftdroid.android.EclipseContentPack.present(context) || runCatching { context.assets.open(BUNDLED).use { true } }.getOrDefault(false)
     fun cancel() { cancelled = true }
     fun acknowledge() { if (!state.running) state = State() }
 
     /** A raw official xdelta may be selected when a source-only build lacks the bundled patch. */
     fun start(context: Context, picked: Uri? = null): Boolean {
         synchronized(GameInstaller) {
-            if (state.running || GameInstaller.running || com.driftdroid.android.WiiDsUpdater.installing.get()) return false
+            if (com.driftdroid.android.GameStorage.blocker(context) != null || state.running || GameInstaller.running || com.driftdroid.android.WiiDsUpdater.installing.get()) return false
             state = State(running = true, phase = "Checking your Sunshine disc", total = DISC_BYTES)
             cancelled = false
         }
@@ -40,7 +40,7 @@ object EclipseMod {
         Thread {
             val error = runCatching { install(app, picked); null }.getOrElse { it.message ?: "Eclipse couldn't be installed." }
             state = state.copy(running = false, finished = true, error = error)
-            if (error == null) GameInstaller.repairArt(app)
+            if (error == null) { com.driftdroid.android.GameStorage.enable(app,com.driftdroid.android.FrontendGame.ECLIPSE); GameInstaller.repairArt(app) }
         }.apply { name = "WiiDsEclipseInstall"; isDaemon = true }.start()
         return true
     }
@@ -77,7 +77,10 @@ object EclipseMod {
             throw IOException("Eclipse needs at least 1.5 GB free for its separate game image. Sunshine and all saves are kept.")
         try {
             val digest = MessageDigest.getInstance("SHA-256")
-            val input: InputStream = if (picked == null) context.assets.open(BUNDLED)
+            val input: InputStream = if (picked == null) {
+                val cached=com.driftdroid.android.EclipseContentPack.patch(context)
+                if (com.driftdroid.android.EclipseContentPack.present(context)) cached.inputStream() else context.assets.open(BUNDLED)
+            }
                 else context.contentResolver.openInputStream(picked) ?: throw IOException("The selected Eclipse patch couldn't be opened.")
             state = state.copy(phase = "Installing Eclipse 1.1.0", done = 0, total = PATCH_BYTES)
             var consumed = 0L
@@ -95,6 +98,7 @@ object EclipseMod {
             checkCancel()
             Files.move(temp.toPath(), File(directory, "game.iso").toPath(),
                 StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING)
+            com.driftdroid.android.EclipseContentPack.patch(context).delete()
         } finally {
             temp.delete()
         }

@@ -1,3 +1,7 @@
+# WiiDS 1.1.2 source snapshot
+
+See [Brawl integration/build notes](BRAWL-INTEGRATION.md) and [prerelease notes](../docs/release/V1.1.2.md). The current exact runtime asset tree is included in build/wiids-merge/assets. Earlier sections below retain historical component build context; the current source manifest and 1.1.2 notes take precedence.
+
 # WiiDS source release
 
 The APK and matching source archive must refer to the same release. This source

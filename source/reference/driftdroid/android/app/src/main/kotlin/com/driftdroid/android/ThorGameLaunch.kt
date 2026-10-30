@@ -17,6 +17,9 @@ internal object ThorGameLaunch {
     const val ECLIPSE = "eclipse"
     const val GALAXY = "galaxy"
     const val KAIZO = "kaizo"
+    /** Super Smash Bros. Brawl uses its own runtime process and save profile inside WiiDS. */
+    const val BRAWL = "brawl"
+    private const val BRAWL_ENTRY = "dev.wiids.brawl.ThorLaunchActivity"
     private const val GALAXY_ENTRY = "dev.thor.galaxy.ThorLaunchActivity"
     /** MSMBWii ("Just a Little Adventure"): New Super Mario Bros. Wii with MidiGuyDP's level mod. */
     const val MSMBWII = "msmbwii"
@@ -46,6 +49,10 @@ internal object ThorGameLaunch {
     fun kaizoInstalled(context: Context): Boolean = android.os.Build.VERSION.SDK_INT >= 32 && dev.thor.galaxy.GalaxyStorage.kaizoReady(context)
 
     fun launchKaizo(activity: Activity): Result = launch(activity, "dev.thor.galaxy.KaizoActivities\$Launch", KAIZO, kaizoInstalled(activity))
+
+    /** Brawl has its own imported disc and art inside WiiDS. */
+    fun brawlInstalled(context: Context): Boolean = dev.wiids.brawl.BrawlStorage.ready(context) && dev.wiids.brawl.BrawlArt.ready(context)
+    fun launchBrawl(activity: Activity): Result = launch(activity,BRAWL_ENTRY,BRAWL,brawlInstalled(activity))
 
     fun launchNsmb(activity: Activity): Result = launch(activity, NSMB_ENTRY, NSMB_WII, nsmbInstalled(activity))
 

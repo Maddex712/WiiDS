@@ -94,6 +94,7 @@ class FrontendLaunchActivity : Activity() {
             GameCatalog.Disc.NSMB_USA_REV1 -> FrontendGame.NSMB
             GameCatalog.Disc.SUNSHINE_USA -> FrontendGame.SUNSHINE
             GameCatalog.Disc.ECLIPSE_110 -> FrontendGame.ECLIPSE
+            GameCatalog.Disc.BRAWL_USA_REV2 -> FrontendGame.BRAWL
             GameCatalog.Disc.GALAXY_USA -> FrontendGame.GALAXY
         }
         val base = when (explicit) {
