@@ -1,6 +1,10 @@
 package dev.chasem.smslauncher;
 
 import android.os.Bundle;
+import android.app.AlertDialog;
+import android.content.Intent;
+import android.view.KeyEvent;
+import com.driftdroid.android.ThorDialogs;
 import android.os.Build;
 import android.os.PowerManager;
 import android.app.GameManager;
@@ -20,6 +24,7 @@ public class GameActivity extends SDLActivity {
     private volatile String displayRequest = "not requested";
     private volatile String gamePolicy = "not queried";
     private ThorSunshineScreen lowerScreen;
+    private AlertDialog sunshineMenu;
     private SharedPreferences settings() { return getSharedPreferences("settings", MODE_PRIVATE); }
     @Override protected SDLSurface createSDLSurface(Context context) {
         return new SDLSurface(context) {
@@ -113,6 +118,10 @@ public class GameActivity extends SDLActivity {
         args.add("--env"); args.add("SMS_SAVE_DIR=" + new File(ThorStorage.root(this), "saves/card-a").getAbsolutePath());
         args.add("--env"); args.add("SMS_SETTINGS=" + new File(data, "settings.txt").getAbsolutePath());
         args.add("--env"); args.add("SMS_ANDROID_CONTROLLER_MAPPINGS=" + new File(ThorStorage.root(this), "controller-mappings.txt").getAbsolutePath());
+        String pack = com.driftdroid.android.TexturePacks.activePath(this, com.driftdroid.android.FrontendGame.SUNSHINE);
+        if (pack != null) {
+            args.add("--env"); args.add("SMS_TEXTURE_PACKS=" + pack);
+        }
         // The Thor's lower screen shows the Shine, blue-coin and coin counters (ThorSunshineScreen):
         // the top screen leaves them out and moves lives to its corner.
         if (getIntent().getBooleanExtra("thor_library", false) && ThorSunshineScreen.hasLowerPanel(this)) {
@@ -148,7 +157,7 @@ public class GameActivity extends SDLActivity {
         // The Thor's lower panel shows the area, collection and FLUDD (ThorSunshineScreen).
         if (getIntent().getBooleanExtra("thor_library", false)) lowerScreen = new ThorSunshineScreen(this);
         if (android.os.Build.VERSION.SDK_INT >= 33)
-            getOnBackInvokedDispatcher().registerOnBackInvokedCallback(android.window.OnBackInvokedDispatcher.PRIORITY_DEFAULT, this::finish);
+            getOnBackInvokedDispatcher().registerOnBackInvokedCallback(android.window.OnBackInvokedDispatcher.PRIORITY_DEFAULT, this::onBackPressed);
         traceLifecycle("create end");
     }
     @Override public boolean dispatchKeyEvent(android.view.KeyEvent event) {
@@ -160,17 +169,41 @@ public class GameActivity extends SDLActivity {
                 SDLActivity.handleKeyEvent(mSurface,event.getKeyCode(),event,null);
                 return true;
             }
-            if (event.getAction() == android.view.KeyEvent.ACTION_UP) finish();
+            if (event.getAction() == KeyEvent.ACTION_UP && !event.isCanceled()) onBackPressed();
             return true;
         }
         return super.dispatchKeyEvent(event);
     }
+    @Override public void onBackPressed() {
+        if (!getIntent().getBooleanExtra("thor_library", false)) {
+            finish();
+            return;
+        }
+        if (isFinishing() || isDestroyed() || sunshineMenu != null) return;
+        AlertDialog menu = ThorDialogs.INSTANCE.builder(this)
+            .setTitle("Sunshine settings")
+            .setItems(new String[]{"Resume", "Game settings", "Return to WiiDS"}, (dialog, item) -> {
+                if (item == 1) {
+                    startActivity(new Intent(this, LauncherActivity.class)
+                        .putExtra(LauncherActivity.EXTRA_SETTINGS_ONLY, true));
+                } else if (item == 2) {
+                    finish();
+                }
+            }).create();
+        sunshineMenu = menu;
+        menu.setOnDismissListener(dialog -> sunshineMenu = null);
+        menu.show();
+    }
+
+    @Override public void superOnBackPressed() { onBackPressed(); }
+
     @Override public void finish() {
         traceLifecycle("finish requested");
         if (getIntent().getBooleanExtra("thor_library", false)) ThorStorage.returnToLibrary(this);
         super.finish();
     }
     @Override protected void onDestroy() {
+        if (sunshineMenu != null) sunshineMenu.dismiss();
         if (lowerScreen != null) { lowerScreen.stop(); lowerScreen = null; }
         traceLifecycle("destroy begin");
         // SDL's super.onDestroy sends SDL_QUIT, then joins SDLThread without a

@@ -9,7 +9,7 @@ KEYS = {'a': 304, 'b': 305, 'x': 307, 'y': 308, 'start': 315,
         'up': 544, 'down': 545, 'left': 546, 'right': 547, 'back': 158}
 parser = argparse.ArgumentParser(description=__doc__)
 parser.add_argument('--serial', required=True)
-parser.add_argument('--target', choices=('galaxy', 'kaizo', 'library', 'nsmb', 'msmb', 'mkw', 'save-manager', 'achievements', 'cocoon'), default='galaxy')
+parser.add_argument('--target', choices=('galaxy', 'kaizo', 'library', 'nsmb', 'msmb', 'mkw', 'mkdd', 'mkdd-plus', 'save-manager', 'achievements', 'cocoon'), default='galaxy')
 parser.add_argument('--keys', help='Comma-separated simultaneous keys')
 parser.add_argument('--axis', type=int, choices=(0, 1, 2, 5, 9, 10))
 parser.add_argument('--value', type=int, default=0)
@@ -20,7 +20,7 @@ if not 30 <= args.ms <= 2000 or abs(args.value) > 32767 or (args.keys is None) =
 keys = args.keys.split(',') if args.keys else []
 if any(k not in KEYS for k in keys):
     parser.error('Unknown key')
-adb = [str(ROOT / '.tools/platform-tools/adb.exe'), '-s', args.serial]
+adb = [str(ROOT / '.tools/android-sdk/platform-tools/adb.exe'), '-s', args.serial]
 state = subprocess.check_output(adb + ['shell', 'dumpsys', 'activity', 'activities'], text=True)
 expected = {'galaxy': 'io.github.maddex712.wiids/dev.thor.galaxy.GalaxyActivity',
             'kaizo': 'io.github.maddex712.wiids/dev.thor.galaxy.KaizoActivities$Game',
@@ -28,6 +28,8 @@ expected = {'galaxy': 'io.github.maddex712.wiids/dev.thor.galaxy.GalaxyActivity'
             'nsmb': 'io.github.maddex712.wiids/com.wither.nsmbw.GameActivity',
             'msmb': 'io.github.maddex712.wiids/com.wither.nsmbw.MsmbwiiActivities$Game',
             'mkw': 'io.github.maddex712.wiids/com.driftdroid.android.MainActivity',
+            'mkdd': 'io.github.maddex712.wiids/dev.thor.mkdd.WiiDsMkddGameActivity',
+            'mkdd-plus': 'io.github.maddex712.wiids/dev.thor.mkdd.WiiDsMkddPlusGameActivity',
             'save-manager': 'io.github.maddex712.wiids/com.driftdroid.android.SaveManagerActivity',
             'achievements': 'io.github.maddex712.wiids/com.driftdroid.android.achievements.AchievementsActivity',
             'cocoon': 'rip.moth.cocoonshell/.MainActivity'}[args.target]

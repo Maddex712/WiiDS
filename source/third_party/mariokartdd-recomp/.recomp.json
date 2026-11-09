@@ -1,0 +1,35 @@
+{
+  "$schema": "https://recomp.fyi/schema/v1.json",
+  "game": "Mario Kart: Double Dash!!",
+  "system": "GameCube",
+  "type": "recomp",
+  "original": {
+    "region": "USA",
+    "serial": "DL-DOL-GM4E-USA",
+    "sha1": "34bdef709a1ae9799fdabe8e54cff1c7d3665f2b"
+  },
+  "project": "mariokartdd-recomp",
+  "status": "playable",
+  "targets": [
+    "macOS",
+    "Windows",
+    "Meta Quest 3"
+  ],
+  "toolchain": "gcn-recomp",
+  "approach": "Static recompilation of the PowerPC executable to C, linked against a runtime that stands in for the GameCube hardware",
+  "tags": [
+    "VR"
+  ],
+  "maintainers": [
+    {
+      "name": "Ethan Nicholas",
+      "link": "https://github.com/ethannicholas"
+    }
+  ],
+  "links": [
+    {
+      "label": "Source",
+      "url": "https://github.com/ethannicholas/mariokartdd-recomp"
+    }
+  ]
+}

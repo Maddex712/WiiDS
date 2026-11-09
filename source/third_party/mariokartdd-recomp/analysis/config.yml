@@ -1,0 +1,3 @@
+object: ../build/main.dol
+symbols: symbols.txt
+splits: splits.txt

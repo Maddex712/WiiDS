@@ -59,6 +59,7 @@
             </intent-filter>
         </activity>
 
+        <activity android:name=".GameStorageActivity" android:exported="false" android:screenOrientation="sensorLandscape" />
         <activity android:name=".achievements.AchievementsActivity" android:exported="false"
             android:screenOrientation="sensorLandscape" android:theme="@android:style/Theme.Black.NoTitleBar.Fullscreen" />
 
@@ -99,6 +100,41 @@
             android:name=".RetroRewindInstallService"
             android:exported="false"
             android:foregroundServiceType="dataSync" />
+
+        <!-- Brawl is a game inside WiiDS, with its own profile and fresh native process. -->
+        <activity android:name="dev.wiids.brawl.ThorLaunchActivity" android:exported="false" android:process=":brawl" android:screenOrientation="sensorLandscape" />
+        <activity android:name="dev.wiids.brawl.LauncherActivity" android:exported="false" android:process=":brawl" android:screenOrientation="sensorLandscape" />
+        <activity android:name="dev.wiids.brawl.GameActivity" android:exported="false" android:process=":brawl_game"
+            android:launchMode="singleTask" android:screenOrientation="sensorLandscape" android:resizeableActivity="false"
+            android:preferMinimalPostProcessing="true" android:theme="@android:style/Theme.Material.NoActionBar.Fullscreen"
+            android:configChanges="layoutDirection|locale|grammaticalGender|fontScale|fontWeightAdjustment|orientation|uiMode|screenLayout|screenSize|smallestScreenSize|keyboard|keyboardHidden|navigation" />
+
+        <activity android:name=".ProjectPlusLaunchActivity" android:exported="false"
+            android:screenOrientation="sensorLandscape" />
+        <activity android:name="dev.wiids.brawl.ProjectPlusLauncherActivity" android:exported="false"
+            android:process=":brawl" android:screenOrientation="sensorLandscape" />
+        <activity android:name="dev.wiids.brawl.ProjectPlusGameActivity" android:exported="false" android:process=":brawl_plus_game"
+            android:launchMode="singleTask" android:screenOrientation="sensorLandscape" android:resizeableActivity="false"
+            android:preferMinimalPostProcessing="true" android:theme="@android:style/Theme.Material.NoActionBar.Fullscreen"
+            android:configChanges="layoutDirection|locale|grammaticalGender|fontScale|fontWeightAdjustment|orientation|uiMode|screenLayout|screenSize|smallestScreenSize|keyboard|keyboardHidden|navigation" />
+
+        <!-- Mario Kart: Double Dash!!: the carousel entry in ":mkdd" (no native code), the game in
+             ":mkdd_game" (NativeActivity, flat_main.cpp; duo screen on the lower display). -->
+        <activity android:name="dev.thor.mkdd.MkddLaunchActivity" android:exported="false" android:process=":mkdd"
+            android:theme="@android:style/Theme.Translucent.NoTitleBar" android:screenOrientation="sensorLandscape" />
+        <activity android:name="dev.thor.mkdd.WiiDsMkddGameActivity" android:exported="false" android:process=":mkdd_game"
+            android:launchMode="singleTask" android:screenOrientation="sensorLandscape" android:resizeableActivity="false"
+            android:preferMinimalPostProcessing="true" android:theme="@android:style/Theme.Black.NoTitleBar.Fullscreen"
+            android:configChanges="density|layoutDirection|locale|grammaticalGender|fontScale|fontWeightAdjustment|colorMode|orientation|uiMode|screenLayout|screenSize|smallestScreenSize|keyboard|keyboardHidden|navigation">
+            <meta-data android:name="android.app.lib_name" android:value="wiids_mkdd_game" />
+        </activity>
+
+        <activity android:name="dev.thor.mkdd.WiiDsMkddPlusGameActivity" android:exported="false" android:process=":mkdd_plus_game"
+            android:launchMode="singleTask" android:screenOrientation="sensorLandscape" android:resizeableActivity="false"
+            android:preferMinimalPostProcessing="true" android:theme="@android:style/Theme.Black.NoTitleBar.Fullscreen"
+            android:configChanges="density|layoutDirection|locale|grammaticalGender|fontScale|fontWeightAdjustment|colorMode|orientation|uiMode|screenLayout|screenSize|smallestScreenSize|keyboard|keyboardHidden|navigation">
+            <meta-data android:name="android.app.lib_name" android:value="wiids_mkdd_plus_game" />
+        </activity>
 
         <!-- New Super Mario Bros. Wii: launcher-side screens in ":nsmbw", the game in ":nsmbw_game". The native
              runtime starts once per process, so leaving the game ends that process. -->
@@ -161,6 +197,11 @@
             android:enableOnBackInvokedCallback="true" android:screenOrientation="userLandscape"
             android:configChanges="keyboard|keyboardHidden|orientation|screenSize|screenLayout|uiMode|navigation|density"
             android:theme="@android:style/Theme.Material.NoActionBar.Fullscreen" />
+
+        <activity
+            android:name=".TexturePacksActivity"
+            android:exported="false"
+            android:screenOrientation="sensorLandscape" />
 
         <activity
             android:name=".GamesActivity"

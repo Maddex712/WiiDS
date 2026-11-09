@@ -1,0 +1,1186 @@
+{
+ "game_6-balloon_icon.png": {
+  "archive": "game_6.szs",
+  "entry": "timg/balloon_icon.bti",
+  "size": [
+   37,
+   48
+  ]
+ },
+ "game_6-balloon_slash.png": {
+  "archive": "game_6.szs",
+  "entry": "timg/balloon_slash.bti",
+  "size": [
+   40,
+   48
+  ]
+ },
+ "game_6-big_tx_a.png": {
+  "archive": "game_6.szs",
+  "entry": "timg/big_tx_a.bti",
+  "size": [
+   64,
+   64
+  ]
+ },
+ "game_6-big_tx_b.png": {
+  "archive": "game_6.szs",
+  "entry": "timg/big_tx_b.bti",
+  "size": [
+   64,
+   64
+  ]
+ },
+ "game_6-big_tx_d.png": {
+  "archive": "game_6.szs",
+  "entry": "timg/big_tx_d.bti",
+  "size": [
+   64,
+   64
+  ]
+ },
+ "game_6-big_tx_e.png": {
+  "archive": "game_6.szs",
+  "entry": "timg/big_tx_e.bti",
+  "size": [
+   64,
+   64
+  ]
+ },
+ "game_6-big_tx_ex.png": {
+  "archive": "game_6.szs",
+  "entry": "timg/big_tx_ex.bti",
+  "size": [
+   64,
+   64
+  ]
+ },
+ "game_6-big_tx_g.png": {
+  "archive": "game_6.szs",
+  "entry": "timg/big_tx_g.bti",
+  "size": [
+   64,
+   64
+  ]
+ },
+ "game_6-big_tx_h.png": {
+  "archive": "game_6.szs",
+  "entry": "timg/big_tx_h.bti",
+  "size": [
+   64,
+   64
+  ]
+ },
+ "game_6-big_tx_i.png": {
+  "archive": "game_6.szs",
+  "entry": "timg/big_tx_i.bti",
+  "size": [
+   64,
+   64
+  ]
+ },
+ "game_6-big_tx_m.png": {
+  "archive": "game_6.szs",
+  "entry": "timg/big_tx_m.bti",
+  "size": [
+   64,
+   64
+  ]
+ },
+ "game_6-big_tx_n.png": {
+  "archive": "game_6.szs",
+  "entry": "timg/big_tx_n.bti",
+  "size": [
+   64,
+   64
+  ]
+ },
+ "game_6-big_tx_o.png": {
+  "archive": "game_6.szs",
+  "entry": "timg/big_tx_o.bti",
+  "size": [
+   64,
+   64
+  ]
+ },
+ "game_6-big_tx_p.png": {
+  "archive": "game_6.szs",
+  "entry": "timg/big_tx_p.bti",
+  "size": [
+   64,
+   64
+  ]
+ },
+ "game_6-big_tx_r.png": {
+  "archive": "game_6.szs",
+  "entry": "timg/big_tx_r.bti",
+  "size": [
+   64,
+   64
+  ]
+ },
+ "game_6-big_tx_s.png": {
+  "archive": "game_6.szs",
+  "entry": "timg/big_tx_s.bti",
+  "size": [
+   64,
+   64
+  ]
+ },
+ "game_6-big_tx_t.png": {
+  "archive": "game_6.szs",
+  "entry": "timg/big_tx_t.bti",
+  "size": [
+   64,
+   64
+  ]
+ },
+ "game_6-big_tx_u.png": {
+  "archive": "game_6.szs",
+  "entry": "timg/big_tx_u.bti",
+  "size": [
+   64,
+   64
+  ]
+ },
+ "game_6-big_tx_y.png": {
+  "archive": "game_6.szs",
+  "entry": "timg/big_tx_y.bti",
+  "size": [
+   64,
+   64
+  ]
+ },
+ "game_6-bluecoin_icon.png": {
+  "archive": "game_6.szs",
+  "entry": "timg/bluecoin_icon.bti",
+  "size": [
+   30,
+   40
+  ]
+ },
+ "game_6-coin_back.png": {
+  "archive": "game_6.szs",
+  "entry": "timg/coin_back.bti",
+  "size": [
+   180,
+   22
+  ]
+ },
+ "game_6-coin_icon.png": {
+  "archive": "game_6.szs",
+  "entry": "timg/coin_icon.bti",
+  "size": [
+   30,
+   40
+  ]
+ },
+ "game_6-coin_number_0.png": {
+  "archive": "game_6.szs",
+  "entry": "timg/coin_number_0.bti",
+  "size": [
+   36,
+   36
+  ]
+ },
+ "game_6-coin_number_1.png": {
+  "archive": "game_6.szs",
+  "entry": "timg/coin_number_1.bti",
+  "size": [
+   36,
+   36
+  ]
+ },
+ "game_6-coin_number_2.png": {
+  "archive": "game_6.szs",
+  "entry": "timg/coin_number_2.bti",
+  "size": [
+   36,
+   36
+  ]
+ },
+ "game_6-coin_number_3.png": {
+  "archive": "game_6.szs",
+  "entry": "timg/coin_number_3.bti",
+  "size": [
+   36,
+   36
+  ]
+ },
+ "game_6-coin_number_4.png": {
+  "archive": "game_6.szs",
+  "entry": "timg/coin_number_4.bti",
+  "size": [
+   36,
+   36
+  ]
+ },
+ "game_6-coin_number_5.png": {
+  "archive": "game_6.szs",
+  "entry": "timg/coin_number_5.bti",
+  "size": [
+   36,
+   36
+  ]
+ },
+ "game_6-coin_number_6.png": {
+  "archive": "game_6.szs",
+  "entry": "timg/coin_number_6.bti",
+  "size": [
+   36,
+   36
+  ]
+ },
+ "game_6-coin_number_7.png": {
+  "archive": "game_6.szs",
+  "entry": "timg/coin_number_7.bti",
+  "size": [
+   36,
+   36
+  ]
+ },
+ "game_6-coin_number_8.png": {
+  "archive": "game_6.szs",
+  "entry": "timg/coin_number_8.bti",
+  "size": [
+   36,
+   36
+  ]
+ },
+ "game_6-coin_number_9.png": {
+  "archive": "game_6.szs",
+  "entry": "timg/coin_number_9.bti",
+  "size": [
+   36,
+   36
+  ]
+ },
+ "game_6-coin_number_colon.png": {
+  "archive": "game_6.szs",
+  "entry": "timg/coin_number_colon.bti",
+  "size": [
+   18,
+   36
+  ]
+ },
+ "game_6-coin_number_x.png": {
+  "archive": "game_6.szs",
+  "entry": "timg/coin_number_x.bti",
+  "size": [
+   36,
+   36
+  ]
+ },
+ "game_6-cursor.png": {
+  "archive": "game_6.szs",
+  "entry": "timg/cursor.bti",
+  "size": [
+   32,
+   46
+  ]
+ },
+ "game_6-error_window.png": {
+  "archive": "game_6.szs",
+  "entry": "timg/error_window.bti",
+  "size": [
+   16,
+   16
+  ]
+ },
+ "game_6-file_name_a.png": {
+  "archive": "game_6.szs",
+  "entry": "timg/file_name_a.bti",
+  "size": [
+   31,
+   31
+  ]
+ },
+ "game_6-file_name_b.png": {
+  "archive": "game_6.szs",
+  "entry": "timg/file_name_b.bti",
+  "size": [
+   31,
+   34
+  ]
+ },
+ "game_6-file_name_c.png": {
+  "archive": "game_6.szs",
+  "entry": "timg/file_name_c.bti",
+  "size": [
+   31,
+   34
+  ]
+ },
+ "game_6-file_name_mario.png": {
+  "archive": "game_6.szs",
+  "entry": "timg/file_name_mario.bti",
+  "size": [
+   90,
+   27
+  ]
+ },
+ "game_6-help_window_1.png": {
+  "archive": "game_6.szs",
+  "entry": "timg/help_window_1.bti",
+  "size": [
+   12,
+   12
+  ]
+ },
+ "game_6-help_window_2.png": {
+  "archive": "game_6.szs",
+  "entry": "timg/help_window_2.bti",
+  "size": [
+   68,
+   12
+  ]
+ },
+ "game_6-help_window_3.png": {
+  "archive": "game_6.szs",
+  "entry": "timg/help_window_3.bti",
+  "size": [
+   12,
+   40
+  ]
+ },
+ "game_6-help_window_4.png": {
+  "archive": "game_6.szs",
+  "entry": "timg/help_window_4.bti",
+  "size": [
+   68,
+   40
+  ]
+ },
+ "game_6-juice_icon.png": {
+  "archive": "game_6.szs",
+  "entry": "timg/juice_icon.bti",
+  "size": [
+   64,
+   70
+  ]
+ },
+ "game_6-juice_liquid.png": {
+  "archive": "game_6.szs",
+  "entry": "timg/juice_liquid.bti",
+  "size": [
+   60,
+   64
+  ]
+ },
+ "game_6-juice_mask.png": {
+  "archive": "game_6.szs",
+  "entry": "timg/juice_mask.bti",
+  "size": [
+   1,
+   64
+  ]
+ },
+ "game_6-juice_surface.png": {
+  "archive": "game_6.szs",
+  "entry": "timg/juice_surface.bti",
+  "size": [
+   54,
+   12
+  ]
+ },
+ "game_6-juice_text_0.png": {
+  "archive": "game_6.szs",
+  "entry": "timg/juice_text_0.bti",
+  "size": [
+   98,
+   32
+  ]
+ },
+ "game_6-juice_text_1.png": {
+  "archive": "game_6.szs",
+  "entry": "timg/juice_text_1.bti",
+  "size": [
+   76,
+   26
+  ]
+ },
+ "game_6-life_icon_0_1.png": {
+  "archive": "game_6.szs",
+  "entry": "timg/life_icon_0_1.bti",
+  "size": [
+   54,
+   58
+  ]
+ },
+ "game_6-life_icon_0_2.png": {
+  "archive": "game_6.szs",
+  "entry": "timg/life_icon_0_2.bti",
+  "size": [
+   54,
+   58
+  ]
+ },
+ "game_6-life_icon_1_1.png": {
+  "archive": "game_6.szs",
+  "entry": "timg/life_icon_1_1.bti",
+  "size": [
+   26,
+   28
+  ]
+ },
+ "game_6-life_icon_1_2.png": {
+  "archive": "game_6.szs",
+  "entry": "timg/life_icon_1_2.bti",
+  "size": [
+   26,
+   28
+  ]
+ },
+ "game_6-life_icon_2_1.png": {
+  "archive": "game_6.szs",
+  "entry": "timg/life_icon_2_1.bti",
+  "size": [
+   26,
+   24
+  ]
+ },
+ "game_6-life_icon_2_2.png": {
+  "archive": "game_6.szs",
+  "entry": "timg/life_icon_2_2.bti",
+  "size": [
+   26,
+   24
+  ]
+ },
+ "game_6-life_icon_3_1.png": {
+  "archive": "game_6.szs",
+  "entry": "timg/life_icon_3_1.bti",
+  "size": [
+   26,
+   28
+  ]
+ },
+ "game_6-life_icon_3_2.png": {
+  "archive": "game_6.szs",
+  "entry": "timg/life_icon_3_2.bti",
+  "size": [
+   26,
+   28
+  ]
+ },
+ "game_6-life_icon_4_1.png": {
+  "archive": "game_6.szs",
+  "entry": "timg/life_icon_4_1.bti",
+  "size": [
+   26,
+   28
+  ]
+ },
+ "game_6-life_icon_4_2.png": {
+  "archive": "game_6.szs",
+  "entry": "timg/life_icon_4_2.bti",
+  "size": [
+   26,
+   28
+  ]
+ },
+ "game_6-life_icon_5_1.png": {
+  "archive": "game_6.szs",
+  "entry": "timg/life_icon_5_1.bti",
+  "size": [
+   24,
+   26
+  ]
+ },
+ "game_6-life_icon_5_2.png": {
+  "archive": "game_6.szs",
+  "entry": "timg/life_icon_5_2.bti",
+  "size": [
+   24,
+   26
+  ]
+ },
+ "game_6-life_icon_6_1.png": {
+  "archive": "game_6.szs",
+  "entry": "timg/life_icon_6_1.bti",
+  "size": [
+   28,
+   28
+  ]
+ },
+ "game_6-life_icon_6_2.png": {
+  "archive": "game_6.szs",
+  "entry": "timg/life_icon_6_2.bti",
+  "size": [
+   28,
+   28
+  ]
+ },
+ "game_6-life_icon_7_1.png": {
+  "archive": "game_6.szs",
+  "entry": "timg/life_icon_7_1.bti",
+  "size": [
+   24,
+   24
+  ]
+ },
+ "game_6-life_icon_7_2.png": {
+  "archive": "game_6.szs",
+  "entry": "timg/life_icon_7_2.bti",
+  "size": [
+   24,
+   24
+  ]
+ },
+ "game_6-life_icon_8_1.png": {
+  "archive": "game_6.szs",
+  "entry": "timg/life_icon_8_1.bti",
+  "size": [
+   28,
+   28
+  ]
+ },
+ "game_6-life_icon_8_2.png": {
+  "archive": "game_6.szs",
+  "entry": "timg/life_icon_8_2.bti",
+  "size": [
+   28,
+   28
+  ]
+ },
+ "game_6-life_text.png": {
+  "archive": "game_6.szs",
+  "entry": "timg/life_text.bti",
+  "size": [
+   60,
+   30
+  ]
+ },
+ "game_6-mario_icon.png": {
+  "archive": "game_6.szs",
+  "entry": "timg/mario_icon.bti",
+  "size": [
+   35,
+   38
+  ]
+ },
+ "game_6-mario_text.png": {
+  "archive": "game_6.szs",
+  "entry": "timg/mario_text.bti",
+  "size": [
+   72,
+   34
+  ]
+ },
+ "game_6-message_back_0.png": {
+  "archive": "game_6.szs",
+  "entry": "timg/message_back_0.bti",
+  "size": [
+   292,
+   58
+  ]
+ },
+ "game_6-message_back_1.png": {
+  "archive": "game_6.szs",
+  "entry": "timg/message_back_1.bti",
+  "size": [
+   332,
+   1
+  ]
+ },
+ "game_6-message_board_0.png": {
+  "archive": "game_6.szs",
+  "entry": "timg/message_board_0.bti",
+  "size": [
+   8,
+   1
+  ]
+ },
+ "game_6-message_board_1.png": {
+  "archive": "game_6.szs",
+  "entry": "timg/message_board_1.bti",
+  "size": [
+   32,
+   100
+  ]
+ },
+ "game_6-message_board_2.png": {
+  "archive": "game_6.szs",
+  "entry": "timg/message_board_2.bti",
+  "size": [
+   32,
+   100
+  ]
+ },
+ "game_6-message_cursor.png": {
+  "archive": "game_6.szs",
+  "entry": "timg/message_cursor.bti",
+  "size": [
+   20,
+   20
+  ]
+ },
+ "game_6-message_return.png": {
+  "archive": "game_6.szs",
+  "entry": "timg/message_return.bti",
+  "size": [
+   24,
+   24
+  ]
+ },
+ "game_6-message_window.png": {
+  "archive": "game_6.szs",
+  "entry": "timg/message_window.bti",
+  "size": [
+   32,
+   32
+  ]
+ },
+ "game_6-monte_icon.png": {
+  "archive": "game_6.szs",
+  "entry": "timg/monte_icon.bti",
+  "size": [
+   38,
+   49
+  ]
+ },
+ "game_6-pause_tx_1.png": {
+  "archive": "game_6.szs",
+  "entry": "timg/pause_tx_1.bti",
+  "size": [
+   96,
+   26
+  ]
+ },
+ "game_6-pause_tx_2.png": {
+  "archive": "game_6.szs",
+  "entry": "timg/pause_tx_2.bti",
+  "size": [
+   60,
+   26
+  ]
+ },
+ "game_6-pause_tx_3.png": {
+  "archive": "game_6.szs",
+  "entry": "timg/pause_tx_3.bti",
+  "size": [
+   100,
+   26
+  ]
+ },
+ "game_6-redcoin_icon.png": {
+  "archive": "game_6.szs",
+  "entry": "timg/redcoin_icon.bti",
+  "size": [
+   30,
+   40
+  ]
+ },
+ "game_6-sc_mask.png": {
+  "archive": "game_6.szs",
+  "entry": "timg/sc_mask.bti",
+  "size": [
+   8,
+   8
+  ]
+ },
+ "game_6-select_cancel.png": {
+  "archive": "game_6.szs",
+  "entry": "timg/select_cancel.bti",
+  "size": [
+   74,
+   30
+  ]
+ },
+ "game_6-select_no.png": {
+  "archive": "game_6.szs",
+  "entry": "timg/select_no.bti",
+  "size": [
+   40,
+   26
+  ]
+ },
+ "game_6-select_yes.png": {
+  "archive": "game_6.szs",
+  "entry": "timg/select_yes.bti",
+  "size": [
+   58,
+   26
+  ]
+ },
+ "game_6-shine_get_icon.png": {
+  "archive": "game_6.szs",
+  "entry": "timg/shine_get_icon.bti",
+  "size": [
+   32,
+   38
+  ]
+ },
+ "game_6-shine_icon.png": {
+  "archive": "game_6.szs",
+  "entry": "timg/shine_icon.bti",
+  "size": [
+   38,
+   46
+  ]
+ },
+ "game_6-standard_window.png": {
+  "archive": "game_6.szs",
+  "entry": "timg/standard_window.bti",
+  "size": [
+   20,
+   20
+  ]
+ },
+ "game_6-telop_window_1.png": {
+  "archive": "game_6.szs",
+  "entry": "timg/telop_window_1.bti",
+  "size": [
+   8,
+   8
+  ]
+ },
+ "game_6-telop_window_2.png": {
+  "archive": "game_6.szs",
+  "entry": "timg/telop_window_2.bti",
+  "size": [
+   8,
+   8
+  ]
+ },
+ "game_6-telop_window_3.png": {
+  "archive": "game_6.szs",
+  "entry": "timg/telop_window_3.bti",
+  "size": [
+   8,
+   8
+  ]
+ },
+ "game_6-telop_window_4.png": {
+  "archive": "game_6.szs",
+  "entry": "timg/telop_window_4.bti",
+  "size": [
+   8,
+   8
+  ]
+ },
+ "game_6-time_text.png": {
+  "archive": "game_6.szs",
+  "entry": "timg/time_text.bti",
+  "size": [
+   68,
+   28
+  ]
+ },
+ "game_6-water_back.png": {
+  "archive": "game_6.szs",
+  "entry": "timg/water_back.bti",
+  "size": [
+   88,
+   86
+  ]
+ },
+ "game_6-water_button_x.png": {
+  "archive": "game_6.szs",
+  "entry": "timg/water_button_x.bti",
+  "size": [
+   34,
+   44
+  ]
+ },
+ "game_6-water_icon_0.png": {
+  "archive": "game_6.szs",
+  "entry": "timg/water_icon_0.bti",
+  "size": [
+   44,
+   70
+  ]
+ },
+ "game_6-water_icon_1.png": {
+  "archive": "game_6.szs",
+  "entry": "timg/water_icon_1.bti",
+  "size": [
+   40,
+   18
+  ]
+ },
+ "game_6-water_icon_2.png": {
+  "archive": "game_6.szs",
+  "entry": "timg/water_icon_2.bti",
+  "size": [
+   18,
+   56
+  ]
+ },
+ "game_6-water_icon_3.png": {
+  "archive": "game_6.szs",
+  "entry": "timg/water_icon_3.bti",
+  "size": [
+   24,
+   54
+  ]
+ },
+ "game_6-water_nozzle_01.png": {
+  "archive": "game_6.szs",
+  "entry": "timg/water_nozzle_01.bti",
+  "size": [
+   56,
+   44
+  ]
+ },
+ "game_6-water_nozzle_02.png": {
+  "archive": "game_6.szs",
+  "entry": "timg/water_nozzle_02.bti",
+  "size": [
+   84,
+   41
+  ]
+ },
+ "game_6-water_nozzle_03.png": {
+  "archive": "game_6.szs",
+  "entry": "timg/water_nozzle_03.bti",
+  "size": [
+   42,
+   56
+  ]
+ },
+ "game_6-water_nozzle_04.png": {
+  "archive": "game_6.szs",
+  "entry": "timg/water_nozzle_04.bti",
+  "size": [
+   54,
+   54
+  ]
+ },
+ "game_6-water_text.png": {
+  "archive": "game_6.szs",
+  "entry": "timg/water_text.bti",
+  "size": [
+   62,
+   30
+  ]
+ },
+ "game_6-water_text_0.png": {
+  "archive": "game_6.szs",
+  "entry": "timg/water_text_0.bti",
+  "size": [
+   80,
+   32
+  ]
+ },
+ "select-sc_map_bianco.png": {
+  "archive": "select.szs",
+  "entry": "timg/sc_map_bianco.bti",
+  "size": [
+   454,
+   50
+  ]
+ },
+ "select-sc_map_corona.png": {
+  "archive": "select.szs",
+  "entry": "timg/sc_map_corona.bti",
+  "size": [
+   508,
+   50
+  ]
+ },
+ "select-sc_map_mamma.png": {
+  "archive": "select.szs",
+  "entry": "timg/sc_map_mamma.bti",
+  "size": [
+   460,
+   50
+  ]
+ },
+ "select-sc_map_mare.png": {
+  "archive": "select.szs",
+  "entry": "timg/sc_map_mare.bti",
+  "size": [
+   320,
+   50
+  ]
+ },
+ "select-sc_map_monte.png": {
+  "archive": "select.szs",
+  "entry": "timg/sc_map_monte.bti",
+  "size": [
+   500,
+   50
+  ]
+ },
+ "select-sc_map_pinna.png": {
+  "archive": "select.szs",
+  "entry": "timg/sc_map_pinna.bti",
+  "size": [
+   360,
+   50
+  ]
+ },
+ "select-sc_map_ricco.png": {
+  "archive": "select.szs",
+  "entry": "timg/sc_map_ricco.bti",
+  "size": [
+   474,
+   50
+  ]
+ },
+ "select-sc_map_sirena.png": {
+  "archive": "select.szs",
+  "entry": "timg/sc_map_sirena.bti",
+  "size": [
+   476,
+   50
+  ]
+ },
+ "select-sc_number_1.png": {
+  "archive": "select.szs",
+  "entry": "timg/sc_number_1.bti",
+  "size": [
+   40,
+   40
+  ]
+ },
+ "select-sc_number_2.png": {
+  "archive": "select.szs",
+  "entry": "timg/sc_number_2.bti",
+  "size": [
+   40,
+   40
+  ]
+ },
+ "select-sc_number_3.png": {
+  "archive": "select.szs",
+  "entry": "timg/sc_number_3.bti",
+  "size": [
+   40,
+   40
+  ]
+ },
+ "select-sc_number_4.png": {
+  "archive": "select.szs",
+  "entry": "timg/sc_number_4.bti",
+  "size": [
+   40,
+   40
+  ]
+ },
+ "select-sc_number_5.png": {
+  "archive": "select.szs",
+  "entry": "timg/sc_number_5.bti",
+  "size": [
+   40,
+   40
+  ]
+ },
+ "select-sc_number_6.png": {
+  "archive": "select.szs",
+  "entry": "timg/sc_number_6.bti",
+  "size": [
+   40,
+   40
+  ]
+ },
+ "select-sc_number_7.png": {
+  "archive": "select.szs",
+  "entry": "timg/sc_number_7.bti",
+  "size": [
+   40,
+   40
+  ]
+ },
+ "select-sc_number_8.png": {
+  "archive": "select.szs",
+  "entry": "timg/sc_number_8.bti",
+  "size": [
+   40,
+   40
+  ]
+ },
+ "select-sc_question.png": {
+  "archive": "select.szs",
+  "entry": "timg/sc_question.bti",
+  "size": [
+   50,
+   20
+  ]
+ },
+ "select-sc_story.png": {
+  "archive": "select.szs",
+  "entry": "timg/sc_story.bti",
+  "size": [
+   114,
+   28
+  ]
+ },
+ "guide-guide_back.png": {
+  "archive": "guide.szs",
+  "entry": "timg/guide_back.bti",
+  "size": [
+   64,
+   64
+  ]
+ },
+ "guide-guide_draw_palmtree_1.png": {
+  "archive": "guide.szs",
+  "entry": "timg/guide_draw_palmtree_1.bti",
+  "size": [
+   80,
+   72
+  ]
+ },
+ "guide-guide_draw_ship_1.png": {
+  "archive": "guide.szs",
+  "entry": "timg/guide_draw_ship_1.bti",
+  "size": [
+   96,
+   72
+  ]
+ },
+ "guide-guide_map_pinna.png": {
+  "archive": "guide.szs",
+  "entry": "timg/guide_map_pinna.bti",
+  "size": [
+   176,
+   144
+  ]
+ },
+ "guide-guide_picture_00.png": {
+  "archive": "guide.szs",
+  "entry": "timg/guide_picture_00.bti",
+  "size": [
+   176,
+   152
+  ]
+ },
+ "guide-guide_picture_01.png": {
+  "archive": "guide.szs",
+  "entry": "timg/guide_picture_01.bti",
+  "size": [
+   176,
+   48
+  ]
+ },
+ "guide-guide_picture_02.png": {
+  "archive": "guide.szs",
+  "entry": "timg/guide_picture_02.bti",
+  "size": [
+   176,
+   152
+  ]
+ },
+ "guide-guide_picture_03.png": {
+  "archive": "guide.szs",
+  "entry": "timg/guide_picture_03.bti",
+  "size": [
+   176,
+   152
+  ]
+ },
+ "guide-guide_picture_04.png": {
+  "archive": "guide.szs",
+  "entry": "timg/guide_picture_04.bti",
+  "size": [
+   176,
+   152
+  ]
+ },
+ "guide-guide_picture_05.png": {
+  "archive": "guide.szs",
+  "entry": "timg/guide_picture_05.bti",
+  "size": [
+   176,
+   48
+  ]
+ },
+ "guide-guide_picture_06.png": {
+  "archive": "guide.szs",
+  "entry": "timg/guide_picture_06.bti",
+  "size": [
+   176,
+   152
+  ]
+ },
+ "guide-guide_picture_07.png": {
+  "archive": "guide.szs",
+  "entry": "timg/guide_picture_07.bti",
+  "size": [
+   176,
+   152
+  ]
+ },
+ "guide-guide_picture_08.png": {
+  "archive": "guide.szs",
+  "entry": "timg/guide_picture_08.bti",
+  "size": [
+   176,
+   152
+  ]
+ },
+ "guide-guide_picture_09.png": {
+  "archive": "guide.szs",
+  "entry": "timg/guide_picture_09.bti",
+  "size": [
+   176,
+   152
+  ]
+ },
+ "guide-guide_picture_10.png": {
+  "archive": "guide.szs",
+  "entry": "timg/guide_picture_10.bti",
+  "size": [
+   128,
+   120
+  ]
+ },
+ "guide-guide_picture_11.png": {
+  "archive": "guide.szs",
+  "entry": "timg/guide_picture_11.bti",
+  "size": [
+   128,
+   120
+  ]
+ },
+ "guide-guide_picture_12.png": {
+  "archive": "guide.szs",
+  "entry": "timg/guide_picture_12.bti",
+  "size": [
+   128,
+   120
+  ]
+ },
+ "option-stage_airport.png": {
+  "archive": "option.szs",
+  "entry": "timg/stage_airport.bti",
+  "size": [
+   232,
+   28
+  ]
+ },
+ "option-stage_dolpic.png": {
+  "archive": "option.szs",
+  "entry": "timg/stage_dolpic.bti",
+  "size": [
+   102,
+   30
+  ]
+ },
+ "option-stage_dolpictown.png": {
+  "archive": "option.szs",
+  "entry": "timg/stage_dolpictown.bti",
+  "size": [
+   192,
+   28
+  ]
+ },
+ "option-title_logo.png": {
+  "archive": "option.szs",
+  "entry": "timg/title_logo.bti",
+  "size": [
+   460,
+   304
+  ]
+ },
+ "option-windows_kumo05.png": {
+  "archive": "option.szs",
+  "entry": "timg/windows_kumo05.bti",
+  "size": [
+   160,
+   160
+  ]
+ }
+}

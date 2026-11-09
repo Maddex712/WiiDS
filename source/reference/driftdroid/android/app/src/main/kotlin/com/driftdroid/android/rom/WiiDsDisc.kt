@@ -55,6 +55,11 @@ object WiiDsDisc {
     /** libwiidsdisc also holds the art builder (WiiDsArt). */
     fun ensureLoaded() = load()
 
+    // Shared descriptor entry points for the embedded Brawl recovery importer.
+    // Native calls consume the descriptors, just as Source.open does for the common importer.
+    fun identifyDescriptors(fds: IntArray): String { load();return nativeIdentify(fds) }
+    fun extractWiiDescriptors(fds: IntArray,destination:String):String? { load();return nativeExtractWii(fds,destination) }
+
     /** Opens every part and hands the descriptors over (the native side closes them). */
     private fun openAll(openers: List<() -> ParcelFileDescriptor>): IntArray {
         val opened = ArrayList<ParcelFileDescriptor>()

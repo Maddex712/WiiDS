@@ -14,8 +14,12 @@ internal object SaveManagerProfiles {
     // Resolve only trusted Context bases; SaveArchive still rejects links beneath them.
     fun work(context: Context) = File(context.filesDir.canonicalFile, "save-manager")
     fun blocker(context: Context): String? = when {
+        GameStorage.blocker(context) != null -> GameStorage.blocker(context)
         WiiDsUpdater.installing.get() -> "Finish or cancel the WiiDS update installation first."
         busy.get() -> "Wait for the save operation to finish."
+        com.driftdroid.android.rom.GameInstaller.running || com.driftdroid.android.rom.EclipseMod.state.running ||
+            com.driftdroid.android.rom.MsmbwiiMod.state.running -> "Finish or cancel game setup first."
+        com.driftdroid.android.rom.WiiDsArt.building != null -> "Wait for the game artwork to finish."
         SaveArchive.pending(work(context)) -> "Open Options > Save manager to recover the interrupted restore first."
         else -> null
     }
@@ -62,6 +66,16 @@ internal object SaveManagerProfiles {
             FrontendGame.SUNSHINE, FrontendGame.ECLIPSE -> {
                 if (external == null) throw IOException("Game save storage is unavailable.")
                 root("main", external, (if (game == FrontendGame.SUNSHINE) "sms" else "eclipse") + "/saves/card-a")
+            }
+            FrontendGame.MKDD, FrontendGame.MKDD_PLUS -> {
+                if (external == null) throw IOException("Double Dash save storage is unavailable.")
+                root("main", external, if (game == FrontendGame.MKDD_PLUS) "mkdd/plus/saves" else "mkdd/saves")
+            }
+            FrontendGame.BRAWL, FrontendGame.PROJECT_PLUS -> {
+                if (external == null) throw IOException("Brawl save storage is unavailable.")
+                val profile = if (game == FrontendGame.PROJECT_PLUS) "project-plus" else "brawl"
+                defaultNand(File(external, "$profile/Config.toml"))
+                root("main", external, "$profile/NAND/title/00010000/52534245/data")
             }
             FrontendGame.GALAXY, FrontendGame.KAIZO -> {
                 if (external == null) throw IOException("Galaxy save storage is unavailable.")

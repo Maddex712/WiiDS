@@ -28,6 +28,7 @@ import com.driftdroid.android.rom.GameCatalog
 import com.driftdroid.android.rom.GameCatalog.Game
 import com.driftdroid.android.rom.GameInstaller
 import com.driftdroid.android.rom.EclipseMod
+import com.driftdroid.android.rom.MkddPlusMod
 import com.driftdroid.android.rom.GameScanner
 import com.driftdroid.android.rom.MsmbwiiMod
 import com.driftdroid.android.rom.RomScanner
@@ -43,13 +44,17 @@ class GamesActivity : Activity() {
 
     private val handler = Handler(Looper.getMainLooper())
     private val cards = LinkedHashMap<Game, Card>()
+    private val separateSetupCards = LinkedHashMap<FrontendGame, Card>()
     private val messages = HashMap<GameCatalog.Disc, String>()
     private var scan: GameScanner.Result? = null
     private var scanning = false
+    private var retroCodeStamp: Pair<Long, Long>? = null
+    private var retroCodeSupported: Boolean? = null
     private var pickFor: Game? = null
     /** Result of the last MSMBWii mod install ("" = success), shown on its card. */
     private var modMessage: String? = null
     private var eclipseMessage: String? = null
+    private var plusMessage: String? = null
     // Galaxy: a disc chosen with Choose file (its path), and the card's "Import again" button.
     private var galaxyChosen: String? = null
     // A chosen Galaxy disc WiiDS can't name by path; the add-on copies it from the document.
@@ -76,6 +81,10 @@ class GamesActivity : Activity() {
             if (EclipseMod.state.finished) {
                 eclipseMessage = EclipseMod.state.error ?: ""
                 EclipseMod.acknowledge()
+            }
+            if (MkddPlusMod.state.finished) {
+                plusMessage = MkddPlusMod.state.error ?: ""
+                MkddPlusMod.acknowledge()
             }
             refresh()
             handler.postDelayed(this, 300)
@@ -144,6 +153,14 @@ class GamesActivity : Activity() {
     @Deprecated("Activity result API is not used by this app")
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         super.onActivityResult(requestCode, resultCode, data)
+        if (requestCode == REQUEST_PICK_PLUS_PATCH) {
+            if (resultCode == RESULT_OK && data?.data != null) {
+                if (!MkddPlusMod.start(this, data.data!!)) plusMessage = "Close the running game and finish other setup or save operations first."
+                else plusMessage = null
+                refresh()
+            }
+            return
+        }
         if (requestCode == REQUEST_PICK_ECLIPSE_PATCH) {
             val uri = data?.data
             if (resultCode == RESULT_OK && uri != null) {
@@ -220,9 +237,60 @@ class GamesActivity : Activity() {
     private fun refresh() {
         val state = GameInstaller.poll()
         val eclipseBusy = EclipseMod.state.running
-        val installBusy = state.running || eclipseBusy
+        val installBusy = GameInstaller.running || eclipseBusy
         searchButton.isEnabled = !scanning && RomScanner.hasAccess()
         searchButton.text = if (scanning) "Searching..." else "Search again"
+        for ((game, card) in separateSetupCards) {
+            val installed = GameStorage.ready(this, game)
+            val baseReady = GameStorage.ready(this, FrontendGame.MARIO_KART)
+            val plus = game == FrontendGame.MKDD_PLUS
+            if (!plus && installed) checkRetroCode()
+            if (!plus && !installed) {
+                retroCodeStamp = null
+                retroCodeSupported = null
+            }
+            card.progress.visibility = View.GONE
+            when {
+                plus && MkddPlusMod.state.running -> {
+                    val mod = MkddPlusMod.state
+                    show(card, mod.phase, WHITE)
+                    card.progress.visibility = View.VISIBLE
+                    card.progress.progress = (mod.done * 100 / mod.total.coerceAtLeast(1)).toInt().coerceIn(0,100)
+                    button(card, "Cancel", true) { MkddPlusMod.cancel() }
+                }
+                installed && (plus || baseReady && retroCodeSupported == true) -> {
+                    show(card, "Installed. Ready to play.", GREEN)
+                    button(card, "Ready", false) {}
+                }
+                plus -> {
+                    val originalReady = GameStorage.ready(this, FrontendGame.MKDD)
+                    show(card, plusMessage?.takeIf { it.isNotEmpty() } ?: if (originalReady)
+                        "Choose the creator’s MKDD Plus 3.3 NTSC xdelta patch. WiiDS builds all five course sets here. Original Double Dash and its memory card are kept."
+                        else "Import your USA Double Dash revision 0 disc first (GM4E01). Plus keeps its own game image and memory card.", MUTED)
+                    button(card, if (originalReady) "Choose Plus 3.3 patch" else "Double Dash required", originalReady && !installBusy) {
+                        val intent = Intent(Intent.ACTION_OPEN_DOCUMENT).addCategory(Intent.CATEGORY_OPENABLE).setType("*/*")
+                        runCatching { startActivityForResult(intent, REQUEST_PICK_PLUS_PATCH) }
+                            .onFailure { plusMessage = "This device has no file chooser."; refresh() }
+                    }
+                }
+                !baseReady -> {
+                    show(card, "Import Mario Kart Wii first. Retro Rewind uses your original PAL disc.", MUTED)
+                    button(card, "Mario Kart Wii required", false) {}
+                }
+                installed && retroCodeSupported == null -> {
+                    show(card, "Checking the installed Retro Rewind version...", MUTED)
+                    button(card, "Checking", false) {}
+                }
+                else -> {
+                    show(card, if (installed) "This Retro Rewind version needs a compatible update."
+                        else "Your Mario Kart Wii disc is ready. Install the compatible Retro Rewind release.", WHITE)
+                    button(card, if (installed) "Check for an update" else "Set up Retro Rewind", !installBusy) {
+                        setResult(RESULT_OK, Intent().putExtra(EXTRA_SETUP_RETRO_REWIND, true))
+                        finish()
+                    }
+                }
+            }
+        }
         for ((game, card) in cards) {
             val disc = game.disc
             if (game == Game.GALAXY || game == Game.KAIZO) {
@@ -253,8 +321,8 @@ class GamesActivity : Activity() {
                 game == Game.ECLIPSE && !disc.isInstalled(this) && GameCatalog.Disc.SUNSHINE_USA.isInstalled(this) -> {
                     val failed = !eclipseMessage.isNullOrEmpty()
                     if (EclipseMod.bundled(this)) {
-                        show(card, if (failed) "$eclipseMessage You can retry with the included Eclipse 1.1.0 patch." else
-                            "Your Sunshine disc is ready. Eclipse Team's 1.1.0 patch is included; your original game and saves are kept.",
+                        show(card, if (failed) "$eclipseMessage You can retry with the verified Eclipse 1.1.0 patch." else
+                            "Your Sunshine disc is ready. Eclipse Team's 1.1.0 patch is ready; your original game and saves are kept.",
                             if (failed) AMBER else GREEN)
                         button(card, if (failed) "Retry Eclipse installation" else "Install Eclipse", !installBusy) {
                             eclipseMessage = null
@@ -480,12 +548,19 @@ class GamesActivity : Activity() {
         }
         column.addView(accessRow, LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = dp(16) })
 
-        val games = Game.values().toList()
+        val requested = FrontendGame.fromId(intent.getStringExtra("storage_game"))
+        val games = requested?.let(::listOf) ?: FrontendGame.values().filter {
+            it != FrontendGame.RETRO_REWIND || BuildConfig.THOR_RETRO_REWIND
+        }
         for (row in games.chunked(2)) {
             val line = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
             row.forEachIndexed { index, game ->
-                line.addView(buildCard(game), LinearLayout.LayoutParams(0, -1, 1f).apply {
-                    if (index == 0) marginEnd = dp(16)
+                val card = when (game) {
+                    FrontendGame.RETRO_REWIND, FrontendGame.MKDD_PLUS -> buildSeparateSetupCard(game)
+                    else -> buildCard(Game.valueOf(game.name))
+                }
+                line.addView(card, LinearLayout.LayoutParams(0, -1, 1f).apply {
+                    if (index == 0 && row.size > 1) marginEnd = dp(16)
                 })
             }
             column.addView(line, LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = dp(16) })
@@ -506,6 +581,40 @@ class GamesActivity : Activity() {
                 intArrayOf(0xFF13263F.toInt(), 0xFF08111E.toInt()))
             addView(column)
         }
+    }
+
+    private fun checkRetroCode() {
+        val root = java.io.File(filesDir, MainActivity.RETRO_REWIND_STAGING_SUBDIR)
+        val code = java.io.File(root, "Binaries/Code.pul")
+        val stamp = code.lastModified() to code.length()
+        if (stamp == retroCodeStamp) return
+        retroCodeStamp = stamp
+        retroCodeSupported = null
+        Thread({
+            val supported = runCatching {
+                RetroRewindCatalog.isSupportedCodePul(RetroRewindCatalog.installedCodePulSha256(root))
+            }.getOrDefault(false)
+            handler.post { if (retroCodeStamp == stamp) retroCodeSupported = supported }
+        }, "WiiDsYourGamesRetroCheck").start()
+    }
+
+    private fun buildSeparateSetupCard(game: FrontendGame): View = LinearLayout(this).apply {
+        orientation = LinearLayout.VERTICAL
+        background = rounded(0xFF1A2D47.toInt())
+        setPadding(dp(22), dp(18), dp(22), dp(18))
+        addView(text(game.label, 21f, WHITE, bold = true))
+        val status = text("", 15f, MUTED).apply { setPadding(0, dp(8), 0, dp(8)) }
+        addView(status)
+        val action = styledButton("") {}
+        addView(action, LinearLayout.LayoutParams(-2, -2))
+        val progress = ProgressBar(this@GamesActivity, null, android.R.attr.progressBarStyleHorizontal).apply {
+            max = 100; visibility = View.GONE
+        }
+        addView(progress, LinearLayout.LayoutParams(-1, dp(10)).apply { topMargin = dp(8) })
+        separateSetupCards[game] = Card(status, progress, action)
+        if (game == FrontendGame.MKDD_PLUS) addView(styledButton("Plus patch and instructions") {
+            runCatching { startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://retroachievements.org/forums/topic/27182"))) }
+        }, LinearLayout.LayoutParams(-2,-2).apply { topMargin = dp(8) })
     }
 
     private fun buildCard(game: Game): View {
@@ -581,6 +690,8 @@ class GamesActivity : Activity() {
     }
 
     companion object {
+        const val EXTRA_SETUP_RETRO_REWIND = "setup_retro_rewind"
+        private const val REQUEST_PICK_PLUS_PATCH = 4714
         private const val REQUEST_PICK = 4710
         private const val REQUEST_PICK_MOD = 4711
         private const val REQUEST_PICK_ECLIPSE_PATCH = 4712

@@ -149,10 +149,11 @@ void SaveDataHandleSequence::startSaveTotalMailSize() {
 
 extern "C" void port_save_notify_started(void);
 extern "C" void port_save_notify_completed(int success);
+extern "C" void port_reject_quick_save(void);
 
 void SaveDataHandleSequence::startQuickSaveAnywhere() {
     if (mCurrentUserFile == nullptr) {
-        port_save_notify_completed(0);
+        port_reject_quick_save();
         return;
     }
     port_save_notify_started();

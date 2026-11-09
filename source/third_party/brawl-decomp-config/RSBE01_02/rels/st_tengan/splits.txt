@@ -1,0 +1,44 @@
+Sections:
+	.text       type:code align:4
+	.ctors      type:rodata align:4
+	.dtors      type:rodata align:4
+	.rodata     type:rodata align:8
+	.data       type:data align:32
+	.bss        type:bss align:8
+
+global_destructor_chain.c:
+	.text       start:0x00000000 end:0x00000070
+	.dtors      start:0x00000000 end:0x00000008
+	.bss        start:0x00000000 end:0x00000004
+
+mo_stage/st_tengan/st_tengan.cpp:
+	.text       start:0x00000070 end:0x00006348
+	.ctors      start:0x00000000 end:0x00000004
+	.rodata     start:0x00000000 end:0x000000F8
+	.data       start:0x00000000 end:0x00000838
+	.bss        start:0x00000008 end:0x00000018
+
+mo_stage/st_tengan/gr_tengan.cpp:
+	.text       start:0x00006348 end:0x000065BC
+	.data       start:0x00000838 end:0x00000AB8
+
+mo_stage/st_tengan/gr_tengan_bg.cpp:
+	.text       start:0x000065BC end:0x000067EC
+	.data       start:0x00000AB8 end:0x00000DD0
+
+mo_stage/st_tengan/gr_tengan_floor.cpp:
+	.text       start:0x000067EC end:0x00007174
+	.rodata     start:0x000000F8 end:0x00000108
+	.data       start:0x00000DD0 end:0x00000FF0
+
+mo_stage/st_tengan/gr_tengan_ashiba.cpp:
+	.text       start:0x00007174 end:0x000077B4
+	.rodata     start:0x00000108 end:0x00000114
+	.data       start:0x00000FF0 end:0x00001208
+
+mo_stage/mo_stage.cpp:
+	.text       start:0x000077B4 end:0x00007850
+	.data       start:0x00001208 end:0x00001215
+
+home_button_icon.cpp:
+	.data       start:0x00001220 end:0x00002AE0

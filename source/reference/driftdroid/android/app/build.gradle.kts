@@ -61,23 +61,15 @@ android {
         buildConfig = true
     }
 
-    externalNativeBuild {
-        cmake {
-            path = file("src/main/cpp/CMakeLists.txt")
-            version = "3.28.3"
-        }
-    }
+    // Private frontend preview: all 25 native libraries are verified copies of dev7.
 
     sourceSets {
         getByName("main") {
             // cacert.pem: the TLS root bundle network_ssl.cpp needs; same file desktop builds copy
             // next to the executable (runtime/cmake/PublicProducts.cmake).
-            assets.srcDir("../../runtime/assets/certs")
             // initial_pipeline_cache.db: shader recipes imported on first launch
             // (aurora-main/lib/gfx/pipeline_cache.cpp).
-            assets.srcDir("../../runtime/assets/pipeline")
             // runtime-nsmbw/ and runtime-msmbwii/: staged by experiments/release/stage_merged.py.
-            assets.srcDir("../../../../build/wiids-merge/assets")
         }
     }
 
@@ -88,6 +80,8 @@ android {
 
     packaging {
         jniLibs {
+            // Preserve the accepted Brawl engine and its PNG dependency byte-for-byte.
+            keepDebugSymbols += "**/libwiids_brawl*.so"
             // Compressed in the APK (about 330 MB of game libraries), extracted at install.
             useLegacyPackaging = true
             if (thorBuild) {

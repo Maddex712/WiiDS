@@ -1,0 +1,8 @@
+# Keep LF in the repository on every platform. Without this, a Windows clone with
+# core.autocrlf=true rewrites every source file, which shows up as a whole-file diff.
+* text=auto eol=lf
+
+# Binary-ish fixtures that must never be line-ending converted.
+*.dol binary
+*.iso binary
+*.raw binary

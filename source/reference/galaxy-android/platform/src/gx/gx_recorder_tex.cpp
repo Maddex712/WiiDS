@@ -1,5 +1,6 @@
 #include "port/profile.h"
 #include "gx_recorder_internal.h"
+#include "texture_pack.h"
 
 namespace gpu {
 
@@ -89,8 +90,8 @@ u32 Recorder::resolveUnit(u32 unit) {
     u32 minFilter = (mode0 >> 5) & 7;
     u32 maxLod = (mode1 >> 8) & 0xFF;
     u32 levels = 1;
-    if (minFilter >= 2 && minFilter <= 5) {
-        levels = maxLod / 16 + 1;
+    if ((minFilter & 3) == 1 || (minFilter & 3) == 2) {
+        levels = (maxLod + 15) / 16 + 1;
         u32 maxLevels = 1;
         for (u32 w = width, h = height; w > 1 || h > 1; w = w > 1 ? w / 2 : 1, h = h > 1 ? h / 2 : 1) {
             maxLevels++;
@@ -118,7 +119,26 @@ u32 Recorder::resolveUnit(u32 unit) {
         if (!e.image || h != e.dataHash) {
             e.dataHash = h;
             e.image = std::make_shared<TexImage>();
-            decode(*e.image, src, key);
+            static wiids::textures::Pack pack;
+            wiids::textures::Image replacement;
+            const auto paletteOffset = key.tlutAddr & (sizeof(tlutMem) - 1);
+            const size_t paletteEntries = fmt == TF_CI4 ? 16 : fmt == TF_CI8 ? 256 : 16384;
+            const auto paletteBytes = ci ? std::min(paletteEntries * 2, sizeof(tlutMem) - paletteOffset) : 0;
+            if (pack.replace(src, texLevelSize(fmt, width, height), fmt, width, height, levels,
+                             ci ? tlutMem + paletteOffset : nullptr, paletteBytes, e.image, replacement)) {
+                auto& image = *e.image;
+                image.width = replacement.width;
+                image.height = replacement.height;
+                image.levels = replacement.levels.size();
+                size_t pixels = 0;
+                for (const auto& mip : replacement.levels) pixels += mip.size();
+                image.rgba.reserve(pixels);
+                for (const auto& mip : replacement.levels)
+                    image.rgba.insert(image.rgba.end(), mip.begin(), mip.end());
+                ++image.version;
+            } else {
+                decode(*e.image, src, key);
+            }
         }
     }
 

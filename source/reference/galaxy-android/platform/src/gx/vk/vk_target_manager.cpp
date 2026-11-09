@@ -209,7 +209,9 @@ void VkRenderer::invalidateSamplerDescSetsForView(VkImageView view) {
 VkCopyTex& VkRenderer::getCopyTex(uint64_t key, int w, int h) {
     VkCopyTex& c = mCopies[key];
     if (c.image != VK_NULL_HANDLE && (c.w != w || c.h != h)) {
-        invalidateSamplerDescSetsForView(c.view);
+        // Earlier draws in this command buffer may still use the old view.
+        // Its descriptor sets retire with the view after the render fence.
+        mSamplerDescEpoch++;
         queueVkTextureDelete((uint64_t)c.image, (uint64_t)c.memory, (uint64_t)c.view);
         c.view = VK_NULL_HANDLE;
         c.image = VK_NULL_HANDLE;
@@ -254,7 +256,10 @@ VkCopyTex& VkRenderer::getCopyTex(uint64_t key, int w, int h) {
                     ivci.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
                     ivci.subresourceRange.levelCount = 1;
                     ivci.subresourceRange.layerCount = 1;
-                    vkCreateImageView(mDevice, &ivci, nullptr, &c.view);
+                    if (vkCreateImageView(mDevice, &ivci, nullptr, &c.view) == VK_SUCCESS) {
+                        // A draw may have memoized the dummy view before the first copy.
+                        mSamplerDescEpoch++;
+                    }
                 }
             }
         }
@@ -266,7 +271,7 @@ void VkRenderer::evictCopies(uint64_t currentFrame) {
     const uint64_t kKeepFrames = 16;
     for (auto it = mCopies.begin(); it != mCopies.end();) {
         if (it->first != kXfbCopyKey && it->second.frame + kKeepFrames < currentFrame) {
-            invalidateSamplerDescSetsForView(it->second.view);
+            // This can run just after submission. The fence gates retirement.
             queueVkTextureDelete((uint64_t)it->second.image, (uint64_t)it->second.memory, (uint64_t)it->second.view);
             it = mCopies.erase(it);
         } else {

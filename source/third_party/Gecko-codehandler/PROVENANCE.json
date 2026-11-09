@@ -1,0 +1,19 @@
+{
+  "upstream_representations": [
+    {
+      "source": "https://github.com/wiidev/usbloadergx",
+      "pin": "e25c4f3501ed957b7db73f79c51fdf00715ab2e2",
+      "path": "source/patches/codehandleronly.h",
+      "sha256": "6883b9f8df879c615445e4f7c49f00bdb94a7bfd0afa19a5249392730f01f2e1"
+    },
+    {
+      "source": "https://github.com/iGlitch/GeckoOS",
+      "pin": "21b398bfc95e84af96e21988368e6581bf2ac04f",
+      "path": "Gecko_src/code handler/codehandleronly.s",
+      "sha256": "c550c7524110f5137e086a7d85e82d4b39b4f524a5e2dc749ae13e6e67433d9a"
+    }
+  ],
+  "license_context": "Existing Brawl THIRD-PARTY-NOTICES identifies the Gecko/USBLoaderGX handler as GPL. Original source representations and provenance retained; no Nintendo disc bytes.",
+  "adapter_recipe": "experiments/release/brawl_1_2_regeneration.json records all26word changes. prepare_brawl_1_2.py reconstructs accepted handler byte-exact before privately regenerating module inputs.",
+  "assembly_note": "Assembly source is retained as upstream preferred-source reference; exact baseline reconstruction is verified from pinned USBLoaderGX source representation plus explicit local changes."
+}

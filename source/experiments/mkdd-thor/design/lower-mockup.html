@@ -1,0 +1,253 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Double Dash Lower Screen</title>
+<style>
+  :root {
+    --page: #0c0f16; --ink: #f4f1ea; --muted: #8d96a8;
+    --bg: #141a2b; --bg2: #1b2338; --line: #2b3552; --row: #18203a;
+    --gold: #ffc531; --silver: #c9d2de; --bronze: #e08a4b;
+    --me: #ffc531; --me-ink: #1a1405; --red: #e8413c; --blue: #2f7de1;
+    --ph: #33405f; --ph-ink: #9aa6c2;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--page); color: var(--ink);
+    font: 15px/1.4 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  .wrap { max-width: 1280px; margin: 0 auto; padding: 20px 16px 40px; }
+  h1 { font-size: 20px; margin: 0 0 4px; }
+  .sub { color: var(--muted); margin: 0 0 16px; max-width: 900px; }
+  .tabs { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 14px; }
+  .tabs button { background: var(--bg2); color: var(--ink); border: 1px solid var(--line);
+    border-radius: 999px; padding: 7px 14px; font: inherit; cursor: pointer; }
+  .tabs button.on { background: var(--gold); color: #1a1405; border-color: var(--gold); font-weight: 700; }
+  .note { color: var(--muted); margin: 12px 0 0; min-height: 3em; max-width: 1240px; }
+  .stageBox { width: 100%; overflow: hidden; border-radius: 14px; box-shadow: 0 0 0 1px var(--line); }
+
+  /* The 1240x1080 Thor lower display, drawn at native size and scaled to fit. */
+  .screen { width: 1240px; height: 1080px; position: relative; transform-origin: 0 0;
+    background: radial-gradient(120% 90% at 70% 0%, #1f2a48 0%, var(--bg) 60%);
+    font-family: "Arial Black", "Roboto Black", system-ui, sans-serif; overflow: hidden; }
+  .abs { position: absolute; }
+
+  .header { left: 0; top: 0; width: 1240px; height: 120px; display: flex; align-items: center;
+    padding: 0 36px; gap: 28px; background: linear-gradient(#0f1424, rgba(15,20,36,.6));
+    border-bottom: 3px solid var(--line); }
+  .lap { display: flex; align-items: baseline; gap: 10px; }
+  .lap .k { font-size: 26px; color: var(--muted); letter-spacing: 2px; }
+  .lap .v { font-size: 64px; }
+  .lap .t { font-size: 34px; color: var(--muted); }
+  .course { flex: 1; text-align: center; }
+  .course .n { font-size: 34px; }
+  .course .m { font-family: system-ui, sans-serif; font-weight: 600; font-size: 20px; color: var(--muted); letter-spacing: 1px; }
+  .timer { font-size: 52px; font-variant-numeric: tabular-nums; letter-spacing: 1px; }
+  .lapbar { position: absolute; left: 36px; right: 36px; bottom: 10px; height: 6px; background: var(--line); border-radius: 3px; }
+  .lapbar i { display: block; height: 100%; background: var(--gold); border-radius: 3px; }
+
+  .board { left: 20px; top: 136px; width: 500px; height: 928px; display: flex; flex-direction: column; gap: 8px; }
+  .row { position: absolute; left: 0; width: 500px; height: 108px; border-radius: 16px; background: var(--row);
+    display: flex; align-items: center; padding: 0 18px 0 14px; gap: 14px; border: 2px solid transparent;
+    transition: top .16s cubic-bezier(.3,.0,.3,1); }
+  .row.me { background: var(--me); color: var(--me-ink); border-color: #fff3c4; }
+  .rank { width: 92px; font-size: 54px; text-align: center; }
+  .rank sup { font-size: 24px; vertical-align: 22px; }
+  .r1 .rank { color: var(--gold); } .r2 .rank { color: var(--silver); } .r3 .rank { color: var(--bronze); }
+  .row.me .rank { color: var(--me-ink); }
+  .pair { position: relative; width: 150px; height: 92px; }
+  .face { position: absolute; border-radius: 50%; background: var(--ph); color: var(--ph-ink);
+    display: grid; place-items: center; font: 700 15px/1.05 system-ui, sans-serif; text-align: center;
+    border: 3px solid #0d1222; overflow: hidden; }
+  .pair .back { width: 64px; height: 64px; left: 74px; top: 4px; opacity: .8; font-size: 12px; }
+  .pair .front { width: 84px; height: 84px; left: 0; top: 4px; }
+  .who { flex: 1; font: 700 19px/1.2 system-ui, sans-serif; }
+  .who small { display: block; font-weight: 500; font-size: 15px; opacity: .7; }
+  .slot { width: 78px; height: 78px; border-radius: 14px; border: 3px solid var(--line); background: #0e1322;
+    display: grid; place-items: center; font: 700 12px/1.1 system-ui, sans-serif; text-align: center; color: var(--ph-ink); padding: 4px; }
+  .slot.item { background: var(--ph); border-color: #4d5c86; }
+  .slot.empty { background: transparent; }
+  .slot.unknown { background: transparent; border-style: dashed; opacity: .35; }
+  .row.me .slot { border-color: rgba(26,20,5,.35); }
+  .row.me .slot.empty { background: rgba(26,20,5,.08); }
+
+  .map { left: 540px; top: 136px; width: 680px; height: 520px; border-radius: 20px; background: #0e1322;
+    border: 3px solid var(--line); overflow: hidden; }
+  .mapEmpty { position: absolute; inset: 0; display: grid; place-content: center; text-align: center; gap: 8px; }
+  .mapEmpty b { font-size: 34px; color: var(--muted); }
+  .mapEmpty span { font: 500 19px system-ui, sans-serif; color: #66708a; }
+  .mapArt { position: absolute; left: 90px; top: 30px; width: 500px; height: 460px; border-radius: 10px;
+    background: repeating-linear-gradient(45deg, #1a2238 0 18px, #161d31 18px 36px);
+    border: 2px dashed #3b4769; display: grid; place-items: center;
+    font: 600 18px system-ui, sans-serif; color: #66708a; }
+  .pin { position: absolute; width: 46px; height: 46px; margin: -23px 0 0 -23px; border-radius: 50%;
+    background: var(--ph); border: 3px solid #0d1222; display: grid; place-items: center;
+    font: 700 11px system-ui, sans-serif; color: var(--ph-ink); }
+  .pin.me { width: 58px; height: 58px; margin: -29px 0 0 -29px; border-color: var(--me); box-shadow: 0 0 0 4px rgba(255,197,49,.35); }
+  .pin .dir { position: absolute; left: 50%; top: 50%; width: 0; height: 0; }
+  .pin .dir::after { content: ""; position: absolute; left: -9px; top: -48px; border: 9px solid transparent;
+    border-bottom: 16px solid var(--me); }
+
+  .duo { left: 540px; top: 672px; width: 680px; height: 392px; border-radius: 20px; background: var(--bg2);
+    border: 3px solid var(--line); padding: 22px 26px; }
+  .duo h3 { margin: 0 0 14px; font-size: 22px; letter-spacing: 3px; color: var(--muted); display: flex; justify-content: space-between; }
+  .duo h3 .spd { color: var(--ink); font-variant-numeric: tabular-nums; }
+  .riders { display: grid; grid-template-columns: 1fr 70px 1fr; align-items: center; }
+  .rider { display: flex; flex-direction: column; align-items: center; gap: 10px; }
+  .rider .face { position: relative; width: 138px; height: 138px; font-size: 18px; }
+  .rider.drive .face { border-color: var(--me); box-shadow: 0 0 0 5px rgba(255,197,49,.25); }
+  .rider .role { font-size: 18px; letter-spacing: 3px; color: var(--muted); }
+  .rider.drive .role { color: var(--me); }
+  .rider .nm { font: 700 20px system-ui, sans-serif; margin-top: -6px; }
+  .rider .slot { width: 96px; height: 96px; position: absolute; }
+  .riderBody { position: relative; display: flex; align-items: center; gap: 16px; }
+  .riderBody .slot { position: static; }
+  .swap { text-align: center; font-size: 40px; color: var(--muted); }
+
+  .solo { left: 20px; top: 136px; width: 500px; height: 928px; border-radius: 20px; background: var(--bg2);
+    border: 3px solid var(--line); padding: 34px; display: flex; flex-direction: column; gap: 26px; }
+  .solo .k { font-size: 22px; letter-spacing: 3px; color: var(--muted); }
+  .solo .big { font-size: 92px; font-variant-numeric: tabular-nums; line-height: 1; }
+  .solo .bar { height: 14px; background: var(--line); border-radius: 7px; }
+  .solo .bar i { display: block; height: 100%; background: var(--gold); border-radius: 7px; }
+
+  .tag { right: 24px; top: 132px; z-index: 5; background: var(--blue); color: #fff; font-size: 22px;
+    letter-spacing: 3px; padding: 6px 16px; border-radius: 8px; }
+  .dim { inset: 0; background: rgba(6,8,14,.62); display: grid; place-items: center; z-index: 9; }
+  .dim b { font-size: 96px; letter-spacing: 8px; }
+
+  .idle { inset: 0; display: grid; place-content: center; text-align: center; gap: 18px; }
+  .idle .t1 { font-size: 30px; color: var(--muted); letter-spacing: 6px; }
+  .idle .t2 { font-size: 78px; }
+  .idle .t2 em { font-style: normal; color: var(--red); }
+  .idle .t3 { font: 500 24px system-ui, sans-serif; color: var(--muted); }
+  .stripe { left: 0; right: 0; height: 18px; }
+  .stripe.a { top: 0; background: linear-gradient(90deg, var(--red) 0 33%, var(--gold) 33% 66%, var(--blue) 66%); }
+  .stripe.b { bottom: 0; background: linear-gradient(90deg, var(--blue) 0 33%, var(--gold) 33% 66%, var(--red) 66%); }
+
+  .legend { display: flex; flex-wrap: wrap; gap: 18px; margin-top: 14px; color: var(--muted); font-size: 14px; }
+  .legend span { display: inline-flex; align-items: center; gap: 8px; }
+  .legend i { width: 22px; height: 22px; border-radius: 6px; border: 2px solid var(--line); display: inline-block; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Double Dash lower screen: layout mockup</h1>
+  <p class="sub">Thor lower display at native 1240×1080, scaled to fit. Grey circles and squares mark where your disc's own
+    character faces, item icons and map textures go. Their names are only labels for this mockup. Panels, frames and
+    lettering are WiiDS chrome.</p>
+  <div class="tabs" id="tabs"></div>
+  <div class="stageBox" id="box"><div class="screen" id="screen"></div></div>
+  <p class="note" id="note"></p>
+  <div class="legend">
+    <span><i style="background:var(--ph);border-color:#4d5c86"></i>Held item (disc icon)</span>
+    <span><i></i>Known empty (kind 16)</span>
+    <span><i style="border-style:dashed;opacity:.4"></i>Unknown / roulette / transition (-1): nothing invented</span>
+    <span><i style="background:var(--me);border-color:var(--me)"></i>Your kart (first console)</span>
+  </div>
+</div>
+<script>
+const C = ["", "Mario","Luigi","Peach","Daisy","Yoshi","Birdo","Baby Mario","Baby Luigi","Toad","Toadette",
+  "Koopa","Paratroopa","DK","Diddy","Bowser","Bowser Jr.","Wario","Waluigi","Petey","King Boo"];
+const EMPTY = 16, UNKNOWN = -1;
+const kart = (id, rank, drv, pas, i0, i1, extra = {}) => ({ id, rank, drv, pas, i0, i1, ...extra });
+
+const race = {
+  course: "Luigi Circuit", mode: "Grand Prix", lap: 2, laps: 3, time: "1:23.456", progress: .42, me: 3,
+  karts: [
+    kart(0, 4, 1, 2, "Mushroom", EMPTY), kart(1, 1, 15, 16, "Red Shell", "Banana"),
+    kart(2, 2, 5, 6, EMPTY, EMPTY), kart(3, 3, 13, 14, "Green Shell", UNKNOWN, { speed: 87 }),
+    kart(4, 5, 3, 4, "Heart", EMPTY), kart(5, 6, 17, 18, UNKNOWN, UNKNOWN),
+    kart(6, 7, 9, 10, "Golden Mushroom", EMPTY), kart(7, 8, 19, 20, "Spiny Shell", "Fake Item Box"),
+  ],
+};
+const STATES = {
+  race:   { label: "Race", data: race, note: "Grand Prix / Versus. The standings slide smoothly when ranks change and rows keep their kart ids. Your duo card sits under the map panel. The map stays an honest \"unavailable\" panel until your disc's map for this course has been imported and checked against the kart positions." },
+  map:    { label: "Race + map (after import)", data: { ...race, map: true }, note: "This shows where things go once the own-disc map import has passed. The hatched box is where the course's own map texture goes. Face markers appear only for karts with positionKnown. Your marker gets a ring and a heading arrow. Karts outside the map bounds are left off, never pinned to the edge." },
+  ta:     { label: "Time Attack", data: { course: "Baby Park", mode: "Time Trial", lap: 4, laps: 7, time: "0:41.207", progress: .63, me: 0, solo: true,
+            karts: [kart(0, 1, 1, 2, "Mushroom", EMPTY, { speed: 102 })] }, note: "Single kart: no standings column, and the header keeps just the course name. The left panel shows the lap (counted from the game's own totalLaps, 7 here on Baby Park), progress through the lap and elapsed time." },
+  battle: { label: "Battle", data: { ...race, course: "Cookie Land", mode: "Balloon Battle", battle: true, karts: race.karts.slice(0, 4).map((k, i) => ({ ...k, rank: [2,1,3,4][i] })), me: 0 }, note: "Battle modes have no laps, so the lap counter and lap bar are hidden. Balloon and shine counts aren't in the data feed, so they're not shown." },
+  demo:   { label: "Demo", data: { ...race, demo: true, me: -1 }, note: "Attract demo: a \"Demo\" tag and no highlighted kart. There's no player target, so the duo panel follows the race leader instead and is labelled LEADER." },
+  paused: { label: "Paused", data: { ...race, paused: true }, note: "Paused: the last live frame dims and stays frozen under a Paused label. If the feed goes stale (500 ms), the screen falls back to the unavailable state instead." },
+  idle:   { label: "Unavailable / menus", data: null, note: "available=false (menus, results, awards, credits, stale feed): a quiet title panel. The previous race's values are never kept." },
+};
+
+const screen = document.getElementById("screen");
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;" }[c]));
+const face = (id, cls) => `<div class="face ${cls}">${id > 0 ? esc(C[id]) : ""}</div>`;
+const slot = v => v === UNKNOWN ? `<div class="slot unknown"></div>`
+  : v === EMPTY ? `<div class="slot empty"></div>` : `<div class="slot item">${esc(v)}</div>`;
+const ord = r => r + `<sup>${r === 1 ? "st" : r === 2 ? "nd" : r === 3 ? "rd" : "th"}</sup>`;
+
+function header(d) {
+  if (d.solo) return `<div class="abs header"><div class="course"><div class="n">${esc(d.course)}</div><div class="m">${esc(d.mode.toUpperCase())}</div></div></div>`;
+  const lap = d.battle ? "" : `<div class="lap"><span class="k">LAP</span><span class="v">${d.lap}</span><span class="t">/ ${d.laps}</span></div>`;
+  const bar = d.battle || d.me < 0 ? "" : `<div class="lapbar"><i style="width:${d.progress * 100}%"></i></div>`;
+  return `<div class="abs header">${lap}<div class="course"><div class="n">${esc(d.course)}</div><div class="m">${esc(d.mode.toUpperCase())}</div></div><div class="timer">${d.time}</div>${bar}</div>`;
+}
+function board(d) {
+  const rows = d.karts.map(k => {
+    const top = (k.rank - 1) * 116;
+    return `<div class="row r${k.rank} ${k.id === d.me ? "me" : ""}" style="top:${top}px">
+      <div class="rank">${ord(k.rank)}</div>
+      <div class="pair">${face(k.pas, "back")}${face(k.drv, "front")}</div>
+      <div class="who">${esc(C[k.drv])}<small>${esc(C[k.pas])}</small></div>${slot(k.i0)}</div>`;
+  }).join("");
+  return `<div class="abs board" style="position:absolute">${rows}</div>`;
+}
+function solo(d) {
+  const k = d.karts[0];
+  return `<div class="abs solo"><div><div class="k">LAP</div><div class="big">${d.lap}<span style="font-size:44px;color:var(--muted)"> / ${d.laps}</span></div></div>
+    <div><div class="k">LAP PROGRESS</div><div class="bar" style="margin-top:12px"><i style="width:${d.progress * 100}%"></i></div></div>
+    <div><div class="k">TIME</div><div class="big" style="font-size:76px">${d.time}</div></div>
+    <div style="margin-top:auto"><div class="k">SPEED</div><div class="big" style="font-size:64px">${k.speed}<span style="font-size:28px;color:var(--muted)"> km/h</span></div></div></div>`;
+}
+function map(d) {
+  if (!d.map) return `<div class="abs map"><div class="mapEmpty"><b>MAP UNAVAILABLE</b><span>This course's map hasn't been imported from your disc yet</span></div></div>`;
+  const spots = [[250,120,1],[320,90,2],[402,200,4],[175,300,0,1.1],[455,330,5],[520,400,6],[150,420,7],[600,250,3]];
+  const pins = d.karts.map(k => {
+    const s = spots[k.id]; if (!s) return "";
+    const me = k.id === d.me;
+    return `<div class="pin ${me ? "me" : ""}" style="left:${s[0]}px;top:${s[1]}px">${me ? `<div class="dir" style="transform:rotate(35deg)"></div>` : ""}${esc(C[k.drv])}</div>`;
+  }).join("");
+  return `<div class="abs map"><div class="mapArt">own-disc course map texture</div>${pins}</div>`;
+}
+function duo(d) {
+  const leader = d.me < 0;
+  const k = leader ? d.karts.find(x => x.rank === 1) : d.karts.find(x => x.id === d.me);
+  const rider = (id, item, role, drive) => `<div class="rider ${drive ? "drive" : ""}"><div class="role">${role}</div>
+    <div class="riderBody">${face(id, "")}${slot(item)}</div><div class="nm">${esc(C[id])}</div></div>`;
+  const spd = k.speed ? `<span class="spd">${k.speed} km/h</span>` : "";
+  return `<div class="abs duo"><h3><span>${leader ? "LEADER" : "YOUR DUO"}</span>${spd}</h3><div class="riders">
+    ${rider(k.drv, k.i0, "DRIVING", true)}<div class="swap">⇄</div>${rider(k.pas, k.i1, "BACK", false)}</div></div>`;
+}
+function idle() {
+  return `<div class="abs stripe a"></div><div class="abs idle"><div class="t1">MARIO KART</div>
+    <div class="t2">Double Dash<em>!!</em></div><div class="t3">The race map and standings show here during a race.</div></div><div class="abs stripe b"></div>`;
+}
+function render(key) {
+  const s = STATES[key], d = s.data;
+  let html;
+  if (!d) html = idle();
+  else {
+    html = header(d) + (d.solo ? solo(d) : board(d)) + map(d) + duo(d);
+    if (d.demo) html += `<div class="abs tag">DEMO</div>`;
+    if (d.paused) html += `<div class="abs dim"><b>PAUSED</b></div>`;
+  }
+  screen.innerHTML = html;
+  document.getElementById("note").textContent = s.note;
+  document.querySelectorAll("#tabs button").forEach(b => b.classList.toggle("on", b.dataset.k === key));
+}
+const tabs = document.getElementById("tabs");
+for (const [k, s] of Object.entries(STATES)) {
+  const b = document.createElement("button"); b.textContent = s.label; b.dataset.k = k;
+  b.onclick = () => render(k); tabs.appendChild(b);
+}
+const box = document.getElementById("box");
+function fit() {
+  const scale = Math.min(1, box.clientWidth / 1240);
+  screen.style.transform = `scale(${scale})`; box.style.height = 1080 * scale + "px";
+}
+addEventListener("resize", fit); fit(); render("race");
+</script>
+</body>
+</html>

@@ -1,5 +1,5 @@
 [CmdletBinding()]
-param([string]$WorkspaceRoot=(Join-Path $PSScriptRoot '..\..\..'),[string]$DeviceSerial='192.168.15.84:5555')
+param([string]$WorkspaceRoot=(Join-Path $PSScriptRoot '..\..\..'),[string]$DeviceSerial='192.0.2.1:5555')
 $ErrorActionPreference='Stop'
 $WorkspaceRoot=[IO.Path]::GetFullPath($WorkspaceRoot)
 $compiler=Join-Path $WorkspaceRoot '.tools\android-sdk\ndk\29.0.14206865\toolchains\llvm\prebuilt\windows-x86_64\bin\aarch64-linux-android30-clang++.cmd'

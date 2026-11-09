@@ -1,0 +1,29 @@
+# User-supplied game data: never commit anything from the disc.
+rom/*
+!rom/README.md
+*.iso
+*.rvz
+*.gcz
+*.ciso
+*.wbfs
+*.dol
+disc/
+
+# Generated / local
+# Any build directory: these hold the recompiled game code in gen/, which is derived
+# from the disc and must never be committed. The trailing slash keeps build.sh,
+# build.ps1 and build-android.ps1 tracked.
+build*/
+saves/
+analysis/out/
+analysis/all.s
+tools/dtk
+__pycache__/
+.DS_Store
+panic.txt
+
+# Each player's own settings, read from the directory the game runs in: controls
+# (controls.txt), the motion rig (telemetry.txt) and the headset (vr.txt).
+/controls.txt
+/telemetry.txt
+/vr.txt

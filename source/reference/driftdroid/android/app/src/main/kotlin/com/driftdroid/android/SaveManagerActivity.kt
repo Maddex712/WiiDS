@@ -75,6 +75,8 @@ class SaveManagerActivity : Activity() {
         }
         button("Import a Dolphin save...") {
             val game = selected
+            if (game == FrontendGame.BRAWL || game == FrontendGame.PROJECT_PLUS) { status.text = "This game supports WiiDS backup and restore here. Dolphin save-file import is not supported yet."; return@button }
+            if(game==FrontendGame.MKDD || game==FrontendGame.MKDD_PLUS) { status.text="Double Dash supports WiiDS backup and restore here. Dolphin save-file import is not supported yet.";return@button }
             ThorDialogs.builder(this).setTitle("Import for ${game.label}")
                 .setMessage(DolphinSaveImport.instructions(game.id) + "\n\nCopy the file to Downloads, then choose it here. No root is needed. Dolphin save states and full NAND/card backups are not supported.")
                 .setPositiveButton("Choose save") { _, _ ->
@@ -158,7 +160,7 @@ class SaveManagerActivity : Activity() {
         if (!SaveManagerProfiles.busy.get()) status.text = "${selected.label}\n${backups().size} local backups. Achievements, controls and reserve items stay separate."
     }
     private fun backups(): List<File> = folder.listFiles()?.filter {
-        it.isFile && it.name.startsWith(selected.id + "-") && it.extension == "zip"
+        it.isFile && FrontendGame.fromBackupFilename(it.name) == selected
     }?.sortedByDescending { it.name.substringAfter(selected.id + "-").substringBefore('-').toLongOrNull() ?: 0L }.orEmpty()
     private fun backup() {
         val game = selected
@@ -232,7 +234,7 @@ class SaveManagerActivity : Activity() {
             }
             EXPORT -> {
                 val source = exportFile ?: return
-                val profile = FrontendGame.values().firstOrNull { source.name.startsWith(it.id + "-") } ?: return
+                val profile = FrontendGame.fromBackupFilename(source.name) ?: return
                 operation("Exporting backup…") {
                     SaveArchive.verify(SaveManagerProfiles.profile(this, profile), source, null)
                     val output = contentResolver.openOutputStream(uri, "wt") ?: error("Cannot open backup destination.")
@@ -269,12 +271,22 @@ class SaveManagerActivity : Activity() {
         }
     }
     private fun operation(message: String, after: (() -> Unit)? = null, recovery: Boolean = false, action: () -> String) {
-        if (!SaveManagerProfiles.busy.compareAndSet(false, true)) return
+        synchronized(com.driftdroid.android.rom.GameInstaller) {
+            if (com.driftdroid.android.rom.GameInstaller.running ||
+                com.driftdroid.android.rom.EclipseMod.state.running ||
+                com.driftdroid.android.rom.MsmbwiiMod.state.running ||
+                com.driftdroid.android.rom.WiiDsArt.building != null || WiiDsUpdater.installing.get()) {
+                status.text = "Finish or cancel game setup before managing saves."
+                return
+            }
+            if (!SaveManagerProfiles.busy.compareAndSet(false, true)) return
+        }
         status.text = message
         val focused = currentFocus
         buttons.forEach { it.isEnabled = false }
         Thread {
             val result = runCatching {
+                GameStorage.blocker(this)?.let { error(it) }
                 SaveManagerProfiles.requireStopped(this)
                 val work = SaveManagerProfiles.work(this); SaveArchive.mkdir(work)
                 if (!recovery && SaveArchive.pending(work)) error("Recover the interrupted restore by reopening Save manager first.")

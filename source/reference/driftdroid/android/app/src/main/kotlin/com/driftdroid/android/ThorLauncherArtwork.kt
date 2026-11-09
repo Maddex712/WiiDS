@@ -15,8 +15,11 @@ import java.security.MessageDigest
  * WiiCompiled/ThorMap; removing a folder goes back to the built one.
  */
 internal object ThorLauncherFolders {
-    fun cases(context: Context, thorMap: File): File = custom(context, "launcher", "artwork.json")
-        ?: bundled(context, "launcher", "artwork.json") ?: File(thorMap, "launcher")
+    fun cases(context: Context, thorMap: File): File = caseLayers(context, thorMap).first()
+    fun caseLayers(context: Context, thorMap: File): List<File> = listOfNotNull(
+        custom(context, "launcher", "artwork.json"), bundled(context, "launcher", "artwork.json"),
+        File(thorMap, "launcher")
+    ).distinct()
     fun audio(context: Context, thorMap: File): File = custom(context, "launcher-audio", "audio.json")
         ?: bundled(context, "launcher-audio", "audio.json") ?: File(thorMap, "launcher-audio")
     private fun bundled(context: Context, name: String, manifest: String): File? =
@@ -33,10 +36,9 @@ internal object ThorLauncherFolders {
  */
 internal object ThorLauncherArtwork {
     private val required = emptySet<String>()
-    private val optional = listOf(setOf("original-cover", "original-disc"), setOf("retro-rewind-cover", "retro-rewind-disc"),
-        setOf("nsmbw-cover", "nsmbw-disc"), setOf("sunshine-cover", "sunshine-disc"), setOf("msmbwii-cover", "msmbwii-disc"),
-        setOf("eclipse-cover", "eclipse-disc"), setOf("galaxy-cover", "galaxy-disc"),
-        setOf("kaizo-cover", "kaizo-disc"))
+    private val optional = FrontendGame.values().map { game ->
+        setOf("${game.artwork}-cover", "${game.artwork}-disc")
+    }
     private val spines = optional.associate { pair -> "${pair.first().removeSuffix("-cover")}-spine" to pair }
     private val stems = required + optional.flatten() + spines.keys
     private data class Key(val path: String, val modified: Long, val length: Long)

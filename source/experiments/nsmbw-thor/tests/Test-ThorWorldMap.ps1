@@ -1,7 +1,7 @@
 [CmdletBinding()]
 param(
     [string]$WorkspaceRoot = (Join-Path $PSScriptRoot '..\..\..'),
-    [string]$DeviceSerial = '192.168.15.84:5555',
+    [string]$DeviceSerial = '192.0.2.1:5555',
     [string]$SourceCheckout = 'reference\nsmbw-android-e1',
     [string]$OutputDirectory = 'build\nsmbw-thor\e1\world-map-test'
 )

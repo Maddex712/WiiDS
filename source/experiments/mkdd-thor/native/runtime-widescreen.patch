@@ -1,0 +1,129 @@
+diff --git a/runtime/gx/render_gl.cpp b/runtime/gx/render_gl.cpp
+index bd739b1..7613b83 100644
+--- a/runtime/gx/render_gl.cpp
++++ b/runtime/gx/render_gl.cpp
+@@ -8,6 +8,7 @@
+ #include "shadergen.h"
+ #include "gl.h"
+ #include <algorithm>
++#include <atomic>
+ #include <chrono>
+ #include <unordered_map>
+ #include <unordered_set>
+@@ -65,6 +66,7 @@ struct UniformShadow {
+     float proj[7];
+     uint8_t view_space, background, foreground, fg_layer, hud_layer, flat3d, screen, frame_screen, restore, facing;
+     float hud_push;
++    float wide;                // the widescreen squeeze this draw's projection was given
+     float viewport[6];
+     uint32_t scissor_off;      // bp[0x59]
+     uint32_t psize_reg;        // bp[0x22]
+@@ -1151,6 +1153,9 @@ void main() { o = vec4(u_col, 1.0); }
+ }
+ 
+ void render_set_window_size(int w, int h) { g_win_w = w; g_win_h = h; }
++// Horizontal squeeze applied in clip space (1 = off, 0.75 = 4:3 content on a 16:9 frame).
++static std::atomic<float> g_wide{1.0f};
++void render_set_widescreen(bool on) { g_wide.store(on ? 0.75f : 1.0f); }
+ 
+ // Change how many samples the EFB keeps per hardware pixel, between frames.
+ //
+@@ -1334,6 +1339,7 @@ static const GLenum kBlendSrc[8] = {GL_ZERO, GL_ONE, GL_DST_COLOR, GL_ONE_MINUS_
+ static const GLenum kBlendDst[8] = {GL_ZERO, GL_ONE, GL_SRC_COLOR, GL_ONE_MINUS_SRC_COLOR, GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_DST_ALPHA, GL_ONE_MINUS_DST_ALPHA};
+ static const GLenum kDepthFunc[8] = {GL_NEVER, GL_LESS, GL_EQUAL, GL_LEQUAL, GL_GREATER, GL_NOTEQUAL, GL_GEQUAL, GL_ALWAYS};
+ static bool samples_fullscreen_copy(const PixelState& st);
++static bool samples_frame_copy(const PixelState& st);
+ static bool is_fullscreen_tex(uint32_t id);
+ static void note_fullscreen_copies(const Batch& b);
+ 
+@@ -1803,6 +1809,17 @@ static void apply_state(const PixelState& st, int prim) {
+     } else {
+         P[0] = p[0]; P[12] = p[1]; P[5] = p[2]; P[13] = p[3]; P[10] = p[4]; P[14] = p[5]; P[15] = 1.0f;
+     }
++    // Widescreen (flat output only): the frame is stretched 4/3 to 16:9 on output, so clip x
++    // is squeezed by 3/4 here. For a perspective draw that is a wider field of view; for a 2D
++    // one it keeps the picture in proportion, in the middle of the screen.
++    // A 2D draw that puts a copy of the whole frame back (the game's own composite) is the
++    // exception: the copy already holds the wide picture, so it is drawn across the frame as is.
++    float wide = 1.0f;
++    if (!g_vr_active) {
++        wide = g_wide.load(std::memory_order_relaxed);
++        if (wide != 1.0f && !perspective && samples_frame_copy(st)) wide = 1.0f;
++        if (wide != 1.0f) { P[0] *= wide; P[8] *= wide; P[12] *= wide; }
++    }
+     // The game's own clip space bounds a flat3d draw to its viewport, which the eye's
+     // target does not have: distance i of these planes is >= 0 inside it.
+     float flat_crop[16] = {0};
+@@ -1860,7 +1877,7 @@ static void apply_state(const PixelState& st, int prim) {
+                            st.view_space == u.view_space && background == u.background &&
+                            foreground == u.foreground && fg_layer == u.fg_layer && hud_layer == u.hud_layer &&
+                            flat3d == u.flat3d && screen == u.screen && frame_screen == u.frame_screen && facing == u.facing && !restore && !u.restore &&
+-                           hud_push == u.hud_push && (!flat3d || memcmp(st.viewport, u.viewport, sizeof(st.viewport)) == 0);
++                           hud_push == u.hud_push && wide == u.wide && (!flat3d || memcmp(st.viewport, u.viewport, sizeof(st.viewport)) == 0);
+     // Note: a draw sampling a copy of the whole frame (the water surface is one) must
+     // stay in the world, however tempting its screen-space origin makes the overlay path
+     // look. Sending the water through it put the water, and the racer baked into the
+@@ -2033,6 +2050,7 @@ static void apply_state(const PixelState& st, int prim) {
+         u.restore = restore;
+         u.facing = facing;
+         u.hud_push = hud_push;
++        u.wide = wide;
+     }
+     // Per state, whatever the projection: see g_frame_grad.
+     if (frame_screen && g_cur_uvgrad && pr.u_uvgrad >= 0) glUniform4fv(pr.u_uvgrad, 8, g_cur_uvgrad);
+@@ -2667,10 +2685,11 @@ static void blit_rect_to_output(GLuint src_tex, uint32_t tex_w, uint32_t tex_h,
+     glViewport(0, 0, g_win_w, g_win_h);
+     glClearColor(0, 0, 0, 1);
+     glClear(GL_COLOR_BUFFER_BIT);
+-    // Letterbox to 4:3
++    // Letterbox to 4:3 (16:9 in widescreen)
+     int w = g_win_w, h = g_win_h;
+-    int vw = w, vh = w * 3 / 4;
+-    if (vh > h) { vh = h; vw = h * 4 / 3; }
++    const bool wide = g_wide.load(std::memory_order_relaxed) != 1.0f;
++    int vw = w, vh = wide ? w * 9 / 16 : w * 3 / 4;
++    if (vh > h) { vh = h; vw = wide ? h * 16 / 9 : h * 4 / 3; }
+     glViewport((w - vw) / 2, (h - vh) / 2, vw, vh);
+     glUseProgram(g_blit_prog);
+     glActiveTexture(GL_TEXTURE0);
+@@ -3462,10 +3481,26 @@ static std::vector<uint32_t> g_fullscreen_tex;
+ 
+ // These ids are stable across frames -- an EFB copy keeps the id its destination address
+ // was registered under -- so the set only ever needs adding to.
++// Texture copies of (nearly) the whole frame's width at any size, a downsampled one included:
++// they hold the picture as drawn, so in widescreen a 2D draw of one is not squeezed again.
++static std::vector<uint32_t> g_wide_copy_tex;
++static bool samples_frame_copy(const PixelState& st) {
++    for (int i = 0; i < 8; i++)
++        if (st.tex_is_efb[i] && st.tex_id[i])
++            for (uint32_t t : g_wide_copy_tex) if (t == st.tex_id[i]) return true;
++    return false;
++}
++
+ static void note_fullscreen_copies(const Batch& b) {
+     uint32_t dw, dh;
+     display_size(b, dw, dh);
+     for (auto& c : b.cmds) {
++        if (c.type == CmdType::EfbCopy && !c.copy.to_xfb && !c.copy.depth && c.copy.tex_id &&
++            c.copy.src_w * 10 >= dw * 9 && c.copy.src_h * 2 >= dh) {
++            bool known = false;
++            for (uint32_t id : g_wide_copy_tex) known |= (id == c.copy.tex_id);
++            if (!known) g_wide_copy_tex.push_back(c.copy.tex_id);
++        }
+         if (c.type != CmdType::EfbCopy || !is_fullscreen_copy(c.copy, dw, dh) || !c.copy.tex_id)
+             continue;
+         bool known = false;
+diff --git a/runtime/gx/render_gl.h b/runtime/gx/render_gl.h
+index c68d9a3..e90000f 100644
+--- a/runtime/gx/render_gl.h
++++ b/runtime/gx/render_gl.h
+@@ -51,6 +51,9 @@ bool render_shader_cache_compiling();
+ void render_set_internal_scale(int scale);
+ 
+ void render_set_window_size(int w, int h);
++// Flat output at 16:9 instead of 4:3: perspective draws see 4/3 wider, orthographic (2D) draws
++// keep their shape in the middle 4:3, and the frame fills a 16:9 window. Safe to call any time.
++void render_set_widescreen(bool on);
+ 
+ // Redirect the finished frame somewhere other than the window framebuffer, e.g. a VR
+ // swapchain image. 0 restores the default.

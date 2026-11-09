@@ -1,0 +1,232 @@
+/*-
+ * Copyright (c) 2012 Michihiro NAKAJIMA
+ * All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer
+ *    in this position and unchanged.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR(S) ``AS IS'' AND ANY EXPRESS OR
+ * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+ * OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+ * IN NO EVENT SHALL THE AUTHOR(S) BE LIABLE FOR ANY DIRECT, INDIRECT,
+ * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+ * NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+ * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+ * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+ * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+ * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ */
+
+#include "test.h"
+
+/*
+ * A basic exercise of b64encode reading and writing.
+ */
+
+DEFINE_TEST(test_write_filter_b64encode)
+{
+	struct archive_entry *ae;
+	struct archive* a;
+	char *buff, *data;
+	size_t buffsize, datasize;
+	char path[16];
+	size_t used1, used2;
+	int i;
+
+	buffsize = 2000000;
+	assert(NULL != (buff = malloc(buffsize)));
+
+	datasize = 10000;
+	assert(NULL != (data = malloc(datasize)));
+	memset(data, 0, datasize);
+
+	/*
+	 * Write a 100 files and read them all back.
+	 */
+	assert((a = archive_write_new()) != NULL);
+	assertEqualIntA(a, ARCHIVE_OK, archive_write_set_format_ustar(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_write_add_filter_b64encode(a));
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_write_set_bytes_per_block(a, 10));
+#if ARCHIVE_VERSION_NUMBER < 4000000
+	assertEqualInt(ARCHIVE_FILTER_UU, archive_filter_code(a, 0));
+#else
+	assertEqualInt(ARCHIVE_FILTER_B64, archive_filter_code(a, 0));
+#endif
+	assertEqualString("b64encode", archive_filter_name(a, 0));
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_write_open_memory(a, buff, buffsize, &used1));
+	for (i = 0; i < 99; i++) {
+		assert((ae = archive_entry_new()) != NULL);
+		archive_entry_set_filetype(ae, AE_IFREG);
+		archive_entry_set_size(ae, datasize);
+		snprintf(path, sizeof(path), "file%03d", i);
+		archive_entry_copy_pathname(ae, path);
+		assertEqualIntA(a, ARCHIVE_OK, archive_write_header(a, ae));
+		assertA(datasize
+		    == (size_t)archive_write_data(a, data, datasize));
+		archive_entry_free(ae);
+	}
+	assertEqualIntA(a, ARCHIVE_OK, archive_write_close(a));
+	assertEqualInt(ARCHIVE_OK, archive_write_free(a));
+
+	assert((a = archive_read_new()) != NULL);
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_all(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_filter_all(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_open_memory(a, buff, used1));
+	for (i = 0; i < 99; i++) {
+		snprintf(path, sizeof(path), "file%03d", i);
+		if (!assertEqualIntA(a, 0, archive_read_next_header(a, &ae)))
+			break;
+		assertEqualString(path, archive_entry_pathname(ae));
+		assertEqualInt((int)datasize, archive_entry_size(ae));
+	}
+#if ARCHIVE_VERSION_NUMBER < 4000000
+	assertEqualInt(ARCHIVE_FILTER_UU, archive_filter_code(a, 0));
+#else
+	assertEqualInt(ARCHIVE_FILTER_B64, archive_filter_code(a, 0));
+#endif
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
+	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+
+	/*
+	 * Repeat the cycle again, this time setting name and mode
+	 * options.
+	 */
+	assert((a = archive_write_new()) != NULL);
+	assertEqualIntA(a, ARCHIVE_OK, archive_write_set_format_ustar(a));
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_write_set_bytes_per_block(a, 10));
+	assertEqualIntA(a, ARCHIVE_OK, archive_write_add_filter_b64encode(a));
+	assertEqualIntA(a, ARCHIVE_FAILED,
+	    archive_write_set_filter_option(a, NULL, "nonexistent-option", "0"));
+	assertEqualIntA(a, ARCHIVE_FAILED,
+	    archive_write_set_filter_option(a, NULL, "compression-level", "abc"));
+	assertEqualIntA(a, ARCHIVE_FAILED,
+	    archive_write_set_filter_option(a, NULL, "compression-level", "99"));
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_write_set_filter_option(a, NULL, "name", "test.tar"));
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_write_set_filter_option(a, NULL, "mode", "0640"));
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_write_open_memory(a, buff, buffsize, &used2));
+	for (i = 0; i < 99; i++) {
+		snprintf(path, sizeof(path), "file%03d", i);
+		assert((ae = archive_entry_new()) != NULL);
+		archive_entry_copy_pathname(ae, path);
+		archive_entry_set_size(ae, datasize);
+		archive_entry_set_filetype(ae, AE_IFREG);
+		assertEqualIntA(a, ARCHIVE_OK, archive_write_header(a, ae));
+		assertA(datasize == (size_t)archive_write_data(a, data, datasize));
+		archive_entry_free(ae);
+	}
+	assertEqualIntA(a, ARCHIVE_OK, archive_write_close(a));
+	assertEqualInt(ARCHIVE_OK, archive_write_free(a));
+
+	assert((a = archive_read_new()) != NULL);
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_all(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_filter_all(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_open_memory(a, buff, used2));
+	for (i = 0; i < 99; i++) {
+		snprintf(path, sizeof(path), "file%03d", i);
+		if (!assertEqualInt(0, archive_read_next_header(a, &ae)))
+			break;
+		assertEqualString(path, archive_entry_pathname(ae));
+		assertEqualInt((int)datasize, archive_entry_size(ae));
+	}
+#if ARCHIVE_VERSION_NUMBER < 4000000
+	assertEqualInt(ARCHIVE_FILTER_UU, archive_filter_code(a, 0));
+#else
+	assertEqualInt(ARCHIVE_FILTER_B64, archive_filter_code(a, 0));
+#endif
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
+	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+
+	/*
+	 * Test various premature shutdown scenarios to make sure we
+	 * don't crash or leak memory.
+	 */
+	assert((a = archive_write_new()) != NULL);
+	assertEqualIntA(a, ARCHIVE_OK, archive_write_add_filter_b64encode(a));
+	assertEqualInt(ARCHIVE_OK, archive_write_free(a));
+
+	assert((a = archive_write_new()) != NULL);
+	assertEqualIntA(a, ARCHIVE_OK, archive_write_add_filter_b64encode(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_write_close(a));
+	assertEqualInt(ARCHIVE_OK, archive_write_free(a));
+
+	assert((a = archive_write_new()) != NULL);
+	assertEqualIntA(a, ARCHIVE_OK, archive_write_set_format_ustar(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_write_add_filter_b64encode(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_write_close(a));
+	assertEqualInt(ARCHIVE_OK, archive_write_free(a));
+
+	assert((a = archive_write_new()) != NULL);
+	assertEqualIntA(a, ARCHIVE_OK, archive_write_set_format_ustar(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_write_add_filter_b64encode(a));
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_write_open_memory(a, buff, buffsize, &used2));
+	assertEqualIntA(a, ARCHIVE_OK, archive_write_close(a));
+	assertEqualInt(ARCHIVE_OK, archive_write_free(a));
+
+	/*
+	 * Clean up.
+	 */
+	free(data);
+	free(buff);
+}
+
+/*
+ * A write callback that fails once, on its third call.  The block that
+ * could not be written must not be dropped silently.
+ */
+static ssize_t
+fail_once_write(struct archive *a, void *client_data, const void *buff,
+    size_t length)
+{
+	int *calls = client_data;
+
+	(void)buff; /* UNUSED */
+	if (++*calls == 3) {
+		archive_set_error(a, EIO, "Simulated write error");
+		return (-1);
+	}
+	return ((ssize_t)length);
+}
+
+DEFINE_TEST(test_write_filter_b64encode_write_error)
+{
+	struct archive_entry *ae;
+	struct archive *a;
+	char *data;
+	size_t datasize = 500000;
+	int calls = 0;
+
+	assert(NULL != (data = malloc(datasize)));
+	memset(data, 'a', datasize);
+
+	assert((a = archive_write_new()) != NULL);
+	assertEqualIntA(a, ARCHIVE_OK, archive_write_set_format_ustar(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_write_add_filter_b64encode(a));
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_write_open2(a, &calls, NULL, fail_once_write, NULL, NULL));
+	assert((ae = archive_entry_new()) != NULL);
+	archive_entry_set_filetype(ae, AE_IFREG);
+	archive_entry_set_size(ae, datasize);
+	archive_entry_copy_pathname(ae, "file");
+	assertEqualIntA(a, ARCHIVE_OK, archive_write_header(a, ae));
+	archive_entry_free(ae);
+	assertEqualIntA(a, ARCHIVE_FATAL,
+	    archive_write_data(a, data, datasize));
+	assert(calls >= 3);
+	assertEqualInt(ARCHIVE_OK, archive_write_free(a));
+
+	free(data);
+}

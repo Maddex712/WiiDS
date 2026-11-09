@@ -22,12 +22,14 @@ object GameInstaller {
     @Volatile var state = State()
         private set
 
-    val running get() = state.running
+    val running get() = state.running || MkddPlusMod.state.running
     @Volatile private var importCancelled = false
 
     fun start(context: Context, disc: GameCatalog.Disc, source: WiiDsDisc.Source): Boolean {
         synchronized(this) {
-            if (state.running || EclipseMod.state.running || com.driftdroid.android.WiiDsUpdater.installing.get()) return false
+            if (com.driftdroid.android.GameStorage.blocker(context) != null || running || EclipseMod.state.running || com.driftdroid.android.WiiDsUpdater.installing.get()) return false
+            if (com.driftdroid.android.SaveManagerProfiles.blocker(context) != null ||
+                runCatching { com.driftdroid.android.SaveManagerProfiles.requireStopped(context) }.isFailure) return false
             // Before Cancel is shown: a tap from here on must reach the extraction.
             WiiDsDisc.resetCancel()
             importCancelled = false
@@ -39,7 +41,7 @@ object GameInstaller {
             state = state.copy(running = false, finished = true, error = error)
             // The game's art (menus, sounds, maps, cases) comes from the disc just imported, in
             // the background; a failure leaves the game playable and is retried later.
-            if (error == null) repairArt(app)
+            if (error == null) { com.driftdroid.android.GameStorage.enable(app, com.driftdroid.android.GameStorage.discGame(disc)); repairArt(app) }
         }.apply { name = "WiiDsInstall"; isDaemon = true }.start()
         return true
     }
@@ -50,13 +52,15 @@ object GameInstaller {
     fun repairArt(context: Context) {
         val app = context.applicationContext
         Thread {
+            if (runCatching { com.driftdroid.android.SaveManagerProfiles.requireStopped(app) }.isFailure) return@Thread
             for (disc in GameCatalog.Disc.values()) {
-                if (state.running) return@Thread
+                if (running || com.driftdroid.android.GameStorage.blocker(app) != null) return@Thread
                 if (WiiDsArt.missing(app, disc)) WiiDsArt.build(app, disc, onlyMissing = true)
             }
             // The included MSMBWii mod installs itself once the NSMB disc is there.
             if (GameCatalog.Disc.NSMB_USA_REV1.isInstalled(app) && !GameCatalog.msmbwiiModInstalled(app) &&
-                MsmbwiiMod.bundled(app) && !MsmbwiiMod.state.running) MsmbwiiMod.start(app)
+                MsmbwiiMod.bundled(app) && !MsmbwiiMod.state.running &&
+                !com.driftdroid.android.GameStorage.disabled(app,com.driftdroid.android.FrontendGame.MSMBWII)) MsmbwiiMod.start(app)
             WiiDsArt.repairRetroRewind(app)
         }.apply { name = "WiiDsArt"; isDaemon = true }.start()
     }
@@ -113,6 +117,12 @@ object GameInstaller {
                 temp.deleteRecursively()
                 return "This image isn't the supported Eclipse 1.1.0 build. Apply the official 1.1.0 patch to an unchanged USA Sunshine revision 0 disc. Your existing game and saves were kept."
             }
+        }
+        if (disc == GameCatalog.Disc.MKDD_USA) {
+            dev.thor.mkdd.MkddStorage.validate(temp) { importCancelled }?.let { problem -> temp.deleteRecursively(); return problem }
+        }
+        if(disc==GameCatalog.Disc.BRAWL_USA_REV2) {
+            dev.wiids.brawl.BrawlStorage.validate(temp)?.let { problem -> temp.deleteRecursively();return problem }
         }
         // The install folder holds only disc data; saves and settings live elsewhere.
         if (importCancelled) {

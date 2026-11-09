@@ -11,8 +11,10 @@ import android.net.wifi.WifiManager
 import android.os.Build
 import android.os.Bundle
 import android.os.Process
+import android.os.SystemClock
 import android.util.Log
 import android.view.KeyEvent
+import android.view.MotionEvent
 import android.view.Surface
 import android.view.View
 import android.view.WindowInsets
@@ -60,11 +62,42 @@ class MainActivity : SDLActivity() {
     /** The gear can be hidden (GitHub issue #5); Back then opens the settings sidebar instead. */
     private var settingsButton: Button? = null
     private var nativeSettingsButtonHidden = false
+    private val settingsButtonAutoHide = SettingsButtonAutoHide()
+    private val settingsButtonTimeout = Runnable { updateSettingsButtonVisibility() }
+
+    private fun updateSettingsButtonVisibility() {
+        val button = settingsButton ?: return
+        button.removeCallbacks(settingsButtonTimeout)
+        val now = SystemClock.uptimeMillis()
+        button.visibility = if (settingsButtonAutoHide.visible(now)) View.VISIBLE else View.GONE
+        val delay = settingsButtonAutoHide.nextUpdateDelay(now)
+        if (delay > 0) button.postDelayed(settingsButtonTimeout, delay)
+    }
+
+    override fun dispatchTouchEvent(event: MotionEvent): Boolean {
+        // Dispatch first: a hidden gear must not become the target of the same tap
+        // that reveals it. Keep SDL's normal event delivery and return value intact.
+        val handled = super.dispatchTouchEvent(event)
+        if (settingsButton != null) {
+            val count = when (event.actionMasked) {
+                MotionEvent.ACTION_DOWN, MotionEvent.ACTION_POINTER_DOWN -> event.pointerCount
+                MotionEvent.ACTION_POINTER_UP -> event.pointerCount - 1
+                MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> 0
+                else -> return handled
+            }
+            settingsButtonAutoHide.setPointers(count, SystemClock.uptimeMillis())
+            updateSettingsButtonVisibility()
+        }
+        return handled
+    }
 
     /** Called from native (settings_overlay.cpp's "Hide the settings button" checkbox). */
     fun onNativeSetSettingsButtonHidden(hidden: Boolean) {
-        nativeSettingsButtonHidden = hidden
-        runOnUiThread { settingsButton?.visibility = if (hidden) View.GONE else View.VISIBLE }
+        runOnUiThread {
+            nativeSettingsButtonHidden = hidden
+            settingsButtonAutoHide.setManuallyHidden(hidden, SystemClock.uptimeMillis())
+            updateSettingsButtonVisibility()
+        }
     }
 
     /**
@@ -177,6 +210,12 @@ class MainActivity : SDLActivity() {
         // why the runtime looks in the app's files dir for these instead of an executable
         // directory, which doesn't exist on Android).
         ensureBundledAssets()
+        if (BuildConfig.THOR_BUILD) {
+            val game = if (resolvedProduct == PRODUCT_RETRO_REWIND) FrontendGame.RETRO_REWIND
+                else FrontendGame.MARIO_KART
+            runCatching { AuroraTexturePacks.prepareKart(this, game, File(filesDir, "WiiCompiled")) }
+                .onFailure { android.widget.Toast.makeText(this, "Couldn't prepare texture packs: ${it.message}", android.widget.Toast.LENGTH_LONG).show() }
+        }
         acquireMulticastLock()
 
         // The native side (dvd.cpp's WaitForAndroidDvdRoot, Android-only) polls this same path
@@ -395,6 +434,8 @@ class MainActivity : SDLActivity() {
     }
 
     override fun onDestroy() {
+        settingsButton?.removeCallbacks(settingsButtonTimeout)
+        settingsButton = null
         thorImportCompanion?.stop()
         thorScreens?.stop()
         multicastLock?.release()
@@ -430,13 +471,21 @@ class MainActivity : SDLActivity() {
         thorImportCompanion = null
         val gearButton = addSettingsButton()
         settingsButton = gearButton
-        gearButton.visibility = if (nativeSettingsButtonHidden) View.GONE else View.VISIBLE
+        val now = SystemClock.uptimeMillis()
+        settingsButtonAutoHide.setManuallyHidden(nativeSettingsButtonHidden, now)
+        settingsButtonAutoHide.setActive(activityResumed && hasWindowFocus(), now)
+        settingsButtonAutoHide.reveal(now)
+        updateSettingsButtonVisibility()
         // Thor uses its physical controls. Never create a touch pad in this build,
         // including when the lower display is disconnected or settings change.
         if (!BuildConfig.THOR_BUILD) touchControls = TouchControlsOverlay.attach(this, mLayout)
         nativeSetTouchControlsVisibleCache(touchControls?.isUserVisible() ?: false)
         nativeSetDoubleTapAutoHoldCache(touchControls?.isDoubleTapAutoHoldEnabled() ?: false)
-        touchControls?.onEditModeChanged = { editing -> gearButton.alpha = if (editing) 1f else 0.55f }
+        touchControls?.onEditModeChanged = { editing ->
+            gearButton.alpha = if (editing) 1f else 0.55f
+            settingsButtonAutoHide.setEditing(editing, SystemClock.uptimeMillis())
+            updateSettingsButtonVisibility()
+        }
         // Only enable automatically on the device this layout was requested for. The
         // controller discovers the lower display; display IDs can change after reconnects.
         if (Build.MODEL.equals("AYN Thor", ignoreCase = true)) {
@@ -456,6 +505,8 @@ class MainActivity : SDLActivity() {
 
     override fun onPause() {
         activityResumed = false
+        settingsButtonAutoHide.setActive(false, SystemClock.uptimeMillis())
+        updateSettingsButtonVisibility()
         thorImportCompanion?.stop()
         thorScreens?.stop()
         super.onPause()
@@ -467,6 +518,8 @@ class MainActivity : SDLActivity() {
     override fun onResume() {
         super.onResume()
         activityResumed = true
+        settingsButtonAutoHide.setActive(hasWindowFocus(), SystemClock.uptimeMillis())
+        updateSettingsButtonVisibility()
         thorImportCompanion?.start()
         thorScreens?.start()
         applyThorFullscreen()
@@ -477,6 +530,8 @@ class MainActivity : SDLActivity() {
 
     override fun onWindowFocusChanged(hasFocus: Boolean) {
         super.onWindowFocusChanged(hasFocus)
+        settingsButtonAutoHide.setActive(activityResumed && hasFocus, SystemClock.uptimeMillis())
+        updateSettingsButtonVisibility()
         if (hasFocus) applyThorFullscreen()
     }
 
@@ -636,6 +691,8 @@ class MainActivity : SDLActivity() {
      * the UI thread. */
     fun onNativeSettingsVisibilityChanged(visible: Boolean) {
         runOnUiThread {
+            settingsButtonAutoHide.setSettingsOpen(visible, SystemClock.uptimeMillis())
+            updateSettingsButtonVisibility()
             touchControls?.setSettingsOpen(visible)
             if (!visible) applyConfiguredFrameRate()
         }

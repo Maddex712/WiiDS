@@ -113,6 +113,10 @@ public class GameActivity extends SDLActivity {
         args.add("--env"); args.add("SMS_SAVE_DIR=" + new File(ThorStorage.root(this), "saves/card-a").getAbsolutePath());
         args.add("--env"); args.add("SMS_SETTINGS=" + new File(data, "settings.txt").getAbsolutePath());
         args.add("--env"); args.add("SMS_ANDROID_CONTROLLER_MAPPINGS=" + new File(ThorStorage.root(this), "controller-mappings.txt").getAbsolutePath());
+        String pack = com.driftdroid.android.TexturePacks.activePath(this, com.driftdroid.android.FrontendGame.ECLIPSE);
+        if (pack != null) {
+            args.add("--env"); args.add("SMS_TEXTURE_PACKS=" + pack);
+        }
         // The Thor's lower screen shows the Shine, blue-coin and coin counters (ThorSunshineScreen):
         // the top screen leaves them out and moves lives to its corner.
         if (getIntent().getBooleanExtra("thor_library", false) && ThorSunshineScreen.hasLowerPanel(this)) {

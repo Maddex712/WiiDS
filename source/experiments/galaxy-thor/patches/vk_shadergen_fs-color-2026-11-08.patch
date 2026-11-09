@@ -1,0 +1,17 @@
+--- a/vk_shadergen_fs.cpp
++++ b/vk_shadergen_fs.cpp
+@@ -125,10 +125,12 @@
+         {
+             uint32_t ca = (cc >> 12) & 15, cb = (cc >> 8) & 15, cc2 = (cc >> 4) & 15, cd = cc & 15;
+             uint32_t aa = (ac >> 13) & 7, ab = (ac >> 10) & 7, ac2 = (ac >> 7) & 7, ad = (ac >> 4) & 7;
++            // alphaRef.w is the renderer-owned zero padding written by fillPix.
++            // Keep ZERO A/B color operands uniform-dependent for affected Adreno compilers.
+             // GX reads the low eight bits of A/B/C, including signed and
+             // oversized TEV registers. Saturating here changes material colors.
+-            o.w("  tevin_a = ivec4((%s) & 255, (%s) & 255);\n", kVkColorIn[ca], kVkAlphaIn[aa]);
+-            o.w("  tevin_b = ivec4((%s) & 255, (%s) & 255);\n", kVkColorIn[cb], kVkAlphaIn[ab]);
++            o.w("  tevin_a = ivec4((%s) & 255, (%s) & 255);\n", ca == 15 ? "ivec3(int(alphaRef.w))" : kVkColorIn[ca], kVkAlphaIn[aa]);
++            o.w("  tevin_b = ivec4((%s) & 255, (%s) & 255);\n", cb == 15 ? "ivec3(int(alphaRef.w))" : kVkColorIn[cb], kVkAlphaIn[ab]);
+             o.w("  tevin_c = ivec4((%s) & 255, (%s) & 255);\n", kVkColorIn[cc2], kVkAlphaIn[ac2]);
+             o.w("  tevin_d = ivec4(clamp(%s, ivec3(-1024), ivec3(1023)), clamp(%s, -1024, 1023));\n", kVkColorIn[cd], kVkAlphaIn[ad]);
+         }

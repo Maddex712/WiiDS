@@ -1,0 +1,3 @@
+# addr name  -- functions named by hand, overriding analysis/symbols.txt
+800E7998 OSSaveContext
+800E80F8 OSPanic

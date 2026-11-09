@@ -1,0 +1,113 @@
+Sections:
+	.text       type:code align:4
+	.ctors      type:rodata align:4
+	.dtors      type:rodata align:4
+	.rodata     type:rodata align:8
+	.data       type:data align:32
+	.bss        type:bss align:8
+
+global_destructor_chain.c:
+	.text       start:0x00000000 end:0x00000070
+	.dtors      start:0x00000000 end:0x00000008
+	.bss        start:0x00000000 end:0x00000004
+
+mo_melee/sora_melee/so/model/so_model_module_simple.cpp:
+	.text       start:0x0000E268 end:0x0000EEAC
+	.rodata     start:0x00000318 end:0x00000320
+	.data       start:0x000007D0 end:0x00000A88
+
+mo_melee/sora_melee/so/model/so_model_virtual_node.cpp:
+	.text       start:0x0000EEAC end:0x0000F288
+
+mo_melee/sora_melee/so/model/so_model_module_impl_variable.cpp:
+	.text       start:0x0000F288 end:0x0000FED0
+	.data       start:0x00000A98 end:0x00000C78
+
+mo_melee/sora_melee/so/anim/so_anim_chr.cpp:
+	.text       start:0x0001F2D0 end:0x0001F980
+	.rodata     start:0x00000360 end:0x00000370
+
+mo_melee/sora_melee/so/so_controller_module_link_ref.cpp:
+	.text       start:0x000598CC end:0x00059FD4
+	.rodata     start:0x00000748 end:0x0000075C
+	.data       start:0x00005ED8 end:0x00006050
+
+mo_melee/sora_melee/so/so_heap_module_impl.cpp:
+	.text       start:0x000649FC end:0x00064A90
+	.data       start:0x00007328 end:0x000073A8
+
+mo_melee/sora_melee/so/so_module_accesser.cpp:
+	.text       start:0x0006821C end:0x000687F8
+	.data       start:0x00007898 end:0x000078D0
+
+mo_melee/sora_melee/so/so_resource_module_impl.cpp:
+	.text       start:0x0006F850 end:0x0006FCF4
+	.data       start:0x00008028 end:0x000080F8
+
+mo_melee/sora_melee/so/so_general_work.cpp:
+	.text       start:0x0008D8B4 end:0x0008E230
+	.ctors      start:0x00000028 end:0x0000002C
+	.rodata     start:0x00000C10 end:0x00000C14
+	.data       start:0x00013B08 end:0x00013BE0
+	.bss        start:0x00001B30 end:0x00001B58
+
+mo_melee/sora_melee/so/so_general_work_abstract.cpp:
+	.text       start:0x0008E230 end:0x0008E2E4
+	.ctors      start:0x0000002C end:0x00000030
+	.rodata     start:0x00000C18 end:0x00000C1C
+	.data       start:0x00013BE0 end:0x00013C50
+	.bss        start:0x00001B58 end:0x00001B70
+
+mo_melee/sora_melee/so/so_general_work_simple.cpp:
+	.text       start:0x0008E2E4 end:0x0008E8A4
+	.ctors      start:0x00000030 end:0x00000034
+	.rodata     start:0x00000C20 end:0x00000C24
+	.data       start:0x00013C50 end:0x00013CF0
+	.bss        start:0x00001B70 end:0x00001BA0
+
+mo_melee/sora_melee/so/anim/so_anim_cmd_interpreter_effect.cpp:
+	.text       start:0x000A1D18 end:0x000A1DA4
+	.data       start:0x00015450 end:0x000154C0
+
+mo_melee/sora_melee/so/team/so_team_module_impl.cpp:
+	.text       start:0x000B5048 end:0x000B62E4
+	.data       start:0x00017020 end:0x000171D4
+
+mo_melee/sora_melee/so/so_photo_call_back.cpp:
+	.text       start:0x000C7024 end:0x000C7124
+
+mo_melee/sora_melee/so/so_common_data_accesser.cpp:
+	.text       start:0x000C7124 end:0x000C7438
+	.ctors      start:0x0000004C end:0x00000050
+	.bss        start:0x00002CD0 end:0x00002E58
+
+mo_melee/sora_melee/ft/ft_class_info.cpp:
+	.text       start:0x001254D4 end:0x001257EC
+	.ctors      start:0x0000005C end:0x00000060
+	.data       start:0x00029210 end:0x000292A0
+	.bss        start:0x00003040 end:0x00003138
+
+mo_melee/sora_melee/ft/ft_extend_param_accesser.cpp:
+	.text       start:0x00149C70 end:0x00149E1C
+	.data       start:0x0002BC00 end:0x0002BCA0
+	.bss        start:0x00004568 end:0x00004648
+
+mo_melee/sora_melee/ft/ft_fighter_build_data.cpp:
+	.text       start:0x00192D4C end:0x00193378
+	.ctors      start:0x00000258 end:0x0000025C
+	.rodata     start:0x000026A8 end:0x000026B0
+	.data       start:0x00032A98 end:0x00032BF8
+	.bss        start:0x00005040 end:0x00005050
+
+mo_melee/sora_melee/st/st_common_gimmick.cpp:
+	.text       start:0x00237C00 end:0x002381FC
+	.data       start:0x0004C748 end:0x0004C96C
+
+mo_melee/mo_melee.cpp:
+	.text       start:0x003CBCBC end:0x003CBE40
+	.ctors      start:0x00000514 end:0x00000518
+	.data       start:0x000A3D58 end:0x000A3DA8
+	.bss        start:0x00008CC0 end:0x00008CE8
+
+home_button_icon.cpp:
+	.data       start:0x000A3DC0 end:0x000A5680

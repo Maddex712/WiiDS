@@ -1,0 +1,3 @@
+# Backward branches where the guest is only waiting for an interrupt, so the runtime may
+# skip guest time to the next event instead of iterating. See gcn-recomp recomp/recomp.py.
+800EB640 SelectThread

@@ -1,0 +1,150 @@
+{
+  "source": "Scene/UI/Race.szs",
+  "source_sha256": "20ec7c0d1684174582c052f00f94924db8b91e1c158d782a85e227d31f924e3c",
+  "faces": [
+    {
+      "id": 0,
+      "source_name": "mario",
+      "file": "face_00.png",
+      "sha256": "affa12c4fdf5bcb9054129b9f5dc4eb07887d519844759f237b2646421dc12d5"
+    },
+    {
+      "id": 1,
+      "source_name": "baby_peach",
+      "file": "face_01.png",
+      "sha256": "d48456fff9f04127ee6692919418095631ce972dc64a50b2c59e373dbb5d590e"
+    },
+    {
+      "id": 2,
+      "source_name": "waluigi",
+      "file": "face_02.png",
+      "sha256": "a16c533e2f06f7c4a8ff9079bf27a1695cbe97bf499a2229a4282f09e3a5d528"
+    },
+    {
+      "id": 3,
+      "source_name": "koopa",
+      "file": "face_03.png",
+      "sha256": "7ac55b22556d2214a47b7710afb9d80375d8b9e4fab1fcb0c87e260a50a0c4a0"
+    },
+    {
+      "id": 4,
+      "source_name": "baby_daisy",
+      "file": "face_04.png",
+      "sha256": "301e8b8d8e1f8b668d66ce07965a4023a79b9322e642202636975c3a2af47526"
+    },
+    {
+      "id": 5,
+      "source_name": "karon",
+      "file": "face_05.png",
+      "sha256": "f0864b579f0c0ce0146c59d6d2de4025612f00193a12b27f9b475721af0a8c23"
+    },
+    {
+      "id": 6,
+      "source_name": "baby_mario",
+      "file": "face_06.png",
+      "sha256": "73dc3e5988217ed9db9f037d984a45f94f014f9a6d4e9d2790c7b1ba524b70e3"
+    },
+    {
+      "id": 7,
+      "source_name": "luigi",
+      "file": "face_07.png",
+      "sha256": "150e4fcfe4c7d7c7e2a00031cbafecd3233275d648b11f5971f3eb66679730df"
+    },
+    {
+      "id": 8,
+      "source_name": "kinopio",
+      "file": "face_08.png",
+      "sha256": "7f363d31a151e3673faa70484542cacfe5e5acb86258800f7b32f06417945cad"
+    },
+    {
+      "id": 9,
+      "source_name": "donky",
+      "file": "face_09.png",
+      "sha256": "c704903c8195e48cff95e6c858cce3912068011674d0988a3143fd41e6e65f70"
+    },
+    {
+      "id": 10,
+      "source_name": "yoshi",
+      "file": "face_10.png",
+      "sha256": "acc683cc43b24793d1222c677de015855d79e1664fcce47c206e04956bc913af"
+    },
+    {
+      "id": 11,
+      "source_name": "wario",
+      "file": "face_11.png",
+      "sha256": "e265d1fc4ab7b0daf4b87efe57cb5fa92f4ba420364b5e7f4ff6aab86392fadc"
+    },
+    {
+      "id": 12,
+      "source_name": "baby_luigi",
+      "file": "face_12.png",
+      "sha256": "3ac5df40bd6f4f0995d7668c49cbf08436346fc3e94f9c01720af6217c3fe565"
+    },
+    {
+      "id": 13,
+      "source_name": "kinopico",
+      "file": "face_13.png",
+      "sha256": "e59bf104d72257d199cf2506fe103d32e3baa7a111a0141a3c1dfea91cf3327a"
+    },
+    {
+      "id": 14,
+      "source_name": "noko",
+      "file": "face_14.png",
+      "sha256": "7773552aa214728dcc41c608cc0141b873c1034e24e6beb964a70108777fe80e"
+    },
+    {
+      "id": 15,
+      "source_name": "daisy",
+      "file": "face_15.png",
+      "sha256": "377499522d4963b7f198c8df4036743eb5bdaf61df8b8497f69d87bc1dc87b46"
+    },
+    {
+      "id": 16,
+      "source_name": "peach",
+      "file": "face_16.png",
+      "sha256": "e5ecf26cf6b78848444b353a27c3b7b03eac3d82324b41e65ca4cd467bb30ec2"
+    },
+    {
+      "id": 17,
+      "source_name": "catherine",
+      "file": "face_17.png",
+      "sha256": "b859989b10a51f0d1c4510ffb45b1852a3cf813ddca6bf4c2f7dd2fe8646f7ce"
+    },
+    {
+      "id": 18,
+      "source_name": "didy",
+      "file": "face_18.png",
+      "sha256": "486943149d2874408487d2a7a8d7547ecbaea78add868b9bf47b1e0b99b0fadb"
+    },
+    {
+      "id": 19,
+      "source_name": "teresa",
+      "file": "face_19.png",
+      "sha256": "07e87c6ccb21e3d2f99571936d8a6aef4007a64edcd85e948d6cbce7102f105d"
+    },
+    {
+      "id": 20,
+      "source_name": "koopa_jr",
+      "file": "face_20.png",
+      "sha256": "8562ad156a532212784a007b8eab1045a647e7a94a4a8ba10721596adf15b42a"
+    },
+    {
+      "id": 21,
+      "source_name": "hone_koopa",
+      "file": "face_21.png",
+      "sha256": "65abcf3d7807a56ed2340e430d0aefaf8ab809af9f9c4c8614755363eb807e38"
+    },
+    {
+      "id": 22,
+      "source_name": "fuky",
+      "file": "face_22.png",
+      "sha256": "38d82f7f0cd3b818c6067c560bf42ee7273d5cef3d6d44e10095352374147450"
+    },
+    {
+      "id": 23,
+      "source_name": "roseta",
+      "file": "face_23.png",
+      "sha256": "770b345c3ad23baa8471edc762461363fe9daf97de7288fe8b8f804e1b7c73a7"
+    }
+  ]
+}

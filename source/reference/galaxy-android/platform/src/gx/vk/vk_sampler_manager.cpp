@@ -21,38 +21,18 @@ VkSampler VkRenderer::getSampler(uint32_t mode0, uint32_t mode1, uint32_t levels
     sci.addressModeW = VK_SAMPLER_ADDRESS_MODE_REPEAT;
     sci.magFilter = ((mode0 >> 4) & 1) ? VK_FILTER_LINEAR : VK_FILTER_NEAREST;
 
+    // These are raw BP bits, not the differently numbered GXTexFilter API enum.
+    // BP bit 7 selects spatial filtering; bits 5..6 select no/point/linear mips.
     uint32_t minf = (mode0 >> 5) & 7;
-    bool mips = levels > 1;
-    switch (minf) {
-    case 0: // GX_NEAR
-        sci.minFilter = VK_FILTER_NEAREST;
-        sci.mipmapMode = VK_SAMPLER_MIPMAP_MODE_NEAREST;
-        break;
-    case 1: // GX_LINEAR
-        sci.minFilter = VK_FILTER_LINEAR;
-        sci.mipmapMode = VK_SAMPLER_MIPMAP_MODE_NEAREST;
-        break;
-    case 2: // GX_NEAR_MIP_NEAR
-        sci.minFilter = VK_FILTER_NEAREST;
-        sci.mipmapMode = VK_SAMPLER_MIPMAP_MODE_NEAREST;
-        break;
-    case 3: // GX_LIN_MIP_NEAR
-        sci.minFilter = VK_FILTER_LINEAR;
-        sci.mipmapMode = VK_SAMPLER_MIPMAP_MODE_NEAREST;
-        break;
-    case 4: // GX_NEAR_MIP_LIN
-        sci.minFilter = VK_FILTER_NEAREST;
-        sci.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
-        break;
-    case 5: // GX_LIN_MIP_LIN
-        sci.minFilter = VK_FILTER_LINEAR;
-        sci.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
-        break;
-    default:
-        sci.minFilter = VK_FILTER_LINEAR;
-        sci.mipmapMode = mips ? VK_SAMPLER_MIPMAP_MODE_LINEAR : VK_SAMPLER_MIPMAP_MODE_NEAREST;
-        break;
-    }
+    uint32_t mipf = minf & 3;
+    bool mips = levels > 1 && (mipf == 1 || mipf == 2);
+    sci.minFilter = (minf & 4) ? VK_FILTER_LINEAR : VK_FILTER_NEAREST;
+    // Reserved mip mode 3 safely uses the base level, without inventing a mip chain.
+    sci.mipmapMode = mipf == 2 ? VK_SAMPLER_MIPMAP_MODE_LINEAR : VK_SAMPLER_MIPMAP_MODE_NEAREST;
+    int bias = (int)((mode0 >> 9) & 0xFF);
+    if (bias & 0x80) bias -= 0x100;
+    const float biasLimit = mDeviceProperties.limits.maxSamplerLodBias;
+    sci.mipLodBias = std::clamp(bias / 32.0f, -biasLimit, biasLimit);
 
     if (!mips) {
         sci.minLod = 0.0f;

@@ -12,6 +12,8 @@ import android.view.KeyEvent;
 import android.view.View;
 import android.view.WindowManager;
 import android.widget.TextView;
+import com.driftdroid.android.FrontendGame;
+import com.driftdroid.android.NativeTextureSelection;
 
 public class GalaxyActivity extends NativeActivity implements DisplayManager.DisplayListener {
     protected boolean kaizoProfile() { return false; }
@@ -26,6 +28,7 @@ public class GalaxyActivity extends NativeActivity implements DisplayManager.Dis
 
     @Override public void onCreate(Bundle state) {
         instance = this;
+        NativeTextureSelection.apply(this, kaizoProfile() ? FrontendGame.KAIZO : FrontendGame.GALAXY);
         super.onCreate(state);
         planetTouch = getSharedPreferences("galaxy_lower_controls", MODE_PRIVATE)
                 .getBoolean(kaizoProfile() ? "kaizo_planet" : "galaxy_planet", false);

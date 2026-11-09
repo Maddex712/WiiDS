@@ -82,15 +82,20 @@ internal class ThorLauncherView(
     // ---------------------------------------------------------------- artwork (decoded once)
     private val bounds = ArrayList<Pair<RectF, Int>>()
     private val banners = Array(caseCount) { i -> actions[i].banner.takeIf { it != 0 }?.let { BitmapFactory.decodeResource(resources, it) } }
-    private val packagingFolder = ThorLauncherFolders.cases(context, File(context.filesDir, "WiiCompiled/ThorMap"))
+    private val packagingFolders = ThorLauncherFolders.caseLayers(context, File(context.filesDir, "WiiCompiled/ThorMap"))
     // Read before the cases load, so a manifest rewritten meanwhile still triggers a reload.
     private var caseStamp = caseArtStamp()
     private val covers = Array(caseCount) { i -> art(i, "cover") }
     private val spines = Array(caseCount) { i -> art(i, "spine") }
     /** Disc labels masked once to a round disc with its centre hole; never rebuilt per frame. */
     private val labels = Array(caseCount) { i -> discLabel(art(i, "disc"), i) }
-    private fun art(i: Int, kind: String) = actions[i].art.takeIf { it.isNotEmpty() }?.let { ThorLauncherArtwork.bitmap(packagingFolder, "$it-$kind") }
-    private fun caseArtStamp() = File(packagingFolder, "artwork.json").let { "${it.lastModified()}:${it.length()}" }
+    private fun art(i: Int, kind: String): Bitmap? {
+        val prefix = actions[i].art.takeIf { it.isNotEmpty() } ?: return null
+        return packagingFolders.firstNotNullOfOrNull { ThorLauncherArtwork.bitmap(it, "$prefix-$kind") }
+    }
+    private fun caseArtStamp() = packagingFolders.joinToString(";") { folder ->
+        File(folder, "artwork.json").let { "${it.lastModified()}:${it.length()}" }
+    }
 
     /** Cases composed after the launcher opened (a disc imported later) replace the old pictures. */
     private fun reloadCaseArt() {

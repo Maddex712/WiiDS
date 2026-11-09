@@ -6,13 +6,13 @@ Play supported Wii and GameCube games on the AYN Thor, with a companion on its l
 
 ## Quick start
 
-**1.1.1:** Retro Rewind 6.13.4 with online play, Lossless Scaling frame generation, rumble, custom GPU drivers and a Wii Menu theme. Already on 1.1? Open **Options → Check for updates**, or install this APK over your existing copy (do not uninstall). [Full 1.1.1 patch notes](docs/release/V1.1.1.md).
+**1.2** adds Double Dash!!, Double Dash!! Plus, Brawl and Project+, plus controller and graphics fixes. Open **Options → Check for updates** or install the signed APK over your existing copy. [Full 1.2 patch notes](docs/release/V1.2.md).
 
 **You need:** an **AYN Thor with both screens**, Android **11 or newer** (**12L or newer for Galaxy**),
 and your own [compatible game dump](#exact-game-files-for-each-game). The region and revision must match.
 **Games are not included.** Leave room for the APK, your dump and the prepared game files.
 
-1. **[Download WiiDS 1.1.1 for AYN Thor (APK, 1.85 GB)](https://github.com/Maddex712/WiiDS/releases/download/v1.1.1/WiiDS-1.1.1-arm64.apk)** on your Thor.
+1. **[Download WiiDS 1.2 for AYN Thor (APK, 384 MB)](https://github.com/Maddex712/WiiDS/releases/download/v1.2.0/WiiDS-1.2-arm64.apk)** on your Thor.
 2. **Install the APK and open WiiDS.** Allow your browser or file manager to install apps if Android asks.
    Wait for WiiDS to prepare its files. Updating? Install over your existing copy; do not uninstall it.
 3. **Copy your game dump to the Thor.** Open **Options → Your games** (it opens automatically on first use).

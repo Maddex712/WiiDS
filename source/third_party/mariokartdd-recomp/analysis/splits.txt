@@ -1,0 +1,15 @@
+Sections:
+	.init       type:code align:4
+	extab       type:rodata align:16
+	extabindex  type:rodata align:32
+	.text       type:code align:8
+	.ctors      type:rodata align:16
+	.dtors      type:rodata align:32
+	.BINARY     type:rodata align:32
+	.rodata     type:rodata align:8
+	.data       type:data align:16
+	.bss        type:bss align:16
+	.sdata      type:data align:32
+	.sbss       type:bss align:4
+	.sdata2     type:rodata align:32
+	.sbss2      type:bss align:32

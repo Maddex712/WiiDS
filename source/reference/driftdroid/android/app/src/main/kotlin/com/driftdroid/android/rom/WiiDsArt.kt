@@ -41,6 +41,9 @@ object WiiDsArt {
             GameCatalog.Disc.ECLIPSE_110 -> listOf(
                 Job("sms-hud", disc.installedFile(context), File(external(context), "eclipse/ThorHud"), "manifest.json", true))
             // Galaxy's art comes with its add-on.
+            GameCatalog.Disc.BRAWL_USA_REV2 -> emptyList()
+            // Double Dash builds its duo-screen art in Java (dev.thor.mkdd.MkddArt).
+            GameCatalog.Disc.MKDD_USA -> emptyList()
             GameCatalog.Disc.GALAXY_USA -> emptyList()
             GameCatalog.Disc.MARIO_KART_PAL -> listOf(
                 Job("mkw-art", root, thorMap(context), "menu.json", false),
@@ -55,16 +58,28 @@ object WiiDsArt {
         private set
 
     fun missing(context: Context, disc: GameCatalog.Disc): Boolean =
-        disc.isInstalled(context) && jobs(context, disc).any { !complete(it) }
+        disc.isInstalled(context) && (if(disc==GameCatalog.Disc.MKDD_USA) !dev.thor.mkdd.MkddArt.ready(dev.thor.mkdd.MkddStorage.art(context))
+            else if(disc==GameCatalog.Disc.BRAWL_USA_REV2) !dev.wiids.brawl.BrawlArt.ready(context) else jobs(context, disc).any { !complete(it) })
 
     /** Blocking. Returns null on success or the first reason; never touches the imported disc. */
     @Synchronized
     fun build(context: Context, disc: GameCatalog.Disc, onlyMissing: Boolean = false): String? {
-        building = disc
+        synchronized(GameInstaller) {
+            if (com.driftdroid.android.SaveManagerProfiles.blocker(context) != null) return "Game setup is busy."
+            if (runCatching { com.driftdroid.android.SaveManagerProfiles.requireStopped(context) }.isFailure) return "Close the running game before building art."
+            building = disc
+        }
         try { return buildJobs(context, disc, onlyMissing) } finally { building = null }
     }
 
     private fun buildJobs(context: Context, disc: GameCatalog.Disc, onlyMissing: Boolean): String? {
+        if (disc == GameCatalog.Disc.MKDD_USA) {
+            // A repair pass (onlyMissing) must not rebuild art a running game may be reading.
+            val art = dev.thor.mkdd.MkddStorage.art(context)
+            if (onlyMissing && dev.thor.mkdd.MkddArt.ready(art)) return null
+            return dev.thor.mkdd.MkddArt.build(dev.thor.mkdd.MkddStorage.iso(context), art)
+        }
+        if(disc==GameCatalog.Disc.BRAWL_USA_REV2)return dev.wiids.brawl.BrawlArt.build(context,disc.installDir(context),java.io.File(dev.wiids.brawl.BrawlStorage.data(context),"ThorHud"))
         var firstError: String? = null
         for (job in jobs(context, disc)) {
             if (onlyMissing && complete(job)) continue
@@ -163,7 +178,11 @@ object WiiDsArt {
         val app = context.applicationContext
         Thread {
             synchronized(this) {
-                building = GameCatalog.Disc.MARIO_KART_PAL
+                synchronized(GameInstaller) {
+                    if (com.driftdroid.android.SaveManagerProfiles.blocker(app) != null ||
+                        runCatching { com.driftdroid.android.SaveManagerProfiles.requireStopped(app) }.isFailure) return@Thread
+                    building = GameCatalog.Disc.MARIO_KART_PAL
+                }
                 try {
                     WiiDsDisc.ensureLoaded()
                     retroMaps(app).mkdirs()

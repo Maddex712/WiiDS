@@ -52,8 +52,8 @@ internal object GameShortcuts {
         // Existing artwork is validated and may need disk reads; keep that off the UI thread.
         Thread {
             val shortcut = runCatching {
-                val folder = ThorLauncherFolders.cases(activity, File(activity.filesDir, "WiiCompiled/ThorMap"))
-                val art = ThorLauncherArtwork.bitmap(folder, "${game.artwork}-disc")
+                val folders = ThorLauncherFolders.caseLayers(activity, File(activity.filesDir, "WiiCompiled/ThorMap"))
+                val art = folders.firstNotNullOfOrNull { ThorLauncherArtwork.bitmap(it, "${game.artwork}-disc") }
                 val icon = if (art != null) Icon.createWithBitmap(Bitmap.createScaledBitmap(art, 192, 192, true))
                     else Icon.createWithResource(activity, R.mipmap.ic_launcher)
                 create(activity, game, icon)

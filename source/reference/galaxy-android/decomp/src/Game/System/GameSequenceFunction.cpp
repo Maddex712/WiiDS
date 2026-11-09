@@ -325,6 +325,7 @@ namespace GameSequenceFunction {
     void quickSaveAnywhere() {
         SaveDataHandleSequence* seq = ::getSaveDataHandleSequence();
         if (seq == nullptr || seq->isActive()) {
+            port_reject_quick_save();
             return;
         }
 

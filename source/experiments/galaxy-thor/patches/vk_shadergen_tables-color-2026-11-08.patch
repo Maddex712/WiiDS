@@ -1,0 +1,15 @@
+--- a/vk_shadergen_tables.cpp
++++ b/vk_shadergen_tables.cpp
+@@ -86,8 +86,10 @@
+ std::string vkTevRegular(const char* comp, uint32_t bias, uint32_t sub, uint32_t scale, bool alpha) {
+     static const char* biasStr[3] = {"", " + 128", " - 128"};
+     static const char* scaleLeft[4] = {"", " * 2", " * 4", ""};
+-    static const char* scaleRight[4] = {"", "", "", " / 2"};
+-    const char* lerpBias = ((scale == 3) == alpha) ? (sub ? " + 127" : " + 128") : "";
++    static const char* scaleRight[4] = {"", "", "", " >> 1"};
++    // Color and alpha use the same GX rounding; divide-by-two is an arithmetic shift.
++    (void)alpha;
++    const char* lerpBias = scale != 3 ? (sub ? " + 127" : " + 128") : "";
+     char buf[512];
+     snprintf(buf, sizeof(buf),
+              "((((tevin_d.%s%s)%s) %c (((((tevin_a.%s * 256) + (tevin_b.%s - tevin_a.%s) * (tevin_c.%s + (tevin_c.%s / 128)))%s)%s) / 256))%s)", comp,

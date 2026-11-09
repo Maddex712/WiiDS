@@ -108,17 +108,22 @@ VkDescriptorSet VkRenderer::getSamplerDescriptorSet(const std::array<VkImageView
 
     VkDescriptorSet set = VK_NULL_HANDLE;
     if (vkAllocateDescriptorSets(mDevice, &ai, &set) != VK_SUCCESS) {
-        // Safe recovery: wait for in-flight render fence submissions, reset sampler pool,
-        // and reallocate. Static descriptor sets (SSBOs, UI, Present) in mStaticDescPool
-        // are untouched and remain completely valid!
-        waitInFlightSubmissions("samplerPoolReset");
-        vkResetDescriptorPool(mDevice, mDescriptorPool, 0);
-        mSamplerDescSets.clear();
-        // Every set handed out before the reset is now invalid, including the
-        // one the draw loop still caches as its last bound set.
-        mSamplerDescEpoch++;
-        if (vkAllocateDescriptorSets(mDevice, &ai, &set) != VK_SUCCESS) {
-            LOGE("getSamplerDescriptorSet: allocation failed even after pool reset");
+        // The render fence has completed earlier submissions. Keep all sets
+        // used by this frame: resetting the pool would invalidate draws
+        // already recorded into the current command buffer.
+        bool reclaimed = false;
+        for (auto stale = mSamplerDescSets.begin(); stale != mSamplerDescSets.end();) {
+            if (stale->second.lastUse < mFrameNumber &&
+                vkFreeDescriptorSets(mDevice, mDescriptorPool, 1, &stale->second.set) == VK_SUCCESS) {
+                stale = mSamplerDescSets.erase(stale);
+                reclaimed = true;
+            } else {
+                ++stale;
+            }
+        }
+        if (reclaimed) mSamplerDescEpoch++;
+        if (!reclaimed || vkAllocateDescriptorSets(mDevice, &ai, &set) != VK_SUCCESS) {
+            LOGE("getSamplerDescriptorSet: allocation failed with current frame descriptors retained");
             return VK_NULL_HANDLE;
         }
     }

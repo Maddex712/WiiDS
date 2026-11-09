@@ -1,0 +1,68 @@
+--- a/texture.cpp
++++ b/texture.cpp
+@@ -5,6 +5,7 @@
+ #include "gx.h"
+ #include "render.h"
+ #include "texture.h"
++#include "texture_pack.h"
+ #include <unordered_map>
+ 
+ namespace gx {
+@@ -247,6 +248,7 @@
+     std::vector<Variant> variants;
+ };
+ static void drop_variants(CacheEntry& e);  // below, with Batch::dead_textures
++static void trim_variants(CacheEntry& e);
+ struct EfbCopyEntry {
+     std::shared_ptr<TexData> tex;
+     uint32_t last_frame;
+@@ -465,14 +467,35 @@
+                 if (e.used[i >> 6] & (1ull << (i & 63))) pal_hash = hash_bytes(pal + i * 2, 2, pal_hash ^ i);
+         }
+     }
++    // Replacement names include a contiguous palette span, including gaps not sampled
++    // by the original texture. Invalidate those cache entries too when packs are enabled.
++    const uint64_t render_pal_hash = pal_hash;
++    static const bool managed_packs = [] {
++        const char* paths = getenv("WIIDS_NATIVE_TEXTURE_PATHS");
++        return paths && *paths;
++    }();
++    if (indexed && managed_packs) pal_hash = wiids::textures::paletteIdentity(pal_hash, src,
++        texture_size_bytes(p.fmt, p.width, p.height), p.fmt, pal, tlut_entries * 2);
+     for (const Variant& v : e.variants)
+         if (v.pal_hash == pal_hash) return {v.tex->id, false};
+ 
++    if (managed_packs) trim_variants(e);
+     auto td = std::make_shared<TexData>();
+     td->id = g_next_tex_id++;
+     td->width = p.width;
+     td->height = p.height;
+-    td->hash = e.hash ^ (pal_hash * 0x9E3779B97F4A7C15ull);
++    td->hash = e.hash ^ (render_pal_hash * 0x9E3779B97F4A7C15ull);
++    static wiids::textures::Pack pack;
++    wiids::textures::Image replacement;
++    if (pack.replace(src, texture_size_bytes(p.fmt, p.width, p.height), p.fmt, p.width, p.height,
++                     p.levels, indexed ? pal : nullptr, tlut_entries * 2, td, replacement)) {
++        td->width = replacement.width;
++        td->height = replacement.height;
++        td->levels = std::move(replacement.levels);
++        e.variants.push_back({pal_hash, td});
++        new_textures.push_back(td);
++        return {td->id, false};
++    }
+     w = p.width; h = p.height;
+     for (uint32_t l = 0; l < p.levels; l++) {
+         std::vector<uint32_t> px(w * h);
+@@ -512,6 +535,12 @@
+ // Decoded textures let go of, for the renderer (Batch::dead_textures). EFB copies are not
+ // here: the renderer makes their GL textures itself and ages them itself.
+ static std::vector<uint32_t> g_dead;
++static void trim_variants(CacheEntry& e) {
++    // Retired IDs are freed by the renderer a batch late, after their last draw.
++    if (e.variants.size() < 16) return;
++    g_dead.push_back(e.variants.front().tex->id);
++    e.variants.erase(e.variants.begin());
++}
+ static void drop_variants(CacheEntry& e) {
+     for (const Variant& v : e.variants) g_dead.push_back(v.tex->id);
+     e.variants.clear();

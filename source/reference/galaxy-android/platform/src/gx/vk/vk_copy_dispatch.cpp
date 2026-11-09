@@ -52,12 +52,13 @@ void VkRenderer::executeCopyItem(VkCommandBuffer cmd, const Item& it, const Prep
                 target.colorLayout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
 
                 VkImageMemoryBarrier dstBarrier = barrier;
-                dstBarrier.srcAccessMask = 0;
+                dstBarrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT | VK_ACCESS_SHADER_READ_BIT;
                 dstBarrier.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
                 dstBarrier.oldLayout = VK_IMAGE_LAYOUT_UNDEFINED;
                 dstBarrier.newLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
                 dstBarrier.image = xfb.image;
-                vkCmdPipelineBarrier(cmd, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, 0, 0, nullptr, 0, nullptr, 1, &dstBarrier);
+                vkCmdPipelineBarrier(cmd, VK_PIPELINE_STAGE_TRANSFER_BIT | VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
+                                     VK_PIPELINE_STAGE_TRANSFER_BIT, 0, 0, nullptr, 0, nullptr, 1, &dstBarrier);
 
                 VkImageBlit blit{};
                 blit.srcSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
@@ -122,12 +123,14 @@ void VkRenderer::executeCopyItem(VkCommandBuffer cmd, const Item& it, const Prep
             target.colorLayout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
 
             VkImageMemoryBarrier dstBarrier = barrier;
-            dstBarrier.srcAccessMask = 0;
+            // Discard the previous pixels only after earlier blits and sampling.
+            dstBarrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT | VK_ACCESS_SHADER_READ_BIT;
             dstBarrier.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
             dstBarrier.oldLayout = VK_IMAGE_LAYOUT_UNDEFINED;
             dstBarrier.newLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
             dstBarrier.image = dst.image;
-            vkCmdPipelineBarrier(cmd, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, 0, 0, nullptr, 0, nullptr, 1, &dstBarrier);
+            vkCmdPipelineBarrier(cmd, VK_PIPELINE_STAGE_TRANSFER_BIT | VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
+                                 VK_PIPELINE_STAGE_TRANSFER_BIT, 0, 0, nullptr, 0, nullptr, 1, &dstBarrier);
 
             VkImageBlit blit{};
             blit.srcSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;

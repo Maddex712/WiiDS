@@ -94,12 +94,16 @@ class FrontendLaunchActivity : Activity() {
             GameCatalog.Disc.NSMB_USA_REV1 -> FrontendGame.NSMB
             GameCatalog.Disc.SUNSHINE_USA -> FrontendGame.SUNSHINE
             GameCatalog.Disc.ECLIPSE_110 -> FrontendGame.ECLIPSE
+            GameCatalog.Disc.BRAWL_USA_REV2 -> FrontendGame.BRAWL
             GameCatalog.Disc.GALAXY_USA -> FrontendGame.GALAXY
+            GameCatalog.Disc.MKDD_USA -> FrontendGame.MKDD
         }
         val base = when (explicit) {
             FrontendGame.RETRO_REWIND -> FrontendGame.MARIO_KART
             FrontendGame.MSMBWII -> FrontendGame.NSMB
             FrontendGame.KAIZO -> FrontendGame.GALAXY
+            FrontendGame.MKDD_PLUS -> FrontendGame.MKDD
+            FrontendGame.PROJECT_PLUS -> FrontendGame.BRAWL
             else -> explicit
         }
         require(base == null || base == detected) { "The selected game does not match this disc." }

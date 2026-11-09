@@ -1,5 +1,8 @@
 package com.wither.nsmbw;
 
+import com.driftdroid.android.AuroraTexturePacks;
+import com.driftdroid.android.FrontendGame;
+
 import android.content.Context;
 import android.content.pm.PackageInfo;
 import android.content.pm.PackageManager;
@@ -174,7 +177,9 @@ final class AppFiles {
      * changes made while playing go through JNI as well and are saved here the next time.
      */
     static void writeConfig(Context context, AppSettings settings) throws IOException {
-        final File config = new File(dataDir(context), "Config.toml");
+        final File data = dataDir(context);
+        final File config = new File(data, "Config.toml");
+        final boolean textures = AuroraTexturePacks.prepared(context, NsmbVariant.current() == NsmbVariant.MSMBWII ? FrontendGame.MSMBWII : FrontendGame.NSMB, data);
         final String game = gameDir(context).getAbsolutePath().replace('\\', '/');
         final String text = "# Written by the app before every start; change settings in the game menu.\n"
                 + "\n[video]\n"
@@ -188,7 +193,7 @@ final class AppFiles {
                 + "show_fps = " + settings.showFps() + "\n"
                 + "spinning_coins = " + settings.spinningCoins() + "\n"
                 + "frame_graph = " + settings.frameGraph() + "\n"
-                + "texture_replacements = false\n"
+                + "texture_replacements = " + textures + "\n"
                 + "texture_dumps = false\n"
                 + "\n[audio]\n"
                 + "volume = 1.0\n"

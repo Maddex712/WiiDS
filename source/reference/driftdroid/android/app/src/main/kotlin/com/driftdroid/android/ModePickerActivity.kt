@@ -166,6 +166,10 @@ class ModePickerActivity : Activity() {
                 FrontendGame.ECLIPSE -> launchEclipseFromLibrary()
                 FrontendGame.GALAXY -> launchGalaxyFromLibrary()
                 FrontendGame.KAIZO -> launchKaizoFromLibrary()
+                FrontendGame.BRAWL -> launchBrawlFromLibrary()
+                FrontendGame.PROJECT_PLUS -> launchProjectPlusFromLibrary()
+                FrontendGame.MKDD -> launchMkddFromLibrary()
+                FrontendGame.MKDD_PLUS -> launchMkddPlusFromLibrary()
             }
         }
         return true
@@ -298,6 +302,10 @@ class ModePickerActivity : Activity() {
                 GALAXY_CASE -> galaxyInstalled
                 KAIZO_CASE -> kaizoInstalled
                 MSMBWII_CASE -> msmbwiiInstalled
+                BRAWL_CASE -> brawlInstalled
+                PROJECT_PLUS_CASE -> projectPlusAvailable
+                MKDD_CASE -> mkddInstalled
+                MKDD_PLUS_CASE -> mkddPlusInstalled
                 else -> true
             }
             thorCompanion?.setLibrarySelection(thorLibraryProduct, thorLibraryOptions, ready, status = status,
@@ -357,6 +365,21 @@ class ModePickerActivity : Activity() {
                     art = "galaxy", updatesShortcut = false) { launchGalaxyFromLibrary() },
                 ThorLauncherView.Entry("Kaizo Mario Galaxy Rebalanced", "Play the 2.1 challenge rework with separate saves.", { kaizoInstalled },
                     art = "kaizo", updatesShortcut = false) { launchKaizoFromLibrary() },
+                // Brawl is embedded and uses the common game importer and storage controls.
+                ThorLauncherView.Entry("Super Smash Bros. Brawl", "Brawl with up to four fighters.", { brawlInstalled },
+                    art = "brawl", updatesShortcut = false) { launchBrawlFromLibrary() },
+                // Double Dash: a GameCube case with its 8 cm mini disc, in its own stack.
+                ThorLauncherView.Entry("Mario Kart: Double Dash!!", "Race in pairs, with the duo screen below.", { mkddInstalled },
+                    art = "mkdd", casePlastic = ThorLauncherView.CasePlastic.GAMECUBE_BLACK, updatesShortcut = false,
+                    discScale = ThorLauncherView.GAMECUBE_DISC) { launchMkddFromLibrary() },
+                ThorLauncherView.Entry("Mario Kart: Double Dash!! Plus", "Race the Plus course collection, with separate saves.", { mkddPlusInstalled },
+                    art = "mkdd-plus", casePlastic = ThorLauncherView.CasePlastic.GAMECUBE_BLACK, updatesShortcut = false,
+                    discScale = ThorLauncherView.GAMECUBE_DISC) { launchMkddPlusFromLibrary() },
+                ThorLauncherView.Entry("Project+", "Play the Brawl mod with its own saves.", { projectPlusAvailable },
+                    art = "project-plus", updatesShortcut = false) { launchProjectPlusFromLibrary() },
+                ThorLauncherView.Entry("Manage games", "Install or offload games while keeping saves and settings.") {
+                    startActivity(Intent(this, GameStorageActivity::class.java))
+                },
                 ThorLauncherView.Entry("Your games", "Find and import your own game discs.") { openGames() },
                 ThorLauncherView.Entry("Check for updates", "Download and install the latest WiiDS release.") {
                     startActivity(Intent(this, WiiDsUpdateActivity::class.java))
@@ -378,7 +401,7 @@ class ModePickerActivity : Activity() {
                 },
                 ThorLauncherView.Entry("Mii Data", "Import and manage your own Mii data.") { miiDataButton.performClick() },
                 ThorLauncherView.Entry("Retro Rewind updates", "Check and download compatible Retro Rewind updates.", { BuildConfig.THOR_RETRO_REWIND }) { if (isRetroRewindInstalled()) showRetroRewindMenuDialog() else showInstallRetroRewindDialog() },
-                ThorLauncherView.Entry("Texture Packs", "Manage texture packs before starting the game.") { modsButton.performClick() },
+                ThorLauncherView.Entry("Texture Packs", "Browse, download and enable texture packs.") { modsButton.performClick() },
                 ThorLauncherView.Entry("Diagnostics", "Export logs to help investigate a problem.") { diagnosticsButton.performClick() },
                 ThorLauncherView.Entry("App Icon", "Choose an icon for your launcher.") { iconButton.performClick() },
                 ThorLauncherView.Entry("Menu Theme", "Switch the menus between the Mario Kart Wii and Wii Menu styles.") {
@@ -490,6 +513,58 @@ class ModePickerActivity : Activity() {
         updateLowerStatus()
     }
 
+    private fun openGamesForBrawl() {
+        startActivity(Intent(this,GamesActivity::class.java).putExtra("storage_game","brawl"))
+    }
+
+    private fun openGamesForMkdd() {
+        startActivity(Intent(this, GamesActivity::class.java).putExtra("storage_game", ThorGameLaunch.MKDD))
+    }
+
+    private fun launchMkddPlusFromLibrary() {
+        val message = when (ThorGameLaunch.launchMkddPlus(this)) {
+            ThorGameLaunch.Result.OPENED -> return
+            ThorGameLaunch.Result.NOT_INSTALLED -> "Set up Double Dash Plus first."
+            ThorGameLaunch.Result.UNAVAILABLE -> "Double Dash Plus could not be opened. Try again."
+        }
+        statusText.text = message
+        thorLauncher?.launchFailed(message)
+        updateLowerStatus()
+    }
+
+    private fun launchMkddFromLibrary() {
+        val message = when (ThorGameLaunch.launchMkdd(this)) {
+            ThorGameLaunch.Result.OPENED -> return
+            ThorGameLaunch.Result.NOT_INSTALLED -> { openGamesForMkdd(); return }
+            ThorGameLaunch.Result.UNAVAILABLE -> "Mario Kart: Double Dash!! could not be opened. Try again."
+        }
+        statusText.text = message
+        thorLauncher?.launchFailed(message)
+        updateLowerStatus()
+    }
+
+    private fun launchProjectPlusFromLibrary() {
+        val message = when (ThorGameLaunch.launchProjectPlus(this)) {
+            ThorGameLaunch.Result.OPENED -> return
+            ThorGameLaunch.Result.NOT_INSTALLED -> "Set up Project+ in Manage games first."
+            ThorGameLaunch.Result.UNAVAILABLE -> "Project+ could not be opened. Try again."
+        }
+        statusText.text = message
+        thorLauncher?.launchFailed(message)
+        updateLowerStatus()
+    }
+
+    private fun launchBrawlFromLibrary() {
+        val message = when (ThorGameLaunch.launchBrawl(this)) {
+            ThorGameLaunch.Result.OPENED -> return
+            ThorGameLaunch.Result.NOT_INSTALLED -> { openGamesForBrawl(); return }
+            ThorGameLaunch.Result.UNAVAILABLE -> "Super Smash Bros. Brawl could not be opened. Try again."
+        }
+        statusText.text = message
+        thorLauncher?.launchFailed(message)
+        updateLowerStatus()
+    }
+
     private fun launchGalaxyFromLibrary() {
         val message = when (ThorGameLaunch.launchGalaxy(this)) {
             ThorGameLaunch.Result.OPENED -> return
@@ -506,6 +581,10 @@ class ModePickerActivity : Activity() {
     private var kaizoInstalled = false
     private var eclipseInstalled = false
     private var msmbwiiInstalled = false
+    private var brawlInstalled = false
+    private var projectPlusAvailable = false
+    private var mkddInstalled = false
+    private var mkddPlusInstalled = false
     private fun refreshNsmbInstalled() {
         nsmbInstalled = runCatching { ThorGameLaunch.nsmbInstalled(this) }.getOrDefault(false)
         sunshineInstalled = runCatching { ThorGameLaunch.sunshineInstalled(this) }.getOrDefault(false)
@@ -513,6 +592,10 @@ class ModePickerActivity : Activity() {
         kaizoInstalled = runCatching { ThorGameLaunch.kaizoInstalled(this) }.getOrDefault(false)
         eclipseInstalled = runCatching { ThorGameLaunch.eclipseInstalled(this) }.getOrDefault(false)
         msmbwiiInstalled = runCatching { ThorGameLaunch.msmbwiiInstalled(this) }.getOrDefault(false)
+        brawlInstalled = runCatching { ThorGameLaunch.brawlInstalled(this) }.getOrDefault(false)
+        projectPlusAvailable = runCatching { ThorGameLaunch.projectPlusAvailable(this) }.getOrDefault(false)
+        mkddInstalled = runCatching { ThorGameLaunch.mkddInstalled(this) }.getOrDefault(false)
+        mkddPlusInstalled = runCatching { ThorGameLaunch.mkddPlusInstalled(this) }.getOrDefault(false)
     }
 
     /** Looks for a newer release in the background and shows the button when there is one.
@@ -918,9 +1001,9 @@ class ModePickerActivity : Activity() {
         // the game. No such surface exists yet on this screen, so it's safe here - same reasoning
         // as why Retro Rewind's own install flow only ever runs from this Activity.
         modsButton = Button(this)
-        modsButton.text = "Mods..."
+        modsButton.text = "Texture Packs"
         modsButton.textSize = 11f
-        modsButton.setOnClickListener { ModManager.showManagerDialog(this) }
+        modsButton.setOnClickListener { startActivity(Intent(this, TexturePacksActivity::class.java)) }
         val modsButtonParams =
             LinearLayout.LayoutParams(dp(260), dp(40))
         modsButtonParams.topMargin = dp(8)
@@ -960,6 +1043,9 @@ class ModePickerActivity : Activity() {
             styleChannelButton(button, top, bottom, dp(14).toFloat())
             root.addView(button, LinearLayout.LayoutParams(dp(280), dp(56)).apply { topMargin = dp(10) })
             otherGameButtons[button] = shown
+        }
+        gameButton("Manage games", Color.rgb(0x4C, 0x8D, 0xF2), Color.rgb(0x1E, 0x5B, 0xC6), { true }) {
+            startActivity(Intent(this, GameStorageActivity::class.java))
         }
         gameButton("Your games", Color.rgb(0x4C, 0x8D, 0xF2), Color.rgb(0x1E, 0x5B, 0xC6), { true }) { openGames() }
         if (BuildConfig.THOR_BUILD) gameButton("Check for updates", Color.rgb(0x4C, 0x8D, 0xF2), Color.rgb(0x1E, 0x5B, 0xC6), { true }) {
@@ -1128,6 +1214,24 @@ class ModePickerActivity : Activity() {
             if (!kaizoInstalled) mainHandler.post { openGames() }
             return if (kaizoInstalled) null else "Set up Kaizo Rebalanced first."
         }
+        if (product == MKDD_PLUS_CASE) {
+            refreshNsmbInstalled()
+            return if (mkddPlusInstalled) null else "Set up Double Dash Plus first."
+        }
+        if (product == MKDD_CASE) {
+            refreshNsmbInstalled()
+            if (!mkddInstalled) mainHandler.post { openGamesForMkdd() }
+            return if (mkddInstalled) null else MKDD_NOT_INSTALLED
+        }
+        if (product == PROJECT_PLUS_CASE) {
+            refreshNsmbInstalled()
+            return if (projectPlusAvailable) null else "Set up Project+ in Manage games first."
+        }
+        if (product == BRAWL_CASE) {
+            refreshNsmbInstalled()
+            if(!brawlInstalled)mainHandler.post { openGamesForBrawl() }
+            return if (brawlInstalled) null else BRAWL_NOT_INSTALLED
+        }
         if (product == GALAXY_CASE) {
             refreshNsmbInstalled()
             return if (galaxyInstalled) null else "Set up Super Mario Galaxy first."
@@ -1184,7 +1288,7 @@ class ModePickerActivity : Activity() {
     /** The Games screen: finds the player's disc images and imports each game's exact disc. */
     private fun openGames() {
         SaveManagerProfiles.blocker(this)?.let { Toast.makeText(this, it, Toast.LENGTH_LONG).show(); return }
-        if (!isFinishing && !isDestroyed) startActivity(Intent(this, GamesActivity::class.java))
+        if (!isFinishing && !isDestroyed) startActivityForResult(Intent(this, GamesActivity::class.java), REQUEST_YOUR_GAMES)
     }
 
     // --- Finding the player's own disc image on storage (no file picker) ---
@@ -1412,7 +1516,12 @@ class ModePickerActivity : Activity() {
             REQUEST_CODE_EXPORT_MII_DATA -> handleMiiExportDestinationPicked(data?.data)
             REQUEST_CODE_IMPORT_MII_DATA -> handleMiiImportSourcePicked(data?.data)
             REQUEST_CODE_IMPORT_SINGLE_MII -> handleSingleMiiSourcePicked(data?.data)
-            ModManager.REQUEST_CODE_PICK_ZIP -> ModManager.onZipPicked(this, data?.data)
+            REQUEST_YOUR_GAMES -> if (resultCode == RESULT_OK &&
+                data?.getBooleanExtra(GamesActivity.EXTRA_SETUP_RETRO_REWIND, false) == true &&
+                BuildConfig.THOR_RETRO_REWIND && isRomImported()) {
+                if (isRetroRewindInstalled()) openThorRetroRewindUpdates()
+                else showInstallRetroRewindDialog()
+            }
             GpuDriverSettings.REQUEST_CODE_PICK_ZIP -> GpuDriverSettings.onZipPicked(this, data?.data)
             FrameGenerationSettings.REQUEST_CODE_PICK_DLL -> FrameGenerationSettings.onDllPicked(this, data?.data)
             IconSettings.REQUEST_CODE_PICK_IMAGE -> IconSettings.onImagePicked(this, data?.data)
@@ -1884,6 +1993,7 @@ class ModePickerActivity : Activity() {
         private var gamesOfferedThisProcess = false
         internal const val EXTRA_FRONTEND_GAME = "wiids_frontend_game"
         internal const val EXTRA_RESTART_PRODUCT = "thor_restart_product"
+        private const val REQUEST_YOUR_GAMES = 4714
         private const val REQUEST_CODE_PICK_RETRO_REWIND_FOLDER = 0x52520000 // "RR"
         private const val REQUEST_CODE_PICK_RETRO_REWIND_ZIP = 0x52520001
         private const val REQUEST_CODE_EXPORT_DIAGNOSTICS = 0x52520002
@@ -1893,18 +2003,24 @@ class ModePickerActivity : Activity() {
         private const val REQUEST_CODE_IMPORT_MII_DATA = 0x52520004
         private const val REQUEST_CODE_IMPORT_SINGLE_MII = 0x52520005
         /** Existing shelf order is stable; Eclipse follows Sunshine in its GameCube stack. */
-        private const val LIBRARY_CASES = 8
+        private const val LIBRARY_CASES = 12
         /** Base game first, then its mods: they share one stack on the main shelf. */
-        private val LIBRARY_BUNDLES = listOf(listOf(0, 1), listOf(2, 3), listOf(4, 5), listOf(6, 7))
+        private val LIBRARY_BUNDLES = listOf(listOf(0, 1), listOf(2, 3), listOf(4, 5), listOf(6, 7), listOf(8, 11), listOf(9, 10))
         /** Stable game identity of each library case, in shelf order. */
         private val LIBRARY_GAMES = listOf(FrontendGame.MARIO_KART, FrontendGame.RETRO_REWIND, FrontendGame.NSMB, FrontendGame.MSMBWII,
-            FrontendGame.SUNSHINE, FrontendGame.ECLIPSE, FrontendGame.GALAXY, FrontendGame.KAIZO)
+            FrontendGame.SUNSHINE, FrontendGame.ECLIPSE, FrontendGame.GALAXY, FrontendGame.KAIZO, FrontendGame.BRAWL, FrontendGame.MKDD, FrontendGame.MKDD_PLUS, FrontendGame.PROJECT_PLUS)
         private const val GALAXY_CASE = ThorLibraryCompanionView.GALAXY
         private const val KAIZO_CASE = ThorLibraryCompanionView.KAIZO
         private const val NSMB_CASE = ThorLibraryCompanionView.NSMB
         private const val SUNSHINE_CASE = ThorLibraryCompanionView.SUNSHINE
         private const val ECLIPSE_CASE = ThorLibraryCompanionView.ECLIPSE
         private const val MSMBWII_CASE = ThorLibraryCompanionView.MSMBWII
+        private const val BRAWL_CASE = ThorLibraryCompanionView.BRAWL
+        private const val PROJECT_PLUS_CASE = ThorLibraryCompanionView.PROJECT_PLUS
+        private const val MKDD_CASE = ThorLibraryCompanionView.MKDD
+        private const val MKDD_PLUS_CASE = ThorLibraryCompanionView.MKDD_PLUS
+        private const val MKDD_NOT_INSTALLED = "Import your USA Mario Kart: Double Dash!! disc in Your games first."
+        private const val BRAWL_NOT_INSTALLED = "Import your USA Brawl revision 2 disc in Your games first."
         private const val NSMB_NOT_INSTALLED = "Import your New Super Mario Bros. Wii disc on the Your games screen first."
         private const val SUNSHINE_NOT_INSTALLED = "Import your Super Mario Sunshine disc on the Your games screen first."
         private const val ECLIPSE_NOT_INSTALLED = "Import your patched Super Mario Eclipse 1.1.0 disc on the Your games screen first. Eclipse keeps its own saves."

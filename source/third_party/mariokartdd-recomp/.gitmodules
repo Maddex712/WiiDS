@@ -1,0 +1,3 @@
+[submodule "gcn-recomp"]
+	path = gcn-recomp
+	url = https://github.com/ethannicholas/gcn-recomp.git

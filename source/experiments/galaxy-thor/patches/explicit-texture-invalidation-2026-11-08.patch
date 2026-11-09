@@ -1,0 +1,34 @@
+--- a/platform/src/gx/gx_recorder.cpp
++++ b/platform/src/gx/gx_recorder.cpp
+@@ -58,6 +58,17 @@
+     u32* cmd = appendCmds(2);
+     cmd[0] = CMD_BP;
+     cmd[1] = (reg << 24) | (value & 0xFFFFFF);
++    if (reg == 0x66) {
++        // An explicit GX texture-cache invalidation can follow a RAM rewrite
++        // within this same frame. Invalidate both binding and content memos;
++        // recorded draws still retain their immutable previous TexImages.
++        bindEpoch++;
++        // Only a current-frame memo can suppress the next hash. Preserve older
++        // stamps because endFrame also uses them for idle-cache eviction.
++        for (auto& kv : texCache) {
++            if (kv.second.checkedFrame == frameNumber) kv.second.checkedFrame = frameNumber - 1;
++        }
++    }
+     if ((reg >= 0x80 && reg <= 0xBB) || (reg >= 0x28 && reg <= 0x2F) || reg == 0x00 || reg == 0x27 || reg == 0x66) {
+         texDirty = true;
+     }
+@@ -136,6 +147,13 @@
+     memcpy(tlutMem + (tmem & (sizeof(tlutMem) - 1)), memPtr(src), bytes);
+     texDirty = true;
+     bindEpoch++;
++    // A palette upload may also happen between two draws of the same frame.
++    // Recheck indexed images without forcing unrelated direct-color hashes.
++    for (auto& kv : texCache) {
++        if ((kv.first.fmt == TF_CI4 || kv.first.fmt == TF_CI8 || kv.first.fmt == TF_CI14X2) &&
++            kv.second.checkedFrame == frameNumber)
++            kv.second.checkedFrame = frameNumber - 1;
++    }
+ }
+ 
+ void Recorder::endFrame() {

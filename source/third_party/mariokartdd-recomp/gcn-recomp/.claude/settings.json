@@ -1,0 +1,17 @@
+{
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write|MultiEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "for p in python3 python; do \"$p\" -c \"\" >/dev/null 2>&1 && exec \"$p\" \"$CLAUDE_PROJECT_DIR/tools/check_generic.py\" --hook; done; exit 0",
+            "timeout": 30,
+            "statusMessage": "Checking gcn-recomp stays game-neutral"
+          }
+        ]
+      }
+    ]
+  }
+}

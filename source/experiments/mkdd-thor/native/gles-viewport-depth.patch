@@ -1,0 +1,67 @@
+diff --git a/runtime/gx/render_gl.cpp b/runtime/gx/render_gl.cpp
+--- a/runtime/gx/render_gl.cpp
++++ b/runtime/gx/render_gl.cpp
+@@ -1361,6 +1361,21 @@
+ // the clear colour behind the world.
+ static float vp_far(const float* vp) { return std::min(vp[5], 16777215.0f); }
+ 
++struct ViewportDepth {
++    float offset, scale;
++};
++
++static ViewportDepth vp_depth_transform(const float* vp) {
++#ifdef GCN_GL_ES
++    // GXSetViewport's standard [0, 1] range writes 2^24 to both XF depth fields.
++    // GLES clips after this transform. Clamping only the offset to 2^24 - 1
++    // puts GX's exact near plane outside the GLES clip volume. Map both
++    // endpoints of this standard range to GLES's inclusive [-1, 1].
++    if (vp[2] == 16777216.0f && vp[5] == 16777216.0f) return {1.0f, 2.0f};
++#endif
++    return {2.0f * vp_far(vp) / 16777215.0f - 1.0f, 2.0f * vp[2] / 16777215.0f};
++}
++
+ static void scissor_offset(const uint32_t* bp, int& xoff, int& yoff) {
+     xoff = (int)(bp[0x59] & 0x3FF) * 2;
+     yoff = (int)((bp[0x59] >> 10) & 0x3FF) * 2;
+@@ -1632,7 +1647,7 @@
+     int xoff, yoff;
+     scissor_offset(st.bp, xoff, yoff);
+     const float vpa[4] = {2.0f * (vp[3] - xoff) / EFB_W - 1.0f, 2.0f * vp[0] / EFB_W, 2.0f * (vp[4] - yoff) / EFB_H - 1.0f, 2.0f * vp[1] / EFB_H};
+-    const float vpb[2] = {2.0f * vp_far(vp) / 16777215.0f - 1.0f, 2.0f * vp[2] / 16777215.0f};
++    const ViewportDepth depth = vp_depth_transform(vp);
+     double X[3], Y[3], Z[3];
+     for (int i = 0; i < 3; i++) {
+         const float* v = b.verts[b.indices[c.first + c.count - 3 + i]].pos;
+@@ -1641,7 +1656,7 @@
+         else { cx = p[0] * v[0] + p[1]; cy = p[2] * v[1] + p[3]; cw = 1.0f; }
+         cz = p[4] * v[2] + p[5];
+         if (cw <= 0.0f) return false;
+-        const float px = vpa[0] * cw + vpa[1] * cx, py = vpa[2] * cw + vpa[3] * cy, pz = vpb[0] * cw + vpb[1] * cz;
++        const float px = vpa[0] * cw + vpa[1] * cx, py = vpa[2] * cw + vpa[3] * cy, pz = depth.offset * cw + depth.scale * cz;
+         X[i] = (px / cw + 1.0) * 0.5 * EFB_W * g_scale;
+         Y[i] = (-py / cw + 1.0) * 0.5 * EFB_H * g_scale;
+         Z[i] = (pz / cw + 1.0) * 0.5;
+@@ -1967,11 +1982,11 @@
+                 const float sx = r[1] > r[0] ? 2.0f * kEyeScreenOverscan / (r[1] - r[0]) : 1.0f;
+                 const float sy = r[3] > r[2] ? 2.0f * kEyeScreenOverscan / (r[3] - r[2]) : 1.0f;
+                 const float cx = 0.5f * (r[0] + r[1]), cy = 0.5f * (r[2] + r[3]);
+-                const float bx = 2.0f * vp_far(st.viewport) / 16777215.0f - 1.0f, by = 2.0f * st.viewport[2] / 16777215.0f;
++                const ViewportDepth depth = vp_depth_transform(st.viewport);
+                 for (int c = 0; c < 4; c++) {
+                     M[c * 4 + 0] = sx * (P[c * 4 + 0] - cx * P[c * 4 + 3]);
+                     M[c * 4 + 1] = sy * (P[c * 4 + 1] - cy * P[c * 4 + 3]);
+-                    M[c * 4 + 2] = by * P[c * 4 + 2] + bx * P[c * 4 + 3];
++                    M[c * 4 + 2] = depth.scale * P[c * 4 + 2] + depth.offset * P[c * 4 + 3];
+                     M[c * 4 + 3] = P[c * 4 + 3];
+                 }
+             } else {
+@@ -2058,7 +2073,8 @@
+     if (!(held && bp[0x59] == u.scissor_off && memcmp(vp, u.viewport, sizeof(st.viewport)) == 0)) {
+         g_astat.viewport++;
+         float vpa[4] = {2.0f * (vp[3] - xoff) / EFB_W - 1.0f, 2.0f * vp[0] / EFB_W, 2.0f * (vp[4] - yoff) / EFB_H - 1.0f, 2.0f * vp[1] / EFB_H};
+-        float vpb[4] = {2.0f * vp_far(vp) / 16777215.0f - 1.0f, 2.0f * vp[2] / 16777215.0f, 0, 0};
++        const ViewportDepth depth = vp_depth_transform(vp);
++        const float vpb[4] = {depth.offset, depth.scale, 0, 0};
+         glUniform4fv(pr.u_vp_a, 1, vpa);
+         glUniform4fv(pr.u_vp_b, 1, vpb);
+         memcpy(u.viewport, vp, sizeof(st.viewport));

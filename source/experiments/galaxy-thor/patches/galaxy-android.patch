@@ -1,5 +1,17 @@
+diff --git a/decomp/include/Game/Camera/CameraLocalUtil.hpp b/decomp/include/Game/Camera/CameraLocalUtil.hpp
+index e330e998a552694fbd45dc1414807a4ad2adbba7..6413e3b739b2c284a8a26bfbe88c2b54bb816c4b 100644
+--- a/decomp/include/Game/Camera/CameraLocalUtil.hpp
++++ b/decomp/include/Game/Camera/CameraLocalUtil.hpp
+@@ -65,6 +65,7 @@ namespace CameraLocalUtil {
+     bool testCameraPadButtonReset();
+     bool testCameraPadTriggerReset();
+     bool testCameraPadTriggerRoundLeft();
++    void updateCameraPadStick();
+     bool testCameraPadTriggerRoundRight();
+     void slerpCamera(TQuat4f*, const TQuat4f&, const TQuat4f&, f32, bool);
+     bool makeTowerCameraMtx(TPos3f*, const TPos3f&, const TVec3f&, const TVec3f&, const TVec3f&);
 diff --git a/decomp/include/Game/Screen/CoinCounter.hpp b/decomp/include/Game/Screen/CoinCounter.hpp
-index 4b89726..2f908b4 100644
+index 4b897267133d60f037ce594b4496a499ea1aef4c..2f908b42d9d03234b08c9fb5c18c0fef60eb1904 100644
 --- a/decomp/include/Game/Screen/CoinCounter.hpp
 +++ b/decomp/include/Game/Screen/CoinCounter.hpp
 @@ -14,6 +14,9 @@ public:
@@ -13,7 +25,7 @@ index 4b89726..2f908b4 100644
      void forceAppear();
      void disappear();
 diff --git a/decomp/include/Game/Screen/PurpleCoinCounter.hpp b/decomp/include/Game/Screen/PurpleCoinCounter.hpp
-index a24e51d..3421020 100644
+index a24e51d0f07dbd2d4cc362acb4a28a03d13608c1..34210209d6b754a16da9e54cc3f6d8e9d101679c 100644
 --- a/decomp/include/Game/Screen/PurpleCoinCounter.hpp
 +++ b/decomp/include/Game/Screen/PurpleCoinCounter.hpp
 @@ -12,6 +12,9 @@ public:
@@ -27,7 +39,7 @@ index a24e51d..3421020 100644
      void validate();
      void updateCounter();
 diff --git a/decomp/include/Game/Screen/StarPieceCounter.hpp b/decomp/include/Game/Screen/StarPieceCounter.hpp
-index f384b10..3e5b59e 100644
+index f384b10d4e9e550d78f95c324e7447466119b491..3e5b59ebbebf8266e3ccdcb35d4c891c2816820c 100644
 --- a/decomp/include/Game/Screen/StarPieceCounter.hpp
 +++ b/decomp/include/Game/Screen/StarPieceCounter.hpp
 @@ -14,6 +14,9 @@ public:
@@ -41,7 +53,7 @@ index f384b10..3e5b59e 100644
      void forceAppear(bool);
      void disappear(bool);
 diff --git a/decomp/include/Game/Util/StarPointerUtil.hpp b/decomp/include/Game/Util/StarPointerUtil.hpp
-index de7baca..08b3e65 100644
+index de7baca5ed46793c375de0b0b2093e1b64c36cb8..08b3e655c0ffeb3fe89866c7b30a04fdad2543b4 100644
 --- a/decomp/include/Game/Util/StarPointerUtil.hpp
 +++ b/decomp/include/Game/Util/StarPointerUtil.hpp
 @@ -101,6 +101,9 @@ namespace MR {
@@ -54,8 +66,23 @@ index de7baca..08b3e65 100644
  #endif
      bool isStarPointerModeStarPieceTarget();
      bool isStarPointerModeMarioLauncher();
+diff --git a/decomp/libs/JSystem/include/JSystem/J3DGraphBase/J3DMaterial.hpp b/decomp/libs/JSystem/include/JSystem/J3DGraphBase/J3DMaterial.hpp
+index d72f84a9e3446e1b4f9101f361554702e69ef06a..888bd9eaa4323fcf1e50e28f7a1368bcd9c6a120 100644
+--- a/decomp/libs/JSystem/include/JSystem/J3DGraphBase/J3DMaterial.hpp
++++ b/decomp/libs/JSystem/include/JSystem/J3DGraphBase/J3DMaterial.hpp
+@@ -53,7 +53,9 @@ public:
+     s32 newSingleSharedDisplayList(u32);
+ 
+     inline J3DMaterialAnm* getMaterialAnm() {
+-        return reinterpret_cast< uintptr_t >(mMaterialAnm) < 0xC0000000 ? mMaterialAnm : nullptr;
++        // Animation buffers also live in relocated MEM2 (0xC0000000 onward).
++        // An address cutoff from the old layout silently disables them.
++        return mMaterialAnm;
+     }
+ 
+     bool isDrawModeOpaTexEdge() {
 diff --git a/decomp/libs/RVL_SDK/include/revolution/gx/GXTypes.h b/decomp/libs/RVL_SDK/include/revolution/gx/GXTypes.h
-index 47efe82..b9290fb 100644
+index 47efe8245207ededfa025ad39fba8203a8076485..b9290fbc9f69e6795703417f7aa5ac1a2b365605 100644
 --- a/decomp/libs/RVL_SDK/include/revolution/gx/GXTypes.h
 +++ b/decomp/libs/RVL_SDK/include/revolution/gx/GXTypes.h
 @@ -10,7 +10,14 @@ extern "C" {
@@ -74,7 +101,7 @@ index 47efe82..b9290fb 100644
  typedef struct _GXData {
      u16 vNumNot;
 diff --git a/decomp/libs/RVL_SDK/include/revolution/os.h b/decomp/libs/RVL_SDK/include/revolution/os.h
-index fe8f9ea..c58205c 100644
+index fe8f9ea8e0d2c6ab615418f8e327db5407534352..c58205c385cbe0256954917bf9be06e854355b70 100644
 --- a/decomp/libs/RVL_SDK/include/revolution/os.h
 +++ b/decomp/libs/RVL_SDK/include/revolution/os.h
 @@ -19,8 +19,8 @@ u32 __OSBusClock : (0x8000 << 16 | 0x00F8);
@@ -111,7 +138,7 @@ index fe8f9ea..c58205c 100644
  #define OSRoundUp32B(x) (((u32)(x) + 32 - 1) & ~(32 - 1))
  #define OSRoundDown32B(x) (((u32)(x)) & ~(32 - 1))
 diff --git a/decomp/src/Game/Boss/BossKameckBarrier.cpp b/decomp/src/Game/Boss/BossKameckBarrier.cpp
-index 72142fd..6602db8 100644
+index 72142fdf061889526268347a0842a07b37d16891..6602db8e18d896e9900d20df90f3012c81f41e98 100644
 --- a/decomp/src/Game/Boss/BossKameckBarrier.cpp
 +++ b/decomp/src/Game/Boss/BossKameckBarrier.cpp
 @@ -1,3 +1,4 @@
@@ -128,7 +155,7 @@ index 72142fd..6602db8 100644
      MR::connectToSceneEnemy(this);
      initHitSensor(1);
 diff --git a/decomp/src/Game/Boss/DodoryuStateLv1.cpp b/decomp/src/Game/Boss/DodoryuStateLv1.cpp
-index ebb1b6b..a732ed4 100644
+index ebb1b6b292dedf49b5800ce22474ea165863eb63..a732ed4d93c456526345a1a7325431ce157d997e 100644
 --- a/decomp/src/Game/Boss/DodoryuStateLv1.cpp
 +++ b/decomp/src/Game/Boss/DodoryuStateLv1.cpp
 @@ -1,3 +1,4 @@
@@ -146,7 +173,7 @@ index ebb1b6b..a732ed4 100644
  
          if (!calcVerticalizedDir(&_98, _98)) {
 diff --git a/decomp/src/Game/Boss/DodoryuStateLv2.cpp b/decomp/src/Game/Boss/DodoryuStateLv2.cpp
-index 237e5f1..36ad90c 100644
+index 237e5f194daa197aef9e244a09c0430cf071879c..36ad90cc3cabba48b8a5234c53192cc132f92734 100644
 --- a/decomp/src/Game/Boss/DodoryuStateLv2.cpp
 +++ b/decomp/src/Game/Boss/DodoryuStateLv2.cpp
 @@ -1,3 +1,4 @@
@@ -164,7 +191,7 @@ index 237e5f1..36ad90c 100644
          attackDir.sub(pSender->mPosition);
          _A0.set(attackDir);
 diff --git a/decomp/src/Game/Boss/SkeletalFishBaby.cpp b/decomp/src/Game/Boss/SkeletalFishBaby.cpp
-index dd4da66..a9209b7 100644
+index dd4da663e6a929e000a78d66b4391c4dae1825be..a9209b7597cd595fb85d51e2a3ee9d5a25f009fc 100644
 --- a/decomp/src/Game/Boss/SkeletalFishBaby.cpp
 +++ b/decomp/src/Game/Boss/SkeletalFishBaby.cpp
 @@ -1,3 +1,4 @@
@@ -181,8 +208,198 @@ index dd4da66..a9209b7 100644
          setNerve(GET_NERVE_ANON(SkeletalFishBabyNrvBreak));
          return true;
      }
+diff --git a/decomp/src/Game/Camera/CameraDirector.cpp b/decomp/src/Game/Camera/CameraDirector.cpp
+index 19beed91cd6eea96c3bca1a084e95364558a0797..5d3d30eb9c486d4987509992bd11c7aa05ccf67d 100644
+--- a/decomp/src/Game/Camera/CameraDirector.cpp
++++ b/decomp/src/Game/Camera/CameraDirector.cpp
+@@ -36,17 +36,6 @@
+ #include "Game/Util/SoundUtil.hpp"
+ #include <cstring>
+ 
+-extern "C" void port_input_get_right_stick(int chan, float* x, float* y);
+-extern "C" int port_input_camera_inverted(void);
+-
+-static inline TVec3f rotateVectorAxis(const TVec3f& v, const TVec3f& axis, f32 angle) {
+-    f32 cosA = MR::cos(angle);
+-    f32 sinA = MR::sin(angle);
+-    TVec3f cross = axis.cross(v);
+-    f32 dot = axis.dot(v);
+-    return v * cosA + cross * sinA + axis * (dot * (1.0f - cosA));
+-}
+-
+ void CameraDirector_FORCE_MATCH_SDATA2() {
+     (void)1.0f;
+     (void)0.0f;
+@@ -128,6 +117,7 @@ void CameraDirector::movement() {
+ 
+     backLastMtx();
+     mTargetHolder->movement();
++    CameraLocalUtil::updateCameraPadStick();
+     updateCameraMan();
+     calcPose();
+     createViewMtx();
+@@ -239,69 +229,8 @@ void CameraDirector::calcPose() {
+     mOnlyCamera->calcPose(man);
+     mPoseParam1->copyFrom(*mOnlyCamera->mPoseParam);
+ 
+-    // Pillar 2: True 360-Degree Analog Right-Stick Orbital Camera
+-    static f32 sOrbitYaw = 0.0f;
+-    static f32 sOrbitPitch = 0.0f;
+-
+-    // Reset orbit on camera reset button or force camera change
+-    if (CameraLocalUtil::testCameraPadTriggerReset() ||
+-        MR::testSubPadButtonC(WPAD_CHAN0) ||
+-        MR::testCorePadTriggerDown(WPAD_CHAN0) ||
+-        mViewInterpolator->mIsForceCameraChange) {
+-        sOrbitYaw = 0.0f;
+-        sOrbitPitch = 0.0f;
+-    }
+-
+-    float rx = 0.0f, ry = 0.0f;
+-    port_input_get_right_stick(0, &rx, &ry);
+-    if (port_input_camera_inverted()) {
+-        rx = -rx;
+-    }
+-
+-    if (rx > 0.005f || rx < -0.005f) {
+-        sOrbitYaw += rx * 0.080f;
+-        while (sOrbitYaw > 3.14159265f) sOrbitYaw -= 6.2831853f;
+-        while (sOrbitYaw < -3.14159265f) sOrbitYaw += 6.2831853f;
+-    }
+-    if (ry > 0.005f || ry < -0.005f) {
+-        sOrbitPitch += ry * 0.060f;
+-        if (sOrbitPitch > 1.20f) sOrbitPitch = 1.20f;
+-        if (sOrbitPitch < -1.05f) sOrbitPitch = -1.05f;
+-    }
+-
+-    if (!mIsSubjectiveCamera && !isEventCameraActive() && !MR::isDemoActive()) {
+-        if (sOrbitYaw > 0.001f || sOrbitYaw < -0.001f || sOrbitPitch > 0.001f || sOrbitPitch < -0.001f) {
+-            TVec3f offset = mPoseParam1->mPos - mPoseParam1->mWatchPos;
+-            f32 dist = offset.length();
+-            if (dist > 10.0f) {
+-                TVec3f up = mPoseParam1->mUpVec;
+-                MR::normalizeOrZero(&up);
+-                if (up.length() < 0.5f) {
+-                    up.set(0.0f, 1.0f, 0.0f);
+-                }
+-
+-                // Horizontal orbit around Up vector
+-                TVec3f yawed = rotateVectorAxis(offset, up, sOrbitYaw);
+-
+-                // Vertical pitch around new Right vector
+-                TVec3f right = up.cross(yawed);
+-                MR::normalizeOrZero(&right);
+-
+-                TVec3f finalOffset = rotateVectorAxis(yawed, right, sOrbitPitch);
+-                finalOffset.setLength(dist);
+-
+-                mPoseParam1->mPos = mPoseParam1->mWatchPos + finalOffset;
++    // Keep the game-produced pose: right-stick turns enter through CameraLocalUtil.
+ 
+-                // Re-align up vector orthogonal to view direction
+-                TVec3f look = mPoseParam1->mWatchPos - mPoseParam1->mPos;
+-                MR::normalizeOrZero(&look);
+-                TVec3f side = up.cross(look);
+-                MR::normalizeOrZero(&side);
+-                mPoseParam1->mUpVec = look.cross(side);
+-                MR::normalizeOrZero(&mPoseParam1->mUpVec);
+-            }
+-        }
+-    }
+ }
+ 
+ void CameraDirector::calcSubjective() {
+@@ -556,15 +485,21 @@ bool CameraDirector::isEnableToControl() const {
+ }
+ 
+ bool CameraDirector::isEnableToRoundLeft() const {
+-    return true; // Full 360 dual-stick unconstrained rotation
++    CameraMan* man = getCurrentCameraMan();
++    return man && man == mCameraManGame && !mIsStartCameraActive && !mIsSubjectiveCamera
++            && !MR::isDemoActive() && man->isEnableToRoundLeft();
+ }
+ 
+ bool CameraDirector::isEnableToRoundRight() const {
+-    return true; // Full 360 dual-stick unconstrained rotation
++    CameraMan* man = getCurrentCameraMan();
++    return man && man == mCameraManGame && !mIsStartCameraActive && !mIsSubjectiveCamera
++            && !MR::isDemoActive() && man->isEnableToRoundRight();
+ }
+ 
+ bool CameraDirector::isEnableToReset() const {
+-    return true;
++    CameraMan* man = getCurrentCameraMan();
++    return man && man == mCameraManGame && !mIsStartCameraActive && !mIsSubjectiveCamera
++            && !MR::isDemoActive() && man->isEnableToReset();
+ }
+ 
+ bool CameraDirector::isEventCameraActive(s32 zoneID, const char* pName) const {
+diff --git a/decomp/src/Game/Camera/CameraLocalUtil.cpp b/decomp/src/Game/Camera/CameraLocalUtil.cpp
+index c4eb4b922f03d90f71d8128d4ab70ad814881dce..ec835b4bd00b7f619ae15c1131e267af77e40afd 100644
+--- a/decomp/src/Game/Camera/CameraLocalUtil.cpp
++++ b/decomp/src/Game/Camera/CameraLocalUtil.cpp
+@@ -10,6 +10,12 @@
+ #include "Game/Util/GamePadUtil.hpp"
+ #include "Game/Util/MathUtil.hpp"
+ #include <JSystem/JMath/JMATrigonometric.hpp>
++#ifdef TARGET_PC
++#include "port/camera_stick.h"
++extern "C" void port_input_get_right_stick(int chan, float* x, float* y);
++extern "C" int port_input_camera_inverted(void);
++namespace { port::CameraStick sCameraStick; }
++#endif
+ 
+ void CameraLocalUtil_FORCE_SDATA2() {
+     (void)1.0f;
+@@ -301,6 +307,17 @@ namespace CameraLocalUtil {
+         return MR::testSubPadTriggerC(WPAD_CHAN0);
+     }
+ 
++    void updateCameraPadStick() {
++#ifdef TARGET_PC
++        float x = 0, y = 0;
++        port_input_get_right_stick(0, &x, &y);
++        CameraDirector* director = getCameraDirector();
++        // The platform's orbit axis has the opposite sign to a physical rightward nudge.
++        sCameraStick.update(-x, !MR::isDemoActive() && !MR::isFirstPersonCamera()
++                && (director->isEnableToRoundLeft() || director->isEnableToRoundRight()));
++#endif
++    }
++
+     bool testCameraPadTriggerRoundLeft() {
+         if (MR::isDemoActive()) {
+             return false;
+@@ -311,10 +328,13 @@ namespace CameraLocalUtil {
+         }
+ 
+ #ifdef TARGET_PC
+-        // The invert_camera setting: left and right swapped.
++        // Native camera requests keep the current camera's collision and rotation restrictions.
+         if (port_input_camera_inverted()) {
+-            return MR::testCorePadTriggerRight(WPAD_CHAN0);
++            return (MR::testCorePadTriggerRight(WPAD_CHAN0) || sCameraStick.right())
++                    && getCameraDirector()->isEnableToRoundLeft();
+         }
++        return (MR::testCorePadTriggerLeft(WPAD_CHAN0) || sCameraStick.left())
++                && getCameraDirector()->isEnableToRoundLeft();
+ #endif
+         return MR::testCorePadTriggerLeft(WPAD_CHAN0);
+     }
+@@ -330,8 +350,11 @@ namespace CameraLocalUtil {
+ 
+ #ifdef TARGET_PC
+         if (port_input_camera_inverted()) {
+-            return MR::testCorePadTriggerLeft(WPAD_CHAN0);
++            return (MR::testCorePadTriggerLeft(WPAD_CHAN0) || sCameraStick.left())
++                    && getCameraDirector()->isEnableToRoundRight();
+         }
++        return (MR::testCorePadTriggerRight(WPAD_CHAN0) || sCameraStick.right())
++                && getCameraDirector()->isEnableToRoundRight();
+ #endif
+         return MR::testCorePadTriggerRight(WPAD_CHAN0);
+     }
 diff --git a/decomp/src/Game/Enemy/BegomanBaby.cpp b/decomp/src/Game/Enemy/BegomanBaby.cpp
-index a8ac30d..ef2dfe9 100644
+index a8ac30de33bc6d93f97f98a92e260eb279077e08..ef2dfe9e0404db2ba075cb57882cfb334874612a 100644
 --- a/decomp/src/Game/Enemy/BegomanBaby.cpp
 +++ b/decomp/src/Game/Enemy/BegomanBaby.cpp
 @@ -1,3 +1,4 @@
@@ -200,7 +417,7 @@ index a8ac30d..ef2dfe9 100644
          MR::emitEffect(this, "Fall");
          return;
 diff --git a/decomp/src/Game/Enemy/BegomanSpike.cpp b/decomp/src/Game/Enemy/BegomanSpike.cpp
-index 20f7645..7afd331 100644
+index 20f7645e59e916e0dfb21072602f836aadd18fce..7afd33151da4a861046afd2de721340d72f47cef 100644
 --- a/decomp/src/Game/Enemy/BegomanSpike.cpp
 +++ b/decomp/src/Game/Enemy/BegomanSpike.cpp
 @@ -1,3 +1,4 @@
@@ -218,7 +435,7 @@ index 20f7645..7afd331 100644
          MR::emitEffect(this, "Fall");
          return;
 diff --git a/decomp/src/Game/Enemy/BegomanSpring.cpp b/decomp/src/Game/Enemy/BegomanSpring.cpp
-index e10d0af..92b4ab8 100644
+index e10d0af19106dfe91b00a8b02866c18805316147..92b4ab8c0767c9bc34d34a7fbf00e591bd6cd608 100644
 --- a/decomp/src/Game/Enemy/BegomanSpring.cpp
 +++ b/decomp/src/Game/Enemy/BegomanSpring.cpp
 @@ -1,3 +1,4 @@
@@ -236,7 +453,7 @@ index e10d0af..92b4ab8 100644
          MR::emitEffect(this, "Fall");
          return;
 diff --git a/decomp/src/Game/Enemy/WaterBazooka.cpp b/decomp/src/Game/Enemy/WaterBazooka.cpp
-index af3a96e..eddcfb9 100644
+index af3a96eb3c3ec6b077dcef756950dd632b7d150c..eddcfb98a5be623812f7c24bffe32601724d0e99 100644
 --- a/decomp/src/Game/Enemy/WaterBazooka.cpp
 +++ b/decomp/src/Game/Enemy/WaterBazooka.cpp
 @@ -1,3 +1,4 @@
@@ -254,7 +471,7 @@ index af3a96e..eddcfb9 100644
  
      return true;
 diff --git a/decomp/src/Game/LiveActor/DisplayListMaker.cpp b/decomp/src/Game/LiveActor/DisplayListMaker.cpp
-index d63b100..6c25ebe 100644
+index d63b100360d5e45b01398cd24160c53102b4ac64..6c25ebeefb235fccc670f06ed89aab52af42ce79 100644
 --- a/decomp/src/Game/LiveActor/DisplayListMaker.cpp
 +++ b/decomp/src/Game/LiveActor/DisplayListMaker.cpp
 @@ -8,6 +8,7 @@
@@ -276,7 +493,7 @@ index d63b100..6c25ebe 100644
  }
  
 diff --git a/decomp/src/Game/LiveActor/ModelManager.cpp b/decomp/src/Game/LiveActor/ModelManager.cpp
-index 892d2a4..cfd0ab9 100644
+index 892d2a4e2d6c8e9c709f2a88cddb83d8768be069..cfd0ab921c182515ab97f52e53290c3bc3fd5d23 100644
 --- a/decomp/src/Game/LiveActor/ModelManager.cpp
 +++ b/decomp/src/Game/LiveActor/ModelManager.cpp
 @@ -15,6 +15,7 @@
@@ -296,7 +513,7 @@ index 892d2a4..cfd0ab9 100644
              mDisplayListMaker->newDifferedDisplayList();
          }
 diff --git a/decomp/src/Game/Map/FileSelectCameraController.cpp b/decomp/src/Game/Map/FileSelectCameraController.cpp
-index 4f8923a..b1583b9 100644
+index 4f8923a7b44b81d73b16306743a43037eeccb1bd..b1583b94daf44649ba151ef39870c964011e0317 100644
 --- a/decomp/src/Game/Map/FileSelectCameraController.cpp
 +++ b/decomp/src/Game/Map/FileSelectCameraController.cpp
 @@ -1,4 +1,5 @@
@@ -323,7 +540,7 @@ index 4f8923a..b1583b9 100644
      f32 squaredTime = getNerveStep() / 60.0f;
  
 diff --git a/decomp/src/Game/Map/FileSelector.cpp b/decomp/src/Game/Map/FileSelector.cpp
-index cb099c0..e6d2abe 100644
+index cb099c0e6f58c39fd4752e1c53cdacebda2e9f90..e6d2abe89e23cd78edc47806d35a413fa03eedc9 100644
 --- a/decomp/src/Game/Map/FileSelector.cpp
 +++ b/decomp/src/Game/Map/FileSelector.cpp
 @@ -1,4 +1,5 @@
@@ -394,7 +611,7 @@ index cb099c0..e6d2abe 100644
          mSysInfoWindow->appear("System_FileSelect001", SysInfoWindow::Type_YesNo, SysInfoWindow::TextPos_Center, SysInfoWindow::MessageType_System);
          mSysInfoWindow->setYesNoSelectorSE("SE_SY_BUTTON_CURSOR_ON", "SE_SY_FILE_SEL_NEW_FILE", "SE_SY_TALK_SELECT_NO");
 diff --git a/decomp/src/Game/MapObj/FlipPanel.cpp b/decomp/src/Game/MapObj/FlipPanel.cpp
-index 6716b88..039a734 100644
+index 6716b88326fd54c7fe4886d99a21e6e4c142a009..039a7345d73129a7f487acd88e85d791369ea42a 100644
 --- a/decomp/src/Game/MapObj/FlipPanel.cpp
 +++ b/decomp/src/Game/MapObj/FlipPanel.cpp
 @@ -1,3 +1,4 @@
@@ -421,7 +638,7 @@ index 6716b88..039a734 100644
      initSound(2, false);
      MR::getJMapInfoArg7NoInit(rIter, &mPowerStarId);
 diff --git a/decomp/src/Game/NPC/KinopioAstro.cpp b/decomp/src/Game/NPC/KinopioAstro.cpp
-index dcf9a67..21a2e8d 100644
+index dcf9a679d6f965b53ff427b42ce8fef18226a63b..21a2e8dd8640c10fb8b798a43ecf74468a3c4580 100644
 --- a/decomp/src/Game/NPC/KinopioAstro.cpp
 +++ b/decomp/src/Game/NPC/KinopioAstro.cpp
 @@ -1,3 +1,4 @@
@@ -459,7 +676,7 @@ index dcf9a67..21a2e8d 100644
                  MR::setMessageArg(mMsgCtrl, ::sMessangerOneUpNum);
              }
 diff --git a/decomp/src/Game/Scene/GameScene.cpp b/decomp/src/Game/Scene/GameScene.cpp
-index 6e8133b..1d04f8f 100644
+index 6e8133b616a8cae2dc88c7725c1b16a9c9ca0239..1d04f8f3d8b1032bff09b4b7ef67a8d982a05975 100644
 --- a/decomp/src/Game/Scene/GameScene.cpp
 +++ b/decomp/src/Game/Scene/GameScene.cpp
 @@ -81,6 +81,31 @@ namespace NrvGameScene {
@@ -506,7 +723,7 @@ index 6e8133b..1d04f8f 100644
  #endif
      draw2D();
 diff --git a/decomp/src/Game/Scene/PlacementInfoOrdered.cpp b/decomp/src/Game/Scene/PlacementInfoOrdered.cpp
-index a8a644a..81a642e 100644
+index a8a644af3187aa505dceafe1ebb8c381149e137b..81a642e91c4d8208c2062554f5c3e06a9ef83b88 100644
 --- a/decomp/src/Game/Scene/PlacementInfoOrdered.cpp
 +++ b/decomp/src/Game/Scene/PlacementInfoOrdered.cpp
 @@ -7,6 +7,11 @@
@@ -532,7 +749,7 @@ index a8a644a..81a642e 100644
                  MR::clearCurrentPlacementZoneId();
              }
 diff --git a/decomp/src/Game/Screen/CoinCounter.cpp b/decomp/src/Game/Screen/CoinCounter.cpp
-index c6a9ad0..c5b3544 100644
+index c6a9ad0186bac16272cbf64fe5d82b14a5407c9f..c5b354480875f69283afddf5e5549f7a0f9b92d0 100644
 --- a/decomp/src/Game/Screen/CoinCounter.cpp
 +++ b/decomp/src/Game/Screen/CoinCounter.cpp
 @@ -1,4 +1,7 @@
@@ -558,7 +775,7 @@ index c6a9ad0..c5b3544 100644
 +}
 +#endif
 diff --git a/decomp/src/Game/Screen/ProloguePictureBook.cpp b/decomp/src/Game/Screen/ProloguePictureBook.cpp
-index f4f51b3..bd9f5bd 100644
+index f4f51b3ef3af150e78192975aaa68be84edbb55b..bd9f5bde5c90c880a6574a0ed645581b50ad6ed2 100644
 --- a/decomp/src/Game/Screen/ProloguePictureBook.cpp
 +++ b/decomp/src/Game/Screen/ProloguePictureBook.cpp
 @@ -101,6 +101,21 @@ bool ProloguePictureBook::isEnd() const {
@@ -584,7 +801,7 @@ index f4f51b3..bd9f5bd 100644
      MR::setLayoutScalePosAtPaneScaleTrans(mIconAButton, this, "AButtonPosition");
  }
 diff --git a/decomp/src/Game/Screen/PurpleCoinCounter.cpp b/decomp/src/Game/Screen/PurpleCoinCounter.cpp
-index 6f3b9d9..436af79 100644
+index 6f3b9d9eee41550261b3ff0e8feb5141732fc69b..436af792ddaf8eeaf5cc499adcafa71a0511ee4e 100644
 --- a/decomp/src/Game/Screen/PurpleCoinCounter.cpp
 +++ b/decomp/src/Game/Screen/PurpleCoinCounter.cpp
 @@ -1,4 +1,7 @@
@@ -610,7 +827,7 @@ index 6f3b9d9..436af79 100644
 +}
 +#endif
 diff --git a/decomp/src/Game/Screen/StarPieceCounter.cpp b/decomp/src/Game/Screen/StarPieceCounter.cpp
-index fd06f13..d1c9119 100644
+index fd06f1374638dc0bcd7c3aeeb1e0f0a2984df4c0..d1c9119b1a295a4697de97ae707c425024c9e8a4 100644
 --- a/decomp/src/Game/Screen/StarPieceCounter.cpp
 +++ b/decomp/src/Game/Screen/StarPieceCounter.cpp
 @@ -1,4 +1,7 @@
@@ -636,7 +853,7 @@ index fd06f13..d1c9119 100644
 +}
 +#endif
 diff --git a/decomp/src/Game/System/GalaxyCometScheduler.cpp b/decomp/src/Game/System/GalaxyCometScheduler.cpp
-index ace3239..0852cc8 100644
+index ace3239070f24b3e0d71f55a72baa4c7d4ee5b8e..0852cc8127cbfba0103d4a5e1d94a51e803b05b4 100644
 --- a/decomp/src/Game/System/GalaxyCometScheduler.cpp
 +++ b/decomp/src/Game/System/GalaxyCometScheduler.cpp
 @@ -1,3 +1,4 @@
@@ -654,7 +871,7 @@ index ace3239..0852cc8 100644
  }
  
 diff --git a/decomp/src/Game/System/GameEventFlagTable.cpp b/decomp/src/Game/System/GameEventFlagTable.cpp
-index 98405a7..b3d736f 100644
+index 98405a7734661de3889b55da00691cf35d561fc5..b3d736f6d463c4cf4cf494d6b27b31459dad0792 100644
 --- a/decomp/src/Game/System/GameEventFlagTable.cpp
 +++ b/decomp/src/Game/System/GameEventFlagTable.cpp
 @@ -1,3 +1,4 @@
@@ -679,8 +896,20 @@ index 98405a7..b3d736f 100644
      initSortTable();
  }
  
+diff --git a/decomp/src/Game/System/GameSequenceFunction.cpp b/decomp/src/Game/System/GameSequenceFunction.cpp
+index 61305254d0fcbd5fcf82ce176b4ee2e290c27852..c243f3bc0df5568830f53c90f0a3ac81ad2d5b11 100644
+--- a/decomp/src/Game/System/GameSequenceFunction.cpp
++++ b/decomp/src/Game/System/GameSequenceFunction.cpp
+@@ -325,6 +325,7 @@ namespace GameSequenceFunction {
+     void quickSaveAnywhere() {
+         SaveDataHandleSequence* seq = ::getSaveDataHandleSequence();
+         if (seq == nullptr || seq->isActive()) {
++            port_reject_quick_save();
+             return;
+         }
+ 
 diff --git a/decomp/src/Game/System/GameSystem.cpp b/decomp/src/Game/System/GameSystem.cpp
-index e454600..3b7458b 100644
+index e454600fd07ffe661b2dddb0b1fe0ceb3d6f973c..3b7458b198b23ce7f845517e33b735800300fa56 100644
 --- a/decomp/src/Game/System/GameSystem.cpp
 +++ b/decomp/src/Game/System/GameSystem.cpp
 @@ -38,6 +38,15 @@
@@ -713,7 +942,7 @@ index e454600..3b7458b 100644
      MainLoopFramework::sManager->endFrame();
  #ifdef TARGET_PC
 diff --git a/decomp/src/Game/System/GameSystemSceneController.cpp b/decomp/src/Game/System/GameSystemSceneController.cpp
-index bb5cffb..4d2f27d 100644
+index bb5cffb5396d7bd5b6429a2cabe0a6c1567391e2..4d2f27dd940cfbfe74a7deb9df28ade782d06514 100644
 --- a/decomp/src/Game/System/GameSystemSceneController.cpp
 +++ b/decomp/src/Game/System/GameSystemSceneController.cpp
 @@ -149,7 +149,15 @@ void GameSystemSceneController::initializeScene() {
@@ -732,8 +961,59 @@ index bb5cffb..4d2f27d 100644
      bool stopSound = isStopSound();
  
      Scene* pScene = mScene;
+diff --git a/decomp/src/Game/System/HeapMemoryWatcher.cpp b/decomp/src/Game/System/HeapMemoryWatcher.cpp
+index ff41db9631245a01e6e349438888da5a5b56e44f..5f2cb17b3a8ab76197d8ed12e6c9e885b6ee160d 100644
+--- a/decomp/src/Game/System/HeapMemoryWatcher.cpp
++++ b/decomp/src/Game/System/HeapMemoryWatcher.cpp
+@@ -4,6 +4,9 @@
+ #include <JSystem/JKernel/JKRSolidHeap.hpp>
+ #include <revolution/os.h>
+ #include <revolution/wpad.h>
++#include "port/port.h"
++#include <unwind.h>
++#include <dlfcn.h>
+ 
+ JKRExpHeap* HeapMemoryWatcher::sRootHeapGDDR3;
+ 
+@@ -169,7 +172,18 @@ HeapMemoryWatcher::HeapMemoryWatcher()
+     createHeaps();
+ }
+ 
+-void HeapMemoryWatcher::memoryErrorCallback(void*, u32, int) {
++void HeapMemoryWatcher::memoryErrorCallback(void* heap, u32 bytes, int alignment) {
++    port_log("heapfailure: heap=%p requested=%u align=%d",heap,bytes,alignment);
++    struct Trace { unsigned count; } trace{};
++    _Unwind_Backtrace([](_Unwind_Context* context,void* opaque) {
++        auto* trace=static_cast<Trace*>(opaque);
++        uintptr_t pc=_Unwind_GetIP(context);
++        Dl_info info{};dladdr(reinterpret_cast<void*>(pc),&info);
++        port_log("heapfailure: frame %u pc=%llx offset=%llx module=%s",trace->count++,
++                 static_cast<unsigned long long>(pc),static_cast<unsigned long long>(pc-reinterpret_cast<uintptr_t>(info.dli_fbase)),
++                 info.dli_fname?info.dli_fname:"?");
++        return trace->count>=32?_URC_END_OF_STACK:_URC_NO_REASON;
++    },&trace);
+     OSPanic(__FILE__, 537, "");
+ }
+ 
+diff --git a/decomp/src/Game/System/SaveDataHandleSequence.cpp b/decomp/src/Game/System/SaveDataHandleSequence.cpp
+index 03802bd2ec8e232d9e0143dac084b32dc4b483f9..b2917ee10b632bc38b2ccfc7e4d0f76a3461eacc 100644
+--- a/decomp/src/Game/System/SaveDataHandleSequence.cpp
++++ b/decomp/src/Game/System/SaveDataHandleSequence.cpp
+@@ -149,10 +149,11 @@ void SaveDataHandleSequence::startSaveTotalMailSize() {
+ 
+ extern "C" void port_save_notify_started(void);
+ extern "C" void port_save_notify_completed(int success);
++extern "C" void port_reject_quick_save(void);
+ 
+ void SaveDataHandleSequence::startQuickSaveAnywhere() {
+     if (mCurrentUserFile == nullptr) {
+-        port_save_notify_completed(0);
++        port_reject_quick_save();
+         return;
+     }
+     port_save_notify_started();
 diff --git a/decomp/src/Game/Util/SceneUtil.cpp b/decomp/src/Game/Util/SceneUtil.cpp
-index 33ad591..036602c 100644
+index 33ad591ebf7b5519e53e112de1bb49f841ce23bd..036602c40f1e0bb6efea74827ef313186b71609c 100644
 --- a/decomp/src/Game/Util/SceneUtil.cpp
 +++ b/decomp/src/Game/Util/SceneUtil.cpp
 @@ -1,3 +1,4 @@
@@ -760,7 +1040,7 @@ index 33ad591..036602c 100644
              return scenarioNo;
          }
 diff --git a/decomp/src/Game/Util/SequenceUtil.cpp b/decomp/src/Game/Util/SequenceUtil.cpp
-index 01ca818..fcb2eaa 100644
+index 01ca8189f5a86bea649ffb5ccf4881c4cbe95a5e..fcb2eaac8b706bb16bb9b4fb611c85f273648852 100644
 --- a/decomp/src/Game/Util/SequenceUtil.cpp
 +++ b/decomp/src/Game/Util/SequenceUtil.cpp
 @@ -1,7 +1,9 @@
@@ -782,7 +1062,7 @@ index 01ca818..fcb2eaa 100644
  
      void requestChangeStageInGameMoving(const char* pStageName, s32 scenarioNo, const JMapIdInfo& rInfo) {
 diff --git a/decomp/src/Game/Util/StarPointerUtil.cpp b/decomp/src/Game/Util/StarPointerUtil.cpp
-index e2876d1..f7a21e2 100644
+index e2876d147220cbaadc0b1cda8151b53d9ffdb256..f7a21e2702a39630a88157453fb56cc1ff7488b5 100644
 --- a/decomp/src/Game/Util/StarPointerUtil.cpp
 +++ b/decomp/src/Game/Util/StarPointerUtil.cpp
 @@ -903,6 +903,51 @@ namespace MR {
@@ -838,7 +1118,7 @@ index e2876d1..f7a21e2 100644
          return ::getStarPointerOnOffController()->compareMode(StarPointerMode_BlueStarReady);
      }
 diff --git a/decomp/src/JSystem/J3DGraphBase/J3DShape.cpp b/decomp/src/JSystem/J3DGraphBase/J3DShape.cpp
-index edb695d..4252b9c 100644
+index edb695d8da042dc83023968458d0891b70ed85b2..4252b9cfed535692a52a1ba849cf84dc8b1c2516 100644
 --- a/decomp/src/JSystem/J3DGraphBase/J3DShape.cpp
 +++ b/decomp/src/JSystem/J3DGraphBase/J3DShape.cpp
 @@ -6,6 +6,7 @@
@@ -859,7 +1139,7 @@ index edb695d..4252b9c 100644
  
  void J3DShape::loadVtxArray() const {
 diff --git a/decomp/src/JSystem/JKernel/JKRHeap.cpp b/decomp/src/JSystem/JKernel/JKRHeap.cpp
-index 8746ae1..6f8cd58 100644
+index 8746ae1f32d589c4d223c085244b7b2aa8fd1228..6f8cd588e326e99cbf3ec84c5875e1e9ad19bbff 100644
 --- a/decomp/src/JSystem/JKernel/JKRHeap.cpp
 +++ b/decomp/src/JSystem/JKernel/JKRHeap.cpp
 @@ -16,7 +16,7 @@ void* JKRHeap::mUserRamEnd;
@@ -885,7 +1165,7 @@ index 8746ae1..6f8cd58 100644
          return port_host_alloc(size, align < 0 ? -align : align);
      }
 diff --git a/decomp/src/JSystem/JUtility/JUTException.cpp b/decomp/src/JSystem/JUtility/JUTException.cpp
-index 9a5aad0..6bda9ff 100644
+index 9a5aad05d4f31209d106dfd7412f9a33eea4c6f4..6bda9ff1feade87270606767af4422820d5d2f41 100644
 --- a/decomp/src/JSystem/JUtility/JUTException.cpp
 +++ b/decomp/src/JSystem/JUtility/JUTException.cpp
 @@ -234,7 +234,7 @@ bool JUTException::searchPartialModule(u32 address, u32* module_id, u32* section
@@ -925,7 +1205,7 @@ index 9a5aad0..6bda9ff 100644
          if (showMapInfo_subroutine(address, true) == false) {
              sConsole->print("  no information\n");
 diff --git a/decomp/src/RVL_SDK/aralt/aralt.c b/decomp/src/RVL_SDK/aralt/aralt.c
-index a88eda6..3f7cb8e 100644
+index a88eda6d326b5853b14748456fb1a6dd29df7d15..3f7cb8ec248a2055ed07275cda8a1c35daa458dc 100644
 --- a/decomp/src/RVL_SDK/aralt/aralt.c
 +++ b/decomp/src/RVL_SDK/aralt/aralt.c
 @@ -17,7 +17,7 @@ static u32 __ARQChunkSize;
@@ -938,7 +1218,7 @@ index a88eda6..3f7cb8e 100644
  void ARStartDMA(u32 type, u32 ram_addr, u32 aram_addr, u32 len) {
      OSDisableScheduler();
 diff --git a/decomp/src/RVL_SDK/gx/GXFifo.c b/decomp/src/RVL_SDK/gx/GXFifo.c
-index 22d1f58..3df4768 100644
+index 22d1f58c385c3d34f4cf78b16cfcc6b7ef4ad11c..3df47689914859046e32e1b9aa4092331ec145c9 100644
 --- a/decomp/src/RVL_SDK/gx/GXFifo.c
 +++ b/decomp/src/RVL_SDK/gx/GXFifo.c
 @@ -8,7 +8,7 @@
@@ -951,7 +1231,7 @@ index 22d1f58..3df4768 100644
  static __GXFifoObj CPUFifo;
  static __GXFifoObj GPFifo;
 diff --git a/installer-mobile/jni/py_bridge.cpp b/installer-mobile/jni/py_bridge.cpp
-index e9526da..5081764 100644
+index e9526dae096e321b0a9eaaa36ee911cce7a44da3..508176499d1e6c4053c1be2edb4a225d1698c61b 100644
 --- a/installer-mobile/jni/py_bridge.cpp
 +++ b/installer-mobile/jni/py_bridge.cpp
 @@ -158,15 +158,19 @@ Java_com_galaxy_installer_CookerEngine_runCooker(
@@ -1021,7 +1301,7 @@ index e9526da..5081764 100644
      env->ReleaseStringUTFChars(jPythonHome, pythonHome);
      env->ReleaseStringUTFChars(jScriptsDir, scriptsDir);
 diff --git a/installer-mobile/jni/wii_extractor.cpp b/installer-mobile/jni/wii_extractor.cpp
-index 82815b6..266a5a8 100644
+index 82815b694b7f564405051947c0e96cef554b885d..266a5a818a12bf61d1d122a943d6a55ca24f3cee 100644
 --- a/installer-mobile/jni/wii_extractor.cpp
 +++ b/installer-mobile/jni/wii_extractor.cpp
 @@ -61,6 +61,12 @@ bool extractWiiDisc(
@@ -1038,7 +1318,7 @@ index 82815b6..266a5a8 100644
      uint64_t dolOffset = (uint64_t)read_be32_val(bootBin + 0x420) << 2;
      uint64_t fstOffset = (uint64_t)read_be32_val(bootBin + 0x424) << 2;
 diff --git a/platform/android/launcher.c b/platform/android/launcher.c
-index e9b1387..1ab7b42 100644
+index e9b138777224eec82e6ba11d01999279303492e8..1ab7b422485f74aac4b6159e6d3cecdb1604cf04 100644
 --- a/platform/android/launcher.c
 +++ b/platform/android/launcher.c
 @@ -1,15 +1,15 @@
@@ -1158,7 +1438,7 @@ index e9b1387..1ab7b42 100644
      // libgame.so lives next to us, unless a developer build was pushed to the
      // app's private files directory (must be read-only for dlopen on Android 14).
 diff --git a/platform/android/reserve.c b/platform/android/reserve.c
-index f3114af..d0891fb 100644
+index f3114af664f5337145fe43361e9aea73fd2a8e50..d0891fb28ee8b6f25c61a57f01e2aa3012ed2338 100644
 --- a/platform/android/reserve.c
 +++ b/platform/android/reserve.c
 @@ -54,9 +54,9 @@ __attribute__((constructor)) static void reserveGameWindow(void) {
@@ -1175,7 +1455,7 @@ index f3114af..d0891fb 100644
  
      for (size_t i = 0; i < sizeof(candidates) / sizeof(candidates[0]); i++) {
 diff --git a/platform/include/port/compat.h b/platform/include/port/compat.h
-index 72f4b16..a8cc366 100644
+index 72f4b16208b55ffe846c575d52291aef17752932..a8cc3660f1e9cd44bab09262ec3d6361adb9f74f 100644
 --- a/platform/include/port/compat.h
 +++ b/platform/include/port/compat.h
 @@ -79,6 +79,7 @@ void port_input_use_tilt(float neutralPitchDeg);
@@ -1187,10 +1467,20 @@ index 72f4b16..a8cc366 100644
  // Word 25 of the camera record: presentation hints.
  #define PORT_GX_CAMERA_DIORAMA 1     // gameplay: show the scene as a VR diorama
 diff --git a/platform/include/port/input.h b/platform/include/port/input.h
-index 9e6cc6b..1a26f6e 100644
+index 9e6cc6b76bc38d9edf0173ff956c5c848ca34375..3e98e4c658cd03660e85a9b6edca6b9de7eb748f 100644
 --- a/platform/include/port/input.h
 +++ b/platform/include/port/input.h
-@@ -36,6 +36,13 @@ void port_input_get_right_stick(int chan, float* x, float* y);
+@@ -30,12 +30,23 @@ typedef struct PortPadState {
+ // Called by the input layer (any thread).
+ void port_input_set(int chan, const PortPadState* state);
+ 
++// Button-generated shake: consumed by guest KPAD reads, not render-loop ticks.
++// Refreshes at most six samples; zero cancels pending samples on focus/menu reset.
++void port_input_spin(int chan, int samples);
++
+ // Query right analog stick deflection (-1..1).
+ void port_input_get_right_stick(int chan, float* x, float* y);
+ 
  // Rumble requested by the game (0/1) for a channel; read by the input layer.
  int port_input_rumble(int chan);
  
@@ -1205,7 +1495,7 @@ index 9e6cc6b..1a26f6e 100644
  }
  #endif
 diff --git a/platform/include/port/port.h b/platform/include/port/port.h
-index 3671e01..a43fdf4 100644
+index 3671e0111449130b9fcf642ef45810a28af6e1f2..1d66bd5ce805058bdd0f63e299b163e33ed0ba50 100644
 --- a/platform/include/port/port.h
 +++ b/platform/include/port/port.h
 @@ -25,17 +25,17 @@ int port_get_recent_logs(char* out, int maxBytes);
@@ -1233,8 +1523,21 @@ index 3671e01..a43fdf4 100644
  
  int port_mem_init(void);
  // The disc's ID (game code + maker, 6 characters), which the console's
+@@ -164,6 +164,12 @@ void port_set_game_speed(float speed);
+ float port_get_game_speed(void);
+ void port_trigger_quick_save(void);
+ int port_check_quick_save_request(void);
++enum PortQuickSaveStatus {
++    PORT_QUICK_SAVE_IDLE, PORT_QUICK_SAVE_REQUESTED, PORT_QUICK_SAVE_WRITING,
++    PORT_QUICK_SAVE_SUCCEEDED, PORT_QUICK_SAVE_FAILED, PORT_QUICK_SAVE_REJECTED
++};
++int port_get_quick_save_status(void);
++void port_reject_quick_save(void);
+ void port_save_notify_started(void);
+ void port_save_notify_completed(int success);
+ int port_is_save_in_progress(void);
 diff --git a/platform/mobile/core/GameBooter.cpp b/platform/mobile/core/GameBooter.cpp
-index 5ed0c97..6af3801 100644
+index 5ed0c97b97428dcc427204ac15387f1e4ed36182..6af3801160b7dd08ff1117866d2512497e79a4d4 100644
 --- a/platform/mobile/core/GameBooter.cpp
 +++ b/platform/mobile/core/GameBooter.cpp
 @@ -1,3 +1,4 @@
@@ -1252,7 +1555,7 @@ index 5ed0c97..6af3801 100644
              if (dataRoot.empty() && missingCount >= 2) {
                  mobile_system::SystemManager::returnToLauncher(app);
 diff --git a/platform/mobile/core/MobileApp.cpp b/platform/mobile/core/MobileApp.cpp
-index b00cf4a..70e4230 100644
+index b00cf4ac3044eab50f3cd251987712500dbadd8a..eed6412a0a84439d3f0bba73d512132facab687e 100644
 --- a/platform/mobile/core/MobileApp.cpp
 +++ b/platform/mobile/core/MobileApp.cpp
 @@ -1,6 +1,9 @@
@@ -1274,7 +1577,7 @@ index b00cf4a..70e4230 100644
  #include "../ui/UIOverlay.h"
  #include "port/port.h"
  
-@@ -76,8 +81,11 @@ void MobileApp::handleAppCmd(int32_t cmd) {
+@@ -76,15 +81,20 @@ void MobileApp::handleAppCmd(int32_t cmd) {
          break;
      case APP_CMD_RESUME:
          LOGI("APP_CMD_RESUME");
@@ -1288,7 +1591,16 @@ index b00cf4a..70e4230 100644
          break;
      case APP_CMD_PAUSE:
          LOGI("APP_CMD_PAUSE");
-@@ -130,6 +138,16 @@ int32_t MobileApp::handleInputEvent(AInputEvent* event) {
++        mobile_thor::resetTouchPointer();
+         if (mVkReady) gpu::VkRenderer::get().savePipelineCache();
+         mobile_ui::UIOverlay::get().resetInput();
+         mGamepad.reset();
+         mSpinFrames = 0;
++        port_input_spin(0, 0);
+         mTouchscreenDown = false;
+         mPad.buttons = mobile_ui::UIOverlay::get().getTouchButtons();
+         port_input_set(0, &mPad);
+@@ -130,6 +140,16 @@ int32_t MobileApp::handleInputEvent(AInputEvent* event) {
              return 1;
          }
      } else if (eventType == AINPUT_EVENT_TYPE_KEY) {
@@ -1305,7 +1617,7 @@ index b00cf4a..70e4230 100644
          if (mGamepad.handleKeyEvent(event, mPad, mSpinFrames)) {
              updateInputState();
              return 1;
-@@ -138,6 +156,44 @@ int32_t MobileApp::handleInputEvent(AInputEvent* event) {
+@@ -138,6 +158,46 @@ int32_t MobileApp::handleInputEvent(AInputEvent* event) {
      return 0;
  }
  
@@ -1321,8 +1633,10 @@ index b00cf4a..70e4230 100644
 +        }
 +        const bool open = request.kind == mobile_thor::THOR_MENU_OPEN;
 +        if (open == mobile_thor::settingsMenuOpen()) continue;
++        mobile_thor::resetTouchPointer();
 +        mGamepad.reset();
 +        mSpinFrames = 0;
++        port_input_spin(0, 0);
 +        mPad.buttons = 0;
 +        mPad.stickX = mPad.stickY = 0.0f;
 +        mPad.rightStickX = mPad.rightStickY = 0.0f;
@@ -1350,7 +1664,7 @@ index b00cf4a..70e4230 100644
  void MobileApp::updateInputState() {
      if (mobile_ui::UIOverlay::get().isStickActive()) {
          mPad.stickX = mobile_ui::UIOverlay::get().getTouchStickX();
-@@ -171,16 +227,19 @@ void MobileApp::run(android_app* app, uintptr_t windowBase, size_t windowSize) {
+@@ -171,16 +231,19 @@ void MobileApp::run(android_app* app, uintptr_t windowBase, size_t windowSize) {
  
      mobile_input::Sensors::get().init(app);
      port_mem_set_reserved_window(windowBase, windowSize);
@@ -1372,7 +1686,7 @@ index b00cf4a..70e4230 100644
      mSaveRoot = internalPath + "/nand";
      mkdir(mSaveRoot.c_str(), 0770);
      mobile_ui::UIOverlay::get().setSavePath(mSaveRoot + (isPlus ? "/touch_settings_plus.ini" : "/touch_settings.ini"));
-@@ -189,7 +248,7 @@ void MobileApp::run(android_app* app, uintptr_t windowBase, size_t windowSize) {
+@@ -189,7 +252,7 @@ void MobileApp::run(android_app* app, uintptr_t windowBase, size_t windowSize) {
      if (mobile_ui::UIOverlay::get().settings().batterySaver) initialFps = 30;
      mobile_system::SystemManager::setPreferredRefreshRate(app, (float)initialFps);
  
@@ -1381,7 +1695,7 @@ index b00cf4a..70e4230 100644
      FILE* tst = fopen(primaryLog.c_str(), "a");
      if (tst) {
          fclose(tst);
-@@ -206,6 +265,7 @@ void MobileApp::run(android_app* app, uintptr_t windowBase, size_t windowSize) {
+@@ -206,6 +269,7 @@ void MobileApp::run(android_app* app, uintptr_t windowBase, size_t windowSize) {
      }
  
      bool running = true;
@@ -1389,7 +1703,7 @@ index b00cf4a..70e4230 100644
      while (running && !app->destroyRequested) {
          int events;
          android_poll_source* source = nullptr;
-@@ -225,14 +285,19 @@ void MobileApp::run(android_app* app, uintptr_t windowBase, size_t windowSize) {
+@@ -225,23 +289,42 @@ void MobileApp::run(android_app* app, uintptr_t windowBase, size_t windowSize) {
              timeout = 0;
          }
  
@@ -1404,14 +1718,44 @@ index b00cf4a..70e4230 100644
          mobile_core::GameBooter::pollAndBoot(mGameBooted, mDataRoot, mSaveRoot, ext, mAndroid);
  
          mobile_ui::UIOverlay::get().update(mPad, mSpinFrames);
++        float lowerX = mobile_ui::UIOverlay::get().getPointerX();
++        float lowerY = mobile_ui::UIOverlay::get().getPointerY();
++        const bool trackpadTouch = mobile_thor::applyTouchTrackpad(lowerX, lowerY);
++        const bool lowerTouch = trackpadTouch || mobile_thor::readTouchPointer(lowerX, lowerY);
++        if (lowerTouch) {
++            mobile_ui::UIOverlay::get().setPointerPos(lowerX, lowerY);
++            mPad.pointerX = lowerX;
++            mPad.pointerY = lowerY;
++            mPad.pointerDist = 2.f;
++            mPad.pointerValid = 1;
++        } else if (mLowerTouchWasDown && !mTouchscreenDown) {
++            mobile_ui::UIOverlay::get().releasePointer();
++            mPad.pointerValid = 0;
++        }
++        mLowerTouchWasDown = lowerTouch;
 +        const int64_t inputTime = port_host_time_ns();
-+        mGamepad.updatePointer(mPad, (float)(inputTime - previousInputTime) * 1e-9f, mTouchscreenDown);
++        mGamepad.updatePointer(mPad, (float)(inputTime - previousInputTime) * 1e-9f, mTouchscreenDown || lowerTouch);
 +        previousInputTime = inputTime;
          if (mSpinFrames > 0) {
-             float s = (mSpinFrames & 1) ? 2.5f : -2.5f;
-             mPad.accX = s;
+-            float s = (mSpinFrames & 1) ? 2.5f : -2.5f;
+-            mPad.accX = s;
+-            mPad.accY = s;
+-            mSpinFrames--;
+-        } else {
+-            mPad.accX = 0.0f;
+-            mPad.accY = 0.0f;
++            // A render-loop tick can take only 1 ms when no new game frame is ready.
++            // Let KPADRead deliver every shake sample at the game's input cadence.
++            port_input_spin(0, mSpinFrames);
++            mSpinFrames = 0;
+         }
++        mPad.accX = 0.0f;
++        mPad.accY = 0.0f;
+         updateInputState();
+ 
+         if (mobile_ui::UIOverlay::get().settings().haptics) {
 diff --git a/platform/mobile/core/MobileApp.h b/platform/mobile/core/MobileApp.h
-index a9cfd86..68830bc 100644
+index a9cfd8624a572e6a71ddd4d2fe961a4466a08912..31f9b91a0ad7e090b8dfdcdd74026296982802f4 100644
 --- a/platform/mobile/core/MobileApp.h
 +++ b/platform/mobile/core/MobileApp.h
 @@ -34,6 +34,7 @@ private:
@@ -1422,8 +1766,16 @@ index a9cfd86..68830bc 100644
  
      android_app* mAndroid = nullptr;
      gpu::VkTarget mVkTarget{};
+@@ -47,6 +48,7 @@ private:
+     PortPadState mPad{};
+     int mSpinFrames = 0;
+     bool mTouchscreenDown = false;
++    bool mLowerTouchWasDown = false;
+ 
+     std::string mDataRoot;
+     std::string mSaveRoot;
 diff --git a/platform/mobile/display/FramePacer.cpp b/platform/mobile/display/FramePacer.cpp
-index 9c1b4a2..4026cf2 100644
+index 9c1b4a21c251452444484a6ab7d8145e997ffaa3..4026cf21a9ac0da2c0642df7e5aa669cc3881db9 100644
 --- a/platform/mobile/display/FramePacer.cpp
 +++ b/platform/mobile/display/FramePacer.cpp
 @@ -50,7 +50,11 @@ void FramePacer::sync(android_app* app, int targetFps, float gameSpeed) {
@@ -1439,7 +1791,7 @@ index 9c1b4a2..4026cf2 100644
              }
          }
 diff --git a/platform/mobile/input/GamepadInput.cpp b/platform/mobile/input/GamepadInput.cpp
-index 09fd18d..b672f77 100644
+index 09fd18d315ae23c5b726d0f493e9f7f7144a2254..fde91c77b86f9cc74bbff000e98eda7911e0d19d 100644
 --- a/platform/mobile/input/GamepadInput.cpp
 +++ b/platform/mobile/input/GamepadInput.cpp
 @@ -1,6 +1,7 @@
@@ -1466,7 +1818,7 @@ index 09fd18d..b672f77 100644
      }
  
      // D-Pad Hat axes
-@@ -56,10 +61,10 @@ bool GamepadInput::handleMotionEvent(AInputEvent* event, PortPadState& pad, int&
+@@ -56,12 +61,12 @@ bool GamepadInput::handleMotionEvent(AInputEvent* event, PortPadState& pad, int&
      float rawGas = std::max(0.0f, AMotionEvent_getAxisValue(event, AMOTION_EVENT_AXIS_GAS, 0));
      float rTrig = std::max(rawR, rawGas);
  
@@ -1478,10 +1830,28 @@ index 09fd18d..b672f77 100644
 -    if (rTrig > 0.4f) spinFrames = 6; // Spin shake
 +    if ((rTrig > 0.4f) != mHeld[BTN_R2]) press(BTN_R2, rTrig > 0.4f, pad, spinFrames);
  
-     // Right Stick (Orbital camera & Star Pointer)
+-    // Right Stick (Orbital camera & Star Pointer)
++    // Right stick (native camera turns or Star Pointer).
      float rightX = AMotionEvent_getAxisValue(event, AMOTION_EVENT_AXIS_Z, 0);
-@@ -83,13 +88,8 @@ bool GamepadInput::handleMotionEvent(AInputEvent* event, PortPadState& pad, int&
+     float rightY = AMotionEvent_getAxisValue(event, AMOTION_EVENT_AXIS_RZ, 0);
+     if (fabsf(rightX) <= 0.05f && fabsf(rightY) <= 0.05f) {
+@@ -76,20 +81,20 @@ bool GamepadInput::handleMotionEvent(AInputEvent* event, PortPadState& pad, int&
+         rStickX = (rightX / mag) * scale;
+         rStickY = (-rightY / mag) * scale;
+     }
+-    float starSens = mobile_ui::UIOverlay::get().settings().starStickSensitivity;
+     if (mobile_ui::UIOverlay::get().settings().rightStickMode == 0) {
+-        pad.rightStickX = std::max(-1.0f, std::min(1.0f, -rStickX * starSens));
+-        pad.rightStickY = std::max(-1.0f, std::min(1.0f, rStickY * starSens));
++        // Keep the physical axes until the next event; virtual-touch decay must not re-arm
++        // a held camera nudge between Android motion events. Sensitivity remains for pointing.
++        mCameraStickX = -rStickX;
++        mCameraStickY = rStickY;
++        mPointerStickX = mPointerStickY = 0.0f;
++        pad.rightStickX = mCameraStickX;
++        pad.rightStickY = mCameraStickY;
      } else {
++        mCameraStickX = mCameraStickY = 0.0f;
          pad.rightStickX = 0.0f;
          pad.rightStickY = 0.0f;
 -        if ((fabsf(rStickX) > 0.01f || fabsf(rStickY) > 0.01f) && !touchscreenDown) {
@@ -1496,7 +1866,7 @@ index 09fd18d..b672f77 100644
      }
  
      pad.connected = 1;
-@@ -109,95 +109,36 @@ bool GamepadInput::handleKeyEvent(AInputEvent* event, PortPadState& pad, int& sp
+@@ -109,95 +114,36 @@ bool GamepadInput::handleKeyEvent(AInputEvent* event, PortPadState& pad, int& sp
  
      int32_t keyAction = AKeyEvent_getAction(event);
      bool down = (keyAction == AKEY_EVENT_ACTION_DOWN);
@@ -1619,7 +1989,7 @@ index 09fd18d..b672f77 100644
      case AKEYCODE_DPAD_UP:
          pad.connected = 1;
          if (down) mPhysicalButtons |= 0x0008;
-@@ -237,9 +178,107 @@ bool GamepadInput::handleKeyEvent(AInputEvent* event, PortPadState& pad, int& sp
+@@ -237,9 +183,112 @@ bool GamepadInput::handleKeyEvent(AInputEvent* event, PortPadState& pad, int& sp
      return true;
  }
  
@@ -1674,6 +2044,7 @@ index 09fd18d..b672f77 100644
      mPhysicalAxisButtons = 0;
 +    mPhysicalStickX = mPhysicalStickY = 0.0f;
 +    mPointerStickX = mPointerStickY = 0.0f;
++    mCameraStickX = mCameraStickY = 0.0f;
 +    mMenuStickX = mMenuStickY = 0.0f;
 +    mStickLatched = false;
 +}
@@ -1686,6 +2057,10 @@ index 09fd18d..b672f77 100644
 +    // pages by stick does not also turn while the cursor moves.
 +    const bool menu = mGamepadDetected && port_input_menu_pointer() != 0;
 +    const bool rightPointer = settings.rightStickMode == 1;
++    if (mGamepadDetected) {
++        pad.rightStickX = !rightPointer && !menu ? mCameraStickX : 0.0f;
++        pad.rightStickY = !rightPointer && !menu ? mCameraStickY : 0.0f;
++    }
 +    if (menu != mMenuPointer) {
 +        __android_log_print(ANDROID_LOG_INFO, "GalaxyInput", "menu pointer %s", menu ? "on" : "off");
 +        if (menu) {
@@ -1704,7 +2079,7 @@ index 09fd18d..b672f77 100644
 +        mMenuPointer = menu;
 +    }
 +    if (!mGamepadDetected || (!rightPointer && !menu) || touchscreenDown) return;
-+    if (menu) {
++    if (menu || rightPointer) {
 +        // Carry on from the shared pointer, so where a touch left it is kept.
 +        mPointerX = overlay.getPointerX();
 +        mPointerY = overlay.getPointerY();
@@ -1728,7 +2103,7 @@ index 09fd18d..b672f77 100644
  
  }  // namespace mobile_input
 diff --git a/platform/mobile/input/GamepadInput.h b/platform/mobile/input/GamepadInput.h
-index fd88e4f..69d67c2 100644
+index fd88e4f5ed0bb5d882067eb15fd9c596a701c00e..9eb2cf0078877c73597d52a6a5bda50f27532a1e 100644
 --- a/platform/mobile/input/GamepadInput.h
 +++ b/platform/mobile/input/GamepadInput.h
 @@ -6,6 +6,18 @@
@@ -1750,7 +2125,7 @@ index fd88e4f..69d67c2 100644
  class GamepadInput {
  public:
      GamepadInput() = default;
-@@ -18,23 +30,38 @@ public:
+@@ -18,23 +30,39 @@ public:
  
      // Resets held buttons on pause
      void reset();
@@ -1786,6 +2161,7 @@ index fd88e4f..69d67c2 100644
      float mPhysicalStickX = 0.0f;
      float mPhysicalStickY = 0.0f;
 +    float mPointerStickX = 0.0f, mPointerStickY = 0.0f;
++    float mCameraStickX = 0.0f, mCameraStickY = 0.0f;
 +    float mMenuStickX = 0.0f, mMenuStickY = 0.0f;  // left stick, for the pointer in menus
 +    float mPointerX = 0.0f, mPointerY = 0.0f;
 +    bool mMenuPointer = false;  // the left stick is steering the pointer
@@ -1794,7 +2170,7 @@ index fd88e4f..69d67c2 100644
  
  }  // namespace mobile_input
 diff --git a/platform/mobile/mobile_app.cpp b/platform/mobile/mobile_app.cpp
-index 630b9bb..178e280 100644
+index 630b9bb5f7203c479d78ff783775638de13a014d..178e28025d0e92f4f5bbbccb4d0e1a638af08250 100644
 --- a/platform/mobile/mobile_app.cpp
 +++ b/platform/mobile/mobile_app.cpp
 @@ -1,3 +1,5 @@
@@ -1813,7 +2189,7 @@ index 630b9bb..178e280 100644
  }
  
 diff --git a/platform/mobile/render/VulkanLifecycle.cpp b/platform/mobile/render/VulkanLifecycle.cpp
-index 5c8c8fe..0722716 100644
+index 5c8c8fe08fe48fe6f2c7622043d55c352111b7a2..0722716dbe496f3b0d596e63ef49c55e4fa49cff 100644
 --- a/platform/mobile/render/VulkanLifecycle.cpp
 +++ b/platform/mobile/render/VulkanLifecycle.cpp
 @@ -1,3 +1,4 @@
@@ -1831,7 +2207,7 @@ index 5c8c8fe..0722716 100644
      gpu::ShaderInventory::get().compileAllSpirv(4);
  }
 diff --git a/platform/mobile/system/StorageManager.cpp b/platform/mobile/system/StorageManager.cpp
-index d6a5da9..80d7a25 100644
+index d6a5da9ad79e77a025e848adc4a0a49f0ea34581..80d7a25a13513fc8e57d9bc708296a2d44801bf4 100644
 --- a/platform/mobile/system/StorageManager.cpp
 +++ b/platform/mobile/system/StorageManager.cpp
 @@ -40,78 +40,10 @@ bool StorageManager::checkGameFolder(const std::string& dir, bool* ready) {
@@ -1918,7 +2294,7 @@ index d6a5da9..80d7a25 100644
  
  void StorageManager::promptStoragePermissionIfMissing(ANativeActivity* activity) {
 diff --git a/platform/mobile/system/SystemManager.cpp b/platform/mobile/system/SystemManager.cpp
-index 675b9a0..bc9b747 100644
+index 675b9a00d6cd60285f530a4b9663abf92793a6bf..bc9b747d0ad6226a20be262e20090a47dcac6fc8 100644
 --- a/platform/mobile/system/SystemManager.cpp
 +++ b/platform/mobile/system/SystemManager.cpp
 @@ -1,3 +1,4 @@
@@ -1970,7 +2346,7 @@ index 675b9a0..bc9b747 100644
          time_t t = time(nullptr);
          char* ct = ctime(&t);
 diff --git a/platform/mobile/ui/OverlayRenderer.cpp b/platform/mobile/ui/OverlayRenderer.cpp
-index 15a5f46..98a956c 100644
+index 15a5f4699a69bcc5466b294f9b79305aea11cb79..98a956c8cb2a3a57c309484d0120e067c01d9085 100644
 --- a/platform/mobile/ui/OverlayRenderer.cpp
 +++ b/platform/mobile/ui/OverlayRenderer.cpp
 @@ -54,8 +54,9 @@ void OverlayRenderer::generateVertices(int screenW, int screenH,
@@ -1986,15 +2362,108 @@ index 15a5f46..98a956c 100644
          float tabH = 44.0f * uiScale;
          float tabY = 20.0f * uiScale;
 diff --git a/platform/mobile/ui/SaveManager.cpp b/platform/mobile/ui/SaveManager.cpp
-index 273f6d7..fe1abe4 100644
+index 273f6d761a78fa208283bfc46aaa91e67ec0fae1..d0f331729b078b9184f204aa8394c523abfd4da5 100644
 --- a/platform/mobile/ui/SaveManager.cpp
 +++ b/platform/mobile/ui/SaveManager.cpp
-@@ -1,3 +1,4 @@
+@@ -1,8 +1,11 @@
 +#include "port/profile.h"
++#include "port/port.h"
  #include "SaveManager.h"
  #include "SaveSyncManager.h"
  
-@@ -157,7 +158,7 @@ std::string SaveManager::triggerLoadSlot(int slot, bool haptics) {
+ #include <android/log.h>
+ #include <dirent.h>
++#include <errno.h>
+ #include <stdio.h>
+ #include <string.h>
+ #include <sys/stat.h>
+@@ -16,6 +19,7 @@ extern "C" void port_trigger_quick_save(void);
+ extern "C" void port_trigger_quick_load(int slot);
+ extern "C" uint64_t port_get_save_generation(void);
+ extern "C" int port_is_save_in_progress(void);
++extern "C" int64_t port_host_time_ns(void);
+ extern "C" void port_android_vibrate(int ms);
+ 
+ namespace mobile_ui {
+@@ -47,11 +51,11 @@ bool SaveManager::copyFileVerified(const std::string& src, const std::string& ds
+         }
+         total += n;
+     }
+-    fflush(out);
++    if (ferror(in) || fflush(out) != 0) writeErr = true;
+     int fd = fileno(out);
+-    if (fd >= 0) fsync(fd);
+-    fclose(out);
+-    fclose(in);
++    if (fd < 0 || fsync(fd) != 0) writeErr = true;
++    if (fclose(out) != 0) writeErr = true;
++    if (fclose(in) != 0) writeErr = true;
+ 
+     if (writeErr || total != (size_t)st.st_size) {
+         unlink(tmpDst.c_str());
+@@ -66,12 +70,18 @@ bool SaveManager::copyFileVerified(const std::string& src, const std::string& ds
+ }
+ 
+ bool SaveManager::copyDirVerified(const std::string& src, const std::string& dst) {
+-    mkdir(dst.c_str(), 0770);
++    if (mkdir(dst.c_str(), 0770) != 0 && errno != EEXIST) return false;
+     DIR* dir = opendir(src.c_str());
+     if (!dir) return false;
+     struct dirent* entry;
+     bool success = true;
+-    while ((entry = readdir(dir)) != nullptr) {
++    for (;;) {
++        errno = 0;
++        entry = readdir(dir);
++        if (entry == nullptr) {
++            if (errno != 0) success = false;
++            break;
++        }
+         if (!strcmp(entry->d_name, ".") || !strcmp(entry->d_name, "..")) continue;
+         if (strstr(entry->d_name, ".tmp") || strstr(entry->d_name, "_rollback") || strstr(entry->d_name, "_staging")) continue;
+ 
+@@ -90,9 +100,12 @@ bool SaveManager::copyDirVerified(const std::string& src, const std::string& dst
+                     break;
+                 }
+             }
++        } else {
++            success = false;
++            break;
+         }
+     }
+-    closedir(dir);
++    if (closedir(dir) != 0) success = false;
+     return success;
+ }
+ 
+@@ -127,20 +140,20 @@ bool SaveManager::validateSaveDir(const std::string& dir) {
+ }
+ 
+ std::string SaveManager::triggerSaveAnywhere(bool haptics) {
+-    port_trigger_quick_save();
++    if (mPendingSaveSlot >= 0) return "A save is already pending.";
+     mPendingSaveSlot = 0;
+-    mPendingSaveStartGen = port_get_save_generation();
+-    mPendingSaveWaitFrames = 0;
++    mPendingSaveStartNs = port_host_time_ns();
++    port_trigger_quick_save();
+     if (haptics) port_android_vibrate(50);
+     LOGI("Save anywhere requested; waiting for game sequence to commit");
+     return "Saving game progress anywhere...";
+ }
+ 
+ std::string SaveManager::triggerSaveSlot(int slot, bool haptics) {
+-    port_trigger_quick_save();
++    if (mPendingSaveSlot >= 0) return "A save is already pending.";
+     mPendingSaveSlot = slot;
+-    mPendingSaveStartGen = port_get_save_generation();
+-    mPendingSaveWaitFrames = 0;
++    mPendingSaveStartNs = port_host_time_ns();
++    port_trigger_quick_save();
+     if (haptics) port_android_vibrate(50);
+     LOGI("Save to slot %d requested; waiting for game sequence to commit", slot);
+     char msg[64];
+@@ -157,7 +170,7 @@ std::string SaveManager::triggerLoadSlot(int slot, bool haptics) {
      std::string slotDir = nandDir + slotSuffix;
  
      if (!validateSaveDir(slotDir)) {
@@ -2003,8 +2472,45 @@ index 273f6d7..fe1abe4 100644
          if (validateSaveDir(pubSlot)) {
              slotDir = pubSlot;
          } else {
-@@ -201,11 +202,11 @@ bool SaveManager::update(std::string& outToastMsg) {
-     if (lastSlash == std::string::npos) return false;
+@@ -187,43 +200,84 @@ std::string SaveManager::triggerLoadSlot(int slot, bool haptics) {
+ bool SaveManager::update(std::string& outToastMsg) {
+     if (mPendingSaveSlot < 0) return false;
+ 
+-    mPendingSaveWaitFrames++;
+-    bool committed = (port_get_save_generation() > mPendingSaveStartGen) ||
+-                     (mPendingSaveWaitFrames > 6 && !port_is_save_in_progress());
+-
+-    if (!committed && mPendingSaveWaitFrames <= 120) return false;
++    // Track this Quick Save, not unrelated mail/system-only NAND writes.
++    const int status = port_get_quick_save_status();
++    if (status == PORT_QUICK_SAVE_FAILED || status == PORT_QUICK_SAVE_REJECTED) {
++        mPendingSaveSlot = -1;
++        outToastMsg = status == PORT_QUICK_SAVE_REJECTED
++            ? "Cannot save right now. Resume play and try again." : "Game save failed. Please try again.";
++        return true;
++    }
++    const bool committed = status == PORT_QUICK_SAVE_SUCCEEDED && !port_is_save_in_progress();
++    if (!committed) {
++        if (port_host_time_ns() - mPendingSaveStartNs < 15000000000LL) return false;
++        mPendingSaveSlot = -1;
++        outToastMsg = "Save not confirmed. Resume play and try again.";
++        return true;
++    }
+ 
+     int slot = mPendingSaveSlot;
+     mPendingSaveSlot = -1;
+ 
+-    if (mSavePath.empty()) return false;
++    if (mSavePath.empty()) {
++        outToastMsg = "Game saved; backup path is unavailable.";
++        return true;
++    }
+     size_t lastSlash = mSavePath.find_last_of('/');
+-    if (lastSlash == std::string::npos) return false;
++    if (lastSlash == std::string::npos) {
++        outToastMsg = "Game saved; backup path is invalid.";
++        return true;
++    }
  
      std::string nandDir = mSavePath.substr(0, lastSlash);
 -    mkdir("/sdcard/GalaxyData", 0775);
@@ -2014,24 +2520,78 @@ index 273f6d7..fe1abe4 100644
  
      if (slot == 0) {
 -        copyDirVerified(nandDir, "/sdcard/GalaxyData/saves/current");
-+        copyDirVerified(nandDir, port_profile_data_path("/saves/current").c_str());
-         outToastMsg = "Progress Saved Anywhere! (Verified)";
+-        outToastMsg = "Progress Saved Anywhere! (Verified)";
++        const std::string backupDir = port_profile_data_path("/saves/current");
++        if (validateSaveDir(nandDir) && copyDirVerified(nandDir, backupDir) && validateSaveDir(backupDir)) {
++            outToastMsg = "Game progress saved.";
++        } else {
++            outToastMsg = "Game saved; backup copy failed.";
++        }
          return true;
      } else {
-@@ -218,9 +219,9 @@ bool SaveManager::update(std::string& outToastMsg) {
-             rename(slotDir.c_str(), slotOld.c_str());
-             rename(slotStaging.c_str(), slotDir.c_str());
+         std::string slotSuffix = (slot == 4) ? "_quick" : ("_slot" + std::to_string(slot));
+         std::string slotDir = nandDir + slotSuffix;
+-        std::string slotStaging = slotDir + "_staging";
++        const std::string suffix = std::to_string(port_host_time_ns());
++        std::string slotStaging = slotDir + "_staging_" + suffix;
++        std::string slotOld = slotDir + "_old_" + suffix;
++        // Refuse an existing staging directory instead of merging stale files.
++        if (mkdir(slotStaging.c_str(), 0770) != 0) {
++            outToastMsg = "Game saved; snapshot staging failed.";
++            return true;
++        }
+ 
+         if (copyDirVerified(nandDir, slotStaging) && validateSaveDir(slotStaging)) {
+-            std::string slotOld = slotDir + "_old";
+-            rename(slotDir.c_str(), slotOld.c_str());
+-            rename(slotStaging.c_str(), slotDir.c_str());
++            struct stat st;
++            const bool hadPrevious = stat(slotDir.c_str(), &st) == 0;
++            if ((!hadPrevious && errno != ENOENT) ||
++                (hadPrevious && rename(slotDir.c_str(), slotOld.c_str()) != 0)) {
++                outToastMsg = "Game saved; previous snapshot could not be replaced.";
++                return true;
++            }
++            if (rename(slotStaging.c_str(), slotDir.c_str()) != 0) {
++                const bool restored = !hadPrevious || rename(slotOld.c_str(), slotDir.c_str()) == 0;
++                outToastMsg = restored ? "Snapshot replacement failed; previous snapshot kept."
++                                      : "Snapshot replacement failed; previous backup retained.";
++                LOGE("Snapshot replacement failed; rollback restored=%d, backup=%s", restored, slotOld.c_str());
++                return true;
++            }
  
 -            std::string pubSlot = "/sdcard/GalaxyData/saves/" + ((slot == 4) ? std::string("quick") : ("slot" + std::to_string(slot)));
-+            std::string pubSlot = port_profile_data_path("/saves/").c_str() + ((slot == 4) ? std::string("quick") : ("slot" + std::to_string(slot)));
-             copyDirVerified(slotDir, pubSlot);
+-            copyDirVerified(slotDir, pubSlot);
 -            copyDirVerified(slotDir, "/sdcard/GalaxyData/saves/current");
-+            copyDirVerified(slotDir, port_profile_data_path("/saves/current").c_str());
++            std::string pubSlot = port_profile_data_path("/saves/").c_str() + ((slot == 4) ? std::string("quick") : ("slot" + std::to_string(slot)));
++            if (!copyDirVerified(slotDir, pubSlot) ||
++                !copyDirVerified(slotDir, port_profile_data_path("/saves/current"))) {
++                outToastMsg = "Game and snapshot saved; shared backup copy failed.";
++                return true;
++            }
  
              char msg[96];
-             snprintf(msg, sizeof(msg), (slot == 4) ? "Quick Saved Anywhere! (Verified)" : "Saved to Slot %d! (Verified)", slot);
+-            snprintf(msg, sizeof(msg), (slot == 4) ? "Quick Saved Anywhere! (Verified)" : "Saved to Slot %d! (Verified)", slot);
++            snprintf(msg, sizeof(msg), (slot == 4) ? "Game progress and snapshot saved." : "Game progress saved to Slot %d.", slot);
+             outToastMsg = std::string(msg);
+             LOGI("NAND verified saved to slot %d: %s", slot, slotDir.c_str());
+             return true;
+diff --git a/platform/mobile/ui/SaveManager.h b/platform/mobile/ui/SaveManager.h
+index 9c6d40dc71ce333a6625cc93e3d78e81145b7def..fb0e0992ac90101904bd8bdd76f927ae05ba6b36 100644
+--- a/platform/mobile/ui/SaveManager.h
++++ b/platform/mobile/ui/SaveManager.h
+@@ -44,8 +44,7 @@ private:
+ 
+     // Transactional save state
+     int mPendingSaveSlot = -1;
+-    uint64_t mPendingSaveStartGen = 0;
+-    int mPendingSaveWaitFrames = 0;
++    int64_t mPendingSaveStartNs = 0;
+ };
+ 
+ }  // namespace mobile_ui
 diff --git a/platform/mobile/ui/SaveSyncManager.cpp b/platform/mobile/ui/SaveSyncManager.cpp
-index 3f09959..f21ddef 100644
+index 3f09959afffb7c1f5e4e1e6697839bef38b0793f..f21ddef2a228188e490582d021f13eca862af04c 100644
 --- a/platform/mobile/ui/SaveSyncManager.cpp
 +++ b/platform/mobile/ui/SaveSyncManager.cpp
 @@ -1,3 +1,4 @@
@@ -2118,7 +2678,7 @@ index 3f09959..f21ddef 100644
      if (!anySuccess) {
          outToastMsg = "Failed to write save data to storage!";
 diff --git a/platform/mobile/ui/Settings.cpp b/platform/mobile/ui/Settings.cpp
-index 82e324f..f5d4df6 100644
+index 82e324f4f7eefffab751705d404d182695a46431..2d205096098e394f9a85585f5621406cfb7b102e 100644
 --- a/platform/mobile/ui/Settings.cpp
 +++ b/platform/mobile/ui/Settings.cpp
 @@ -2,6 +2,7 @@
@@ -2133,7 +2693,7 @@ index 82e324f..f5d4df6 100644
              else if (!strcmp(key, "full_touch_mode")) fullTouchMode = (val > 0.5f);
              else if (!strcmp(key, "screen_orientation")) screenOrientationChoice = std::max(0, std::min(2, (int)val));
              else if (!strcmp(key, "speedrun_hud")) speedrunHud = (val > 0.5f);
-+            else if (!strcmp(key, "post_process")) postProcess = std::max(-1, std::min(1, (int)val));
++            else if (!strcmp(key, "post_process")) postProcess = std::max(-1, std::min(2, (int)val));
 +            else if (!strcmp(key, "camera_inverted")) cameraInverted = (val > 0.5f);
 +            else if (!strncmp(key, "button_map_", 11)) {
 +                const int i = atoi(key + 11);
@@ -2154,7 +2714,7 @@ index 82e324f..f5d4df6 100644
      LOGI("Saved settings to %s", path.c_str());
  }
 diff --git a/platform/mobile/ui/Settings.h b/platform/mobile/ui/Settings.h
-index 42079c3..2baa89c 100644
+index 42079c36c2b54d03bd541699aba2d778821e0add..d1d4f1b5cdf7c1b176d650ce94e17ee818142c86 100644
 --- a/platform/mobile/ui/Settings.h
 +++ b/platform/mobile/ui/Settings.h
 @@ -5,7 +5,7 @@
@@ -2213,7 +2773,7 @@ index 42079c3..2baa89c 100644
      int screenOrientationChoice = 0;
  
 +    // AYN Thor settings menu (platform/mobile/thor/ThorSettingsBridge.cpp).
-+    int postProcess = -1;       // anti-aliasing and bloom: -1 never chosen (engine default), 0 off, 1 on
++    int postProcess = -1;       // -1 engine default; 0 original, 1 neutral anti-aliasing, 2 added glow/color
 +    bool cameraInverted = false;
 +    // AYN Thor: what each controller button does in Galaxy (mobile_input::ButtonAction), in
 +    // mobile_input::PhysicalButton order: A B X Y L1 R1 L2 R2 L3 R3 Start Select. The standard
@@ -2224,7 +2784,7 @@ index 42079c3..2baa89c 100644
      void save(const std::string& path) const;
  };
 diff --git a/platform/mobile/ui/SettingsDrawerRender.cpp b/platform/mobile/ui/SettingsDrawerRender.cpp
-index 413b277..ec5f6cf 100644
+index 413b277a741415b2fce5526df5561e614654e4f7..ec5f6cf1bbfffd8da1af4b537e76ed89f9f5b7f6 100644
 --- a/platform/mobile/ui/SettingsDrawerRender.cpp
 +++ b/platform/mobile/ui/SettingsDrawerRender.cpp
 @@ -1,3 +1,4 @@
@@ -2242,7 +2802,7 @@ index 413b277..ec5f6cf 100644
                  vb.drawText("https://discord.gg/H3qdNWYu2", rowX0 + 12.0f * uiScale, drawY + 72.0f * uiScale, 0.26f * uiScale, rgba(0.40f, 0.75f, 1.0f, 1.0f), 0);
              }
 diff --git a/platform/mobile/ui/SettingsMenuDefs.cpp b/platform/mobile/ui/SettingsMenuDefs.cpp
-index e8c7dde..2160973 100644
+index e8c7dde1f9cf337c58aea0d62540d64b3c3e9712..2160973cf661fcd0a6ea694df298fabfbe33cf72 100644
 --- a/platform/mobile/ui/SettingsMenuDefs.cpp
 +++ b/platform/mobile/ui/SettingsMenuDefs.cpp
 @@ -1,3 +1,4 @@
@@ -2262,7 +2822,7 @@ index e8c7dde..2160973 100644
  
  static const MenuRowDef kSaveRows[] = {
 diff --git a/platform/mobile/ui/SettingsMenuModActions.cpp b/platform/mobile/ui/SettingsMenuModActions.cpp
-index 9708e9d..7df6bd2 100644
+index 9708e9dc32f841f1a587353e17567f540e51a117..7df6bd2e3c2f8ea90cd34a0a684354bf178a93a5 100644
 --- a/platform/mobile/ui/SettingsMenuModActions.cpp
 +++ b/platform/mobile/ui/SettingsMenuModActions.cpp
 @@ -1,3 +1,4 @@
@@ -2284,7 +2844,7 @@ index 9708e9d..7df6bd2 100644
      case ACT_QUICK_CARDS:
          outToastMsg = (px < midX) ? saveMgr.triggerSaveSlot(4, settings.haptics)
 diff --git a/platform/mobile/ui/TouchInputHandler.cpp b/platform/mobile/ui/TouchInputHandler.cpp
-index 6398de6..7f15a2d 100644
+index 6398de64edffeb00c0a02a3a6f592605d66305aa..7f15a2dec83850dd94cd39ba1ba953d790f3fc27 100644
 --- a/platform/mobile/ui/TouchInputHandler.cpp
 +++ b/platform/mobile/ui/TouchInputHandler.cpp
 @@ -110,7 +110,8 @@ bool TouchInputHandler::handleTouch(const AInputEvent* event, PortPadState& pad,
@@ -2298,7 +2858,7 @@ index 6398de6..7f15a2d 100644
          float py = AMotionEvent_getY(event, pointerIndex);
          if (px >= 0.0f && px <= tabW + 8.0f * uiScale && py >= tabY - 8.0f * uiScale && py <= tabY + tabH + 8.0f * uiScale) {
 diff --git a/platform/mobile/ui/TouchInputHandler.h b/platform/mobile/ui/TouchInputHandler.h
-index b05626c..1dadc74 100644
+index b05626cd92f5756df1511be680e2571dd9537229..1dadc745b62b2d699651d805e6ab0000a2daf38e 100644
 --- a/platform/mobile/ui/TouchInputHandler.h
 +++ b/platform/mobile/ui/TouchInputHandler.h
 @@ -1,5 +1,9 @@
@@ -2321,7 +2881,7 @@ index b05626c..1dadc74 100644
      float getPointerY() const { return mPointerY; }
      bool isPointerActive() const { return mPointerActiveFrames > 0 || mStarStickPointerId >= 0; }
 diff --git a/platform/mobile/ui/UIOverlay.cpp b/platform/mobile/ui/UIOverlay.cpp
-index 433d0ea..8b5d3f6 100644
+index 433d0ea98ec78404e261218298537dbedb54fb28..3f2eac065984c983e77c5aeae06115f8365e0f04 100644
 --- a/platform/mobile/ui/UIOverlay.cpp
 +++ b/platform/mobile/ui/UIOverlay.cpp
 @@ -1,4 +1,7 @@
@@ -2332,16 +2892,17 @@ index 433d0ea..8b5d3f6 100644
  
  #include <android/log.h>
  #include <sys/system_properties.h>
-@@ -14,6 +17,8 @@ void port_set_skip_cutscenes(int enabled);
+@@ -14,6 +17,9 @@ void port_set_skip_cutscenes(int enabled);
  void port_set_infinite_health(int enabled);
  void port_set_infinite_lives(int enabled);
  void port_set_infinite_starbits(int enabled);
 +void port_set_post_processing_enabled(int enabled);
 +void port_input_set_camera_inverted(int inverted);
++int64_t port_host_time_ns(void);
  }
  
  namespace mobile_ui {
-@@ -50,6 +55,9 @@ void UIOverlay::setSavePath(const std::string& path) {
+@@ -50,6 +56,9 @@ void UIOverlay::setSavePath(const std::string& path) {
      port_set_infinite_health(mSettings.modInfiniteHealth ? 1 : 0);
      port_set_infinite_lives(mSettings.modInfiniteLives ? 1 : 0);
      port_set_infinite_starbits(mSettings.modInfiniteStarBits ? 1 : 0);
@@ -2351,7 +2912,27 @@ index 433d0ea..8b5d3f6 100644
  }
  
  void UIOverlay::update(PortPadState& pad, int& spinFrames) {
-@@ -139,7 +147,10 @@ bool UIOverlay::handleInput(const AInputEvent* event, PortPadState& pad, int& sp
+@@ -62,8 +71,9 @@ void UIOverlay::update(PortPadState& pad, int& spinFrames) {
+     }
+ 
+     if (mToastTimer > 0.0f) {
+-        mToastTimer -= 0.016f;
+-        if (mToastTimer < 0.0f) mToastTimer = 0.0f;
++        // No-frame rendering can poll every 1 ms; feedback lasts real time.
++        const int64_t remaining = mToastExpiresNs - port_host_time_ns();
++        mToastTimer = remaining > 0 ? static_cast<float>(remaining) * 1e-9f : 0.0f;
+         mDirty = true;
+     }
+ }
+@@ -71,6 +81,7 @@ void UIOverlay::update(PortPadState& pad, int& spinFrames) {
+ void UIOverlay::showToast(const std::string& msg) {
+     mToastMessage = msg;
+     mToastTimer = 2.8f;
++    mToastExpiresNs = port_host_time_ns() + 2800000000LL;
+     mDirty = true;
+ }
+ 
+@@ -139,7 +150,10 @@ bool UIOverlay::handleInput(const AInputEvent* event, PortPadState& pad, int& sp
                                   vpX, vpY, vpW, vpH, mSettings, mLayout,
                                   openSettings, quickSave);
      if (openSettings) {
@@ -2364,7 +2945,7 @@ index 433d0ea..8b5d3f6 100644
      }
      if (quickSave) {
 diff --git a/platform/mobile/ui/UIOverlay.h b/platform/mobile/ui/UIOverlay.h
-index 6108224..bdc1167 100644
+index 6108224458baa67c03653164c76c4bfb62b8bd77..9e0afbcc1dc0bb722765d2fc615fc181f99aaa53 100644
 --- a/platform/mobile/ui/UIOverlay.h
 +++ b/platform/mobile/ui/UIOverlay.h
 @@ -64,6 +64,8 @@ public:
@@ -2384,8 +2965,16 @@ index 6108224..bdc1167 100644
      float getPointerX() const { return mTouch.getPointerX(); }
      float getPointerY() const { return mTouch.getPointerY(); }
  
+@@ -102,6 +105,7 @@ private:
+ 
+     std::string mToastMessage;
+     float mToastTimer = 0.0f;
++    int64_t mToastExpiresNs = 0;
+ };
+ 
+ inline UIOverlay& get() {
 diff --git a/platform/src/audio/ai_dsp.cpp b/platform/src/audio/ai_dsp.cpp
-index 6a3a2cc..67f0e97 100644
+index 6a3a2cc94f17f5ef8ad9dee3ca708e1d25ff7f7e..67f0e9750df843a978e4d28d8009e65459440cf4 100644
 --- a/platform/src/audio/ai_dsp.cpp
 +++ b/platform/src/audio/ai_dsp.cpp
 @@ -32,7 +32,8 @@ extern "C" int64_t __attribute__((weak)) port_audio_queued_ns(void) { return -1;
@@ -2399,7 +2988,7 @@ index 6a3a2cc..67f0e97 100644
      }
      return (const u8*)port_phys_to_host(addr);
 diff --git a/platform/src/audio/dsp_mailbox.cpp b/platform/src/audio/dsp_mailbox.cpp
-index cca3f25..7d389e3 100644
+index cca3f25704c0c1c4018e1f891cd674693fd737b4..7d389e38ad389a7426685e2002bd005b10dd91e8 100644
 --- a/platform/src/audio/dsp_mailbox.cpp
 +++ b/platform/src/audio/dsp_mailbox.cpp
 @@ -5,6 +5,7 @@
@@ -2421,7 +3010,7 @@ index cca3f25..7d389e3 100644
      sMailFromDsp.push_back(a);
      sMailFromDsp.push_back(b);
 diff --git a/platform/src/dvd/dvd_disc.cpp b/platform/src/dvd/dvd_disc.cpp
-index f5019e2..a5b7610 100644
+index f5019e2c5913dd2940e580a003c4268db2075579..a5b761038a440d650f60931e6c3a667dc81f39e3 100644
 --- a/platform/src/dvd/dvd_disc.cpp
 +++ b/platform/src/dvd/dvd_disc.cpp
 @@ -1,3 +1,4 @@
@@ -2439,7 +3028,7 @@ index f5019e2..a5b7610 100644
              return &disc;
          }
 diff --git a/platform/src/gx/gpu_cp.cpp b/platform/src/gx/gpu_cp.cpp
-index 90c885c..3f51bea 100644
+index 90c885caa39edb013edab61b1353f23533d769c4..3f51bea091120307bfddf24a4cf0b8cdf110a6f1 100644
 --- a/platform/src/gx/gpu_cp.cpp
 +++ b/platform/src/gx/gpu_cp.cpp
 @@ -16,7 +16,8 @@ void setBackend(Backend* b) { sBackend = b; }
@@ -2452,8 +3041,30 @@ index 90c885c..3f51bea 100644
          return (const u8*)(uintptr_t)addr;  // cached/uncached virtual
      }
      return (const u8*)port_phys_to_host(addr);
+diff --git a/platform/src/gx/gx_builder_state.cpp b/platform/src/gx/gx_builder_state.cpp
+index a06e0bc6230801d0bf917c1e2f1dac432b1498b3..5fe63625dd2d8e1eac3905c6715f04b5fa7f808a 100644
+--- a/platform/src/gx/gx_builder_state.cpp
++++ b/platform/src/gx/gx_builder_state.cpp
+@@ -56,13 +56,10 @@ void Builder::fillLights(LightState& b) {
+             b.lights[l][3][k] = m[10 + k];
+             b.lights[l][4][k] = m[13 + k];
+         }
+-        float lposLenSq = b.lights[l][3][0] * b.lights[l][3][0] + b.lights[l][3][1] * b.lights[l][3][1] + b.lights[l][3][2] * b.lights[l][3][2];
+-        if (lposLenSq > 1e10f) {
+-            float inv = 10000.0f / sqrtf(lposLenSq);
+-            b.lights[l][3][0] *= inv;
+-            b.lights[l][3][1] *= inv;
+-            b.lights[l][3][2] *= inv;
+-        }
++        // GX light positions are points in view space, not unit directions.
++        // Moving a distant light toward the origin can put it on the opposite
++        // side of characters (notably the orange Castle Gardens attack light).
++        // Keep the submitted position; the shader normalizes light - vertex.
+         b.lights[l][1][3] = b.lights[l][2][3] = b.lights[l][3][3] = b.lights[l][4][3] = 0.0f;
+     }
+     rgba8ToVec(xfRegs[0x0C], b.matColor[0]);
 diff --git a/platform/src/gx/gx_record.h b/platform/src/gx/gx_record.h
-index 2e23e5d..32a305f 100644
+index 2e23e5d9d297f4b266a9065440540e6f633e0682..32a305f19d93d256480bbe6e60aa76aed004031a 100644
 --- a/platform/src/gx/gx_record.h
 +++ b/platform/src/gx/gx_record.h
 @@ -111,6 +111,7 @@ enum Marker : uint32_t {
@@ -2465,7 +3076,7 @@ index 2e23e5d..32a305f 100644
  
  struct Frame {
 diff --git a/platform/src/gx/gx_recorder_tex.cpp b/platform/src/gx/gx_recorder_tex.cpp
-index 086d2f1..083fb8b 100644
+index 086d2f12cfd4b72eba10a435b6604ab383fd0f8f..083fb8b8a5150b64dce29dc535c7e0b17a81bf62 100644
 --- a/platform/src/gx/gx_recorder_tex.cpp
 +++ b/platform/src/gx/gx_recorder_tex.cpp
 @@ -1,3 +1,4 @@
@@ -2491,8 +3102,26 @@ index 086d2f1..083fb8b 100644
          FILE* cf = fopen(customPath, "rb");
          if (cf) {
              fseek(cf, 0, SEEK_END);
+diff --git a/platform/src/gx/vk/vk_common.cpp b/platform/src/gx/vk/vk_common.cpp
+index 905ba3b9422114e1be3586b4bd90dab3e71e0621..a9522dca698580baf88c846cd6119ce40131cfcc 100644
+--- a/platform/src/gx/vk/vk_common.cpp
++++ b/platform/src/gx/vk/vk_common.cpp
+@@ -52,7 +52,12 @@ void VkRenderer::flushDeferredDeletes() {
+     }
+     for (const VkPendingDelete& d : list) {
+         if (d.generation != sVkDeviceGeneration) continue;
+-        if (d.view) vkDestroyImageView(mDevice, (VkImageView)d.view, nullptr);
++        if (d.view) {
++            // Movie frames retire TexImages continually. A recycled view handle
++            // must not retrieve a cached descriptor for the destroyed resource.
++            invalidateSamplerDescSetsForView((VkImageView)d.view);
++            vkDestroyImageView(mDevice, (VkImageView)d.view, nullptr);
++        }
+         if (d.image) vkDestroyImage(mDevice, (VkImage)d.image, nullptr);
+         if (d.memory) vkFreeMemory(mDevice, (VkDeviceMemory)d.memory, nullptr);
+     }
 diff --git a/platform/src/gx/vk/vk_draw_dispatch.cpp b/platform/src/gx/vk/vk_draw_dispatch.cpp
-index b05cc91..3117d71 100644
+index b05cc91f5e179099e844e79715334a1a702bc939..3117d71839ff0227200003aff8fe2bd94b075acb 100644
 --- a/platform/src/gx/vk/vk_draw_dispatch.cpp
 +++ b/platform/src/gx/vk/vk_draw_dispatch.cpp
 @@ -1,4 +1,5 @@
@@ -2529,7 +3158,7 @@ index b05cc91..3117d71 100644
      if (diagLog) {
          LOGI("VkDrawDiag: frame=%llu draws=%u (hud=%u scSkip=%u setBinds=%u) realTex=%u dummyTex=%u fTextures=%zu copySlot=%u copyHits=%u copyFallbacks=%u copyMisses=%u mruHit=%llu mruMiss=%llu rtNew=%llu rtKnownUid=%llu record=%.2fms",
 diff --git a/platform/src/gx/vk/vk_lifecycle.cpp b/platform/src/gx/vk/vk_lifecycle.cpp
-index 3b8850e..c9bb8d5 100644
+index 3b8850e2d39ef084b50ca07e46cb42e8f0abf7ba..c9bb8d57016747f4b64a38f05c72a73e5722ab00 100644
 --- a/platform/src/gx/vk/vk_lifecycle.cpp
 +++ b/platform/src/gx/vk/vk_lifecycle.cpp
 @@ -1,4 +1,5 @@
@@ -2557,7 +3186,7 @@ index 3b8850e..c9bb8d5 100644
          if (mRenderFence != VK_NULL_HANDLE) {
              vkDestroyFence(mDevice, mRenderFence, nullptr);
 diff --git a/platform/src/gx/vk/vk_pipeline_cache_manager.cpp b/platform/src/gx/vk/vk_pipeline_cache_manager.cpp
-index 2b94e4e..578617e 100644
+index 2b94e4e65ec68a54723df90c2d21a220476daa05..578617ede421717680298e75d09bca5edc6a7200 100644
 --- a/platform/src/gx/vk/vk_pipeline_cache_manager.cpp
 +++ b/platform/src/gx/vk/vk_pipeline_cache_manager.cpp
 @@ -1,3 +1,4 @@
@@ -2574,8 +3203,55 @@ index 2b94e4e..578617e 100644
      }
      return sPipelineCachePath;
  }
+diff --git a/platform/src/gx/vk/vk_presentation_pipeline.cpp b/platform/src/gx/vk/vk_presentation_pipeline.cpp
+index d3c0c2f3e33294394da93b7047a9eb0500bd0ae6..f9714c31095e119faf7e0612fdd4c232039731f9 100644
+--- a/platform/src/gx/vk/vk_presentation_pipeline.cpp
++++ b/platform/src/gx/vk/vk_presentation_pipeline.cpp
+@@ -17,6 +17,9 @@ bool VkRenderer::createPresentationPipeline() {
+     plci.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
+     plci.setLayoutCount = 1;
+     plci.pSetLayouts = &mPresentDescLayout;
++    VkPushConstantRange pictureMode{VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(int32_t)};
++    plci.pushConstantRangeCount = 1;
++    plci.pPushConstantRanges = &pictureMode;
+ 
+     if (vkCreatePipelineLayout(mDevice, &plci, nullptr, &mPresentPipelineLayout) != VK_SUCCESS) {
+         return false;
+@@ -56,6 +59,9 @@ layout(location = 0) in vec2 v_uv;
+ layout(location = 0) out vec4 outColor;
+ layout(set = 0, binding = 0) uniform sampler2D s_target;
+ 
++// Edge smoothing does not imply a color grade. Added bloom/vibrance is opt-in.
++layout(push_constant) uniform PictureMode { int enhanced; } picture;
++
+ float getLuma(vec3 col) {
+     return dot(col, vec3(0.299, 0.587, 0.114));
+ }
+@@ -104,13 +110,15 @@ void main() {
+         }
+     }
+ 
+-    vec3 bloomSample = (cN + cS + cW + cE) * 0.25;
+-    float bright = max(0.0, getLuma(bloomSample) - 0.70);
+-    vec3 bloom = bloomSample * bright * 0.35;
+-
+-    vec3 result = aaCol + bloom;
+-    float finalLuma = getLuma(result);
+-    result = mix(vec3(finalLuma), result, 1.12);
++    vec3 result = aaCol;
++    if (picture.enhanced != 0) {
++        vec3 bloomSample = (cN + cS + cW + cE) * 0.25;
++        float bright = max(0.0, getLuma(bloomSample) - 0.70);
++        vec3 bloom = bloomSample * bright * 0.35;
++        result += bloom;
++        float finalLuma = getLuma(result);
++        result = mix(vec3(finalLuma), result, 1.12);
++    }
+ 
+     outColor = vec4(clamp(result, 0.0, 1.0), 1.0);
+ }
 diff --git a/platform/src/gx/vk/vk_render.cpp b/platform/src/gx/vk/vk_render.cpp
-index d83075c..191b2a2 100644
+index d83075cc6b484cd14c2d678ffe65e649001a2685..191b2a2bbf25eca27a6b732f0fc9cc9eef6d0bc8 100644
 --- a/platform/src/gx/vk/vk_render.cpp
 +++ b/platform/src/gx/vk/vk_render.cpp
 @@ -1,4 +1,5 @@
@@ -2594,7 +3270,7 @@ index d83075c..191b2a2 100644
      flushDeferredDeletes();
      trimFrameCaches(mFrameNumber);
 diff --git a/platform/src/gx/vk/vk_texture_manager.cpp b/platform/src/gx/vk/vk_texture_manager.cpp
-index 3c771b7..eb3179c 100644
+index 3c771b729889e4e67448971db89760c279125b06..eb3179ce9b0e7a913392b533db11de5603647eb2 100644
 --- a/platform/src/gx/vk/vk_texture_manager.cpp
 +++ b/platform/src/gx/vk/vk_texture_manager.cpp
 @@ -6,6 +6,26 @@ static uint64_t sUploadAttempted = 0;
@@ -2638,8 +3314,22 @@ index 3c771b7..eb3179c 100644
  
          mStagingBuffersToFree.push_back({item.stagingBuf, item.stagingMem});
          sUploadRecorded++;
+diff --git a/platform/src/gx/vk/vk_texture_presenter.cpp b/platform/src/gx/vk/vk_texture_presenter.cpp
+index cab2b75ef79f46c5ffd44e3cb4b4ed121397bae7..8cdab7a5e1938913f5590085fb0d928d4616c95e 100644
+--- a/platform/src/gx/vk/vk_texture_presenter.cpp
++++ b/platform/src/gx/vk/vk_texture_presenter.cpp
+@@ -113,6 +113,9 @@ void VkRenderer::present(const VkTarget& target, int vpX, int vpY, int vpW, int
+             chosenPipe = mPresentPipelinePostProcess;
+         }
+         vkCmdBindPipeline(mPresentCommandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, chosenPipe);
++        const int32_t enhanced = port_is_post_processing_enabled() == 2 ? 1 : 0;
++        vkCmdPushConstants(mPresentCommandBuffer, mPresentPipelineLayout, VK_SHADER_STAGE_FRAGMENT_BIT,
++                           0, sizeof(enhanced), &enhanced);
+         vkCmdBindDescriptorSets(mPresentCommandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, mPresentPipelineLayout, 0, 1, &presentSet, 0, nullptr);
+         vkCmdDraw(mPresentCommandBuffer, 3, 1, 0, 0);
+     }
 diff --git a/platform/src/gx/vk_shader_manifest.cpp b/platform/src/gx/vk_shader_manifest.cpp
-index 882df74..3708f88 100644
+index 882df74a1a0dca18ccf91d400ee908062e0667c9..3708f889dfea452c9863e43608d9a6e996476651 100644
 --- a/platform/src/gx/vk_shader_manifest.cpp
 +++ b/platform/src/gx/vk_shader_manifest.cpp
 @@ -1,3 +1,4 @@
@@ -2657,7 +3347,7 @@ index 882df74..3708f88 100644
      };
  }
 diff --git a/platform/src/gx/vk_shadergen_vs.cpp b/platform/src/gx/vk_shadergen_vs.cpp
-index 321e4ef..dd2af7a 100644
+index 321e4efab5936b2b7cfa660b07ba7fb54f7132e1..04af03c0e815ef75e3f825fe83cb0fcf6696629f 100644
 --- a/platform/src/gx/vk_shadergen_vs.cpp
 +++ b/platform/src/gx/vk_shadergen_vs.cpp
 @@ -78,7 +78,9 @@ std::string genVulkanVertexShader(const ShaderUid& u) {
@@ -2671,7 +3361,30 @@ index 321e4ef..dd2af7a 100644
      o.w("      clipPos.z = clipPos.w * 0.99999;\n");
      o.w("    }\n");
      if (u.cutaway) o.w("    v_eye = vec3(0.0, 0.0, 1.0e6);\n");
-@@ -144,11 +146,15 @@ std::string genVulkanVertexShader(const ShaderUid& u) {
+@@ -127,14 +129,19 @@ std::string genVulkanVertexShader(const ShaderUid& u) {
+                 if (diffuse == 0) {
+                     o.w("      float illum = 1.0;\n");
+                 } else if (diffuse == 1) {
+-                    o.w("      float illum = max(0.0, dot(nrm, lvec));\n");
++                    // GX_DF_SIGN subtracts back-facing light before accumulator clamp.
++                    // Character rim alpha uses this separately from clamped RGB lighting.
++                    o.w("      float illum = dot(nrm, lvec);\n");
+                 } else {
+                     o.w("      float illum = clamp((dot(nrm, lvec) >= 0.0 ? dot(nrm, lvec) : 0.0), 0.0, 1.0);\n");
+                 }
+-                o.w("      lit += %s * (fetch_st(b).%s * (illum * a));\n", mat, sw);
++                o.w("      lit += fetch_st(b).%s * (illum * a);\n", sw);
+                 o.w("    }\n");
+             }
+-            o.w("    v_clr%d.%s = clamp(lit, %s(0.0), %s(1.0));\n  }\n", c, sw, alpha ? "float" : "vec3", alpha ? "float" : "vec3");
++            // GX clamps the ambient + light accumulator before modulating the entire result
++            // by the material. Applying material per-light leaves ambient uncolored and lets
++            // bright lights exceed the material's maximum (notably on character materials).
++            o.w("    v_clr%d.%s = clamp(lit, %s(0.0), %s(1.0)) * %s;\n  }\n", c, sw, alpha ? "float" : "vec3", alpha ? "float" : "vec3", mat);
+         }
+     }
+ 
+@@ -144,11 +151,15 @@ std::string genVulkanVertexShader(const ShaderUid& u) {
          uint32_t form = (info >> 2) & 3;
          const char* in = "vec4(0.0, 0.0, 1.0, 1.0)";
          char uvBuf[64];
@@ -2692,10 +3405,43 @@ index 321e4ef..dd2af7a 100644
              int texIdx = src - 5;
              if (f & (VF_TEX0 << texIdx)) {
 diff --git a/platform/src/input/wpad.cpp b/platform/src/input/wpad.cpp
-index acb6de5..ddca2a7 100644
+index acb6de595f3cb71228b66098633a99f7928e63ca..9e6fd5797c337586e482539cf8c33dd9cd88e2f4 100644
 --- a/platform/src/input/wpad.cpp
 +++ b/platform/src/input/wpad.cpp
-@@ -45,6 +45,12 @@ extern "C" void port_input_get_right_stick(int chan, float* x, float* y) {
+@@ -11,6 +11,8 @@
+ 
+ static std::mutex sInputMutex;
+ static PortPadState sPad[4];
++static int sSpinSamples[4];
++static bool sSpinPositive[4];
+ static int sRumble[4];
+ static u32 sPrevHold[4];
+ static WPADConnectCallback sConnectCb[4];
+@@ -30,6 +32,23 @@ extern "C" void port_input_set(int chan, const PortPadState* state) {
+         port_input_request_pause();
+     }
+     sPad[chan] = *state;
++    if (!state->connected) {
++        sSpinSamples[chan] = 0;
++        sSpinPositive[chan] = false;
++    }
++}
++
++extern "C" void port_input_spin(int chan, int samples) {
++    if (chan < 0 || chan >= 4) return;
++    std::lock_guard<std::mutex> lk(sInputMutex);
++    if (samples <= 0 || !sPad[chan].connected) {
++        sSpinSamples[chan] = 0;
++        sSpinPositive[chan] = false;
++        return;
++    }
++    if (samples > 6) samples = 6;
++    if (sSpinSamples[chan] == 0) sSpinPositive[chan] = false;
++    if (samples > sSpinSamples[chan]) sSpinSamples[chan] = samples;
+ }
+ 
+ extern "C" void port_input_get_right_stick(int chan, float* x, float* y) {
+@@ -45,6 +64,12 @@ extern "C" void port_input_get_right_stick(int chan, float* x, float* y) {
  
  extern "C" int port_input_rumble(int chan) { return (chan >= 0 && chan < 4) ? sRumble[chan] : 0; }
  
@@ -2708,8 +3454,49 @@ index acb6de5..ddca2a7 100644
  extern "C" int port_input_real_a(void) {
      std::lock_guard<std::mutex> lk(sInputMutex);
      return sPad[0].connected && (sPad[0].buttons & 0x0800) ? 1 : 0;
+@@ -142,6 +167,17 @@ static PortPadState snapshot(int chan) {
+     return sPad[chan];
+ }
+ 
++static PortPadState readSnapshot(int chan) {
++    std::lock_guard<std::mutex> lk(sInputMutex);
++    PortPadState state = sPad[chan];
++    if (state.connected && sSpinSamples[chan] > 0) {
++        state.accX = state.accY = sSpinPositive[chan] ? 2.5f : -2.5f;
++        sSpinPositive[chan] = !sSpinPositive[chan];
++        --sSpinSamples[chan];
++    }
++    return state;
++}
++
+ // Reports connection and Nunchuk changes through the registered callbacks,
+ // as the Bluetooth stack does.  Runs on the game thread from KPADRead.
+ static void pollConnection(int chan, const PortPadState& s) {
+@@ -225,7 +261,12 @@ WPADExtensionCallback WPADSetExtensionCallback(s32 chan, WPADExtensionCallback c
+ // KPAD
+ // ---------------------------------------------------------------------------
+ void KPADInit(void) {}
+-void KPADReset(void) { memset(sPrevHold, 0, sizeof(sPrevHold)); }
++void KPADReset(void) {
++    std::lock_guard<std::mutex> lk(sInputMutex);
++    memset(sPrevHold, 0, sizeof(sPrevHold));
++    memset(sSpinSamples, 0, sizeof(sSpinSamples));
++    memset(sSpinPositive, 0, sizeof(sSpinPositive));
++}
+ void KPADSetAccParam(s32, f32, f32) {}
+ void KPADSetBtnRepeat(s32, f32, f32) {}
+ void KPADSetDistParam(s32, f32, f32) {}
+@@ -237,7 +278,7 @@ s32 KPADRead(s32 chan, KPADStatus samples[], u32 length) {
+     if (chan < 0 || chan >= 4 || length == 0) {
+         return 0;
+     }
+-    PortPadState s = snapshot(chan);
++    PortPadState s = readSnapshot(chan);
+     pollConnection(chan, s);
+     KPADStatus* k = &samples[0];
+     memset(k, 0, sizeof(*k));
 diff --git a/platform/src/nand/nand.cpp b/platform/src/nand/nand.cpp
-index d1316d0..d1bd6aa 100644
+index d1316d043ca562db053749cf99acf49e603ce63c..d1bd6aaa4a2986ba4306621bc2e05927890bbc76 100644
 --- a/platform/src/nand/nand.cpp
 +++ b/platform/src/nand/nand.cpp
 @@ -1,3 +1,4 @@
@@ -2737,7 +3524,7 @@ index d1316d0..d1bd6aa 100644
                      port_log("nand: warning - atomic save mirror failed for %s", hp.c_str());
                  }
 diff --git a/platform/src/os/os_diag_heap.cpp b/platform/src/os/os_diag_heap.cpp
-index 5a37e52..bcee5ad 100644
+index 5a37e52b35a7848c92fda89b5125b3fd5d9c76a6..bcee5add27562671cf48af1adb9e339ae08fc4ae 100644
 --- a/platform/src/os/os_diag_heap.cpp
 +++ b/platform/src/os/os_diag_heap.cpp
 @@ -74,8 +74,8 @@ extern "C" void port_debug_dump_threads(void) {
@@ -2752,7 +3539,7 @@ index 5a37e52..bcee5ad 100644
                  n += snprintf(line + n, sizeof(line) - n, " %lx", (unsigned long)pc);
              }
 diff --git a/platform/src/os/os_mem.cpp b/platform/src/os/os_mem.cpp
-index 0d33394..41385aa 100644
+index 0d33394eb7c8013c50859afc024a47c8d90b526a..41385aa5ba025594031a6735c2ab5c0d09a3ab9e 100644
 --- a/platform/src/os/os_mem.cpp
 +++ b/platform/src/os/os_mem.cpp
 @@ -145,16 +145,17 @@ extern "C" int port_is_game_memory(const void* p) {
@@ -2779,7 +3566,7 @@ index 0d33394..41385aa 100644
      port_log("port_host_to_phys: %p is outside the game address space", p);
      return (uint32_t)a;
 diff --git a/platform/src/port/boot.cpp b/platform/src/port/boot.cpp
-index ff4cc51..f88d9db 100644
+index ff4cc5192a073fcd012e3e75e3f798050cad6540..f88d9db9dd23bd1ec4089cf2dfc07b8990e22e66 100644
 --- a/platform/src/port/boot.cpp
 +++ b/platform/src/port/boot.cpp
 @@ -1,3 +1,4 @@
@@ -2796,8 +3583,52 @@ index ff4cc51..f88d9db 100644
              struct stat stMirror;
              if (stat(mirrorPath.c_str(), &stMirror) == 0 && stMirror.st_size >= 512) {
                  std::string dir = std::string(saveRoot) + "/title/00010000/" + t + "/data";
+diff --git a/platform/src/port/missing_game.cpp b/platform/src/port/missing_game.cpp
+index 53a6ec1046278ff4d684300babdb8503915840e0..3e44278aa99183172c92a23ffd5cd4440aea5c9b 100644
+--- a/platform/src/port/missing_game.cpp
++++ b/platform/src/port/missing_game.cpp
+@@ -78,20 +78,39 @@ __attribute__((weak)) int port_input_real_z(void) { return 0; }
+ static int sQuickSaveRequested = 0;
+ static int sSaveInProgress = 0;
+ static uint64_t sSaveGeneration = 1;
++static int sQuickSaveStatus = PORT_QUICK_SAVE_IDLE;
+ 
+ __attribute__((weak)) void port_trigger_quick_save(void) {
++    __atomic_store_n(&sQuickSaveStatus, PORT_QUICK_SAVE_REQUESTED, __ATOMIC_RELEASE);
+     __atomic_store_n(&sQuickSaveRequested, 1, __ATOMIC_RELEASE);
+ }
+ __attribute__((weak)) int port_check_quick_save_request(void) {
+     return __atomic_exchange_n(&sQuickSaveRequested, 0, __ATOMIC_ACQ_REL);
+ }
++__attribute__((weak)) int port_get_quick_save_status(void) {
++    return __atomic_load_n(&sQuickSaveStatus, __ATOMIC_ACQUIRE);
++}
++__attribute__((weak)) void port_reject_quick_save(void) {
++    int expected = PORT_QUICK_SAVE_REQUESTED;
++    __atomic_compare_exchange_n(&sQuickSaveStatus, &expected, PORT_QUICK_SAVE_REJECTED,
++                               false, __ATOMIC_ACQ_REL, __ATOMIC_ACQUIRE);
++}
+ __attribute__((weak)) void port_save_notify_started(void) {
++    int expected = PORT_QUICK_SAVE_REQUESTED;
++    __atomic_compare_exchange_n(&sQuickSaveStatus, &expected, PORT_QUICK_SAVE_WRITING,
++                               false, __ATOMIC_ACQ_REL, __ATOMIC_ACQUIRE);
+     __atomic_store_n(&sSaveInProgress, 1, __ATOMIC_RELEASE);
+ }
+ __attribute__((weak)) void port_save_notify_completed(int success) {
+     if (success) {
+         __atomic_add_fetch(&sSaveGeneration, 1, __ATOMIC_ACQ_REL);
+     }
++    // System/mail-only writes also call this hook. Only an accepted Quick Save
++    // may complete the UI's pending request.
++    int expected = PORT_QUICK_SAVE_WRITING;
++    __atomic_compare_exchange_n(&sQuickSaveStatus, &expected,
++                               success ? PORT_QUICK_SAVE_SUCCEEDED : PORT_QUICK_SAVE_FAILED,
++                               false, __ATOMIC_ACQ_REL, __ATOMIC_ACQUIRE);
+     __atomic_store_n(&sSaveInProgress, 0, __ATOMIC_RELEASE);
+ }
+ __attribute__((weak)) int port_is_save_in_progress(void) {
 diff --git a/platform/src/vi/vi.cpp b/platform/src/vi/vi.cpp
-index d723511..9bfac4e 100644
+index d723511ea2a58c6660405e909b3c782b0be385c7..9bfac4ef72ea90c21eef09575d2815695b7bb4c9 100644
 --- a/platform/src/vi/vi.cpp
 +++ b/platform/src/vi/vi.cpp
 @@ -28,13 +28,17 @@ static bool sInited;
@@ -2872,7 +3703,7 @@ index d723511..9bfac4e 100644
  }
  
 diff --git a/tools/cook/cook.py b/tools/cook/cook.py
-index 87415ff..2130b39 100644
+index 87415ff6eea1922c8c3f383ed10597c0acf6823d..2130b3933da4026ff300eaf11cb6fd5b96988ca6 100644
 --- a/tools/cook/cook.py
 +++ b/tools/cook/cook.py
 @@ -22,6 +22,7 @@ import struct
@@ -2902,7 +3733,7 @@ index 87415ff..2130b39 100644
                                jobs=jobs or os.cpu_count(), only=only,
                                no_audio=no_audio, with_movies=with_movies)
 diff --git a/tools/cook/cook_archive.py b/tools/cook/cook_archive.py
-index 716332e..b8fcd13 100644
+index 716332ef181cd778dd6bb11580249870e7e25557..b8fcd132eae4940c7263e701e3abfce5084e15b2 100644
 --- a/tools/cook/cook_archive.py
 +++ b/tools/cook/cook_archive.py
 @@ -1,5 +1,11 @@
@@ -2918,7 +3749,7 @@ index 716332e..b8fcd13 100644
  import collision
  import dol_data
 diff --git a/tools/cook/j3d.py b/tools/cook/j3d.py
-index 3b9da96..5a7ef17 100644
+index 3b9da96c2f8da0fa01873f1008e827bf4cc92f3d..5a7ef17bb6e17e85e20bcd434c232036e1cb242f 100644
 --- a/tools/cook/j3d.py
 +++ b/tools/cook/j3d.py
 @@ -237,7 +237,7 @@ def swap_model(b):
@@ -2931,7 +3762,7 @@ index 3b9da96..5a7ef17 100644
  def is_model(b):
      return len(b) >= 0x20 and bytes(b[0:4]) in (b'J3D2',)
 diff --git a/tools/cook/j3d_anim.py b/tools/cook/j3d_anim.py
-index 3b7ddb8..6e10b06 100644
+index 3b7ddb826368af6da6a46321b7aa56668391808f..6e10b06f2fbe783777e53f871a62da365ec78856 100644
 --- a/tools/cook/j3d_anim.py
 +++ b/tools/cook/j3d_anim.py
 @@ -1,5 +1,5 @@
@@ -2942,7 +3773,7 @@ index 3b7ddb8..6e10b06 100644
  def anm_tables(b, o, end, offs_at, kinds):
      """kinds: list of (kind) per u32 offset starting at o+offs_at."""
 diff --git a/tools/cook/kcl_builder.py b/tools/cook/kcl_builder.py
-index 0ddb766..6eee7e4 100644
+index 0ddb766e3b1888f0e93b2fc6d1026f779b373a4e..6eee7e4c00526c79ade894409bb68d4cf443193c 100644
 --- a/tools/cook/kcl_builder.py
 +++ b/tools/cook/kcl_builder.py
 @@ -1,6 +1,6 @@
@@ -2955,7 +3786,7 @@ index 0ddb766..6eee7e4 100644
      """Does the prism a triangle sweeps `depth` behind its face (the volume
 diff --git a/decomp/src/Game/System/ThorLowerState.cpp b/decomp/src/Game/System/ThorLowerState.cpp
 new file mode 100644
-index 0000000..80d6db0
+index 0000000000000000000000000000000000000000..80d6db00e73de65453c5f2ba6dcfea19d8042fe0
 --- /dev/null
 +++ b/decomp/src/Game/System/ThorLowerState.cpp
 @@ -0,0 +1,305 @@
@@ -3266,7 +4097,7 @@ index 0000000..80d6db0
 +#endif  // TARGET_MOBILE
 diff --git a/decomp/src/Game/System/ThorWorldState.cpp b/decomp/src/Game/System/ThorWorldState.cpp
 new file mode 100644
-index 0000000..c2b7af8
+index 0000000000000000000000000000000000000000..c2b7af8c132ecb67a0f5b5e3dfd3b53884dc946c
 --- /dev/null
 +++ b/decomp/src/Game/System/ThorWorldState.cpp
 @@ -0,0 +1,183 @@
@@ -3453,9 +4284,37 @@ index 0000000..c2b7af8
 +}
 +
 +#endif  // TARGET_MOBILE
+diff --git a/platform/include/port/camera_stick.h b/platform/include/port/camera_stick.h
+new file mode 100644
+index 0000000000000000000000000000000000000000..9578a5bf5aa5fc549eb865b4ce2ff67124bc3ed3
+--- /dev/null
++++ b/platform/include/port/camera_stick.h
+@@ -0,0 +1,22 @@
++#pragma once
++#include <cmath>
++
++namespace port {
++// One native camera turn per horizontal deflection. Sample once per camera frame; every
++// camera and its sound code then sees the same request. Blocked scenes require a fresh nudge.
++class CameraStick {
++    int latched = 0;
++    int request = 0;
++public:
++    void update(float x, bool enabled) {
++        request = 0;
++        if (!std::isfinite(x)) { latched = 0; return; }
++        if (std::fabs(x) < .25f) { latched = 0; return; }
++        const int direction = x < -.55f ? -1 : x > .55f ? 1 : 0;
++        if (!enabled) { if (direction) latched = direction; return; }
++        if (direction && direction != latched) { request = direction; latched = direction; }
++    }
++    bool left() const { return request < 0; }
++    bool right() const { return request > 0; }
++};
++}
 diff --git a/platform/include/port/kaizo.h b/platform/include/port/kaizo.h
 new file mode 100644
-index 0000000..4e76273
+index 0000000000000000000000000000000000000000..4e762731a1bad4bfa3fe5bb57a3710654959bdb5
 --- /dev/null
 +++ b/platform/include/port/kaizo.h
 @@ -0,0 +1,12 @@
@@ -3473,7 +4332,7 @@ index 0000000..4e76273
 +const GalaxyCometTimePaper* port_kaizo_comet_table(int dome, const GalaxyCometTimePaper* original);
 diff --git a/platform/include/port/profile.h b/platform/include/port/profile.h
 new file mode 100644
-index 0000000..09059bf
+index 0000000000000000000000000000000000000000..09059bfcf7b4f2c9296cd8c068e9d55b20bd9594
 --- /dev/null
 +++ b/platform/include/port/profile.h
 @@ -0,0 +1,15 @@
@@ -3494,7 +4353,7 @@ index 0000000..09059bf
 +#endif
 diff --git a/platform/include/port/thor_lower.h b/platform/include/port/thor_lower.h
 new file mode 100644
-index 0000000..6a3f3ac
+index 0000000000000000000000000000000000000000..6a3f3ace9e8c111f351c4e71ee3a72f106fbe251
 --- /dev/null
 +++ b/platform/include/port/thor_lower.h
 @@ -0,0 +1,135 @@
@@ -3635,7 +4494,7 @@ index 0000000..6a3f3ac
 +#endif
 diff --git a/platform/include/port/thor_world.h b/platform/include/port/thor_world.h
 new file mode 100644
-index 0000000..f57bdd3
+index 0000000000000000000000000000000000000000..f57bdd3fb743d9d949070350589cb808dd4e689e
 --- /dev/null
 +++ b/platform/include/port/thor_world.h
 @@ -0,0 +1,53 @@
@@ -3694,10 +4553,10 @@ index 0000000..f57bdd3
 +#endif
 diff --git a/platform/mobile/thor/ThorLowerBridge.cpp b/platform/mobile/thor/ThorLowerBridge.cpp
 new file mode 100644
-index 0000000..a3c9991
+index 0000000000000000000000000000000000000000..e9bc63c708a1c2d67115e9f56fde7de9b95024e6
 --- /dev/null
 +++ b/platform/mobile/thor/ThorLowerBridge.cpp
-@@ -0,0 +1,163 @@
+@@ -0,0 +1,179 @@
 +// AYN Thor lower screen: the platform half of the Galaxy state bridge.
 +//
 +// The game thread commits one ThorLowerState per frame (decomp/src/Game/System/ThorLowerState.cpp)
@@ -3706,6 +4565,8 @@ index 0000000..a3c9991
 +// loaded RTLD_LOCAL into its reserved window (platform/android/launcher.c), where the VM's own
 +// JNI symbol lookup cannot see it. No heap allocation, no game pointers cross to Java.
 +#include "ThorLowerBridge.h"
++#include "TouchPointerMailbox.h"
++#include "TrackpadMailbox.h"
 +
 +#include <android/log.h>
 +#include <string.h>
@@ -3721,6 +4582,14 @@ index 0000000..a3c9991
 +extern "C" int port_thor_top_level(void);
 +
 +namespace {
++    mobile_thor::TouchPointerMailbox sTouchPointer;
++    mobile_thor::TrackpadMailbox sTrackpad;
++    void JNICALL nativeTouchTrackpad(JNIEnv*, jclass, jfloat dx, jfloat dy, jint phase) {
++        sTrackpad.send(dx, dy, phase);
++    }
++    void JNICALL nativeTouchPointer(JNIEnv*, jclass, jfloat x, jfloat y, jboolean down) {
++        sTouchPointer.set(x, y, down == JNI_TRUE);
++    }
 +    ThorLowerState sPublished;
 +
 +    // 620x540 RGBA, rows top first; returns its sequence (0 when nothing newer than `have`),
@@ -3826,6 +4695,10 @@ index 0000000..a3c9991
 +
 +namespace mobile_thor {
 +
++bool readTouchPointer(float& x, float& y) { return sTouchPointer.read(x, y); }
++bool applyTouchTrackpad(float& x, float& y) { return sTrackpad.apply(x, y); }
++void resetTouchPointer() { sTouchPointer.clear(); sTrackpad.clear(); }
++
 +void registerLowerBridge(ANativeActivity* activity) {
 +    if (activity == nullptr || activity->vm == nullptr || activity->clazz == nullptr) return;
 +    JNIEnv* env = nullptr;
@@ -3840,6 +4713,8 @@ index 0000000..a3c9991
 +    jclass clazz = env->GetObjectClass(activity->clazz);
 +    if (clazz != nullptr) {
 +        static const JNINativeMethod methods[] = {
++            {"nativeTouchPointer", "(FFZ)V", (void*)nativeTouchPointer},
++            {"nativeTouchTrackpad", "(FFI)V", (void*)nativeTouchTrackpad},
 +            {"nativeLowerState", "(Ljava/nio/ByteBuffer;)I", (void*)nativeLowerState},
 +            {"nativeSpace", "(Ljava/nio/ByteBuffer;I[I)I", (void*)nativeSpace},
 +            {"nativeWorldState", "(Ljava/nio/ByteBuffer;I)I", (void*)nativeWorldState},
@@ -3863,10 +4738,10 @@ index 0000000..a3c9991
 +}  // namespace mobile_thor
 diff --git a/platform/mobile/thor/ThorLowerBridge.h b/platform/mobile/thor/ThorLowerBridge.h
 new file mode 100644
-index 0000000..9b554dd
+index 0000000000000000000000000000000000000000..bdacbe73301e74ac3b23b5a08bdfff9f08df55a3
 --- /dev/null
 +++ b/platform/mobile/thor/ThorLowerBridge.h
-@@ -0,0 +1,12 @@
+@@ -0,0 +1,15 @@
 +#pragma once
 +
 +#include <android/native_activity.h>
@@ -3877,11 +4752,14 @@ index 0000000..9b554dd
 +// Registers GalaxyActivity.nativeLowerState (the Thor lower screen's state copy) on the activity's
 +// class. Call once from the native activity thread before the game boots.
 +void registerLowerBridge(ANativeActivity* activity);
++bool readTouchPointer(float& x, float& y);
++bool applyTouchTrackpad(float& x, float& y);
++void resetTouchPointer();
 +
 +}  // namespace mobile_thor
 diff --git a/platform/mobile/thor/ThorSettingsBridge.cpp b/platform/mobile/thor/ThorSettingsBridge.cpp
 new file mode 100644
-index 0000000..0563062
+index 0000000000000000000000000000000000000000..6fb9557f2f5c5de87f4c618f613539d9ca614315
 --- /dev/null
 +++ b/platform/mobile/thor/ThorSettingsBridge.cpp
 @@ -0,0 +1,211 @@
@@ -3929,7 +4807,7 @@ index 0000000..0563062
 +        jint v[THOR_SET_COUNT];
 +        v[THOR_SET_RESOLUTION] = s.renderScale;
 +        v[THOR_SET_FRAME_RATE] = s.batterySaver || s.targetFps <= 30 ? 30 : 60;
-+        v[THOR_SET_SMOOTHING] = port_is_post_processing_enabled() ? 1 : 0;
++        v[THOR_SET_SMOOTHING] = std::max(0, std::min(2, port_is_post_processing_enabled()));
 +        v[THOR_SET_SHOW_FPS] = s.perfHudMode;
 +        v[THOR_SET_RIGHT_STICK] = s.rightStickMode;
 +        v[THOR_SET_POINTER_SPEED] = (jint)(s.starStickSensitivity * 100.0f + 0.5f);
@@ -4023,7 +4901,7 @@ index 0000000..0563062
 +        mobile_ui::SettingsMenuActions::applySliderValue(mobile_ui::ACT_TARGET_FPS, value <= 30 ? 30.0f : 60.0f, s, toast);
 +        break;
 +    case THOR_SET_SMOOTHING:
-+        s.postProcess = value ? 1 : 0;
++        s.postProcess = std::max(0, std::min(2, value));
 +        port_set_post_processing_enabled(s.postProcess);
 +        break;
 +    case THOR_SET_SHOW_FPS:
@@ -4098,7 +4976,7 @@ index 0000000..0563062
 +}  // namespace mobile_thor
 diff --git a/platform/mobile/thor/ThorSettingsBridge.h b/platform/mobile/thor/ThorSettingsBridge.h
 new file mode 100644
-index 0000000..c857282
+index 0000000000000000000000000000000000000000..c857282ec5168ced8e1775d8e45d7cae9c4a12f9
 --- /dev/null
 +++ b/platform/mobile/thor/ThorSettingsBridge.h
 @@ -0,0 +1,54 @@
@@ -4156,9 +5034,91 @@ index 0000000..c857282
 +bool showSettingsMenu(ANativeActivity* activity);
 +
 +}  // namespace mobile_thor
+diff --git a/platform/mobile/thor/TouchPointerMailbox.h b/platform/mobile/thor/TouchPointerMailbox.h
+new file mode 100644
+index 0000000000000000000000000000000000000000..814c91134a61f09af463727c631853877d6236aa
+--- /dev/null
++++ b/platform/mobile/thor/TouchPointerMailbox.h
+@@ -0,0 +1,28 @@
++#pragma once
++#include <atomic>
++#include <cmath>
++#include <cstdint>
++
++namespace mobile_thor {
++// UI thread writes one indivisible coordinate pair; only the input thread touches the game pad.
++class TouchPointerMailbox {
++    std::atomic<uint64_t> state{0};
++public:
++    void clear() { state.store(0, std::memory_order_release); }
++    void set(float x, float y, bool down) {
++        if (!down || !std::isfinite(x) || !std::isfinite(y)) { clear(); return; }
++        const auto encode = [](float v) -> uint64_t {
++            v = v < -1.f ? -1.f : v > 1.f ? 1.f : v;
++            return static_cast<uint64_t>((v + 1.f) * 32767.5f + .5f);
++        };
++        state.store((uint64_t{1} << 32) | encode(x) | (encode(y) << 16), std::memory_order_release);
++    }
++    bool read(float& x, float& y) const {
++        const uint64_t value = state.load(std::memory_order_acquire);
++        if (!(value & (uint64_t{1} << 32))) return false;
++        x = static_cast<float>(value & 65535) / 32767.5f - 1.f;
++        y = static_cast<float>((value >> 16) & 65535) / 32767.5f - 1.f;
++        return true;
++    }
++};
++}
+diff --git a/platform/mobile/thor/TrackpadMailbox.h b/platform/mobile/thor/TrackpadMailbox.h
+new file mode 100644
+index 0000000000000000000000000000000000000000..7f8dc510e2824d8429b2a3cf127d0bee157d4a01
+--- /dev/null
++++ b/platform/mobile/thor/TrackpadMailbox.h
+@@ -0,0 +1,42 @@
++#pragma once
++#include <array>
++#include <cmath>
++#include <mutex>
++
++namespace mobile_thor {
++// UI producer, input-thread consumer. Keep ordered deltas: +edge then -motion must move back
++// immediately, even when both arrived between game frames. No independent cursor to go stale.
++class TrackpadMailbox {
++    struct Delta { float x, y; };
++    std::mutex mutex;
++    std::array<Delta, 256> pending{};
++    unsigned count = 0;
++    bool held = false;
++    void clearLocked() { count = 0; held = false; }
++    static float clamp(float x) { return x < -1.f ? -1.f : x > 1.f ? 1.f : x; }
++public:
++    enum { Begin = 0, Move = 1, End = 2, Cancel = 3 };
++    void clear() { std::lock_guard<std::mutex> lock(mutex); clearLocked(); }
++    void send(float dx, float dy, int phase) {
++        std::lock_guard<std::mutex> lock(mutex);
++        if (!std::isfinite(dx) || !std::isfinite(dy) || phase < Begin || phase > Cancel) { clearLocked(); return; }
++        if (phase == Cancel) { clearLocked(); return; }
++        if (phase == Begin) { if (held) clearLocked(); held = true; return; }
++        if (!held) return;
++        if (phase == End) { held = false; return; }
++        if (count == pending.size()) { clearLocked(); return; } // refuse an overloaded gesture
++        pending[count++] = {dx, dy};
++    }
++    bool apply(float& x, float& y) {
++        std::lock_guard<std::mutex> lock(mutex);
++        if (!std::isfinite(x) || !std::isfinite(y)) { clearLocked(); return false; }
++        const bool active = held || count != 0;
++        for (unsigned i = 0; i < count; ++i) {
++            x = clamp(x + pending[i].x);
++            y = clamp(y + pending[i].y);
++        }
++        count = 0;
++        return active;
++    }
++};
++}
 diff --git a/platform/src/gx/vk/vk_thor_capture.cpp b/platform/src/gx/vk/vk_thor_capture.cpp
 new file mode 100644
-index 0000000..7b724c0
+index 0000000000000000000000000000000000000000..7b724c050e35b2d1a52522b8823736d2cc732232
 --- /dev/null
 +++ b/platform/src/gx/vk/vk_thor_capture.cpp
 @@ -0,0 +1,372 @@
@@ -4536,7 +5496,7 @@ index 0000000..7b724c0
 +}
 diff --git a/platform/src/gx/vk/vk_thor_capture.h b/platform/src/gx/vk/vk_thor_capture.h
 new file mode 100644
-index 0000000..b654f9c
+index 0000000000000000000000000000000000000000..b654f9c7c6dbcc595759b4ba2dcc6af8973d9f9a
 --- /dev/null
 +++ b/platform/src/gx/vk/vk_thor_capture.h
 @@ -0,0 +1,27 @@
@@ -4569,7 +5529,7 @@ index 0000000..b654f9c
 +}  // namespace gpu
 diff --git a/platform/src/port/kaizo.cpp b/platform/src/port/kaizo.cpp
 new file mode 100644
-index 0000000..db71c2b
+index 0000000000000000000000000000000000000000..db71c2bb06801e7dc5bb18b728f36520d5222e23
 --- /dev/null
 +++ b/platform/src/port/kaizo.cpp
 @@ -0,0 +1,84 @@
@@ -4659,7 +5619,7 @@ index 0000000..db71c2b
 +}
 diff --git a/platform/src/port/profile.cpp b/platform/src/port/profile.cpp
 new file mode 100644
-index 0000000..bf6f93f
+index 0000000000000000000000000000000000000000..bf6f93ff4db0c3ed942e1d83623f605876adae53
 --- /dev/null
 +++ b/platform/src/port/profile.cpp
 @@ -0,0 +1,35 @@
@@ -4700,7 +5660,7 @@ index 0000000..bf6f93f
 +}
 diff --git a/tools/cook/kaizo_patch.py b/tools/cook/kaizo_patch.py
 new file mode 100644
-index 0000000..17cb96d
+index 0000000000000000000000000000000000000000..17cb96dbbd9abae5c5fe2d177cfbf227900f980f
 --- /dev/null
 +++ b/tools/cook/kaizo_patch.py
 @@ -0,0 +1,130 @@

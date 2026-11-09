@@ -1,0 +1,64 @@
+# Words that name one game, which nothing in this repository may contain outside the
+# allowed files (README.md and CLAUDE.md list the game projects by name). One
+# case-insensitive regular expression per line; tools/check_generic.py reads it.
+#
+# Add a game's title, disc ID and its most distinctive nouns when a project for it starts.
+
+# Metroid Prime (prime-recomp)
+metroid
+\bprime\b
+\bretro studios\b
+\bsamus\b
+\btallon\b
+\bchozo\b
+\bGM8E01\b
+
+# Wave Race: Blue Storm (bluestorm-recomp)
+wave ?race
+blue ?storm
+waverace
+\bjet ?ski
+\bGWRE01\b
+
+# Star Wars Rogue Squadron II: Rogue Leader (rs2-recomp)
+rogue ?(squadron|leader)
+\brogue2\b
+\bfactor ?5\b
+\bGSWE64\b
+\bx-?wing\b
+\btie ?fighter\b
+
+# F-Zero GX (fzerogx-recomp)
+f-?zero
+\bfze\b
+\bGFZE01\b
+\bamusement vision\b
+\bmute city\b
+\bcaptain falcon\b
+NANDEYANEN
+
+# Mario Kart: Double Dash!! (mariokartdd-recomp)
+mario ?kart
+double ?dash
+\bmkdd\b
+\bGM4E01\b
+
+# Metroid Prime 2: Echoes (prime2-recomp)
+\bechoes\b
+\bprime2\b
+\baether\b
+\bluminoth
+\bG2ME01\b
+
+# Luigi's Mansion (lm-recomp)
+luigi'?s ?mansion
+\bluigi\b
+\bGLME01\b
+\bgadd\b
+\bpoltergust\b
+
+# Burnout 2: Point of Impact (burnout2-recomp)
+burnout
+point of impact
+\bcriterion\b
+\bGB4E51\b

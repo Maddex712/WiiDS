@@ -1,0 +1,28 @@
+allprojects {
+    buildDir = new File('M:/WiiDS-release-wrap-2026-11-08/gradle-out', project.name)
+    afterEvaluate { p ->
+        p.tasks.withType(JavaCompile).configureEach { t ->
+            if (t.name == 'compileReleaseJavaWithJavac') {
+                t.outputs.upToDateWhen { false }
+                t.doLast {
+                    def sources = p.fileTree('src/main/java/dev/thor/mkdd') { include '**/*.java' }.files
+                    def boot = p.android.bootClasspath.collect { it.absolutePath }.join(File.pathSeparator)
+                    def dest = t.destinationDirectory.get().asFile
+                    def cp = (t.classpath + p.files(dest)).asPath
+                    def args = ['C:/Program Files/Microsoft/jdk-21.0.12.101-hotspot/bin/javac.exe', '-encoding', 'UTF-8', '-source', '8', '-target', '8', '-nowarn', '-bootclasspath', boot, '-classpath', cp, '-d', dest.absolutePath]
+                    args.addAll(sources.collect { it.absolutePath })
+                    p.exec { commandLine args }
+                    println('MKDD: ' + sources.size() + ' Java sources compiled with -source 8 -target 8')
+                }
+            }
+        }
+    }
+}
+
+
+
+
+
+
+
+

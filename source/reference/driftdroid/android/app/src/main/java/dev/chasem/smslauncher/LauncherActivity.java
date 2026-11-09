@@ -7,6 +7,7 @@ import android.net.Uri;
 import android.os.Bundle;
 import android.graphics.Color;
 import android.view.View;
+import android.view.KeyEvent;
 import android.widget.*;
 import java.io.*;
 import java.nio.file.Files;
@@ -17,19 +18,19 @@ import java.util.zip.*;
 
 /** Android's document picker keeps ROMs and saves private without storage permissions. */
 public class LauncherActivity extends Activity {
+    static final String EXTRA_SETTINGS_ONLY = "sunshine_settings_only";
     private static final int DISC = 1, IMPORT_SAVE = 2, EXPORT_SAVE = 3, EXPORT_LOG = 4;
     private final ExecutorService io = Executors.newSingleThreadExecutor();
     private TextView status;
     private LinearLayout content;
     private boolean busy;
+    private boolean settingsOnly;
     private SharedPreferences prefs;
     private File root, disc, card, game;
 
     @Override public void onCreate(Bundle state) {
         super.onCreate(state);
-        root = ThorStorage.root(this); disc = ThorStorage.disc(this);
-        card = new File(root, "saves/card-a"); game = new File(root, "game");
-        disc.getParentFile().mkdirs(); card.mkdirs(); game.mkdirs(); new File(game, "cache").mkdirs();
+        settingsOnly = getIntent().getBooleanExtra(EXTRA_SETTINGS_ONLY, false);
         prefs = getSharedPreferences("settings", MODE_PRIVATE);
         LinearLayout layout = new LinearLayout(this);
         layout.setOrientation(LinearLayout.VERTICAL);
@@ -51,6 +52,16 @@ public class LauncherActivity extends Activity {
             return insets;
         });
         setContentView(layout);
+        if (settingsOnly) {
+            content = panel(columns, "Sunshine game settings");
+            label("Changes take effect the next time you launch Sunshine.", 15);
+            button("Back to Sunshine", this::finish);
+            addGameSettings();
+            return;
+        }
+        root = ThorStorage.root(this); disc = ThorStorage.disc(this);
+        card = new File(root, "saves/card-a"); game = new File(root, "game");
+        disc.getParentFile().mkdirs(); card.mkdirs(); game.mkdirs(); new File(game, "cache").mkdirs();
         content = panel(columns, "Super Mario Sunshine");
         label("Import a US revision 0 disc image, then play with your handheld's controls or a connected controller.", 14);
         status = label("", 16);
@@ -74,6 +85,12 @@ public class LauncherActivity extends Activity {
         button("Export save backup", () -> create(EXPORT_SAVE, "application/zip", "sunshine-save.zip"));
         button("Export game log", () -> create(EXPORT_LOG, "text/plain", "sunshine-game.log"));
         content = panel(columns, "Game settings");
+        addGameSettings();
+        label("Connect a Bluetooth or USB controller, or use the built-in controls on an Android handheld. Android Back returns to the launcher. Disc images and save backups are copied into private app storage; uninstalling removes them.", 15);
+        refresh();
+    }
+
+    private void addGameSettings() {
         button("Controller configuration", () -> startActivity(new Intent(this, ControllerConfigActivity.class)));
         choice("Frame rate", "frame_rate", new String[]{"30", "60", "120"}, "60");
         choice("Resolution scale", "resolution", new String[]{"1", "2", "1080p", "3"}, "1080p");
@@ -85,9 +102,16 @@ public class LauncherActivity extends Activity {
         toggle("Match display refresh to game FPS", "match_display_rate", false);
         toggle("Show performance overlay", "performance_overlay", false);
         toggle("Log performance timings", "timing_log", false);
-        label("Connect a Bluetooth or USB controller, or use the built-in controls on an Android handheld. Android Back returns to the launcher. Disc images and save backups are copied into private app storage; uninstalling removes them.", 15);
-        refresh();
     }
+
+    @Override public boolean dispatchKeyEvent(KeyEvent event) {
+        if (settingsOnly && event.getKeyCode() == KeyEvent.KEYCODE_BUTTON_B) {
+            if (event.getAction() == KeyEvent.ACTION_UP && !event.isCanceled()) finish();
+            return true;
+        }
+        return super.dispatchKeyEvent(event);
+    }
+
     private int dp(int value) { return Math.round(value * getResources().getDisplayMetrics().density); }
     private LinearLayout panel(LinearLayout columns, String title) {
         LinearLayout card = new LinearLayout(this); card.setOrientation(LinearLayout.VERTICAL);
@@ -129,7 +153,10 @@ public class LauncherActivity extends Activity {
         String value = prefs.getString(key, fallback);
         for (int i = 0; i < values.length; i++) if (values[i].equals(value)) s.setSelection(i);
         s.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
-            public void onItemSelected(AdapterView<?> p, View v, int i, long id) { prefs.edit().putString(key, values[i]).apply(); }
+            public void onItemSelected(AdapterView<?> p, View v, int i, long id) {
+                if (!values[i].equals(prefs.getString(key, fallback)))
+                    prefs.edit().putString(key, values[i]).apply();
+            }
             public void onNothingSelected(AdapterView<?> p) {}
         }); content.addView(s);
     }

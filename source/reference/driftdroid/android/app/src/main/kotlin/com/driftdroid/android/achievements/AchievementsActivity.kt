@@ -67,6 +67,10 @@ class AchievementsActivity : Activity(), DisplayManager.DisplayListener {
             FrontendGame.ECLIPSE -> "Super Mario Eclipse"
             FrontendGame.GALAXY -> "Super Mario Galaxy"
             FrontendGame.KAIZO -> "Kaizo Mario Galaxy Rebalanced"
+            FrontendGame.BRAWL -> "Super Smash Bros. Brawl"
+            FrontendGame.PROJECT_PLUS -> "Project+"
+            FrontendGame.MKDD -> "Mario Kart: Double Dash!!"
+            FrontendGame.MKDD_PLUS -> "Mario Kart: Double Dash!! Plus"
             null -> "WiiDS"
         }
     }

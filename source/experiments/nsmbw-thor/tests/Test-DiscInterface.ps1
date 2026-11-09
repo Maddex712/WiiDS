@@ -1,7 +1,7 @@
 [CmdletBinding()]
 param(
     [string]$WorkspaceRoot = (Join-Path $PSScriptRoot '..\..\..'),
-    [string]$DeviceSerial = '192.168.15.84:5555'
+    [string]$DeviceSerial = '192.0.2.1:5555'
 )
 $ErrorActionPreference = 'Stop'
 $WorkspaceRoot = [IO.Path]::GetFullPath($WorkspaceRoot)
