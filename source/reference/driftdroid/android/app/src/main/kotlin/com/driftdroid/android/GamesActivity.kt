@@ -241,6 +241,38 @@ class GamesActivity : Activity() {
         searchButton.isEnabled = !scanning && RomScanner.hasAccess()
         searchButton.text = if (scanning) "Searching..." else "Search again"
         for ((game, card) in separateSetupCards) {
+            if (game == FrontendGame.PROJECT_PLUS) {
+                card.progress.visibility = View.GONE
+                val (storageMessage, projectPlusReady, brawlReady) = runCatching {
+                    val blocker = GameStorage.blocker(this)
+                    if (blocker != null) Triple(blocker, false, false)
+                    else {
+                        val ready = ThorGameLaunch.projectPlusAvailable(this)
+                        Triple(null, ready, ready || ThorGameLaunch.brawlInstalled(this))
+                    }
+                }.getOrElse { Triple("WiiDS couldn't check Project+ storage.", false, false) }
+                when {
+                    storageMessage != null -> {
+                        show(card, storageMessage, AMBER)
+                        button(card, "Unavailable", false) {}
+                    }
+                    projectPlusReady -> {
+                        show(card, "Ready. Open the Brawl stack in the library to play Project+.", GREEN)
+                        button(card, "Ready", false) {}
+                    }
+                    !brawlReady -> {
+                        show(card, "Import your USA Brawl revision 2 disc using the Brawl card first. Project+ shares that disc.", MUTED)
+                        button(card, "Brawl required", false) {}
+                    }
+                    else -> {
+                        show(card, "Set up or enable Project+ in Manage games. Project+ uses its own saves.", MUTED)
+                        button(card, "Manage games", !installBusy) {
+                            startActivity(Intent(this, GameStorageActivity::class.java))
+                        }
+                    }
+                }
+                continue
+            }
             val installed = GameStorage.ready(this, game)
             val baseReady = GameStorage.ready(this, FrontendGame.MARIO_KART)
             val plus = game == FrontendGame.MKDD_PLUS
@@ -556,8 +588,17 @@ class GamesActivity : Activity() {
             val line = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
             row.forEachIndexed { index, game ->
                 val card = when (game) {
-                    FrontendGame.RETRO_REWIND, FrontendGame.MKDD_PLUS -> buildSeparateSetupCard(game)
-                    else -> buildCard(Game.valueOf(game.name))
+                    FrontendGame.RETRO_REWIND, FrontendGame.MKDD_PLUS, FrontendGame.PROJECT_PLUS ->
+                        buildSeparateSetupCard(game)
+                    FrontendGame.MARIO_KART -> buildCard(Game.MARIO_KART)
+                    FrontendGame.NSMB -> buildCard(Game.NSMB)
+                    FrontendGame.MSMBWII -> buildCard(Game.MSMBWII)
+                    FrontendGame.SUNSHINE -> buildCard(Game.SUNSHINE)
+                    FrontendGame.ECLIPSE -> buildCard(Game.ECLIPSE)
+                    FrontendGame.GALAXY -> buildCard(Game.GALAXY)
+                    FrontendGame.KAIZO -> buildCard(Game.KAIZO)
+                    FrontendGame.BRAWL -> buildCard(Game.BRAWL)
+                    FrontendGame.MKDD -> buildCard(Game.MKDD)
                 }
                 line.addView(card, LinearLayout.LayoutParams(0, -1, 1f).apply {
                     if (index == 0 && row.size > 1) marginEnd = dp(16)
