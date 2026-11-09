@@ -6,7 +6,7 @@ Play supported Wii and GameCube games on the AYN Thor, with a companion on its l
 
 ## Quick start
 
-**1.2** adds Double Dash!!, Double Dash!! Plus, Brawl and Project+, plus controller and graphics fixes. Open **Options → Check for updates** or install the signed APK over your existing copy. [Full 1.2 patch notes](docs/release/V1.2.md).
+**WiiDS 1.2** adds Double Dash!!, Double Dash!! Plus, Brawl, and Project+, plus texture packs, game offloading, and controller and graphics fixes. [Full WiiDS 1.2 patch notes](https://github.com/Maddex712/WiiDS/releases/tag/v1.2.0)
 
 **You need:** an **AYN Thor with both screens**, Android **11 or newer** (**12L or newer for Galaxy**),
 and your own [compatible game dump](#exact-game-files-for-each-game). The region and revision must match.
@@ -14,7 +14,7 @@ and your own [compatible game dump](#exact-game-files-for-each-game). The region
 
 1. **[Download WiiDS 1.2 for AYN Thor (APK, 384 MB)](https://github.com/Maddex712/WiiDS/releases/download/v1.2.0/WiiDS-1.2-arm64.apk)** on your Thor.
 2. **Install the APK and open WiiDS.** Allow your browser or file manager to install apps if Android asks.
-   Wait for WiiDS to prepare its files. Updating? Install over your existing copy; do not uninstall it.
+   Wait for WiiDS to prepare its files. If you already use WiiDS, open **Options → Check for updates** or install the APK over your current copy to keep your data.
 3. **Copy your game dump to the Thor.** Open **Options → Your games** (it opens automatically on first use).
    Allow storage access, then use **Choose file** on the game's card or **Search again** to find your dump.
    Keep WiiDS open until import finishes.
@@ -24,19 +24,31 @@ and your own [compatible game dump](#exact-game-files-for-each-game). The region
 5. **Play.** Return to the library. Press **A** to choose a game (Original or its mod), **A** to open its case, then **A** to launch the disc.
    **B** goes back; **X** opens Options.
 
-**Want the mods?**
+### Set up the mods
 
 - **MSMBWii:** installs automatically after importing the supported NSMB Wii disc. Use **Install mod** or **Retry mod installation** if needed.
-- **Eclipse:** import the supported Sunshine disc, then choose **Install Eclipse** in **Your games**. The patch is included.
+- **Eclipse:** import the supported Sunshine disc, then use **Choose Eclipse patch** in **Your games** to select Eclipse Team's official 1.1.0 xdelta. The patch is a separate download.
 - **Retro Rewind:** import the supported Mario Kart Wii disc, then press **Y** in the library or open **Options → Retro Rewind updates**. This download needs internet access.
 - **Kaizo Mario Galaxy Rebalanced 2.1:** select its card in **Your games**, use your clean USA Galaxy disc, and choose **Set up Rebalanced**. Select the creator's original 2.1 ZIP when prompted; the setup dialog includes an **Official download** link. The mod ZIP is not bundled.
 
-[Full 1.1.1 patch notes](docs/release/V1.1.1.md) · [1.1 patch notes](docs/release/V1.1.md) · [Join the WiiDS Discord](https://discord.gg/vTEKP8wpQm) · [Check supported discs and formats](#what-youll-need) · [Galaxy setup and storage details](docs/release/GALAXY-SETUP.md) · [Per-game guide](docs/GAMES.md) · [Galaxy gameplay and planet pictures](#super-mario-galaxy)
+- **Double Dash!! Plus:** import standard Double Dash first. In **Your games → Double Dash Plus**, select **Choose Plus 3.3 patch** and pick the creator's NTSC xdelta. WiiDS builds the Plus course maps and keeps a separate memory card. [Double Dash Plus patch topic](https://retroachievements.org/forums/topic/27182)
+- **Project+:** import Brawl first, then enable Project+ in **Options → Manage games**. WiiDS can migrate an existing setup. If it needs the mod files, place your Project+ SD image and codes in the WiiDS Project+ folder as prompted. Open the Brawl stack to select the Project+ case.
+
+[Supported discs and formats](#what-youll-need) · [Galaxy setup](docs/release/GALAXY-SETUP.md) · [Per-game guide](docs/GAMES.md) · [Join the WiiDS Discord](https://discord.gg/vTEKP8wpQm)
 
 <p align="center">
   <img src="docs/images/mkw-retro-rewind-peach-circuit.jpg" width="640"
        alt="Retro Rewind Peach Circuit racing on the AYN Thor's top screen, with a live overhead course map, standings and timer on the bottom screen">
 </p>
+
+## New in 1.2
+
+- **Double Dash!! and Double Dash!! Plus** have separate cases and saves, with lower-screen race information and maps. Setup builds maps for 16 standard courses and 80 Plus courses. The update fixes Player 2 controller routing, the standard opening movie, and the Plus DS Cheep Cheep Beach minimap.
+- **Brawl and Project+** share the supported Brawl disc, with separate cases, settings, and saves. The lower screen shows match information and Battle Records.
+- **Texture Pack Store** keeps a separate selection for each of the 12 cases. **Manage games** can free space by offloading imported data and maps while keeping saves, backups, settings, and case art.
+- **Galaxy and Kaizo** get targeted texture and color fixes. **Sunshine** gets an in-game Back menu. The **Mario Kart Wii and Retro Rewind** settings gear now auto-hides and returns on touch.
+
+[Full changelog, setup details, and tested limits](https://github.com/Maddex712/WiiDS/releases/tag/v1.2.0).
 
 ## New in 1.1.1
 
@@ -57,8 +69,7 @@ and your own [compatible game dump](#exact-game-files-for-each-game). The region
 - **RetroAchievements browser:** sets, subsets, badges and existing connected-account progress. WiiDS does not submit new gameplay unlocks.
 - **Presentation and touch fixes:** included menu music/art install correctly on first use, with clearer focus and first-tap behavior.
 
-Read the [full patch notes and known limits](docs/release/V1.1.md), [save guide](docs/SAVE_MANAGER.md),
-or [shortcut guide](docs/FRONTEND_LAUNCHING.md). Install 1.1 over your existing WiiDS app to keep its data.
+[1.1.1 patch notes](https://github.com/Maddex712/WiiDS/releases/tag/v1.1.1) · [1.1 patch notes](https://github.com/Maddex712/WiiDS/releases/tag/v1.1.0) · [Save guide](docs/SAVE_MANAGER.md) · [Shortcut guide](docs/FRONTEND_LAUNCHING.md)
 
 ## Games
 
@@ -69,9 +80,13 @@ or [shortcut guide](docs/FRONTEND_LAUNCHING.md). Install 1.1 over your existing 
 | **New Super Mario Bros. Wii** | Static recompilation (NSMB Wii recompilation) | Course progress, Star Coin tray, score, stored-item box and world route with NSMB2-style world bubbles | USA, `SMNE01` revision 1 |
 | **MSMBWii: Just a Little Adventure** | The same engine, with MidiGuyDP's fan level pack | The same companion, with its own case and save | NSMB Wii disc above; mod included |
 | **Super Mario Sunshine** | Decompilation port, built for Android | Enlarged area map and Mario marker, moving cloud backdrop, postcard, episode Shines and original-art counters; live title sky in menus | USA, `GMSE01` revision 0 |
-| **Super Mario Eclipse 1.1.0** | Sunshine expansion in its own native runtime processes | The same live-map companion, with Eclipse-specific area and menu handling | Uses your USA Sunshine disc; official patch and installer included |
+| **Super Mario Eclipse 1.1.0** | Sunshine expansion in its own native runtime processes | The same live-map companion, with Eclipse-specific area and menu handling | USA Sunshine disc plus Eclipse Team's official 1.1.0 patch |
 | **Super Mario Galaxy 1** | Native Galaxy-Android/Petari port inside WiiDS; own-disc conversion and lower bake are integrated | Live counters, textured GPU planet with matched actor visibility/matrices and player marker; Gardens flat map | USA `RMGE01` revision 0; Android API 32+ |
 | **Kaizo Mario Galaxy Rebalanced 2.1** | Galaxy challenge mod in a separate native profile | Galaxy companion generated from the modded data, with independent settings and saves | Same clean USA Galaxy disc plus the creator's exact Rebalanced 2.1 ZIP |
+| **Mario Kart: Double Dash!!** | GameCube native recompilation | Course maps, live position, standings, and timers | USA, `GM4E01` revision 0 |
+| **Mario Kart: Double Dash!! Plus** | Separate Double Dash mod profile | Maps for all five course sets, plus live race information | Same Double Dash disc plus Plus 3.3 NTSC xdelta |
+| **Super Smash Bros. Brawl** | Native Wii recompilation | Match information and Battle Records | USA, `RSBE01` revision 2 |
+| **Project+** | Separate Brawl mod profile | Match information, stock, and Battle Records | Same Brawl disc plus Project+ SD image and codes |
 
 Galaxy setup automatically generates its private lower-screen art and models from your disc. Read [Galaxy setup/migration and current limits](docs/release/GALAXY-SETUP.md). The 1.1 development builds passed bounded physical Thor checks for original Galaxy and Kaizo: existing-save loading, lower-screen pointing, camera controls, sleep/wake and normal exit. Clean dev28 also verified the corrected opening-attack colors. This is not an all-stage compatibility guarantee; each screenshot retains its actual capture-build label.
 
@@ -92,12 +107,12 @@ legacy-save migration and current limits.
 
 ## Highlights
 
-- **The complete presentation:** selected retail/fan covers and discs, Wii Menu music and UI sounds, original HUD/fonts/settings artwork and cached lower-screen maps are bundled. Existing user overrides and saves are preserved.
-- **Eight game/mod entries:** Mario Kart/Retro Rewind, NSMB/MSMBWii, Sunshine/Eclipse and Galaxy/Kaizo, with each mod keeping its own profile.
+- **The complete presentation:** WiiDS bundles selected covers, discs, Wii Menu music, UI sounds, and companion artwork. Setup prepares course maps from imported game data. Existing user overrides and saves are preserved.
+- **Twelve game and mod entries:** each original and mod has its own case and save profile.
 - **Printed case spines:** Mario Kart, NSMB Wii and Sunshine use crops from retail full-cover scans;
   Retro Rewind and Eclipse use community cover artwork. MSMBWii's spine is an explicit custom
   adaptation. [Artwork sources](docs/GAMES.md#case-artwork).
-- **One APK, separate saves.** Eclipse's official 1.1.0 patch and MSMBWii's pack are bundled; Retro Rewind installs from its official servers. No companion APK is required.
+- **One APK, separate saves.** MSMBWii's pack comes with the app. Retro Rewind installs from its official servers, and the other mod setup requirements are listed above.
 - **A real game shelf.** A carousel of game cases: open one, and the disc lifts out and spins up as the
   game boots. Wii games sit together on the shelf; Sunshine and Eclipse use black
   GameCube cases with correctly sized 8 cm mini discs.
@@ -110,7 +125,7 @@ legacy-save migration and current limits.
 - **Video options:** 1080p rendering and 60 FPS defaults, with an optional 120 FPS setting.
   Mario Kart Wii and NSMB Wii use experimental presentation interpolation while their game logic
   stays at 60 Hz. The Sunshine/Eclipse 120 FPS option is also experimental; it is not a sustained-performance guarantee.
-- **Retro Rewind** 6.13.0–6.13.1, installed and updated in-app from the official servers. Newer versions need a matching engine build first.
+- **Retro Rewind** 6.13.4, installed and updated in-app from the official servers. Later releases can require a matching engine build.
 
 ## Introduced in 1.0
 
@@ -275,15 +290,15 @@ counters. Eclipse's game data and saves stay separate from regular Sunshine.
 | New Super Mario Bros. Wii | New Super Mario Bros. Wii | `SMNE01` | USA | **1** | `aa7b134a7606435ddcd735f2964ebdecde38c2ef` |
 | MSMBWii: Just a Little Adventure | the same NSMB Wii disc | `SMNE01` | USA | **1** | `aa7b134a7606435ddcd735f2964ebdecde38c2ef` |
 | Super Mario Sunshine | Super Mario Sunshine (GameCube) | `GMSE01` | USA | 0 | `8d094f2c5c112aba9660f0478b16c7f2caf63cbf` |
-| Super Mario Eclipse 1.1.0 | the same Sunshine source disc; apply the included official patch | `GMSE01` source → `GMSE04` installed | USA source | 0 (source) | same clean Sunshine source hash above |
+| Super Mario Eclipse 1.1.0 | the same Sunshine source disc plus the official 1.1.0 patch | `GMSE01` source → `GMSE04` installed | USA source | 0 (source) | same clean Sunshine source hash above |
 | Super Mario Galaxy 1 | Super Mario Galaxy (Wii), clean ISO | `RMGE01` | USA | **0** | `a36105c9fbfff6041dc5babf4318c6a216ad470a` |
 | Kaizo Mario Galaxy Rebalanced 2.1 | Same clean Galaxy disc plus the original Rebalanced 2.1 ZIP | RMGE01 source | USA | **0** (source) | same clean Galaxy source hash above |
+| Mario Kart: Double Dash!! | Complete Double Dash!! disc | `GM4E01` | USA | **0** | See the disc ID and revision |
+| Mario Kart: Double Dash!! Plus | Same Double Dash!! disc plus Plus 3.3 NTSC xdelta | `GM4E01` source | USA | **0** (source) | Uses the supported Double Dash!! dump |
+| Super Smash Bros. Brawl | Super Smash Bros. Brawl | `RSBE01` | USA | **2** | See the disc ID and revision |
+| Project+ | Same Brawl disc plus Project+ SD image and codes | `RSBE01` source | USA | **2** (source) | Uses the supported Brawl dump |
 
-For Eclipse, first import the unchanged supported Sunshine disc, then choose **Install Eclipse**.
-WiiDS checks the source disc, bundled 1.1.0 patch and resulting image, and keeps Eclipse's image,
-settings and saves separate from regular Sunshine. The exact supported prepatched Eclipse image
-can also be imported; other images sharing the `GMSE04` header are not accepted as the same build.
-If installation is cancelled, **Retry Eclipse installation** reuses the bundled patch.
+For Eclipse, import the supported Sunshine disc and choose the official **1.1.0 xdelta** through **Your games → Choose Eclipse patch**. WiiDS verifies the source, patch, and result and keeps Eclipse's image, settings, and saves separate. The exact supported prepatched `GMSE04` image can also be imported.
 
 **Not supported (yet):** the USA Mario Kart Wii disc (`RMCE01`), other regions, NSMB Wii revisions 0 and 2,
 and PAL or Japanese Super Mario Sunshine.
@@ -306,37 +321,13 @@ Grant storage access and use **Search again** in **Your games** so WiiDS finds a
 **How to check your disc:** in Dolphin, the game list shows the Game ID. Right-click the game, choose
 **Properties → Info**, and look at **Revision**.
 
-## Included mods and presentation
+## Mods and presentation
 
-All four mod integrations run inside the one APK:
-
-- **Retro Rewind** (Mario Kart Wii): its native runtime and 398 rendered lower-screen maps are bundled.
-  The actual track/content pack installs and updates in the app from Retro Rewind's official servers.
-  Compatibility checks keep the pack aligned with the included runtime; cached maps still require
-  the loaded course archive's matching identity and SHA-256.
-- **MSMBWii: Just a Little Adventure** (NSMB Wii): its native runtime and level-pack archive are bundled.
-  Mod installation starts automatically after importing the supported NSMB Wii disc, with its own
-  save profile. Its card offers **Install mod** or **Retry mod installation** if it did not finish.
-- **Super Mario Eclipse 1.1.0** (Sunshine): its native runtime, unchanged official VCDIFF patch and
-  on-device installer are bundled. Apply the patch to your own supported Sunshine disc through
-  **Your games → Install Eclipse**. No separate Eclipse app or downloaded game image is required.
-  **Retry Eclipse installation** uses the bundled patch again after cancellation.
-- **Kaizo Mario Galaxy Rebalanced 2.1** (Galaxy): its native integration is included. Choose the creator's original 2.1 ZIP through its setup dialog; WiiDS checks it and applies it to your own supported Galaxy disc. The patch ZIP is not bundled. Original Galaxy and Kaizo keep separate saves, settings and generated lower-screen data.
-
-The complete selected presentation is also bundled: retail/fan covers and discs, printed case spines, Wii Menu music,
-UI sounds, companion HUDs/fonts, menu/settings art, retail maps and the Retro Rewind map cache.
-Its release manifest records each file's size and SHA-256. This presentation
-does not replace the required game discs or Retro Rewind content installation. Existing valid user
-overrides remain separate and preserved. See the [component notices](docs/release/WIIDS-NOTICE.md)
-for mod and presentation credits and terms.
+The six mod integrations run in the WiiDS app. Follow the [mod setup steps](#set-up-the-mods) for the files each one needs. WiiDS can build Mario Kart Wii maps from the imported disc and prepare Retro Rewind maps from the installed pack. The 1.2 APK bundles the selected covers, spines, disc art, music, UI sounds, and companion artwork. The release audit records the packaged files.
 
 ## Source and build information
 
-The [1.1 release](https://github.com/Maddex712/WiiDS/releases/tag/v1.1.0) contains the APK, checksums and
-matching `WiiDS-1.1-source.zip`. That named source ZIP includes the large presentation files omitted
-from GitHub's automatic Source code download. The reviewed code is also in [source/](source/).
-See the [build notes](docs/release/SOURCE-RELEASE.md), [release notes](docs/release/V1.1.md)
-and [component credits](docs/release/WIIDS-NOTICE.md).
+The [WiiDS 1.2 release](https://github.com/Maddex712/WiiDS/releases/tag/v1.2.0) contains the signed APK, checksums, and matching **WiiDS-1.2-source.zip**. The release source is also in [source/](source/). See the [source manifest](source/SOURCE-MANIFEST.json), [runtime asset recipe](source/docs/release/RUNTIME-ASSETS-1.2.md), and [component notices](source/release/licenses/apk-1.2/).
 
 ## Credits
 
@@ -346,6 +337,8 @@ WiiDS stands on the work of these projects and people:
 - **NSMB Wii recompilation** (WitherBlitz): the New Super Mario Bros. Wii runtime
 - **sms-pc-port** and **sms-launcher** (Chase Myers / chasem-dev), on the **Super Mario Sunshine decompilation** (doldecomp)
 - **Retro Rewind** (ZPL and the Retro Rewind team)
+- **mariokartdd-recomp** and its contributors, and the **Double Dash!! Plus** creators
+- **Brawl runtime and decompilation contributors** and the **Project+** team
 - **OpenPort-Labs Galaxy-Android**, **SMGCommunity Petari** and **bigmak94/GalaxyQuest**: the Galaxy runtime and decompilation work
 - **Kaizo Mario Galaxy / Rebalanced creators**: the Rebalanced 2.1 mod; its original credit files are retained during setup
 - **MSMBWii: Just a Little Adventure** (MidiGuyDP and Fredo), using **Another Super Mario Bros. Wii** code (Skawo, Treeki)
