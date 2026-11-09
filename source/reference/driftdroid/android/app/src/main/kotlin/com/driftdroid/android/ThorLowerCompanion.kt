@@ -11,6 +11,7 @@ import android.view.Display
 import android.view.View
 import android.view.WindowManager
 import android.widget.FrameLayout
+import com.driftdroid.android.dualscreen.WiiDsDisplays
 import java.io.File
 
 /** Passive lower-screen information before a native runtime or race map is available. */
@@ -69,13 +70,7 @@ class ThorLowerCompanion @JvmOverloads constructor(private val activity: Activit
 
     private fun refresh() {
         if (!running) return
-        val upper = activity.windowManager.defaultDisplay.displayId
-        var lower: Display? = null
-        for (display in displays?.getDisplays(DisplayManager.DISPLAY_CATEGORY_PRESENTATION).orEmpty()) {
-            if (!display.isValid || display.displayId == upper) continue
-            if (lower == null || display.name == "Screen-2") lower = display
-        }
-        val target = lower
+        val target = WiiDsDisplays.companion(activity, displays)
         if (target != null && presentation?.isShowing == true &&
             presentation?.display?.displayId == target.displayId) return
         closePresentation()

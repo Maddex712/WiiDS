@@ -1,5 +1,7 @@
 package dev.chasem.eclipselauncher;
 
+import com.driftdroid.android.dualscreen.WiiDsDisplays;
+
 import android.app.Activity;
 import android.app.Presentation;
 import android.content.Context;
@@ -236,12 +238,7 @@ final class ThorSunshineScreen implements DisplayManager.DisplayListener {
 
     private void refresh() {
         if (!running) return;
-        int upper = activity.getWindowManager().getDefaultDisplay().getDisplayId();
-        Display target = null;
-        for (Display display : displays.getDisplays(DisplayManager.DISPLAY_CATEGORY_PRESENTATION)) {
-            // The Thor's own lower panel only, never a cast or external display.
-            if (display.isValid() && display.getDisplayId() != upper && "Screen-2".equals(display.getName())) { target = display; break; }
-        }
+        Display target = WiiDsDisplays.companion(activity, displays);
         if (target != null && presentation != null && presentation.isShowing()
                 && presentation.getDisplay().getDisplayId() == target.getDisplayId()) return;
         if (presentation != null) presentation.dismiss();

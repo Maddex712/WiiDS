@@ -36,7 +36,7 @@ public final class ThorDualScreenController implements DisplayManager.DisplayLis
         displays = (DisplayManager) activity.getSystemService(Context.DISPLAY_SERVICE);
     }
     public void start() {
-        if (running) return;
+        if (running || displays == null) return;
         running = true;
         displays.registerDisplayListener(this, handler);
         refresh();
@@ -55,23 +55,22 @@ public final class ThorDualScreenController implements DisplayManager.DisplayLis
     }
     private void refresh() {
         if (!running) return;
-        int current = activity.getWindowManager().getDefaultDisplay().getDisplayId();
-        Display target = null;
-        for (Display d : displays.getDisplays(DisplayManager.DISPLAY_CATEGORY_PRESENTATION)) {
-            if (!d.isValid() || d.getDisplayId() == current) continue;
-            if (target == null || "Screen-2".equals(d.getName())) target = d;
-        }
+        Display target = WiiDsDisplays.companion(activity, displays);
         if (target != null && presentation != null && presentation.isShowing()
                 && presentation.getDisplay().getDisplayId() == target.getDisplayId()) return;
         close();
         if (target == null) return;
-        MapPresentation next = new MapPresentation(target);
-        presentation = next;
-        next.setOnDismissListener(dialog -> {
-            if (presentation == next) { epoch++; presentation = null; next.map.close(); }
-        });
-        try { next.show(); next.startFrames(epoch); }
-        catch (WindowManager.InvalidDisplayException | SecurityException e) {
+        try {
+            MapPresentation next = new MapPresentation(target);
+            presentation = next;
+            next.setOnDismissListener(dialog -> {
+                if (presentation == next) { epoch++; presentation = null; next.map.close(); }
+            });
+            next.show();
+            next.startFrames(epoch);
+            Log.i("ThorDualScreen", "Companion attached to " + target.getName()
+                    + " (display " + target.getDisplayId() + ")");
+        } catch (WindowManager.InvalidDisplayException | WindowManager.BadTokenException | SecurityException e) {
             Log.w("ThorDualScreen", "Lower display unavailable", e); close();
         }
     }

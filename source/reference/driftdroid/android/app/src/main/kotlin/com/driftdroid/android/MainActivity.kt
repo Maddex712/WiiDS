@@ -271,7 +271,7 @@ class MainActivity : SDLActivity() {
         if (RomImportOverlay.isRomAlreadyImported(dvdRoot)) {
             showGameUi()
         } else {
-            if (BuildConfig.THOR_BUILD && Build.MODEL.equals("AYN Thor", ignoreCase = true)) {
+            if (BuildConfig.THOR_BUILD) {
                 thorImportCompanion = ThorLowerCompanion(this, File(filesDir, "WiiCompiled/ThorMap")).also {
                     it.setStatus("Disc setup", "Select your own PAL Mario Kart Wii disc on the upper screen. Import progress and any errors appear there.")
                     if (activityResumed) it.start()
@@ -486,9 +486,8 @@ class MainActivity : SDLActivity() {
             settingsButtonAutoHide.setEditing(editing, SystemClock.uptimeMillis())
             updateSettingsButtonVisibility()
         }
-        // Only enable automatically on the device this layout was requested for. The
-        // controller discovers the lower display; display IDs can change after reconnects.
-        if (Build.MODEL.equals("AYN Thor", ignoreCase = true)) {
+        // The controller can attach when Android exposes a companion display, including after startup.
+        if (BuildConfig.THOR_BUILD) {
             val retro = resolvedProduct == PRODUCT_RETRO_REWIND
             thorScreens = ThorDualScreenController(this, retro, if (retro) RetroRewindRelease.CODE_PUL_SHA256 else "")
             if (activityResumed) thorScreens?.start()

@@ -74,10 +74,6 @@ class ThorRetroRewindUpdateService : Service() {
                     RECOVER -> engine.recoverPending()
                     UPDATE -> engine.update()
                 }
-                // A pack just installed or updated: bake its lower-screen maps now, not only when
-                // the launcher next resumes (it may already be showing). Incremental and idempotent.
-                if (action == UPDATE && ThorRetroRewindUpdateStatus.snapshot.state == ThorRetroRewindUpdateStatus.State.COMPLETE)
-                    com.driftdroid.android.rom.WiiDsArt.repairRetroRewind(applicationContext)
             } catch (failure: Throwable) {
                 val old = ThorRetroRewindUpdateStatus.snapshot
                 ThorRetroRewindUpdateStatus.snapshot = old.copy(
@@ -96,6 +92,9 @@ class ThorRetroRewindUpdateService : Service() {
                 mainHandler.post {
                     if (worker === finishedWorker) {
                         if (leased) ThorGameSession.endUpdate()
+                        // Map repair requires the pack update lease to be released first.
+                        if (action == UPDATE && ThorRetroRewindUpdateStatus.snapshot.state == ThorRetroRewindUpdateStatus.State.COMPLETE)
+                            com.driftdroid.android.rom.WiiDsArt.repairRetroRewind(applicationContext)
                         worker = null
                         stopForeground(STOP_FOREGROUND_REMOVE)
                         // Cancel and ignored duplicate requests advance Android's startId.

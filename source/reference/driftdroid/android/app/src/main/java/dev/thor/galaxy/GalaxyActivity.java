@@ -1,5 +1,7 @@
 package dev.thor.galaxy;
 
+import com.driftdroid.android.dualscreen.WiiDsDisplays;
+
 import android.app.NativeActivity;
 import android.app.Presentation;
 import android.content.ComponentName;
@@ -134,15 +136,9 @@ public class GalaxyActivity extends NativeActivity implements DisplayManager.Dis
     }
     private void showLower() {
         if (!resumed || displays == null || leaving) return;
-        Display target = null;
-        for (Display display : displays.getDisplays(DisplayManager.DISPLAY_CATEGORY_PRESENTATION)) {
-            if (display.isValid() && display.getDisplayId() != getWindowManager().getDefaultDisplay().getDisplayId()) {
-                target = display;
-                if ("Screen-2".equals(display.getName())) break;
-            }
-        }
+        Display target = WiiDsDisplays.companion(this, displays);
         if (target == null) { closeLower(); return; }
-        if (lower != null && lower.getDisplay().getDisplayId() == target.getDisplayId()) return;
+        if (lower != null && lower.isShowing() && lower.getDisplay().getDisplayId() == target.getDisplayId()) return;
         closeLower();
         lower = new Presentation(this, target);
         // The observatory field guide: the galaxy's star chart / the Observatory's ledger, from the
@@ -161,7 +157,7 @@ public class GalaxyActivity extends NativeActivity implements DisplayManager.Dis
                 if (lower.getWindow().getInsetsController() != null)
                     lower.getWindow().getInsetsController().hide(android.view.WindowInsets.Type.systemBars());
             }
-        } catch (WindowManager.InvalidDisplayException | WindowManager.BadTokenException failure) { closeLower(); }
+        } catch (WindowManager.InvalidDisplayException | WindowManager.BadTokenException | SecurityException failure) { closeLower(); }
     }
     @Override public void onDisplayAdded(int id) { showLower(); }
     @Override public void onDisplayRemoved(int id) { showLower(); }

@@ -1,5 +1,7 @@
 package dev.wiids.brawl;
 
+import com.driftdroid.android.dualscreen.WiiDsDisplays;
+
 import android.app.Activity;
 import android.app.Presentation;
 import android.content.Context;
@@ -309,15 +311,7 @@ final class BrawlLowerScreen implements DisplayManager.DisplayListener {
 
     private void refresh() {
         if (!running || closed) return;
-        int upper = activity.getWindowManager().getDefaultDisplay().getDisplayId();
-        Display target = null;
-        for (Display display : displays.getDisplays(DisplayManager.DISPLAY_CATEGORY_PRESENTATION)) {
-            // Thor's internal lower panel only: never a cast, virtual or HDMI display.
-            if (display.isValid() && display.getDisplayId() != upper && "Screen-2".equals(display.getName())) {
-                target = display;
-                break;
-            }
-        }
+        Display target = WiiDsDisplays.companion(activity, displays);
         if (target != null && presentation != null && presentation.isShowing()
                 && presentation.getDisplay().getDisplayId() == target.getDisplayId()) return;
         dismiss();

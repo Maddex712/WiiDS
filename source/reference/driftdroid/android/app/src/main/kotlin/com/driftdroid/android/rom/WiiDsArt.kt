@@ -168,30 +168,35 @@ object WiiDsArt {
      * whose archive changed are rebaked; nothing runs when the pack is unchanged since last time.
      */
     fun repairRetroRewind(context: Context) {
-        val pack = retroPack(context)
-        val code = File(pack, "Binaries/Code.pul")
-        if (!code.isFile || !GameCatalog.Disc.MARIO_KART_PAL.isInstalled(context)) return
-        val stampFile = File(retroMaps(context), ".pack-stamp")
-        val version = File(pack, "version.txt").takeIf { it.isFile }?.readText()?.trim() ?: ""
-        val stamp = "${code.length()}:${code.lastModified()}:$version"
-        if (stampFile.isFile && stampFile.readText() == stamp && manifestComplete(retroMaps(context), "maps.json")) return
         val app = context.applicationContext
         Thread {
             synchronized(this) {
-                synchronized(GameInstaller) {
-                    if (com.driftdroid.android.SaveManagerProfiles.blocker(app) != null ||
-                        runCatching { com.driftdroid.android.SaveManagerProfiles.requireStopped(app) }.isFailure) return@Thread
-                    building = GameCatalog.Disc.MARIO_KART_PAL
-                }
                 try {
-                    WiiDsDisc.ensureLoaded()
-                    retroMaps(app).mkdirs()
-                    val error = nativeBuildRetroMaps(pack.absolutePath, retroMaps(app).absolutePath)
-                    if (error == null) stampFile.writeText(stamp) else Log.w(TAG, "Retro Rewind maps: $error")
-                } catch (e: Throwable) {
+                    val pack = retroPack(app)
+                    val code = File(pack, "Binaries/Code.pul")
+                    if (!code.isFile || !GameCatalog.Disc.MARIO_KART_PAL.isInstalled(app)) return@Thread
+                    val maps = retroMaps(app)
+                    val stampFile = File(maps, ".pack-stamp")
+                    val version = File(pack, "version.txt").takeIf { it.isFile }?.readText()?.trim() ?: ""
+                    val stamp = "${code.length()}:${code.lastModified()}:$version"
+                    if (stampFile.isFile && stampFile.readText() == stamp && manifestComplete(maps, "maps.json")) return@Thread
+                    synchronized(GameInstaller) {
+                        if (com.driftdroid.android.SaveManagerProfiles.blocker(app) != null ||
+                            runCatching { com.driftdroid.android.SaveManagerProfiles.requireStopped(app) }.isFailure) return@Thread
+                        building = GameCatalog.Disc.MARIO_KART_PAL
+                    }
+                    try {
+                        WiiDsDisc.ensureLoaded()
+                        maps.mkdirs()
+                        val error = nativeBuildRetroMaps(pack.absolutePath, maps.absolutePath)
+                        if (error == null) stampFile.writeText(stamp) else Log.w(TAG, "Retro Rewind maps: $error")
+                    } finally {
+                        building = null
+                    }
+                } catch (e: Exception) {
                     Log.w(TAG, "Retro Rewind maps", e)
-                } finally {
-                    building = null
+                } catch (e: LinkageError) {
+                    Log.w(TAG, "Retro Rewind map builder unavailable", e)
                 }
             }
         }.apply { name = "WiiDsRetroMaps"; isDaemon = true }.start()

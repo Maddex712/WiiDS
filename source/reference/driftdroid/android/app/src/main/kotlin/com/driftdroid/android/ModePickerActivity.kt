@@ -196,7 +196,7 @@ class ModePickerActivity : Activity() {
         // Mario Kart's Wii-menu art may have just been built from a freshly imported disc.
         if (thorLauncher == null && File(com.driftdroid.android.rom.WiiDsArt.thorMap(this), "menu.json").isFile) showThorLauncher()
         val thorDevice = BuildConfig.THOR_BUILD && Build.MODEL.equals("AYN Thor", ignoreCase = true)
-        if (thorDevice) {
+        if (BuildConfig.THOR_BUILD) {
             if (thorCompanion == null) thorCompanion = ThorLowerCompanion(this, File(filesDir, "WiiCompiled/ThorMap")).also {
                 it.onOpenAchievements = { game, item -> if (libraryResumed) openAchievements(game, item) }
             }
@@ -205,15 +205,12 @@ class ModePickerActivity : Activity() {
             // A game or the browser may have recorded unlocks since the previews were read.
             thorCompanion?.refreshAchievements()
             // RetroAchievements progress, at most once a day while an account is connected.
-            com.driftdroid.android.achievements.RaLibrary.syncIfDue(this) { _, _, _ -> thorCompanion?.refreshAchievements() }
+            if (thorDevice) com.driftdroid.android.achievements.RaLibrary.syncIfDue(this) { _, _, _ -> thorCompanion?.refreshAchievements() }
         }
-        // The case launcher runs on any THOR_BUILD device; only the lower-screen companion needs the Thor.
         thorLauncher?.refreshSelection()
         thorLauncher?.onHostResumed()
         if (thorDevice) {
             refreshRetroCodeSupport()
-            // Retro Rewind's lower-screen maps follow its installed pack (baked on this device).
-            com.driftdroid.android.rom.WiiDsArt.repairRetroRewind(this)
             // Debug builds only: exercise the storage search without removing installed game data.
             if (BuildConfig.DEBUG && intent.getBooleanExtra("thor_rom_scan_test", false)) {
                 intent.removeExtra("thor_rom_scan_test")
