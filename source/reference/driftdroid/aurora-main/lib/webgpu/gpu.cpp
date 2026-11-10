@@ -771,6 +771,14 @@ bool initialize(AuroraBackend auroraBackend) {
         implicitDeviceSynchronizationSupported = true;
         requiredFeatures.push_back(feature);
       }
+#ifdef __ANDROID__
+      // Lossless Scaling frame generation (lsfg.cpp) exchanges frames with libbloodframe.so as
+      // AHardwareBuffers synchronised by sync files.
+      if (feature == wgpu::FeatureName::SharedTextureMemoryAHardwareBuffer ||
+          feature == wgpu::FeatureName::SharedFenceSyncFD) {
+        requiredFeatures.push_back(feature);
+      }
+#endif
     }
     if (!implicitDeviceSynchronizationSupported) {
       Log.warn(

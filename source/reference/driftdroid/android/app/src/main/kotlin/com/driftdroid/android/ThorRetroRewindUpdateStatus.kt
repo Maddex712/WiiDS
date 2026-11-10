@@ -17,8 +17,13 @@ internal object ThorRetroRewindUpdateStatus {
         val totalBytes: Long = -1,
         val filesDone: Int = 0,
         val canUpdate: Boolean = false,
+        val requiresWiiDsUpdate: Boolean = false,
         val running: Boolean = false,
-    )
+    ) {
+        val offerWiiDsUpdate: Boolean
+            get() = requiresWiiDsUpdate && !running &&
+                (state == State.BLOCKED || state == State.READY || state == State.COMPLETE)
+    }
 
     @Volatile var snapshot = Snapshot()
         internal set

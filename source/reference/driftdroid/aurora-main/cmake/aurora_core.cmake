@@ -42,7 +42,7 @@ if (AURORA_ENABLE_GX)
     # gpu_cache.cpp stays unconditional -
     # it's a generic SQLite blob cache with zero direct wgpu::/dawn:: dependency, reusable by any
     # backend including deko3d's future uam-shader cache.
-    target_sources(aurora_core PRIVATE lib/webgpu/gpu_cache.cpp lib/webgpu/gpu.cpp)
+    target_sources(aurora_core PRIVATE lib/webgpu/gpu_cache.cpp lib/webgpu/gpu.cpp lib/webgpu/lsfg.cpp)
     if (CMAKE_SYSTEM_NAME STREQUAL "NintendoSwitch")
         target_sources(aurora_core PRIVATE lib/switch/surface_switch.cpp lib/switch/gl_proc_table.c
             lib/switch/input_switch.cpp lib/switch/deko3d_selftest.cpp)

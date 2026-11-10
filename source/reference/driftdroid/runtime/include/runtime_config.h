@@ -45,6 +45,12 @@ struct RuntimeUserConfig {
     std::optional<std::string> gpuDriverLib;
     std::optional<std::string> displayMode;
     std::optional<uint32_t> frameInterpolationFps;
+    // What fills the frame interpolation slots: "interpolation" (replayed transforms) or "lsfg"
+    // (Lossless Scaling from the player's Lossless.dll, which the launcher imports to lsfg_dll).
+    std::optional<std::string> frameGeneration;
+    std::optional<std::string> lsfgDll;
+    std::optional<float> lsfgFlowScale;
+    std::optional<bool> lsfgPerformance;
     std::optional<bool> skipUnreadyPipelines;
     std::optional<bool> disableCopyFilter;
     std::optional<bool> constantMatrixIndexing;
@@ -473,6 +479,13 @@ inline RuntimeUserConfig ParseConfigDocument(const toml::value& document) {
             config.frameInterpolationFps = migrated;
         }
     }
+    if (auto value = FindConfigValue<std::string>(document, "video", "frame_generation");
+        value && (*value == "interpolation" || *value == "lsfg")) {
+        config.frameGeneration = *value;
+    }
+    config.lsfgDll = FindConfigValue<std::string>(document, "video", "lsfg_dll");
+    config.lsfgFlowScale = FindConfigFloat(document, "video", "lsfg_flow_scale");
+    config.lsfgPerformance = FindConfigValue<bool>(document, "video", "lsfg_performance");
     config.skipUnreadyPipelines = FindConfigValue<bool>(document, "video", "skip_unready_pipelines");
     config.disableCopyFilter = FindConfigValue<bool>(document, "video", "disable_copy_filter");
     config.constantMatrixIndexing = FindConfigValue<bool>(document, "video", "constant_matrix_indexing");
@@ -755,6 +768,14 @@ inline bool SetFrameInterpolationFps(uint32_t value) {
     return WriteSetting("video", "frame_interpolation_fps", std::to_string(value));
 }
 
+inline bool SetFrameGeneration(std::string value) {
+    if (value != "interpolation" && value != "lsfg") {
+        return false;
+    }
+    Mutable().frameGeneration = value;
+    return WriteSetting("video", "frame_generation", FormatString(value));
+}
+
 inline bool SetDisplayMode(std::string value) {
     if (!IsSupportedDisplayMode(value)) {
         return false;
@@ -956,6 +977,22 @@ inline bool AttenuateMusicWhenMediaPlays(bool fallback = false) {
 
 inline uint32_t FrameInterpolationFps(uint32_t fallback = 0) {
     return Get().frameInterpolationFps.value_or(fallback);
+}
+
+inline bool FrameGenerationLsfg() {
+    return Get().frameGeneration.value_or("interpolation") == "lsfg";
+}
+
+inline std::string LsfgDll(std::string fallback = "") {
+    return Get().lsfgDll.value_or(std::move(fallback));
+}
+
+inline float LsfgFlowScale(float fallback = 0.75f) {
+    return Get().lsfgFlowScale.value_or(fallback);
+}
+
+inline bool LsfgPerformance(bool fallback = true) {
+    return Get().lsfgPerformance.value_or(fallback);
 }
 
 inline bool SkipUnreadyPipelines(bool fallback = true) {

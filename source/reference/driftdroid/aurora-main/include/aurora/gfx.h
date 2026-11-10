@@ -72,6 +72,16 @@ void aurora_get_frame_interpolation_diagnostics(AuroraFrameInterpolationDiagnost
 void aurora_set_frame_interpolation_fps(uint32_t targetFps);
 uint32_t aurora_get_frame_interpolation_fps();
 
+// Lossless Scaling frame generation (Android, Vulkan): fills the inserted slots of the frame
+// interpolation target with frames generated from the presented images (libbloodframe.so and the
+// player's own Lossless.dll) instead of replaying the scene. `dllPath` null or empty turns it off.
+// flowScale 0.25..1.0 (lower is faster); performance selects the lighter model.
+void aurora_set_lsfg(const char* dllPath, float flowScale, bool performance);
+// Empty while generation runs (or is off); otherwise why it fell back to repeated frames.
+const char* aurora_get_lsfg_status();
+// Frames Lossless Scaling generated per game frame at the last present; 0 when it is not running.
+uint32_t aurora_get_lsfg_active_frames();
+
 // Newly encountered GX pipelines compile on the bounded worker queue. Draws whose pipeline is not
 // ready are skipped rather than stalling submission, and pick it up once compilation finishes.
 void aurora_set_skip_unready_pipelines(bool enabled);

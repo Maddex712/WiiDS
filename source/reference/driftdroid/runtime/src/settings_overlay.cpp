@@ -119,6 +119,29 @@ int ConfiguredFrameInterpolationMode() {
     }
 }
 int g_frameInterpolationMode = ConfiguredFrameInterpolationMode();
+// The interpolated slots come from Lossless Scaling (the player's Lossless.dll) instead of the
+// transform interpolation.
+bool g_frameGenerationLsfg = RuntimeConfigFile::FrameGenerationLsfg();
+
+// Hands the Lossless Scaling choice to Aurora: the DLL the launcher imported, or nothing.
+void ApplyLsfgConfig() {
+    const std::string dll = g_frameGenerationLsfg ? RuntimeConfigFile::LsfgDll() : std::string{};
+    aurora_set_lsfg(dll.c_str(), RuntimeConfigFile::LsfgFlowScale(), RuntimeConfigFile::LsfgPerformance());
+}
+
+// The selected Lossless Scaling mode's state: generating, or why it shows repeated frames.
+std::string LsfgStatusLine() {
+    if (!g_frameGenerationLsfg || g_frameInterpolationMode == 0) return {};
+    if (RuntimeConfigFile::LsfgDll().empty()) {
+        return "Choose your Lossless.dll in the WiiDS launcher: Frame generation.";
+    }
+    const char* status = aurora_get_lsfg_status();
+    if (status != nullptr && status[0] != '\0') return status;
+    const uint32_t frames = aurora_get_lsfg_active_frames();
+    if (frames == 0) return "starting.";
+    return frames == 1 ? "active, 1 generated frame per game frame."
+                       : "active, " + std::to_string(frames) + " generated frames per game frame.";
+}
 int ParseDisplayModeConfig(const std::string& mode) {
     if (mode == "borderless") {
         return static_cast<int>(AURORA_DISPLAY_MODE_BORDERLESS);
@@ -1044,8 +1067,26 @@ void DrawFrameInterpolationSettings() {
         }
         ImGui::EndCombo();
     }
+    if (g_frameInterpolationMode != 0) {
+        constexpr std::array<const char*, 2> engines{"Interpolation", "Lossless Scaling"};
+        if (ImGui::BeginCombo("Frame generation", engines[g_frameGenerationLsfg ? 1 : 0])) {
+            for (int engine = 0; engine < 2; ++engine) {
+                const bool selected = (engine == 1) == g_frameGenerationLsfg;
+                if (ImGui::Selectable(engines[static_cast<size_t>(engine)], selected)) {
+                    g_frameGenerationLsfg = engine == 1;
+                    RuntimeConfigFile::SetFrameGeneration(g_frameGenerationLsfg ? "lsfg" : "interpolation");
+                    ApplyLsfgConfig();
+                }
+                if (selected) ImGui::SetItemDefaultFocus();
+            }
+            ImGui::EndCombo();
+        }
+    }
     ImGui::PushTextWrapPos(0.0f);
     ImGui::TextDisabled("Interpolated frames; game logic stays at 60 Hz. Experimental.");
+    if (const std::string line = LsfgStatusLine(); !line.empty()) {
+        ImGui::TextDisabled("Lossless Scaling: %s", line.c_str());
+    }
     ImGui::PopTextWrapPos();
 }
 
@@ -1234,14 +1275,24 @@ void DrawThorDisplaySettings() {
                 ImGui::EndDisabled();
             }
         });
-    constexpr std::array<const char*, 2> modes{"60 FPS (original)", "120 FPS (interpolated)"};
-    ThorChoiceRow("Frame rate", modes[static_cast<size_t>(g_frameInterpolationMode)], 2,
-        [](bool appearing, float scale) {
-            constexpr std::array<const char*, 2> labels{"60 FPS (original)", "120 FPS (interpolated)"};
-            for (int mode = 0; mode < 2; ++mode) {
-                if (ThorArtButton(labels[static_cast<size_t>(mode)], nullptr, ImVec2(0, 96.0f * scale),
-                                  appearing && g_frameInterpolationMode == mode)) {
+    // Choice 2 is the 120 FPS target with Lossless Scaling filling the slots.
+    constexpr std::array<const char*, 3> modes{"60 FPS (original)", "120 FPS (interpolated)",
+                                               "120 FPS (Lossless Scaling)"};
+    const int frameRateChoice = g_frameInterpolationMode == 0 ? 0 : g_frameGenerationLsfg ? 2 : 1;
+    ThorChoiceRow("Frame rate", modes[static_cast<size_t>(frameRateChoice)], 3,
+        [frameRateChoice](bool appearing, float scale) {
+            constexpr std::array<const char*, 3> labels{"60 FPS (original)", "120 FPS (interpolated)",
+                                                        "120 FPS (Lossless Scaling)"};
+            for (int choice = 0; choice < 3; ++choice) {
+                if (ThorArtButton(labels[static_cast<size_t>(choice)], nullptr, ImVec2(0, 96.0f * scale),
+                                  appearing && frameRateChoice == choice)) {
+                    const int mode = choice == 0 ? 0 : 1;
                     g_frameInterpolationMode = mode;
+                    if (choice != 0) {
+                        g_frameGenerationLsfg = choice == 2;
+                        RuntimeConfigFile::SetFrameGeneration(g_frameGenerationLsfg ? "lsfg" : "interpolation");
+                        ApplyLsfgConfig();
+                    }
                     const uint32_t target = kFrameInterpolationTargetFps[static_cast<size_t>(mode)];
                     aurora_set_frame_interpolation_fps(target);
                     RuntimeConfigFile::SetFrameInterpolationFps(target);
@@ -1265,6 +1316,9 @@ void DrawThorDisplaySettings() {
         }
     });
     ImGui::TextWrapped("Interpolated frames; game logic stays at 60 Hz. Experimental.");
+    if (const std::string line = LsfgStatusLine(); !line.empty()) {
+        ImGui::TextWrapped("Lossless Scaling: %s", line.c_str());
+    }
     ImGui::TextWrapped("The HUD and menus update on the next screen or race.");
     ImGui::Spacing();
 }
@@ -2414,6 +2468,7 @@ void InitializeRuntimeSettings() noexcept {
     g_audioMixWorker = RuntimeConfigFile::AudioMixWorkerEnabled(true);
     g_attenuateMusicWhenMediaPlays = RuntimeConfigFile::AttenuateMusicWhenMediaPlays(false);
     g_frameInterpolationMode = ConfiguredFrameInterpolationMode();
+    g_frameGenerationLsfg = RuntimeConfigFile::FrameGenerationLsfg();
     g_displayMode = ParseDisplayModeConfig(RuntimeConfigFile::DisplayMode("borderless"));
     g_skipUnreadyPipelines = RuntimeConfigFile::SkipUnreadyPipelines(true);
     g_disableCopyFilter = RuntimeConfigFile::DisableCopyFilter(true);
@@ -2467,6 +2522,7 @@ void InitializeRuntimeSettings() noexcept {
     RuntimeGameGraphicsOptions::SetDisabledPostProcessingPaths(g_disabledPostProcessingPaths);
     const uint32_t targetFps = kFrameInterpolationTargetFps[static_cast<size_t>(g_frameInterpolationMode)];
     LimitResolutionForFrameRate();
+    ApplyLsfgConfig();
     aurora_set_frame_interpolation_fps(targetFps);
     aurora_set_display_mode(static_cast<AuroraDisplayMode>(g_displayMode));
     g_displayMode = static_cast<int>(aurora_get_display_mode());

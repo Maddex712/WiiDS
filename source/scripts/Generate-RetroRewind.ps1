@@ -23,7 +23,7 @@ $cpp = Join-Path $modOutput 'cpp'
 $baseManifest = Join-Path $runtimeRoot 'build/base/mkwii_base_manifest.json'
 $pack = (Resolve-Path -LiteralPath $PackRoot).Path
 $codePul = Join-Path $pack 'Binaries/Code.pul'
-$supportedCodeHash = '7471e1d2f61c11ab0de6544728406ee1359a4eab736b2dc6a73b741f69e7b4a3'
+$supportedCodeHash = 'd68778e9e126ebd80d45fd4ad57882e269a4b99d121b066910ef04e0a9a4360d'
 
 foreach ($required in @($Dotnet,$translator,$sourceManifest,$codePul,(Join-Path $pack 'xml/RetroRewind6.xml'))) {
     if (!(Test-Path -LiteralPath $required -PathType Leaf)) { throw "Required input missing: $required" }
@@ -52,7 +52,7 @@ function Invoke-Translator([string[]]$CommandArguments) {
 $codeRead = [IO.File]::Open($codePul,[IO.FileMode]::Open,[IO.FileAccess]::Read,[IO.FileShare]::Read)
 try {
     if ((Get-FileHash -LiteralPath $codePul -Algorithm SHA256).Hash -ne $supportedCodeHash) {
-        throw 'Unsupported Code.pul: this script and the Android frontend require the pinned Retro Rewind 6.13.0 code.'
+        throw 'Unsupported Code.pul: this script and the Android frontend require the pinned Retro Rewind 6.13.5 code.'
     }
     if (!(Test-Path -LiteralPath $generated -PathType Container)) { throw 'The original generated tree is missing; cannot preserve the known-good base.' }
     $originalApk = Join-Path $buildRoot 'DriftDroid-Thor.apk'

@@ -798,7 +798,7 @@ UniformRanges build_uniform(const ShaderInfo& info, u32 vtxStart, const BindGrou
 #if defined(__SWITCH__)
   uni_diag_log(info, buf.data(), buf.size());
 #endif
-  if (!perspective || frame_interpolation_fps() == 0) {
+  if (!perspective || frame_interpolation_fps() == 0 || frame_generation_lsfg()) {
     g_gxState.stateDirty = false;
     return {
         .current = range,

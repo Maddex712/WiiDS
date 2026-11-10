@@ -26,6 +26,7 @@
 namespace aurora::gx {
 namespace detail {
 std::atomic_uint32_t g_frameInterpolationFps{0};
+std::atomic_bool g_frameGenerationLsfg{false};
 } // namespace detail
 
 namespace {
@@ -743,6 +744,10 @@ void set_frame_interpolation_fps(uint32_t targetFps) noexcept {
   s_diagLateSealDrops.store(0, std::memory_order_relaxed);
 }
 
+void set_frame_generation_lsfg(bool enabled) noexcept {
+  detail::g_frameGenerationLsfg.store(enabled, std::memory_order_release);
+}
+
 void report_producer_paced(bool paced) noexcept {
   const uint32_t maximumSamples = maximum_interpolation_samples();
   if (maximumSamples == 0) {
@@ -829,6 +834,16 @@ void finalize_frame_interpolation() noexcept {
     s_diagLateSealDrops.fetch_add(1, std::memory_order_relaxed);
     s_hasInterpolatedFrame.store(false, std::memory_order_release);
     s_pendingUniformInterpolations.clear();
+    retire_frame_transforms();
+    return;
+  }
+  if (frame_generation_lsfg()) {
+    // No draws were recorded: every latched slot is filled by Lossless Scaling at encode time,
+    // from the presented images, so the seal duplicates instead of replaying.
+    s_pendingUniformInterpolations.clear();
+    s_frameInterpolationReplaySafe.store(false, std::memory_order_release);
+    s_hasInterpolatedFrame.store(s_activeInterpolationSamples.load(std::memory_order_acquire) != 0,
+                                 std::memory_order_release);
     retire_frame_transforms();
     return;
   }

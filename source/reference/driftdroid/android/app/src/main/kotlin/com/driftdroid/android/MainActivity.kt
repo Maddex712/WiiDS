@@ -100,14 +100,11 @@ class MainActivity : SDLActivity() {
         }
     }
 
-    /**
-     * SDL's key handling swallows KEYCODE_BACK before Android ever calls onBackPressed (it returns
-     * true for both the down and up events, see SDLSurface.onKey), so the sidebar has to be opened
-     * from here instead. Confirmed on device: the override of onBackPressed never ran.
-     */
     override fun dispatchKeyEvent(event: KeyEvent): Boolean {
-        if (event.keyCode == KeyEvent.KEYCODE_BACK && event.action == KeyEvent.ACTION_UP) {
-            nativeToggleSettingsOverlay()
+        if (event.keyCode == KeyEvent.KEYCODE_BACK) {
+            // SDL's native key-down can wait for its Android activity mutex on the UI thread.
+            // WiiDS owns Back for settings, so keep both events out of SDL's input path.
+            if (event.action == KeyEvent.ACTION_UP && !event.isCanceled) nativeToggleSettingsOverlay()
             return true
         }
         return super.dispatchKeyEvent(event)

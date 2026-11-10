@@ -6,6 +6,8 @@ Play supported Wii and GameCube games on the AYN Thor, with a companion on its l
 
 ## Quick start
 
+**WiiDS 1.2.3** supports Retro Rewind 6.13.5, improves pack updates, fixes a replay settings freeze, and adds a lower-screen map toggle and Mii portraits. [1.2.3 patch notes](https://github.com/Maddex712/WiiDS/releases/tag/v1.2.3)
+
 **WiiDS 1.2.2** fixes the Your Games crash when the setup screen reaches the Project+ entry. [1.2.2 patch notes](https://github.com/Maddex712/WiiDS/releases/tag/v1.2.2)
 
 **WiiDS 1.2.1** updates second-screen detection and prevents unreadable Retro Rewind map metadata from closing the app during setup. [1.2.1 patch notes](https://github.com/Maddex712/WiiDS/releases/tag/v1.2.1)
@@ -16,7 +18,7 @@ Play supported Wii and GameCube games on the AYN Thor, with a companion on its l
 and your own [compatible game dump](#exact-game-files-for-each-game). The region and revision must match.
 **Games are not included.** Leave room for the APK, your dump and the prepared game files.
 
-1. **[Download WiiDS 1.2.2 (ARM64 APK)](https://github.com/Maddex712/WiiDS/releases/download/v1.2.2/WiiDS-1.2.2-arm64.apk)** on your Thor.
+1. **[Download WiiDS 1.2.3 (ARM64 APK)](https://github.com/Maddex712/WiiDS/releases/download/v1.2.3/WiiDS-1.2.3-arm64.apk)** on your Thor.
 2. **Install the APK and open WiiDS.** Allow your browser or file manager to install apps if Android asks.
    Wait for WiiDS to prepare its files. If you already use WiiDS, open **Options → Check for updates** or install the APK over your current copy to keep your data.
 3. **Copy your game dump to the Thor.** Open **Options → Your games** (it opens automatically on first use).
@@ -129,7 +131,7 @@ legacy-save migration and current limits.
 - **Video options:** 1080p rendering and 60 FPS defaults, with an optional 120 FPS setting.
   Mario Kart Wii and NSMB Wii use experimental presentation interpolation while their game logic
   stays at 60 Hz. The Sunshine/Eclipse 120 FPS option is also experimental; it is not a sustained-performance guarantee.
-- **Retro Rewind** 6.13.4, installed and updated in-app from the official servers. Later releases can require a matching engine build.
+- **Retro Rewind** 6.13.5, installed and updated in-app from the official servers. Later releases can require a matching engine build.
 
 ## Introduced in 1.0
 

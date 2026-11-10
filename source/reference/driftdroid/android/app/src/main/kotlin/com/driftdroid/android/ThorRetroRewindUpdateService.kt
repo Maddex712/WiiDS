@@ -76,13 +76,19 @@ class ThorRetroRewindUpdateService : Service() {
                 }
             } catch (failure: Throwable) {
                 val old = ThorRetroRewindUpdateStatus.snapshot
+                val incompatible = failure is ThorRetroRewindUpdater.IncompatiblePack && failure.suppressed.isEmpty()
                 ThorRetroRewindUpdateStatus.snapshot = old.copy(
-                    state = if (failure is CancellationException) ThorRetroRewindUpdateStatus.State.CANCELLED
-                        else ThorRetroRewindUpdateStatus.State.ERROR,
+                    state = when {
+                        failure is CancellationException -> ThorRetroRewindUpdateStatus.State.CANCELLED
+                        incompatible -> ThorRetroRewindUpdateStatus.State.BLOCKED
+                        else -> ThorRetroRewindUpdateStatus.State.ERROR
+                    },
                     message = if (failure.suppressed.isNotEmpty())
                         "Recovery needs another attempt. Keep the game closed and retry." else
                         failure.message ?: "The update could not finish. Try again.",
-                    canUpdate = false, running = false,
+                    canUpdate = false,
+                    requiresWiiDsUpdate = incompatible || old.requiresWiiDsUpdate,
+                    running = false,
                 )
             } finally {
                 val finishedWorker = Thread.currentThread()

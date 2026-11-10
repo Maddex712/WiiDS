@@ -33,6 +33,10 @@ import java.util.UUID
 
 /** Browser-free WiiDS updates. Android still owns and confirms installation. */
 class WiiDsUpdateActivity : Activity() {
+    companion object {
+        internal const val EXTRA_RETRO_REWIND_VERSION = "retro_rewind_version"
+    }
+
     private lateinit var status: TextView
     private lateinit var primary: Button
     private lateinit var cancel: Button
@@ -126,7 +130,11 @@ class WiiDsUpdateActivity : Activity() {
                     if (it.newerThan(WiiDsUpdater.installedCode(this))) {
                         release = it
                         say("WiiDS ${it.version} (build ${it.versionCode}) is available. Download size: ${it.apk.bytes / 1_048_576} MB.")
-                    } else say("You're up to date. This copy already has the latest WiiDS build.")
+                    } else {
+                        val retroVersion = intent.getStringExtra(EXTRA_RETRO_REWIND_VERSION)
+                        say(if (retroVersion == null) "You're up to date. This copy already has the latest WiiDS build."
+                            else "No newer WiiDS build is available. Retro Rewind $retroVersion still needs a compatible WiiDS update.")
+                    }
                     idle()
                 }.onFailure { fail(it) }
             }

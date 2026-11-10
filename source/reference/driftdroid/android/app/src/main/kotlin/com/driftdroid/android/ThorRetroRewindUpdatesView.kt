@@ -108,7 +108,7 @@ internal class ThorRetroRewindUpdatesView(
             "VERIFYING" -> "Verifying download"
             "STAGING" -> if (fresh) "Installing Retro Rewind" else "Preparing update"
             "COMMITTING" -> if (fresh) "Finishing installation" else "Finishing update"
-            "COMPLETE" -> "Retro Rewind is ready"
+            "COMPLETE" -> if (snapshot.requiresWiiDsUpdate) "Installed for offline play" else "Retro Rewind is ready"
             "CANCELLED" -> if (fresh) "Installation paused" else "Update paused"
             else -> "Retro Rewind updates"
         }
@@ -129,7 +129,12 @@ internal class ThorRetroRewindUpdatesView(
         } else if (snapshot.filesDone > 0) {
             text(c, "${snapshot.filesDone} files prepared", 240f, 700f, 32f, 1400f)
         }
-        val labels = listOf(if (snapshot.state.toString() in setOf("ERROR", "CANCELLED")) "Retry check" else "Check for updates",
+        val checkLabel = when {
+            snapshot.offerWiiDsUpdate -> "Check WiiDS update"
+            snapshot.state in setOf(ThorRetroRewindUpdateStatus.State.ERROR, ThorRetroRewindUpdateStatus.State.CANCELLED) -> "Retry check"
+            else -> "Check for updates"
+        }
+        val labels = listOf(checkLabel,
             if (snapshot.running) "Cancel" else if (ThorRetroRewindUpdateService.needsRecovery(context)) "Recover"
                 else if (snapshot.currentVersion == null) "Install" else "Update now", "Back")
         buttons.forEachIndexed { index, area ->

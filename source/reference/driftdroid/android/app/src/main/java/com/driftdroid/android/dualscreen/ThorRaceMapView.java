@@ -41,6 +41,7 @@ public final class ThorRaceMapView extends View {
     private final long[] rankStarted = new long[12];
     private final Bitmap[] items = new Bitmap[20];
     private final Bitmap[] mapFaces = new Bitmap[24];
+    private final Bitmap miiIcon;
     private final File folder;
     private final boolean retroRewind;
     private final String expectedCodePulSha;
@@ -56,7 +57,7 @@ public final class ThorRaceMapView extends View {
     private int requestedCourse = -1, lastTimer = -1;
     private String requestedIdentity = "";
     private int courseEpoch;
-    private boolean active, closed, haveSnapshot;
+    private boolean active, closed, haveSnapshot, showFullCourse;
     private float x0, z0, x1, z1;
     private long sampleTime, lastFrameTime;
     private double samplePeriod = 16_666_667;
@@ -77,7 +78,15 @@ public final class ThorRaceMapView extends View {
         this.expectedCodePulSha = expectedCodePulSha == null ? "" : expectedCodePulSha;
         lowerStatus = new ThorLowerStatusView(context, folder, retroRewind ? "Retro Rewind" : "Mario Kart Wii");
         lowerStatus.setOnContentChanged(this::invalidate);
-        setContentDescription("Mario Kart Wii course map, race timer and live standings");
+        miiIcon = createMiiIcon();
+        updateMapDescription();
+        setOnClickListener(view -> {
+            if (closed || !isClickable()) return;
+            showFullCourse = !showFullCourse;
+            updateMapDescription();
+            invalidate();
+        });
+        setClickable(false);
         loader.execute(() -> {
             try {
                 ThorWiiHudAssets nativeHud = new ThorWiiHudAssets(folder);
@@ -183,10 +192,17 @@ public final class ThorRaceMapView extends View {
         } else haveSnapshot = false;
         boolean visible = active && course != null && hud != null;
         RaceMapBridge.nativeMapVisible(visible);
+        if (isClickable() != visible) setClickable(visible);
         refreshLowerStatus();
         // Still sample at the controller's existing cadence, but don't redraw a
         // static idle/error page each vsync. Lifecycle stop removes callbacks.
         if (visible) invalidate();
+    }
+
+    private void updateMapDescription() {
+        setContentDescription(showFullCourse
+                ? "Full course map, race timer and live standings. Tap to follow the racer."
+                : "Racer-follow map, race timer and live standings. Tap for the full course.");
     }
 
     private void refreshLowerStatus() {
@@ -334,6 +350,16 @@ public final class ThorRaceMapView extends View {
         float cz = state[me] != 0 ? state[me + 5] : (z0 + z1) * .5f;
         float scale = unit / 64f;
         float centerX = board + (width - board) * .5f, centerY = height * .57f;
+        if (showFullCourse) {
+            cx = (x0 + x1) * .5f;
+            cz = (z0 + z1) * .5f;
+            float margin = unit * 10;
+            float top = unit * 21;
+            scale = Math.min((width - board - margin * 2) / (x1 - x0),
+                    (height - top - margin) / (z1 - z0));
+            if (scale <= 0) return;
+            centerY = (top + height - margin) * .5f;
+        }
         canvas.save(); canvas.clipRect(board, 0, width, height);
         rect.set(centerX + (x0 - cx) * scale, centerY + (z0 - cz) * scale,
                  centerX + (x1 - cx) * scale, centerY + (z1 - cz) * scale);
@@ -353,7 +379,8 @@ public final class ThorRaceMapView extends View {
     }
 
     private void marker(Canvas canvas, float x, float y, int character, boolean local, float unit, float heading) {
-        if (character < 0 || character >= mapFaces.length) return;
+        Bitmap face = racePortrait(character, mapFaces);
+        if (face == null) return;
         float size = (local ? 16 : 13) * unit;
         if (local) {
             canvas.save();
@@ -364,10 +391,10 @@ public final class ThorRaceMapView extends View {
             paint.setColorFilter(null); canvas.restore();
         }
         paint.setColorFilter(shadow);
-        icon(canvas, mapFaces[character], x - size * .047f, y, size * 1.25f);
-        icon(canvas, mapFaces[character], x + size * .047f, y, size * 1.25f);
+        icon(canvas, face, x - size * .047f, y, size * 1.25f);
+        icon(canvas, face, x + size * .047f, y, size * 1.25f);
         paint.setColorFilter(null);
-        icon(canvas, mapFaces[character], x, y, size);
+        icon(canvas, face, x, y, size);
     }
 
     private void standings(Canvas canvas, float width, float height, int player) {
@@ -397,11 +424,29 @@ public final class ThorRaceMapView extends View {
             if (latest[at] == 0 || ranks[i] < 1 || ranks[i] > 12) continue;
             float center = (ranks[i] - .5f) * row;
             int character = (int) latest[at + 1], item = (int) latest[at + 7];
-            if (character >= 0 && character < hud.portraits.length)
-                icon(canvas, hud.portraits[character], width * .53f, center, row * .77f);
+            Bitmap portrait = racePortrait(character, hud.portraits);
+            if (portrait != null) icon(canvas, portrait, width * .53f, center, row * .77f);
             if (item >= 0 && item < items.length) icon(canvas, items[item], width * .83f, center, row * .68f);
         }
         canvas.restore();
+    }
+
+    private Bitmap racePortrait(int character, Bitmap[] standard) {
+        if (character >= 0 && character < standard.length) return standard[character];
+        // Retail Mii outfits and the three generic weight-class IDs.
+        return character >= 0x18 && character <= 0x2C ? miiIcon : null;
+    }
+
+    private static Bitmap createMiiIcon() {
+        Bitmap icon = Bitmap.createBitmap(48, 48, Bitmap.Config.ARGB_8888);
+        Canvas canvas = new Canvas(icon);
+        Paint fill = new Paint(Paint.ANTI_ALIAS_FLAG);
+        fill.setColor(Color.rgb(26, 45, 68));
+        canvas.drawCircle(24, 24, 23, fill);
+        fill.setColor(Color.WHITE);
+        canvas.drawCircle(24, 16, 8, fill);
+        canvas.drawRoundRect(11, 26, 37, 39, 6, 6, fill);
+        return icon;
     }
 
     private void timer(Canvas canvas, float board, float width, float unit) {

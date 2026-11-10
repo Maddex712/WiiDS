@@ -1,0 +1,9 @@
+{
+  "version": "6.13.5",
+  "archive_url": "https://cdn.update.rwfc.net/RetroRewind/zip/6.13.5-full.zip",
+  "archive_bytes": 1939393404,
+  "archive_sha256": "64d433a7e4d56bb420e2c2eb8221fa13a263e850f578f2960b1ad0a4af529c51",
+  "code_pul_sha256": "d68778e9e126ebd80d45fd4ad57882e269a4b99d121b066910ef04e0a9a4360d",
+  "loader_xml_sha256": "8759d8d9e14406de3bd5a4981a30a58826c9b952cfc856a997a267b3896e3a41",
+  "delta_contains_code": true
+}

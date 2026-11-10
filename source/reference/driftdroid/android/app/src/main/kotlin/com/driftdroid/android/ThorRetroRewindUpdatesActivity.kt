@@ -61,7 +61,7 @@ class ThorRetroRewindUpdatesActivity : Activity() {
                 }
                 ThorRetroRewindUpdateService.needsRecovery(this) && !ThorGameSession.hasRetainedRuntime() ->
                     ThorRetroRewindUpdateService.startRecovery(this)
-                else -> checkForUpdates()
+                else -> ThorRetroRewindUpdateService.startCheck(this)
             }
         }
     }
@@ -95,7 +95,14 @@ class ThorRetroRewindUpdatesActivity : Activity() {
     }
 
     private fun checkForUpdates() {
-        if (!ThorRetroRewindUpdateStatus.snapshot.running) ThorRetroRewindUpdateService.startCheck(this)
+        val snapshot = ThorRetroRewindUpdateStatus.snapshot
+        if (snapshot.running) return
+        if (snapshot.offerWiiDsUpdate) {
+            startActivity(Intent(this, WiiDsUpdateActivity::class.java)
+                .putExtra(WiiDsUpdateActivity.EXTRA_RETRO_REWIND_VERSION, snapshot.latestVersion))
+        } else {
+            ThorRetroRewindUpdateService.startCheck(this)
+        }
     }
 
     private fun updateOrCancel() {

@@ -90,6 +90,7 @@ internal class ThorRetroRewindUpdater(
     private val receipt = File(parent, ".thor-rr-update.sha256")
 
     fun check(): Plan? {
+        snapshot = ThorRetroRewindUpdateStatus.Snapshot()
         emit(ThorRetroRewindUpdateStatus.State.CHECKING, "Checking Retro Rewind releases…", running = true)
         if (journal.exists()) {
             emit(ThorRetroRewindUpdateStatus.State.BLOCKED,
@@ -138,9 +139,12 @@ internal class ThorRetroRewindUpdater(
             if (runnable) { compatible += pending; pending.clear() }
         }
         val blocked = pending.isNotEmpty()
-        snapshot = snapshot.copy(compatibleVersion = compatible.lastOrNull()?.version ?: installed)
+        snapshot = snapshot.copy(
+            compatibleVersion = compatible.lastOrNull()?.version ?: installed.takeIf { supportedCode(code) },
+            requiresWiiDsUpdate = blocked || (compatible.isEmpty() && !supportedCode(code)),
+        )
         if (compatible.isEmpty()) {
-            val needBuild = blocked || !supportedCode(code)
+            val needBuild = snapshot.requiresWiiDsUpdate
             emit(if (needBuild) ThorRetroRewindUpdateStatus.State.BLOCKED else ThorRetroRewindUpdateStatus.State.UP_TO_DATE,
                 if (needBuild) NEED_BUILD else "Retro Rewind $installed is up to date.")
             return null
@@ -149,7 +153,7 @@ internal class ThorRetroRewindUpdater(
         snapshot = snapshot.copy(canUpdate = true)
         emit(ThorRetroRewindUpdateStatus.State.READY,
             "Retro Rewind ${plan.targetVersion} is ready to install." +
-                if (blocked) " A newer release needs a compatible Thor build." else "")
+                if (blocked) " Update WiiDS for Retro WFC on ${latest.version}." else "")
         return plan
     }
 
@@ -223,10 +227,14 @@ internal class ThorRetroRewindUpdater(
         val target = goal
         val codeVersion = lineage
         if (target == null || codeVersion == null) {
+            snapshot = snapshot.copy(requiresWiiDsUpdate = true)
             emit(ThorRetroRewindUpdateStatus.State.BLOCKED, NEED_BUILD_FIRST)
             return null
         }
-        snapshot = snapshot.copy(compatibleVersion = target)
+        snapshot = snapshot.copy(
+            compatibleVersion = target,
+            requiresWiiDsUpdate = RetroRewindCatalog.compareVersions(latest.version, target) > 0,
+        )
         val bases = releases.filter {
             RetroRewindCatalog.compareVersions(it.version, codeVersion) >= 0 && RetroRewindCatalog.compareVersions(it.version, target) <= 0
         }.distinctBy { normalizedVersion(it.version) }.sortedWith { a, b -> RetroRewindCatalog.compareVersions(a.version, b.version) }.asReversed()
@@ -260,7 +268,7 @@ internal class ThorRetroRewindUpdater(
         emit(ThorRetroRewindUpdateStatus.State.READY,
             String.format(Locale.ROOT, "Retro Rewind %s can be installed: a %.1f GB download from Retro Rewind's official server.",
                 plan.targetVersion, baseBytes / 1e9) +
-                if (RetroRewindCatalog.compareVersions(latest.version, plan.targetVersion) > 0) " A newer release needs a compatible Thor build." else "")
+                if (snapshot.requiresWiiDsUpdate) " Update WiiDS for Retro WFC on ${latest.version}." else "")
         return plan
     }
 
@@ -368,7 +376,7 @@ internal class ThorRetroRewindUpdater(
                     }
                     for (archive in archives) extractInto(archive, stage)
                     AtomicConfigFile.writeText(File(stage, "version.txt"), plan.targetVersion + "\n")
-                    require(supportedCode(RetroRewindCatalog.installedCodePulSha256(stage))) { needBuild() }
+                    if (!supportedCode(RetroRewindCatalog.installedCodePulSha256(stage))) throw incompatiblePack()
                     // File fsync does not persist newly-created directory entries. Flush deepest
                     // directories first, including empty personal folders, before PREPARED is durable.
                     syncTreeDirectories(stage)
@@ -403,9 +411,13 @@ internal class ThorRetroRewindUpdater(
                     // The full download (about 2 GB) is not needed once its pack is live.
                     if (first) pruneFullArchives(null)
                     snapshot = snapshot.copy(currentVersion = plan.targetVersion, compatibleVersion = plan.targetVersion)
-                    emit(ThorRetroRewindUpdateStatus.State.COMPLETE,
-                        if (first) "Retro Rewind ${plan.targetVersion} is installed."
-                        else "Retro Rewind ${plan.targetVersion} is installed. Your saves and custom files are preserved.")
+                    val installedMessage = "Retro Rewind ${plan.targetVersion} is installed."
+                    val nextStep = when {
+                        snapshot.requiresWiiDsUpdate -> " Update WiiDS for Retro WFC on ${plan.latestVersion}."
+                        first -> ""
+                        else -> " Your saves and custom files are preserved."
+                    }
+                    emit(ThorRetroRewindUpdateStatus.State.COMPLETE, installedMessage + nextStep)
                 } catch (failure: Throwable) {
                     try { recover() } catch (recovery: Throwable) { failure.addSuppressed(recovery) }
                     throw failure
@@ -580,7 +592,7 @@ internal class ThorRetroRewindUpdater(
                 hashes[name] = hash
                 // Official deltas also carry the unchanged external loader XML. Validate its
                 // complete bytes, but never extract it or write anything outside the pack.
-                if (name == LOADER_XML) require(supportedLoaderXml(hash)) { needBuild() }
+                if (name == LOADER_XML && !supportedLoaderXml(hash)) throw incompatiblePack()
                 // An intermediate release may carry code this build can't run when a later one in
                 // the same update replaces it; update() requires the staged pack's code to be
                 // supported before anything is published.
@@ -744,7 +756,9 @@ internal class ThorRetroRewindUpdater(
     private fun stopIfCancelledDuringVerification() {
         if (!recovering && snapshot.state != ThorRetroRewindUpdateStatus.State.COMMITTING) stopIfCancelled()
     }
-    private fun needBuild() = if (installing) NEED_BUILD_FIRST else NEED_BUILD
+    class IncompatiblePack(message: String) : IOException(message)
+
+    private fun incompatiblePack() = IncompatiblePack(if (installing) NEED_BUILD_FIRST else NEED_BUILD)
 
     /** Full downloads other than [keep] (with their resume files) are dead weight. */
     private fun pruneFullArchives(keep: File?) {
@@ -786,8 +800,8 @@ internal class ThorRetroRewindUpdater(
 
     companion object {
         fun needsRecovery(root: File): Boolean = File(root.absoluteFile.parentFile, ".thor-rr-update.properties").exists()
-        const val NEED_BUILD = "This release needs a compatible Thor build. Your current installation is unchanged."
-        const val NEED_BUILD_FIRST = "This Thor build can't run the current Retro Rewind release yet."
+        const val NEED_BUILD = "Check for a WiiDS update to play the latest Retro Rewind online. Your current pack is still installed."
+        const val NEED_BUILD_FIRST = "Check for a WiiDS update to install this Retro Rewind release."
         private const val LOADER_XML = "riivolution/RetroRewind6.xml"
         // Identical in the user's verified 6.13.0 pack and official 6.13.1 delta; changing the
         // loader contract needs a compatible build even when Code.pul happens to be unchanged.

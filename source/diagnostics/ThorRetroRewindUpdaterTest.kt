@@ -118,6 +118,7 @@ fun main(args: Array<String>) {
         val root=installed(f); val before=bytes(root); val states=mutableListOf<ThorRetroRewindUpdateStatus.Snapshot>()
         val e=engine(root,repo(pack(f),RetroRewindCatalog.DeltaVerdict.UnsupportedCodeChange("bad")),progress=states::add)
         e.update(); check(bytes(root)==before); check(states.last().state==ThorRetroRewindUpdateStatus.State.BLOCKED)
+        check(states.last().requiresWiiDsUpdate && !states.last().canUpdate)
         check(!File(f,"cache").exists())
     }
     test("unsupported-real-code-despite-preflight") { f ->
@@ -347,7 +348,9 @@ fun main(args: Array<String>) {
         }
         val plan=engine(root,repository,progress=states::add).check()!!
         check(plan.targetVersion==a.version && plan.latestVersion==c.version && plan.deltas==listOf(a))
-        check(states.last().canUpdate && states.last().message.contains("compatible Thor build"))
+        check(states.last().canUpdate && states.last().offerWiiDsUpdate)
+        check(!states.last().copy(state = ThorRetroRewindUpdateStatus.State.CANCELLED).offerWiiDsUpdate)
+        check(!states.last().copy(state = ThorRetroRewindUpdateStatus.State.ERROR).offerWiiDsUpdate)
     }
     test("rollback-failure-keeps-recovery-journal") { f ->
         val root=installed(f);val before=bytes(root);val zip=pack(f);var calls=0
@@ -496,15 +499,18 @@ fun main(args: Array<String>) {
         check(engine(root, firstRepo(f, verdict = { RetroRewindCatalog.DeltaVerdict.UnsupportedCodeChange("new") }),
             progress = states::add, supportedLoaderXml = loaderOk).check() == null)
         check(states.last().state == ThorRetroRewindUpdateStatus.State.BLOCKED && states.last().message == ThorRetroRewindUpdater.NEED_BUILD_FIRST)
+        check(states.last().requiresWiiDsUpdate && !states.last().canUpdate)
         check(!root.exists())
     }
     test("first-install-newer-unsupported-falls-back") { f ->
         val root = absentRoot(f); val newer = RetroRewindCatalog.Release("6.14.0", "https://update.rwfc.net/6.14.0.zip")
+        val states = mutableListOf<ThorRetroRewindUpdateStatus.Snapshot>()
         val plan = engine(root, firstRepo(f, list = listOf(base613, source, newer), verdict = {
             when (it) { base613 -> RetroRewindCatalog.DeltaVerdict.SupportedCodeChange
                 newer -> RetroRewindCatalog.DeltaVerdict.UnsupportedCodeChange("new")
-                else -> RetroRewindCatalog.DeltaVerdict.AssetsOnly } }), supportedLoaderXml = loaderOk).check()!!
+                else -> RetroRewindCatalog.DeltaVerdict.AssetsOnly } }), progress = states::add, supportedLoaderXml = loaderOk).check()!!
         check(plan.targetVersion == "6.13.1" && plan.latestVersion == "6.14.0" && plan.base == base613)
+        check(states.last().canUpdate && states.last().requiresWiiDsUpdate)
     }
     test("first-install-no-full-archive-blocked") { f ->
         val root = absentRoot(f); val states = mutableListOf<ThorRetroRewindUpdateStatus.Snapshot>()
