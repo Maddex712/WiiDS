@@ -296,16 +296,23 @@ FontAtlas BuildFontAtlas(const Bytes& data, int atlasWidth, int atlasHeight) {
     std::map<uint32_t, int> mapping;
     int nx = 0, perSheet = 0, cw = 0, ch = 0;
     size_t at = Be16(data.data() + 12);
+    if (at < 16 || at > data.size()) Fail("Invalid BRFNT header size");
+    size_t sheetBytes = 0;
     while (at < data.size()) {
         Check(data, at, 8, "BRFNT section");
         const uint32_t size = Be32(data.data() + at + 4);
         if (size < 8 || at + size > data.size()) Fail("Invalid BRFNT section");
         const std::string tag(reinterpret_cast<const char*>(data.data() + at), 4);
         const size_t s = at + 8;
+        auto section = [&](size_t offset, size_t bytes) {
+            if (offset > size - 8 || bytes > size - 8 - offset) Fail("Truncated BRFNT " + tag);
+        };
         if (tag == "FINF") {
+            section(0, 23);
             font.lineHeight = int8_t(data[s + 1]);
             font.ascent = data[s + 22];
         } else if (tag == "TGLP") {
+            section(0, 24);
             cw = data[s]; ch = data[s + 1]; font.baseline = data[s + 2];
             const uint32_t sheetSize = Be32(data.data() + s + 4);
             const int count = Be16(data.data() + s + 8), fmt = Be16(data.data() + s + 10);
@@ -313,27 +320,38 @@ FontAtlas BuildFontAtlas(const Bytes& data, int atlasWidth, int atlasHeight) {
             const int ny = Be16(data.data() + s + 14), w = Be16(data.data() + s + 16), h = Be16(data.data() + s + 18);
             const uint32_t pixels = Be32(data.data() + s + 20);
             font.cellWidth = cw; font.cellHeight = ch;
+            if (!nx || !ny || uint64_t(nx) * ny > 65536 || !cw || !ch || !count ||
+                w <= 0 || h <= 0 || w > 4096 || h > 4096 ||
+                uint64_t(count) * w * h * 4 > (64u << 20) - sheetBytes)
+                Fail("Invalid BRFNT glyph sheets");
+            sheetBytes += size_t(count) * w * h * 4;
             perSheet = nx * ny;
             for (int i = 0; i < count; ++i) {
                 Check(data, pixels + size_t(sheetSize) * i, sheetSize, "BRFNT sheet");
                 sheets.push_back(DecodeGx(GxFormat(fmt), data.data() + pixels + size_t(sheetSize) * i, sheetSize, w, h));
             }
         } else if (tag == "CWDH") {
+            section(0, 8);
             const int first = Be16(data.data() + s), last = Be16(data.data() + s + 2);
-            Check(data, s + 8, size_t(last - first + 1) * 3, "BRFNT widths");
+            if (last < first) Fail("Invalid BRFNT width range");
+            section(8, size_t(last - first + 1) * 3);
             for (int i = first; i <= last; ++i) {
                 const uint8_t* w = data.data() + s + 8 + size_t(i - first) * 3;
                 widths[i] = {int8_t(w[0]), w[1], int8_t(w[2])};
             }
         } else if (tag == "CMAP") {
+            section(0, 14);
             const int first = Be16(data.data() + s), last = Be16(data.data() + s + 2), method = Be16(data.data() + s + 4);
+            if (last < first) Fail("Invalid BRFNT character range");
             if (method == 0) {
                 const int initial = Be16(data.data() + s + 12);
                 for (int code = first; code <= last; ++code) mapping[uint32_t(code)] = initial + code - first;
             } else if (method == 1) {
+                section(12, size_t(last - first + 1) * 2);
                 for (int code = first; code <= last; ++code) mapping[uint32_t(code)] = Be16(data.data() + s + 12 + size_t(code - first) * 2);
             } else if (method == 2) {
                 const int count = Be16(data.data() + s + 12);
+                section(14, size_t(count) * 4);
                 for (int i = 0; i < count; ++i)
                     mapping[Be16(data.data() + s + 14 + size_t(i) * 4)] = Be16(data.data() + s + 16 + size_t(i) * 4);
             } else {

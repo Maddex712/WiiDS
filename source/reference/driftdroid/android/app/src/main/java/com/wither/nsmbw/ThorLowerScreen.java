@@ -36,10 +36,20 @@ final class ThorLowerScreen implements DisplayManager.DisplayListener {
     private String lastIdentity = "";
     private String loggedMap = "";
     private long lastVisual;
+    private boolean assetsLoading;
+    private long assetsRetryAt;
 
     ThorLowerScreen(Activity activity) {
         this.activity = activity;
         displays = activity.getSystemService(DisplayManager.class);
+        loadAssets();
+    }
+
+    private void loadAssets() {
+        long now = SystemClock.uptimeMillis();
+        if (closed || assets != null || assetsLoading || now < assetsRetryAt) return;
+        assetsLoading = true;
+        assetsRetryAt = now + 2000;
         final File folder = new File(AppFiles.dataDir(activity), "ThorHud");
         new Thread(() -> {
             ThorHudAssets loaded = null;
@@ -47,6 +57,7 @@ final class ThorLowerScreen implements DisplayManager.DisplayListener {
             catch (Exception failure) { Log.w(TAG, "Original lower HUD assets unavailable", failure); }
             final ThorHudAssets result = loaded;
             handler.post(() -> {
+                assetsLoading = false;
                 if (closed) { if (result != null) result.close(); return; }
                 assets = result;
                 if (presentation != null) presentation.view.invalidate();
@@ -85,6 +96,7 @@ final class ThorLowerScreen implements DisplayManager.DisplayListener {
         @Override public void doFrame(long frameTimeNanos) {
             if (!running || closed) return;
             long now = SystemClock.uptimeMillis();
+            loadAssets();
             ThorGameState next = null;
             try { next = ThorGameState.read(); }
             catch (UnsatisfiedLinkError unavailable) { Log.e(TAG, "Snapshot bridge unavailable", unavailable); stop(); return; }

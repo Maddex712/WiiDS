@@ -2,6 +2,7 @@
 // File descriptors are passed with ownership (ParcelFileDescriptor.detachFd()); they are closed
 // here. One extraction runs at a time; progress is polled from the UI thread.
 #include "wiids_disc.h"
+#include "wiids_config.h"
 
 #include <jni.h>
 #include <unistd.h>
@@ -118,4 +119,23 @@ Java_com_driftdroid_android_rom_WiiDsDisc_nativeCancel(JNIEnv*, jclass) {
 extern "C" JNIEXPORT void JNICALL
 Java_com_driftdroid_android_rom_WiiDsDisc_nativeResetCancel(JNIEnv*, jclass) {
     g_progress.cancel = false;
+}
+
+// Bytes preserve standard UTF-8 (including non-BMP path characters) across JNI.
+extern "C" JNIEXPORT jbyteArray JNICALL
+Java_com_driftdroid_android_rom_WiiDsDisc_nativeConfiguredNand(JNIEnv* env, jclass, jbyteArray bytes) {
+    try {
+        const jsize size = env->GetArrayLength(bytes);
+        if (size >= (1 << 20)) throw std::runtime_error("Config is too large.");
+        std::string config(static_cast<size_t>(size), '\0');
+        if (size) env->GetByteArrayRegion(bytes, 0, size, reinterpret_cast<jbyte*>(config.data()));
+        if (env->ExceptionCheck()) return nullptr;
+        const auto path = ConfiguredNand(config);
+        jbyteArray result = env->NewByteArray(static_cast<jsize>(path.size()));
+        if (result && !path.empty()) env->SetByteArrayRegion(result, 0, static_cast<jsize>(path.size()), reinterpret_cast<const jbyte*>(path.data()));
+        return result;
+    } catch (...) {
+        env->ThrowNew(env->FindClass("java/lang/IllegalArgumentException"), "The NAND configuration could not be checked safely.");
+        return nullptr;
+    }
 }

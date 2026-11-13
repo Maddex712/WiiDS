@@ -23,7 +23,7 @@ class ProjectPlusLaunchActivity : Activity() {
         }
         val allowed = runCatching {
             synchronized(GameInstaller) {
-                SaveManagerProfiles.blocker(this)?.let { error(it) }
+                SaveManagerProfiles.launchBlocker(this)?.let { error(it) }
                 SaveManagerProfiles.requireStopped(this)
                 check(ThorGameLaunch.projectPlusAvailable(this)) { "Set up Project+ in Manage games first." }
                 check(GameStorage.preparingProjectPlus.compareAndSet(false, true)) { "Project+ setup is already running." }

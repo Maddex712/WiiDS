@@ -58,6 +58,8 @@ public final class ThorRaceMapView extends View {
     private String requestedIdentity = "";
     private int courseEpoch;
     private boolean active, closed, haveSnapshot, showFullCourse;
+    private boolean hudLoading;
+    private long hudRetryAt, courseRetryAt;
     private float x0, z0, x1, z1;
     private long sampleTime, lastFrameTime;
     private double samplePeriod = 16_666_667;
@@ -87,6 +89,13 @@ public final class ThorRaceMapView extends View {
             invalidate();
         });
         setClickable(false);
+        loadHud();
+    }
+
+    private void loadHud() {
+        long now = android.os.SystemClock.uptimeMillis();
+        if (closed || hud != null || hudLoading || now < hudRetryAt) return;
+        hudLoading = true; hudRetryAt = now + 2000;
         loader.execute(() -> {
             try {
                 ThorWiiHudAssets nativeHud = new ThorWiiHudAssets(folder);
@@ -101,8 +110,10 @@ public final class ThorRaceMapView extends View {
                     if (held[i] == null) throw new IllegalArgumentException("Missing held-item art " + i);
                 }
                 handler.post(() -> {
+                    hudLoading = false;
                     if (closed) return;
                     hud = nativeHud;
+                    hudFailed = false;
                     System.arraycopy(held, 0, items, 0, items.length);
                     System.arraycopy(faces, 0, mapFaces, 0, mapFaces.length);
                     refreshLowerStatus();
@@ -110,13 +121,14 @@ public final class ThorRaceMapView extends View {
                 });
             } catch (Exception e) {
                 Log.e("ThorRaceMap", "Could not load original Wii HUD", e);
-                handler.post(() -> { if (!closed) { hudFailed = true; refreshLowerStatus(); invalidate(); } });
+                handler.post(() -> { hudLoading = false; if (!closed) { hudFailed = true; refreshLowerStatus(); invalidate(); } });
             }
         });
     }
 
     public void update(long frameTime) {
         if (closed) return;
+        loadHud();
         callbackCount++;
         if (lastFrameTime != 0) {
             long delta = frameTime - lastFrameTime;
@@ -144,6 +156,10 @@ public final class ThorRaceMapView extends View {
                 if (!identity.isEmpty()) loadCustomCourse(identity, courseEpoch);
             }
             valid = valid && !identity.isEmpty();
+            if (valid && !identityChanged && course == null && !courseLoading && android.os.SystemClock.uptimeMillis() >= courseRetryAt) {
+                courseRetryAt = android.os.SystemClock.uptimeMillis() + 2000;
+                loadCustomCourse(identity, ++courseEpoch);
+            }
         }
         boolean reset = identityChanged || !haveSnapshot || !active || !valid || incoming[2] != latest[2]
                 || incoming[7] < latest[7] || incoming[7] - latest[7] > 6;
@@ -188,7 +204,7 @@ public final class ThorRaceMapView extends View {
                 state[at + 6] = previous[at + 6] + turn * alpha;
             }
             int id = (int) latest[2];
-            if (!retroRewind && id != requestedCourse) loadCourse(id);
+            if (!retroRewind && (id != requestedCourse || (course == null && !courseLoading && android.os.SystemClock.uptimeMillis() >= courseRetryAt))) loadCourse(id);
         } else haveSnapshot = false;
         boolean visible = active && course != null && hud != null;
         RaceMapBridge.nativeMapVisible(visible);
@@ -223,6 +239,7 @@ public final class ThorRaceMapView extends View {
     }
 
     private void loadCourse(int id) {
+        courseRetryAt = android.os.SystemClock.uptimeMillis() + 2000;
         requestedCourse = id; course = null; courseLoading = true; courseFailed = false;
         final int token = ++courseEpoch;
         Log.i("ThorRaceMap", "course=" + id + " snapshot=" + Arrays.toString(latest));
@@ -281,6 +298,7 @@ public final class ThorRaceMapView extends View {
     }
 
     private void loadCustomCourse(String identity, int token) {
+        courseRetryAt = android.os.SystemClock.uptimeMillis() + 2000;
         courseLoading = true; courseFailed = false;
         Log.i("ThorRaceMap", "RR course=" + identity);
         loader.execute(() -> {

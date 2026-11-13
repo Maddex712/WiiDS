@@ -27,8 +27,9 @@ add_library(wiids_zstd STATIC ${WIIDS_ZSTD_SRCS})
 target_include_directories(wiids_zstd PUBLIC ${TP}/zstd)
 target_compile_definitions(wiids_zstd PRIVATE ZSTD_DISABLE_ASM ZSTD_MULTITHREAD=0 ZSTD_LEGACY_SUPPORT=0)
 
-add_library(wiids_disc STATIC src/wiids_disc.cpp src/aes128.cpp)
+add_library(wiids_disc STATIC src/wiids_disc.cpp src/wiids_config.cpp src/aes128.cpp)
 target_include_directories(wiids_disc PUBLIC include)
+target_include_directories(wiids_disc PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/../../reference/driftdroid/runtime/third_party/toml11)
 target_link_libraries(wiids_disc PRIVATE lzma wiids_bz2 wiids_zstd)
 
 if(WIIDS_DISC_ZLIB_TARGET)

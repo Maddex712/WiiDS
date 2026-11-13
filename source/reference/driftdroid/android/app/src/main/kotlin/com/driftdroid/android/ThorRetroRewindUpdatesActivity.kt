@@ -144,7 +144,7 @@ class ThorRetroRewindUpdatesActivity : Activity() {
     private fun leave() {
         // A background download remains in its foreground service. Never start another game
         // until its update lease has been released; ModePicker enforces that boundary too.
-        if (isTaskRoot) startActivity(Intent(this, ModePickerActivity::class.java))
+        if (isTaskRoot) startActivity(Intent(this, LibraryActivity::class.java))
         finish()
     }
 

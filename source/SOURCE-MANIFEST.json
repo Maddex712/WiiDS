@@ -1,6 +1,6 @@
 {
   "candidate_apk": {
-    "bytes": 384204230,
+    "bytes": 384461414,
     "license_assets": {
       "assets/licenses/COPYING-liblzma.txt": "ac024c350183a8253934be0145ae0fa1c567ab5b7d5a8e45bd644978e3651ea8",
       "assets/licenses/GCC-COPYING3.txt": "8ceb4b9ee5adedde47b31e975c1d90c73ad27b6b165a1dcd80c7c545eb65b903",
@@ -92,9 +92,9 @@
       "lib/arm64-v8a/libwiids_catalog_archive.so": "4574780d0c23bf72a865eb237bac8830ee053703cfadbb4c44814a6cb1d05e3e",
       "lib/arm64-v8a/libwiids_mkdd_game.so": "f7b114c53463ee63157f4d72579a264e162d46d456800d6a78f66b62e4d4cf79",
       "lib/arm64-v8a/libwiids_mkdd_plus_game.so": "c49f0035ca160a7e4751d48a2d1fb75749b6fa7acca3b691ff5aa2a63dbc000e",
-      "lib/arm64-v8a/libwiidsdisc.so": "0af8a99023f2c559591853a93bde3e2f3771c4f90720fcf7be8ac2d395438406"
+      "lib/arm64-v8a/libwiidsdisc.so": "a66ce609d141626ac107b0a2e27ea0e5e92e4f146feb3c7b0a722cbccbcd6ef7"
     },
-    "sha256": "c37d6487f921be411d3cd139b3488adc1a65530b44157a45400f20f11bbcaa00"
+    "sha256": "f9272fb99c040287ba13a760db5690867b8107284d04135ce9cacc0d0c61c529"
   },
   "candidate_license_mismatches": [],
   "coverage_omissions": [],
@@ -3142,6 +3142,30 @@
       "bytes": 48355,
       "sha256": "ec16c9911c50cbbb52ebffd0cb8cc82a5c32eab75a17b8a7f43ef111e0499c53"
     },
+    "diagnostics/audit-1.2.4/README.md": {
+      "bytes": 905,
+      "sha256": "dd910e4a1ec32a8865443bdfdcbb35e04469e44c362a482d50d8024ca2357e46"
+    },
+    "diagnostics/audit-1.2.4/config_test.cpp": {
+      "bytes": 2025,
+      "sha256": "c0590a734f493345207379de285d2c71267ff625c86d176520fb3ef74ef32c9d"
+    },
+    "diagnostics/audit-1.2.4/extraction_test.cpp": {
+      "bytes": 5133,
+      "sha256": "38d4e86decfda9f3e83a8b68f1e7659f3e6dcb1809b581334fea6298f6a63556"
+    },
+    "diagnostics/audit-1.2.4/font_test.cpp": {
+      "bytes": 2710,
+      "sha256": "52930c723bb66ece856d73766da60d557bd402de7bb8d4acbc9d527f9a24f2db"
+    },
+    "diagnostics/audit-1.2.4/memory_guard.cpp": {
+      "bytes": 599,
+      "sha256": "de0c6f8924a8ad4d5081d9b127acb08dd5d222b4fdf645a4d3bdf4ddc626278d"
+    },
+    "diagnostics/audit-1.2.4/review_mutations.cpp": {
+      "bytes": 2383,
+      "sha256": "69a445f24338f7605b622db31957b6117b688b8cf4bde243686e970d95c438ce"
+    },
     "diagnostics/driver/AndroidManifest.xml": {
       "bytes": 424,
       "sha256": "11537617b027d7006d5e26a5d7216e1b75e3850c71a4a2948b2d815aac7b8c0d"
@@ -3201,6 +3225,10 @@
     "docs/release/GALAXY-SETUP.md": {
       "bytes": 5471,
       "sha256": "72d7b44bfbb18e55c90b3e30d79aba004ba9418482fe08dc4e336a8b416deaa6"
+    },
+    "docs/release/HOTFIX-1.2.4.md": {
+      "bytes": 2878,
+      "sha256": "f365c73d5806faf0b88a94db4ad84e318dabf14884c363e3bac18e5457e91f4d"
     },
     "docs/release/PERMISSION-REQUESTS.md": {
       "bytes": 3633,
@@ -5019,8 +5047,8 @@
       "sha256": "22c33cdfdb1b58d61980f656675d04e0c82c254efb1f97f352c1838b564c8e25"
     },
     "reference/driftdroid/android/app/src/main/AndroidManifest.xml": {
-      "bytes": 19272,
-      "sha256": "6c0e3edec039d495f8824d540734c7c2f1f85d82c73ba33c9cd58ce290492789"
+      "bytes": 19395,
+      "sha256": "6617b4fe05923569b44a4781841d645ae3c25ae9e1522e635cf9f51d18692ba5"
     },
     "reference/driftdroid/android/app/src/main/assets/content/catalog.json": {
       "bytes": 112308,
@@ -5115,8 +5143,8 @@
       "sha256": "47dbeeff3c3ed80716e649455aa81e0849758c29fde42b08d5f3134419dded56"
     },
     "reference/driftdroid/android/app/src/main/java/com/driftdroid/android/dualscreen/ThorRaceMapView.java": {
-      "bytes": 25764,
-      "sha256": "5c0728d4585ffc4896ff3a63211a64cdd515a260e94e3fe6ac26633c28492a4e"
+      "bytes": 26746,
+      "sha256": "c067a29ce3fb7b18ec4497c9f085694e73c58ff53dc29f930df30943e591ac8f"
     },
     "reference/driftdroid/android/app/src/main/java/com/driftdroid/android/dualscreen/ThorWiiHudAssets.java": {
       "bytes": 4412,
@@ -5135,8 +5163,8 @@
       "sha256": "2c15f0dd7c959c7961048519ede4621ac5155b2c41bd19ae171ce24377fbfbe6"
     },
     "reference/driftdroid/android/app/src/main/java/com/driftdroid/android/saves/SaveArchive.java": {
-      "bytes": 19192,
-      "sha256": "44a3d551486c0e06205b90a05ca35c6a86a3e6a4893bdb05fe5fcda5879e0c11"
+      "bytes": 21142,
+      "sha256": "10a54655bc1513dd70fbd61a16e8f1a14b5d687741a09a5fd207faa9b17bbc0e"
     },
     "reference/driftdroid/android/app/src/main/java/com/driftdroid/android/storage/SafeOffload.java": {
       "bytes": 9758,
@@ -5203,8 +5231,8 @@
       "sha256": "aed948a392d6abe1568d8bd03b3f95842cdbdde4064263a3af2e966169230b49"
     },
     "reference/driftdroid/android/app/src/main/java/com/wither/nsmbw/ThorLowerScreen.java": {
-      "bytes": 12746,
-      "sha256": "931607e20e1282a5773d69c7ef9c703b854df42e2a3316f622f5e85b0bca258e"
+      "bytes": 13393,
+      "sha256": "30fd0e19ce0ca635b7e46737ec89b972bf7ea363335538e2baf843b91458f07a"
     },
     "reference/driftdroid/android/app/src/main/java/com/wither/nsmbw/ThorReserveState.java": {
       "bytes": 657,
@@ -5692,23 +5720,23 @@
     },
     "reference/driftdroid/android/app/src/main/kotlin/com/driftdroid/android/FrontendLaunchActivity.kt": {
       "bytes": 7074,
-      "sha256": "f39bb20d25c6be8dfd929139bf9e39824071aea8161fc16c1dc3d96d38d403e9"
+      "sha256": "f1611c2628019f5c098b83da796b7fb1ee514ae5e444801114828064869bf508"
     },
     "reference/driftdroid/android/app/src/main/kotlin/com/driftdroid/android/GameShortcuts.kt": {
       "bytes": 4006,
       "sha256": "7c9463d1c35896b9d37f4e005441c17cf5f748c7e65911b0c6ac6ef729970887"
     },
     "reference/driftdroid/android/app/src/main/kotlin/com/driftdroid/android/GameStorage.kt": {
-      "bytes": 8517,
-      "sha256": "8a4a0a24dd0c9ee8726a5dd91b8d9674677b6cd66cff1625141fa5cfd7ebb42d"
+      "bytes": 8460,
+      "sha256": "b8e70e0d135bc822c775f52cc53614261ee3b8029dc7d652d053c38625207b40"
     },
     "reference/driftdroid/android/app/src/main/kotlin/com/driftdroid/android/GameStorageActivity.kt": {
-      "bytes": 14908,
-      "sha256": "7dd210efd7317b99bcc029a0edf81dae100fb8415b5f6fbe46786fa2f7eca837"
+      "bytes": 14691,
+      "sha256": "8a4986d6cec16da61b7137c266a3f93916f9ad49a154b4094e896873a7578b6b"
     },
     "reference/driftdroid/android/app/src/main/kotlin/com/driftdroid/android/GamesActivity.kt": {
-      "bytes": 40299,
-      "sha256": "2354f5adf03625cc3d76ff2761e2fc8d429245882ac93dda2d05365fd7626a0b"
+      "bytes": 40850,
+      "sha256": "e0ed74c294773e57292ca87819f3f23611c9a2fa4c6bea073430cc7401da5a3b"
     },
     "reference/driftdroid/android/app/src/main/kotlin/com/driftdroid/android/GpuDriverSettings.kt": {
       "bytes": 10258,
@@ -5722,9 +5750,13 @@
       "bytes": 6814,
       "sha256": "e55703bbe7fa32a87bd74930fa2676542c1687b92445b038e0c9c79b86e2d6b5"
     },
+    "reference/driftdroid/android/app/src/main/kotlin/com/driftdroid/android/LibraryActivity.kt": {
+      "bytes": 110439,
+      "sha256": "fe249984228a9f346aeb164d355eea8e690fc0e6dc522aca2d50d327559efbd4"
+    },
     "reference/driftdroid/android/app/src/main/kotlin/com/driftdroid/android/MainActivity.kt": {
-      "bytes": 46255,
-      "sha256": "415f5f7e77e9f8d635c38abc191c58f6dc347dc38174ed3340ed49a3d1188a99"
+      "bytes": 46243,
+      "sha256": "0fa14d7336bd281da5f41fce6295c1a7d5cc22eefaf64f6f0b64fa67ca83b4e0"
     },
     "reference/driftdroid/android/app/src/main/kotlin/com/driftdroid/android/MiiDatabaseEditor.kt": {
       "bytes": 4268,
@@ -5735,8 +5767,8 @@
       "sha256": "dfe2bc022b0bae1fd2b0ef1b8ede03ecf74f0fccf44d9ba2ec1aa68cbc814759"
     },
     "reference/driftdroid/android/app/src/main/kotlin/com/driftdroid/android/ModePickerActivity.kt": {
-      "bytes": 110199,
-      "sha256": "62e916b38a2780f04e3b6322a07255527c844695f8928bc92f2e708279533176"
+      "bytes": 549,
+      "sha256": "95ce4b2344f6ac98bbe804f61fee6ea114a4653d5f48cc0f76d9c1d1cc7c8de5"
     },
     "reference/driftdroid/android/app/src/main/kotlin/com/driftdroid/android/MotionSteering.kt": {
       "bytes": 5510,
@@ -5747,8 +5779,8 @@
       "sha256": "26b4279d68cd54aafa031b8a23f644ecf7b2325480224176eb45e6b7a204bc1a"
     },
     "reference/driftdroid/android/app/src/main/kotlin/com/driftdroid/android/ProjectPlusLaunchActivity.kt": {
-      "bytes": 2707,
-      "sha256": "109ae35e309e592d9833752f79c1c19a771d3309ee0173408011267ef257aec9"
+      "bytes": 2713,
+      "sha256": "ba50aa8eee53f95daaa04225eae872ce6abb538012f30a866e914dbcdf7dd104"
     },
     "reference/driftdroid/android/app/src/main/kotlin/com/driftdroid/android/RetroRewindCatalog.kt": {
       "bytes": 16511,
@@ -5771,12 +5803,12 @@
       "sha256": "0eeea628476fef3f629a27c8d9ac6c03a37b54eaefeedf4df24585be1c3f8dda"
     },
     "reference/driftdroid/android/app/src/main/kotlin/com/driftdroid/android/SaveManagerActivity.kt": {
-      "bytes": 20187,
-      "sha256": "9ef8691eccbd645b76330ed6ed621109d0dd88add8d36bad2276f93542c7cd66"
+      "bytes": 21706,
+      "sha256": "e80697ff02bc96067ea239756917cc78aa46ab7c41ede2fc8b6764882381f292"
     },
     "reference/driftdroid/android/app/src/main/kotlin/com/driftdroid/android/SaveManagerProfiles.kt": {
-      "bytes": 5886,
-      "sha256": "68a27625a10b78feb3e4ecc94434268f6b8edb6d69b3b4bd593ad9f78668cb99"
+      "bytes": 8333,
+      "sha256": "89af59503fffaeb8ccca837ebd0e26e38a1f8f31f001a07c6ab530eac2e7cb61"
     },
     "reference/driftdroid/android/app/src/main/kotlin/com/driftdroid/android/TexturePacks.kt": {
       "bytes": 24600,
@@ -5807,8 +5839,8 @@
       "sha256": "4dfe646cedbb8a0bd0fe75b441c5e9079f0bcc88cd67fc9006f63a92192c4441"
     },
     "reference/driftdroid/android/app/src/main/kotlin/com/driftdroid/android/ThorGameLaunch.kt": {
-      "bytes": 6822,
-      "sha256": "6745f1f753e7b644d37e4e1a1898b78a049783f9c235428a675245e7a0b63af6"
+      "bytes": 6814,
+      "sha256": "73b9c4e7443401cd28776de0520368b9ee779fa15bf623ce15148e5837d4d7a6"
     },
     "reference/driftdroid/android/app/src/main/kotlin/com/driftdroid/android/ThorGameSession.kt": {
       "bytes": 683,
@@ -5851,8 +5883,8 @@
       "sha256": "8eaebc4762d89860d78ad634b05e769d5c11de6c07fd52a7067c498eeac71e77"
     },
     "reference/driftdroid/android/app/src/main/kotlin/com/driftdroid/android/ThorRestartActivity.kt": {
-      "bytes": 3564,
-      "sha256": "0e1250dcd9bfeef5aa447b6e67568458b18a566de4ee1a9367eed2f9c76027c4"
+      "bytes": 3555,
+      "sha256": "0d70b3b9e4db0f6663e3b29570c8634baf2ff4b1246c00b7ef411b8087a9cc25"
     },
     "reference/driftdroid/android/app/src/main/kotlin/com/driftdroid/android/ThorRetroRewindUpdateService.kt": {
       "bytes": 8366,
@@ -5867,24 +5899,24 @@
       "sha256": "da7c5fa09fc42aef4bc208a22f62295f7c3ebcf15e26833f01f65668eb1c7a27"
     },
     "reference/driftdroid/android/app/src/main/kotlin/com/driftdroid/android/ThorRetroRewindUpdatesActivity.kt": {
-      "bytes": 6187,
-      "sha256": "a0dac41aa69bc8e566d2480e47b4dbeb9f4d0809f699c4abd3671cbb57751f91"
+      "bytes": 6184,
+      "sha256": "0ff89442f49a50e6e8ad23979f31103c5d3738da7f8473fd0305216728ea1a7d"
     },
     "reference/driftdroid/android/app/src/main/kotlin/com/driftdroid/android/ThorRetroRewindUpdatesView.kt": {
       "bytes": 10998,
       "sha256": "4bbe0bdae5294e6500eb4c75d3884503621ac8bae5f339401689f7e7f7f50f59"
     },
     "reference/driftdroid/android/app/src/main/kotlin/com/driftdroid/android/ThorUpdateRestart.kt": {
-      "bytes": 2797,
-      "sha256": "17851de725ab81c17100a8706f70c2d289900bfb87e62752edea0e581e0dc855"
+      "bytes": 2791,
+      "sha256": "da139bc1f18c21aa2127a0f4211ba519d909d90b0203dc72bfd7ff76dc3a0313"
     },
     "reference/driftdroid/android/app/src/main/kotlin/com/driftdroid/android/UiSounds.kt": {
       "bytes": 2407,
       "sha256": "46e6b5fbf5d11be8e020b75448fc0ff2b8794f5fbe564f832a56a0a66a661a1c"
     },
     "reference/driftdroid/android/app/src/main/kotlin/com/driftdroid/android/WiiDsUpdateActivity.kt": {
-      "bytes": 18338,
-      "sha256": "db088d9fc1bef93e0aec20d2391a1d7ef4e14d70da6c023282ef9ee07d2a0476"
+      "bytes": 18344,
+      "sha256": "0aab9d944c28d91f2ebe817996c46102b860650e32a15f93e06d35f2b2ddf91c"
     },
     "reference/driftdroid/android/app/src/main/kotlin/com/driftdroid/android/WiiDsUpdateRelease.kt": {
       "bytes": 9220,
@@ -5911,8 +5943,8 @@
       "sha256": "9cc557f5c6d07f7bc8dd69d3247b2bbf6717d08475e0325cbbe2bbbd3973379c"
     },
     "reference/driftdroid/android/app/src/main/kotlin/com/driftdroid/android/rom/GameInstaller.kt": {
-      "bytes": 6987,
-      "sha256": "c0e5a215e92ada8241ae48600a22276b7b3313f1bde7c4874d8de4f2cc4b0d96"
+      "bytes": 8069,
+      "sha256": "a735fe55d1b323cac05e2853ff4c3d62a4b7c813413d6fe4094a30de5ddcc2de"
     },
     "reference/driftdroid/android/app/src/main/kotlin/com/driftdroid/android/rom/GameScanner.kt": {
       "bytes": 3509,
@@ -5939,12 +5971,12 @@
       "sha256": "3ef242becb20bf8db66b0aff8ef9dfedd83028e6edf8214a70089169c987c1ab"
     },
     "reference/driftdroid/android/app/src/main/kotlin/com/driftdroid/android/rom/WiiDsArt.kt": {
-      "bytes": 11502,
-      "sha256": "267b421d8d7b844dbfa7df6dbd2652cee99b2a2085ca988aaed80536d44ad73b"
+      "bytes": 12430,
+      "sha256": "d0440d943a090869e00767698692e7d1e25b6c056bf19c98c15306f64e759351"
     },
     "reference/driftdroid/android/app/src/main/kotlin/com/driftdroid/android/rom/WiiDsDisc.kt": {
-      "bytes": 4913,
-      "sha256": "aad51abbf50795dab66bde8c5744289572a49d14b87529745a0bd1f63a572956"
+      "bytes": 5221,
+      "sha256": "520c6a989bc568f5862f1847c947515f06de925ff554c0a0779b26394aa9fc15"
     },
     "reference/driftdroid/android/app/src/main/kotlin/com/driftdroid/android/touch/EditGestureHelper.kt": {
       "bytes": 2514,
@@ -48420,7 +48452,7 @@
     },
     "release/version.properties": {
       "bytes": 123,
-      "sha256": "9d462b151e964c5ec6c2c15428199006a348228717c4d3a9ee4844fb6ff9f8d3"
+      "sha256": "9f6bc67e731e8c8622a57cebec0aa03174a5e0d1f31252423740bc37db853a94"
     },
     "scripts/Bake-ThorCustomMaps.py": {
       "bytes": 34004,
@@ -68391,8 +68423,8 @@
       "sha256": "57a276a86ec11cbb582c999b44113b706caa9df36fc30905ca4e21163e55a34a"
     },
     "wiids/art/src/art_core.cpp": {
-      "bytes": 19321,
-      "sha256": "1f955f2f38e49f7d3061b808095e133607e500d138cfc3f79a4da3476556a9fe"
+      "bytes": 20233,
+      "sha256": "9ed7453556032dad872d4aac41c4f84b47a4d3de69f4e821334ad372c18cce2b"
     },
     "wiids/art/src/art_internal.h": {
       "bytes": 2539,
@@ -68423,20 +68455,24 @@
       "sha256": "bdcc7be990ab3405a25b4e2ca8245cea5ae561dd982a04ee4e64e411aa55b3ad"
     },
     "wiids/disc/CMakeLists.txt": {
-      "bytes": 1849,
-      "sha256": "fa277eefa9dc42f6e395284f01ad936898a65b9d7919d35fcae62de97419b969"
+      "bytes": 2045,
+      "sha256": "f439d89b63de0970306868e1709cb94494e18b60bdae3d1c637ade54f06aa0eb"
     },
     "wiids/disc/THIRD-PARTY-NOTICES.md": {
       "bytes": 990,
       "sha256": "8368d83df807defc29aef4dec04befbabfa1760e5ad1feaefdb95aea6a9dc5a7"
+    },
+    "wiids/disc/include/wiids_config.h": {
+      "bytes": 301,
+      "sha256": "5360509e6d9db36f392917d78489b3f456aaba855efe183d7d63ce421aae9315"
     },
     "wiids/disc/include/wiids_disc.h": {
       "bytes": 2600,
       "sha256": "2ab8363b69a7a87632264034d416cda01436251d13c4da4e1c49cf1978d6e403"
     },
     "wiids/disc/jni/wiids_disc_jni.cpp": {
-      "bytes": 4622,
-      "sha256": "44fb455f73a1d71e529fb9ca9e0dbfe4656721dc79cb1e010516972f1c61d1f2"
+      "bytes": 5861,
+      "sha256": "b50a87dde60961777290d2e5fedc326a4fca7dae6ee40efa594d8edcecbda639"
     },
     "wiids/disc/src/aes128.cpp": {
       "bytes": 5513,
@@ -68446,9 +68482,13 @@
       "bytes": 573,
       "sha256": "e72846e4d9c33ee2acfc99e147f03170168b459dd45e904b1c2114d66ca658cb"
     },
+    "wiids/disc/src/wiids_config.cpp": {
+      "bytes": 729,
+      "sha256": "f60e0dc074c079df9b6f86b74ebeec8c951053ef0868054a04c388dde99d94ec"
+    },
     "wiids/disc/src/wiids_disc.cpp": {
-      "bytes": 39804,
-      "sha256": "756bd01f4ac398086cd1d056e02df52ab1d68702d4da1f28c006df56241ea2ec"
+      "bytes": 43952,
+      "sha256": "019b50e4f0755d89f1639a78e0db3163dbbc32e378475f10f5cdfd80a6ff174f"
     },
     "wiids/disc/third_party/bzip2/LICENSE": {
       "bytes": 1938,
@@ -69339,10 +69379,10 @@
   },
   "publication_export": {
     "changed_native_libraries": [
-      "lib/arm64-v8a/libRetroRewind.so"
+      "lib/arm64-v8a/libwiidsdisc.so"
     ],
     "exact_verified_apk_export": true,
-    "previous_public_tag": "v1.2.2",
+    "previous_public_tag": "v1.2.3",
     "private_qa_paths_excluded": [
       "experiments/galaxy-thor/MODLOG.md",
       "experiments/mkdd-thor/lab/drive.sh",
@@ -69351,7 +69391,7 @@
       "experiments/release/verify_private_device.py"
     ],
     "signed_apk_unchanged": false,
-    "signed_native_libraries_unchanged": true,
+    "signed_native_libraries_unchanged": false,
     "test_endpoint_defaults_sanitized": [
       "experiments/nsmbw-thor/tests/Test-DiscInterface.ps1",
       "experiments/nsmbw-thor/tests/Test-IosBootstrap.ps1",
@@ -69377,22 +69417,45 @@
     "total_content_assets": 602
   },
   "source_choices": {
+    "diagnostics/audit-1.2.4/README.md": "Exact signed 1.2.4 hotfix input or public verification source",
+    "diagnostics/audit-1.2.4/config_test.cpp": "Exact signed 1.2.4 hotfix input or public verification source",
+    "diagnostics/audit-1.2.4/extraction_test.cpp": "Exact signed 1.2.4 hotfix input or public verification source",
+    "diagnostics/audit-1.2.4/font_test.cpp": "Exact signed 1.2.4 hotfix input or public verification source",
+    "diagnostics/audit-1.2.4/memory_guard.cpp": "Exact signed 1.2.4 hotfix input or public verification source",
+    "diagnostics/audit-1.2.4/review_mutations.cpp": "Exact signed 1.2.4 hotfix input or public verification source",
+    "docs/release/HOTFIX-1.2.4.md": "Exact signed 1.2.4 hotfix input or public verification source",
+    "reference/driftdroid/android/app/src/main/AndroidManifest.xml": "Exact signed 1.2.4 hotfix input or public verification source",
     "reference/driftdroid/android/app/src/main/java/com/driftdroid/android/achievements/AchievementCatalog.java": "exact integrated Android source; paused workbench left untouched",
     "reference/driftdroid/android/app/src/main/java/com/driftdroid/android/achievements/RaCredentials.java": "exact integrated Android source; paused workbench left untouched",
     "reference/driftdroid/android/app/src/main/java/com/driftdroid/android/achievements/RaLibrary.java": "exact integrated Android source; paused workbench left untouched",
-    "reference/driftdroid/android/app/src/main/java/com/driftdroid/android/dualscreen/ThorRaceMapView.java": "Exact Android 1.2.3 release input",
+    "reference/driftdroid/android/app/src/main/java/com/driftdroid/android/dualscreen/ThorRaceMapView.java": "Exact signed 1.2.4 hotfix input or public verification source",
+    "reference/driftdroid/android/app/src/main/java/com/driftdroid/android/saves/SaveArchive.java": "Exact signed 1.2.4 hotfix input or public verification source",
     "reference/driftdroid/android/app/src/main/java/com/wither/nsmbw/GameActivity.java": "exact integrated Android source; paused workbench left untouched",
-    "reference/driftdroid/android/app/src/main/kotlin/com/driftdroid/android/MainActivity.kt": "Exact Android 1.2.3 release input",
+    "reference/driftdroid/android/app/src/main/java/com/wither/nsmbw/ThorLowerScreen.java": "Exact signed 1.2.4 hotfix input or public verification source",
+    "reference/driftdroid/android/app/src/main/kotlin/com/driftdroid/android/FrontendLaunchActivity.kt": "Exact signed 1.2.4 hotfix input or public verification source",
+    "reference/driftdroid/android/app/src/main/kotlin/com/driftdroid/android/GameStorage.kt": "Exact signed 1.2.4 hotfix input or public verification source",
+    "reference/driftdroid/android/app/src/main/kotlin/com/driftdroid/android/GameStorageActivity.kt": "Exact signed 1.2.4 hotfix input or public verification source",
+    "reference/driftdroid/android/app/src/main/kotlin/com/driftdroid/android/GamesActivity.kt": "Exact signed 1.2.4 hotfix input or public verification source",
+    "reference/driftdroid/android/app/src/main/kotlin/com/driftdroid/android/LibraryActivity.kt": "Exact signed 1.2.4 hotfix input or public verification source",
+    "reference/driftdroid/android/app/src/main/kotlin/com/driftdroid/android/MainActivity.kt": "Exact signed 1.2.4 hotfix input or public verification source",
+    "reference/driftdroid/android/app/src/main/kotlin/com/driftdroid/android/ModePickerActivity.kt": "Exact signed 1.2.4 hotfix input or public verification source",
+    "reference/driftdroid/android/app/src/main/kotlin/com/driftdroid/android/ProjectPlusLaunchActivity.kt": "Exact signed 1.2.4 hotfix input or public verification source",
     "reference/driftdroid/android/app/src/main/kotlin/com/driftdroid/android/RetroRewindRelease.kt": "Exact Android 1.2.3 release input",
+    "reference/driftdroid/android/app/src/main/kotlin/com/driftdroid/android/SaveManagerActivity.kt": "Exact signed 1.2.4 hotfix input or public verification source",
+    "reference/driftdroid/android/app/src/main/kotlin/com/driftdroid/android/SaveManagerProfiles.kt": "Exact signed 1.2.4 hotfix input or public verification source",
+    "reference/driftdroid/android/app/src/main/kotlin/com/driftdroid/android/ThorGameLaunch.kt": "Exact signed 1.2.4 hotfix input or public verification source",
+    "reference/driftdroid/android/app/src/main/kotlin/com/driftdroid/android/ThorRestartActivity.kt": "Exact signed 1.2.4 hotfix input or public verification source",
     "reference/driftdroid/android/app/src/main/kotlin/com/driftdroid/android/ThorRetroRewindUpdateService.kt": "Exact Android 1.2.3 release input",
     "reference/driftdroid/android/app/src/main/kotlin/com/driftdroid/android/ThorRetroRewindUpdateStatus.kt": "Exact Android 1.2.3 release input",
     "reference/driftdroid/android/app/src/main/kotlin/com/driftdroid/android/ThorRetroRewindUpdater.kt": "Exact Android 1.2.3 release input",
-    "reference/driftdroid/android/app/src/main/kotlin/com/driftdroid/android/ThorRetroRewindUpdatesActivity.kt": "Exact Android 1.2.3 release input",
+    "reference/driftdroid/android/app/src/main/kotlin/com/driftdroid/android/ThorRetroRewindUpdatesActivity.kt": "Exact signed 1.2.4 hotfix input or public verification source",
     "reference/driftdroid/android/app/src/main/kotlin/com/driftdroid/android/ThorRetroRewindUpdatesView.kt": "Exact Android 1.2.3 release input",
-    "reference/driftdroid/android/app/src/main/kotlin/com/driftdroid/android/WiiDsUpdateActivity.kt": "Exact Android 1.2.3 release input",
+    "reference/driftdroid/android/app/src/main/kotlin/com/driftdroid/android/ThorUpdateRestart.kt": "Exact signed 1.2.4 hotfix input or public verification source",
+    "reference/driftdroid/android/app/src/main/kotlin/com/driftdroid/android/WiiDsUpdateActivity.kt": "Exact signed 1.2.4 hotfix input or public verification source",
     "reference/driftdroid/android/app/src/main/kotlin/com/driftdroid/android/achievements/AchievementsActivity.kt": "exact integrated Android source; paused workbench left untouched",
-    "reference/driftdroid/android/app/src/main/kotlin/com/driftdroid/android/rom/WiiDsArt.kt": "Exact Android 1.2.3 release input",
-    "reference/driftdroid/android/app/src/main/kotlin/com/driftdroid/android/rom/WiiDsDisc.kt": "exact integrated Android source; paused workbench left untouched",
+    "reference/driftdroid/android/app/src/main/kotlin/com/driftdroid/android/rom/GameInstaller.kt": "Exact signed 1.2.4 hotfix input or public verification source",
+    "reference/driftdroid/android/app/src/main/kotlin/com/driftdroid/android/rom/WiiDsArt.kt": "Exact signed 1.2.4 hotfix input or public verification source",
+    "reference/driftdroid/android/app/src/main/kotlin/com/driftdroid/android/rom/WiiDsDisc.kt": "Exact signed 1.2.4 hotfix input or public verification source",
     "reference/galaxy-android/platform/src/gx/gx_recorder.cpp": "exact current private native compile input; final candidate correspondence still requires review",
     "reference/galaxy-android/platform/src/gx/gx_recorder_tex.cpp": "exact current private native compile input; final candidate correspondence still requires review",
     "reference/galaxy-android/platform/src/gx/vk/vk_copy_dispatch.cpp": "exact current private native compile input; final candidate correspondence still requires review",
@@ -69406,6 +69469,7 @@
     "reference/nsmbw-android-e1/runtime/include/thor_ra.h": "omit paused experiment addition",
     "reference/nsmbw-android-e1/runtime/src/hle/vi.cpp": "pre-experiment source substitution",
     "reference/nsmbw-android-e1/runtime/src/thor_ra.cpp": "omit paused experiment addition",
+    "release/version.properties": "Exact signed 1.2.4 hotfix input or public verification source",
     "third_party/mariokartdd-recomp/gcn-recomp/runtime/gx/render_gl.cpp": "exact current private native compile input; final candidate correspondence still requires review",
     "third_party/mariokartdd-recomp/gcn-recomp/runtime/gx/texture.cpp": "exact current private native compile input; final candidate correspondence still requires review",
     "wiids/achievements/CMakeLists.txt": "omit paused experiment addition",
@@ -69477,16 +69541,19 @@
     "wiids/achievements/rcheevos/src/rhash/md5.c": "omit paused experiment addition",
     "wiids/achievements/rcheevos/src/rhash/md5.h": "omit paused experiment addition",
     "wiids/achievements/rcheevos/src/rhash/rc_hash_internal.h": "omit paused experiment addition",
-    "wiids/disc/CMakeLists.txt": "pre-experiment source substitution",
+    "wiids/art/src/art_core.cpp": "Exact signed 1.2.4 hotfix input or public verification source",
+    "wiids/disc/CMakeLists.txt": "Exact signed 1.2.4 hotfix input or public verification source",
+    "wiids/disc/include/wiids_config.h": "Exact signed 1.2.4 hotfix input or public verification source",
     "wiids/disc/include/wiids_disc.h": "pre-experiment source substitution",
-    "wiids/disc/jni/wiids_disc_jni.cpp": "pre-experiment source substitution",
-    "wiids/disc/src/wiids_disc.cpp": "pre-experiment source substitution"
+    "wiids/disc/jni/wiids_disc_jni.cpp": "Exact signed 1.2.4 hotfix input or public verification source",
+    "wiids/disc/src/wiids_config.cpp": "Exact signed 1.2.4 hotfix input or public verification source",
+    "wiids/disc/src/wiids_disc.cpp": "Exact signed 1.2.4 hotfix input or public verification source"
   },
   "source_roots": [
     {
       "archive_root": "reference/driftdroid",
       "coverage_omissions": [],
-      "files_enumerated": 1460
+      "files_enumerated": 1461
     },
     {
       "archive_root": "reference/nsmbw-android-e1",
@@ -69526,7 +69593,7 @@
     {
       "archive_root": "reference/driftdroid/android",
       "coverage_omissions": [],
-      "files_enumerated": 250
+      "files_enumerated": 251
     },
     {
       "archive_root": "scripts",
@@ -69536,12 +69603,12 @@
     {
       "archive_root": "diagnostics",
       "coverage_omissions": [],
-      "files_enumerated": 14
+      "files_enumerated": 20
     },
     {
       "archive_root": "wiids",
       "coverage_omissions": [],
-      "files_enumerated": 290
+      "files_enumerated": 292
     },
     {
       "archive_root": "release",
@@ -69551,7 +69618,7 @@
     {
       "archive_root": "docs/release",
       "coverage_omissions": [],
-      "files_enumerated": 20
+      "files_enumerated": 21
     },
     {
       "archive_root": "experiments/release",
@@ -69681,6 +69748,20 @@
   ],
   "status": "REVIEW_REQUIRED",
   "verified_changed_native_correspondence": {
+    "disc-art": {
+      "build": "NDK 27.2.12479018; arm64-v8a; android-30; c++_shared; C++17; Release; 16 KiB maximum page size; strip-unneeded",
+      "built_sha256": "a66ce609d141626ac107b0a2e27ea0e5e92e4f146feb3c7b0a722cbccbcd6ef7",
+      "packaged_sha256": "a66ce609d141626ac107b0a2e27ea0e5e92e4f146feb3c7b0a722cbccbcd6ef7",
+      "source_files": {
+        "wiids/art/src/art_core.cpp": "9ed7453556032dad872d4aac41c4f84b47a4d3de69f4e821334ad372c18cce2b",
+        "wiids/disc/CMakeLists.txt": "f439d89b63de0970306868e1709cb94494e18b60bdae3d1c637ade54f06aa0eb",
+        "wiids/disc/include/wiids_config.h": "5360509e6d9db36f392917d78489b3f456aaba855efe183d7d63ce421aae9315",
+        "wiids/disc/jni/wiids_disc_jni.cpp": "b50a87dde60961777290d2e5fedc326a4fca7dae6ee40efa594d8edcecbda639",
+        "wiids/disc/src/wiids_config.cpp": "f60e0dc074c079df9b6f86b74ebeec8c951053ef0868054a04c388dde99d94ec",
+        "wiids/disc/src/wiids_disc.cpp": "019b50e4f0755d89f1639a78e0db3163dbbc32e378475f10f5cdfd80a6ff174f"
+      },
+      "toml11": "reference/driftdroid/runtime/third_party/toml11/toml.hpp"
+    },
     "galaxy": {
       "built_sha256": "aa417fe92a44f0259702673efefef7b8664975a2b6a2be770dc5779771f5fc9f",
       "gradle_strip_unneeded_exact": true,
@@ -69757,5 +69838,5 @@
       }
     }
   },
-  "version_name": "1.2.3"
+  "version_name": "1.2.4"
 }

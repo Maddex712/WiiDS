@@ -26,7 +26,7 @@ internal object ThorUpdateRestart {
             it.cancel()
         }
     }
-    private fun next(context: Context) = Intent(context, ModePickerActivity::class.java)
+    private fun next(context: Context) = Intent(context, LibraryActivity::class.java)
         .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
 
     fun restart(activity: Activity) {
@@ -41,7 +41,7 @@ internal object ThorUpdateRestart {
             .putExtra(ThorRestartActivity.EXTRA_OLD_PID, Process.myPid())
             .putExtra(ThorRestartActivity.EXTRA_UPDATING, product == null)
             .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_MULTIPLE_TASK)
-        if (product != null) handoff.putExtra(ModePickerActivity.EXTRA_RESTART_PRODUCT, product)
+        if (product != null) handoff.putExtra(LibraryActivity.EXTRA_RESTART_PRODUCT, product)
         // The separate-process Activity is placed on top while we are still foreground.
         // An alarm after process death has no permission to launch a background Activity.
         activity.startActivity(handoff)

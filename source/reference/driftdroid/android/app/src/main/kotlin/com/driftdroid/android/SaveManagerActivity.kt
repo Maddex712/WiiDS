@@ -38,6 +38,8 @@ class SaveManagerActivity : Activity() {
     private var chrome: org.json.JSONObject? = null
     private var companion: ThorLowerCompanion? = null
     private var exportFile: File? = null
+    private var pendingImport: File? = null
+    private var awaitingPicker = false
     private var importGame = FrontendGame.NSMB
     private val folder get() = File(SaveManagerProfiles.work(this), "backups")
     private fun dated(game: FrontendGame, reason: String) = File(folder,
@@ -45,6 +47,7 @@ class SaveManagerActivity : Activity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        awaitingPicker = savedInstanceState?.getBoolean("awaiting-picker") ?: false
         selected = FrontendGame.fromId(savedInstanceState?.getString("game")) ?: FrontendGame.NSMB
         importGame = FrontendGame.fromId(savedInstanceState?.getString("import-game")) ?: selected
         exportFile = savedInstanceState?.getString("export")?.let { name ->
@@ -70,7 +73,7 @@ class SaveManagerActivity : Activity() {
         button("Restore a local backup") { chooseBackup(true) }
         button("Restore a backup file...") {
             importGame = selected
-            startActivityForResult(Intent(Intent.ACTION_OPEN_DOCUMENT).setType("application/zip")
+            pick(Intent(Intent.ACTION_OPEN_DOCUMENT).setType("application/zip")
                 .addCategory(Intent.CATEGORY_OPENABLE), IMPORT)
         }
         button("Import a Dolphin save...") {
@@ -81,7 +84,7 @@ class SaveManagerActivity : Activity() {
                 .setMessage(DolphinSaveImport.instructions(game.id) + "\n\nCopy the file to Downloads, then choose it here. No root is needed. Dolphin save states and full NAND/card backups are not supported.")
                 .setPositiveButton("Choose save") { _, _ ->
                     importGame = game
-                    startActivityForResult(Intent(Intent.ACTION_OPEN_DOCUMENT).setType("*/*")
+                    pick(Intent(Intent.ACTION_OPEN_DOCUMENT).setType("*/*")
                         .addCategory(Intent.CATEGORY_OPENABLE), DOLPHIN)
                 }.setNegativeButton("Cancel", null).show()
         }
@@ -109,8 +112,9 @@ class SaveManagerActivity : Activity() {
         buttons.first().requestFocus()
         fullscreen()
         refresh()
-        if (SaveArchive.pending(SaveManagerProfiles.work(this))) recover()
+        if (!awaitingPicker) recover()
     }
+    private fun pick(request: Intent, code: Int) { awaitingPicker = true; startActivityForResult(request, code) }
     private fun dp(value: Int) = (value * resources.displayMetrics.density).toInt()
     private fun styled(text: String): CharSequence = art?.styledText(text.replace("…", "...")) ?: text
     private fun label(text: String, size: Float) = TextView(this).apply {
@@ -182,23 +186,27 @@ class SaveManagerActivity : Activity() {
                 if (restore) confirmRestore(files[which], selected, false)
                 else {
                     exportFile = files[which]
-                    startActivityForResult(Intent(Intent.ACTION_CREATE_DOCUMENT).setType("application/zip")
+                    pick(Intent(Intent.ACTION_CREATE_DOCUMENT).setType("application/zip")
                         .addCategory(Intent.CATEGORY_OPENABLE).putExtra(Intent.EXTRA_TITLE, "WiiDS-${files[which].name}"), EXPORT)
                 }
             }.setNegativeButton("Back", null).show()
     }
     private fun confirmRestore(file: File, game: FrontendGame, imported: Boolean) {
+        if (imported) pendingImport = file
         ThorDialogs.builder(this).setTitle("Restore ${game.label}?")
             .setMessage("Replace this game's in-game saves with the selected WiiDS backup? Its game identity and file hashes will be checked first. Your current saves will be kept in a dated backup.")
             .setPositiveButton("Restore") { _, _ ->
-                operation("Checking and restoring ${game.label}…") {
+                if (imported) pendingImport = null
+                val accepted = operation("Checking and restoring ${game.label}…", complete = { if (imported) file.delete() }) {
                     try {
                         SaveArchive.restore(SaveManagerProfiles.profile(this, game), file,
                             SaveManagerProfiles.work(this), dated(game, "before-restore"))
                         "${game.label} saves restored and verified. Start the game from the library to check them."
                     } finally { if (imported) file.delete() }
                 }
-            }.setNegativeButton("Cancel") { _, _ -> if (imported) file.delete() }.show()
+                if (!accepted && imported) file.delete()
+            }.setNegativeButton("Cancel") { _, _ -> if (imported) { pendingImport = null; file.delete() } }
+            .setOnCancelListener { if (imported) { pendingImport = null; file.delete() } }.show()
     }
     private fun confirmDolphin(plan: DolphinSaveImport.Plan, game: FrontendGame) {
         ThorDialogs.builder(this).setTitle("Import into ${game.label}?")
@@ -214,6 +222,7 @@ class SaveManagerActivity : Activity() {
     @Deprecated("Android compatibility")
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         super.onActivityResult(requestCode, resultCode, data)
+        awaitingPicker = false
         val uri = data?.data ?: return
         if (resultCode != RESULT_OK) return
         when (requestCode) {
@@ -245,7 +254,7 @@ class SaveManagerActivity : Activity() {
             IMPORT -> {
                 val game = importGame
                 var staged: File? = null
-                operation("Checking backup file…", after = {
+                operation("Checking backup file…", abandoned = { staged?.delete() }, after = {
                     staged?.let { confirmRestore(it, game, true) }
                 }) {
                     val temp = File(cacheDir.canonicalFile, "wiids-save-${UUID.randomUUID()}.zip")
@@ -263,23 +272,27 @@ class SaveManagerActivity : Activity() {
     }
     private fun recover() {
         operation("Recovering interrupted save restore…", recovery = true) {
-            val p = java.util.Properties()
-            FileInputStream(File(SaveManagerProfiles.work(this), "restore.properties")).use { p.load(it) }
-            val game = FrontendGame.fromId(p.getProperty("profile")) ?: error("Unknown recovery profile. Keep your backups.")
-            SaveArchive.recover(SaveManagerProfiles.profile(this, game), SaveManagerProfiles.work(this))
-            "Previous saves recovered. Your backup archives are still available."
+            val work = SaveManagerProfiles.work(this)
+            if (SaveArchive.pending(work)) {
+                val p = java.util.Properties()
+                FileInputStream(File(work, "restore.properties")).use { p.load(it) }
+                val game = FrontendGame.fromId(p.getProperty("profile")) ?: error("Unknown recovery profile. Keep your backups.")
+                SaveArchive.recover(SaveManagerProfiles.profile(this, game), work)
+            }
+            SaveManagerProfiles.cleanup(this)
+            "${selected.label}\nSave staging checked. Your verified backup archives are available."
         }
     }
-    private fun operation(message: String, after: (() -> Unit)? = null, recovery: Boolean = false, action: () -> String) {
+    private fun operation(message: String, after: (() -> Unit)? = null, abandoned: (() -> Unit)? = null, complete: (() -> Unit)? = null, recovery: Boolean = false, action: () -> String): Boolean {
         synchronized(com.driftdroid.android.rom.GameInstaller) {
             if (com.driftdroid.android.rom.GameInstaller.running ||
                 com.driftdroid.android.rom.EclipseMod.state.running ||
                 com.driftdroid.android.rom.MsmbwiiMod.state.running ||
                 com.driftdroid.android.rom.WiiDsArt.building != null || WiiDsUpdater.installing.get()) {
                 status.text = "Finish or cancel game setup before managing saves."
-                return
+                return false
             }
-            if (!SaveManagerProfiles.busy.compareAndSet(false, true)) return
+            if (!SaveManagerProfiles.busy.compareAndSet(false, true)) { status.text = "Wait for the current save operation to finish."; return false }
         }
         status.text = message
         val focused = currentFocus
@@ -292,19 +305,21 @@ class SaveManagerActivity : Activity() {
                 if (!recovery && SaveArchive.pending(work)) error("Recover the interrupted restore by reopening Save manager first.")
                 RandomAccessFile(File(work, ".lock"), "rw").use { lockFile ->
                     val lock = lockFile.channel.tryLock() ?: error("Another save operation is running.")
-                    lock.use { action() }
+                    lock.use { SaveManagerProfiles.cleanup(this); action() }
                 }
             }
-            SaveManagerProfiles.busy.set(false)
+            try { complete?.invoke() } finally { SaveManagerProfiles.busy.set(false) }
             runOnUiThread {
-                if (isFinishing || isDestroyed) return@runOnUiThread
+                if (isFinishing || isDestroyed) { abandoned?.invoke(); return@runOnUiThread }
                 buttons.forEach { it.isEnabled = true }
                 focused?.requestFocus()
                 status.text = result.getOrElse { "Save operation stopped: ${it.message ?: "unknown error"}. Your verified backups are kept." }
                 if (result.isSuccess) after?.invoke()
             }
         }.apply { name = "WiiDsSaveManager"; isDaemon = true }.start()
+        return true
     }
+    override fun onDestroy() { pendingImport?.delete(); pendingImport = null; super.onDestroy() }
     private fun fullscreen() {
         window.addFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN)
         window.setDecorFitsSystemWindows(false)
@@ -332,6 +347,7 @@ class SaveManagerActivity : Activity() {
         return super.dispatchKeyEvent(event)
     }
     override fun onSaveInstanceState(outState: Bundle) {
+        outState.putBoolean("awaiting-picker", awaitingPicker)
         outState.putString("game", selected.id); outState.putString("import-game", importGame.id)
         exportFile?.let { outState.putString("export", it.name) }
         super.onSaveInstanceState(outState)

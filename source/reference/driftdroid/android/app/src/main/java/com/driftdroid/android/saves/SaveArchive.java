@@ -228,6 +228,31 @@ public final class SaveArchive {
     private static File adjacent(File target, String token, String suffix) { return new File(target.getParentFile(), ".wiids-" + token + "-" + target.getName() + suffix); }
     public static boolean pending(File work) { return new File(work, "restore.properties").exists(); }
 
+    /** Caller holds the save-operation lock, with all games stopped. Never discard recovery copies. */
+    public static void cleanup(Profile profile, File work, File backups) throws IOException {
+        safe(work); safe(backups);
+        if (pending(work)) return;
+        final String uuid = "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}";
+        if (work.isDirectory()) {
+            File[] files = work.listFiles(); if (files == null) throw new IOException("Cannot inspect save staging.");
+            for (File file : files) if (file.getName().matches("(?:extract-|dolphin-)" + uuid) || file.getName().equals("restore.tmp")) erase(file);
+        }
+        if (backups.isDirectory()) {
+            File[] files = backups.listFiles(); if (files == null) throw new IOException("Cannot inspect backup staging.");
+            for (File file : files) if (file.getName().matches("\\.backup-" + uuid + "\\.tmp")) erase(file);
+        }
+        for (File target : profile.roots.values()) {
+            File parent = target.getParentFile(); safe(parent);
+            if (!parent.isDirectory()) continue;
+            File[] files = parent.listFiles(); if (files == null) throw new IOException("Cannot inspect staged saves.");
+            String pattern = "\\.wiids-" + uuid + "-" + java.util.regex.Pattern.quote(target.getName()) + "\\.new";
+            for (File file : files) if (file.getName().matches(pattern)) {
+                File old = new File(parent, file.getName().substring(0, file.getName().length() - 4) + ".old");
+                if (!exists(old)) erase(file);
+            }
+        }
+    }
+
     /** Journal is durable before the first rename. Recovery always rolls an interrupted restore back. */
     public static void recover(Profile profile, File work) throws IOException {
         File journal = new File(work, "restore.properties"); safe(journal); if (!journal.exists()) return;

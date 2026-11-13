@@ -133,10 +133,6 @@ class GameStorageActivity : Activity() {
                 refresh()
                 return
             }
-            if (g == FrontendGame.MKDD_PLUS) {
-                message("This private preview uses Plus files prepared on a PC. The on-device Plus installer is not available yet.")
-                return
-            }
             if(g==FrontendGame.RETRO_REWIND) {
                 if(!GameStorage.ready(this,FrontendGame.MARIO_KART)) { message("Import your Mario Kart Wii PAL disc first.");return }
                 startActivity(Intent(this,ThorRetroRewindUpdatesActivity::class.java))

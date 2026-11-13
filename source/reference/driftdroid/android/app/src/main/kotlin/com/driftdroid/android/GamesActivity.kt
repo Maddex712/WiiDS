@@ -59,9 +59,11 @@ class GamesActivity : Activity() {
     private var galaxyChosen: String? = null
     // A chosen Galaxy disc WiiDS can't name by path; the add-on copies it from the document.
     private var galaxyChosenDocument: WiiDsDisc.Source.Document? = null
+    private var eclipsePatchedImage: Button? = null
     private var galaxyAgain: Button? = null
     private var kaizoAgain: Button? = null
     private var foreground = false
+    private lateinit var setupStatus: TextView
     private lateinit var accessRow: LinearLayout
     private lateinit var searchButton: Button
 
@@ -94,7 +96,13 @@ class GamesActivity : Activity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        pickFor = savedInstanceState?.getString(STATE_PICKED_GAME)?.let(Game::valueOf)
         setContentView(buildUi())
+    }
+
+    override fun onSaveInstanceState(outState: Bundle) {
+        super.onSaveInstanceState(outState)
+        pickFor?.let { outState.putString(STATE_PICKED_GAME, it.name) }
     }
 
     override fun onResume() {
@@ -103,7 +111,6 @@ class GamesActivity : Activity() {
         foreground = true
         accessRow.visibility = if (RomScanner.hasAccess()) View.GONE else View.VISIBLE
         if (scan == null && RomScanner.hasAccess()) startScan()
-        if (!GameInstaller.running) GameInstaller.repairArt(this)
         handler.post(poll)
     }
 
@@ -237,7 +244,11 @@ class GamesActivity : Activity() {
     private fun refresh() {
         val state = GameInstaller.poll()
         val eclipseBusy = EclipseMod.state.running
-        val installBusy = GameInstaller.running || eclipseBusy
+        val setupBlocker = SaveManagerProfiles.blocker(this)
+        val installBusy = setupBlocker != null
+        setupStatus.visibility = if (setupBlocker == null) View.GONE else View.VISIBLE
+        if (setupStatus.text != setupBlocker.orEmpty()) setupStatus.text = setupBlocker.orEmpty()
+        eclipsePatchedImage?.isEnabled = !installBusy
         searchButton.isEnabled = !scanning && RomScanner.hasAccess()
         searchButton.text = if (scanning) "Searching..." else "Search again"
         for ((game, card) in separateSetupCards) {
@@ -326,7 +337,7 @@ class GamesActivity : Activity() {
         for ((game, card) in cards) {
             val disc = game.disc
             if (game == Game.GALAXY || game == Game.KAIZO) {
-                refreshGalaxy(card, game == Game.KAIZO)
+                refreshGalaxy(card, kaizo = game == Game.KAIZO, installBusy = installBusy)
                 continue
             }
             if (game == Game.ECLIPSE && eclipseBusy) {
@@ -399,7 +410,7 @@ class GamesActivity : Activity() {
                     }
                 }
                 disc.isInstalled(this) && com.driftdroid.android.rom.WiiDsArt.building == disc -> {
-                    show(card, "Imported. Building its menus, sounds and maps from your disc...", GREEN)
+                    show(card, "Imported. Preparing artwork in the background.", GREEN)
                     button(card, "Import again", false) {}
                 }
                 disc.isInstalled(this) -> {
@@ -413,7 +424,9 @@ class GamesActivity : Activity() {
                         if (!GameInstaller.start(this, disc, pick.source)) messages[disc] = BUSY
                     }
                 }
-                scanning -> show(card, "Searching this device...", MUTED).also { button(card, "Choose file", false) {} }
+                scanning -> show(card, "Searching this device...", MUTED).also {
+                    button(card, "Choose file", !installBusy) { chooseFile(game) }
+                }
                 else -> {
                     val wrong = scan?.mismatched(disc)?.firstOrNull()
                     when {
@@ -436,7 +449,7 @@ class GamesActivity : Activity() {
     private fun setupAction(kaizo: Boolean) =
         if (kaizo) "Set up Rebalanced to build it with the official 2.1 patch" else "Set up Galaxy to convert it"
 
-    private fun refreshGalaxy(card: Card, kaizo: Boolean = false) {
+    private fun refreshGalaxy(card: Card, kaizo: Boolean, installBusy: Boolean) {
         if (android.os.Build.VERSION.SDK_INT < 32) { show(card, "Galaxy needs Android 12L or newer (API 32).", AMBER); button(card, "Android update required", false) {}; return }
         val disc = GameCatalog.Disc.GALAXY_USA
         card.progress.visibility = View.GONE
@@ -466,12 +479,16 @@ class GamesActivity : Activity() {
         when {
             ready -> button(card, "Play", true) { if (kaizo) ThorGameLaunch.launchKaizo(this) else ThorGameLaunch.launchGalaxy(this) }
             path != null || document != null ->
-                button(card, if (kaizo) "Set up Rebalanced" else "Set up Galaxy", !GameInstaller.running) { importGalaxy(path, document, kaizo) }
-            else -> button(card, "Choose file", !GameInstaller.running) { chooseFile(if (kaizo) Game.KAIZO else Game.GALAXY) }
+                button(card, if (kaizo) "Set up Rebalanced" else "Set up Galaxy", !installBusy) { importGalaxy(path, document, kaizo) }
+            else -> button(card, "Choose file", !installBusy) { chooseFile(if (kaizo) Game.KAIZO else Game.GALAXY) }
         }
         (if (kaizo) kaizoAgain else galaxyAgain)?.let { again ->
-            again.visibility = if (ready && (path != null || document != null)) View.VISIBLE else View.GONE
-            again.setOnClickListener { if (path != null || document != null) importGalaxy(path, document, kaizo) }
+            again.visibility = if (ready) View.VISIBLE else View.GONE
+            again.isEnabled = !installBusy
+            again.setOnClickListener {
+                if (path != null || document != null) importGalaxy(path, document, kaizo)
+                else chooseFile(if (kaizo) Game.KAIZO else Game.GALAXY)
+            }
         }
     }
 
@@ -503,6 +520,12 @@ class GamesActivity : Activity() {
     }
 
     private fun importGalaxy(path: String?, document: WiiDsDisc.Source.Document?, kaizo: Boolean = false) {
+        val blocker = SaveManagerProfiles.blocker(this)
+            ?: runCatching { SaveManagerProfiles.requireStopped(this) }.exceptionOrNull()?.message
+        if (blocker != null) {
+            android.widget.Toast.makeText(this, blocker, android.widget.Toast.LENGTH_LONG).show()
+            return
+        }
         val intent = Intent("dev.thor.galaxy.action.IMPORT_DISC")
             .setClassName(packageName, if (kaizo) "dev.thor.galaxy.KaizoActivities\$Import" else "dev.thor.galaxy.GalaxyImportActivity")
         if (path != null) intent.putExtra("disc_path", path)
@@ -567,6 +590,12 @@ class GamesActivity : Activity() {
         column.addView(text("Copy your own disc images anywhere on this device or its SD card (a ROMs folder is " +
             "fine). WiiDS finds them, checks each one and imports the right disc. Your files are only read.",
             15f, MUTED).apply { setPadding(0, dp(6), 0, dp(16)) })
+
+        setupStatus = text("", 15f, AMBER).apply {
+            visibility = View.GONE
+            setPadding(0, 0, 0, dp(12))
+        }
+        column.addView(setupStatus)
 
         accessRow = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
@@ -692,8 +721,9 @@ class GamesActivity : Activity() {
             }
         }
         if (game == Game.ECLIPSE) {
-            box.addView(styledButton("Import patched image") { if (!GameInstaller.running && !EclipseMod.state.running) chooseFile(game) },
-                LinearLayout.LayoutParams(-2, -2).apply { topMargin = dp(8) })
+            eclipsePatchedImage = styledButton("Import patched image") { chooseFile(game) }.also {
+                box.addView(it, LinearLayout.LayoutParams(-2, -2).apply { topMargin = dp(8) })
+            }
             box.addView(styledButton("Official Eclipse page") {
                 runCatching { startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://gamebanana.com/mods/536309"))) }
             }, LinearLayout.LayoutParams(-2, -2).apply { topMargin = dp(8) })
@@ -732,6 +762,7 @@ class GamesActivity : Activity() {
 
     companion object {
         const val EXTRA_SETUP_RETRO_REWIND = "setup_retro_rewind"
+        private const val STATE_PICKED_GAME = "picked_game"
         private const val REQUEST_PICK_PLUS_PATCH = 4714
         private const val REQUEST_PICK = 4710
         private const val REQUEST_PICK_MOD = 4711

@@ -16,7 +16,7 @@ class FrontendLaunchActivity : Activity() {
     override fun onCreate(state: Bundle?) {
         super.onCreate(state)
         if (!BuildConfig.THOR_BUILD) { fail("This build does not support WiiDS frontend launches."); return }
-        SaveManagerProfiles.blocker(this)?.let { fail(it); return }
+        SaveManagerProfiles.launchBlocker(this)?.let { fail(it); return }
         val manager = getSystemService(ACTIVITY_SERVICE) as ActivityManager
         val processes = manager.runningAppProcesses?.map { it.processName }
         if (processes == null) { fail("Could not check running games. Try again from the WiiDS library."); return }
@@ -53,8 +53,8 @@ class FrontendLaunchActivity : Activity() {
                 if (isFinishing || isDestroyed) return@runOnUiThread
                 result.onSuccess { game ->
                     // Do not forward file paths, grants, arbitrary extras or component names to a runtime.
-                    startActivity(Intent(this, ModePickerActivity::class.java)
-                        .putExtra(ModePickerActivity.EXTRA_FRONTEND_GAME, game.id)
+                    startActivity(Intent(this, LibraryActivity::class.java)
+                        .putExtra(LibraryActivity.EXTRA_FRONTEND_GAME, game.id)
                         // Keep the retained kart Activity below the library. CLEAR_TOP
                         // destroys it before launchProduct can deliver onNewIntent.
                         .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_REORDER_TO_FRONT or Intent.FLAG_ACTIVITY_SINGLE_TOP))

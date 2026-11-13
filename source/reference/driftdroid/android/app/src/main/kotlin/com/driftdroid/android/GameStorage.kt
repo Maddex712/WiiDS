@@ -109,8 +109,7 @@ internal object GameStorage {
             }
         }
         val protected=ArrayList<File>()
-        for(game in FrontendGame.values())
-            protected.addAll(SaveManagerProfiles.profile(app,game).roots.values)
+        protected.addAll(SaveManagerProfiles.protectionRoots(app))
         protected+=File(inside,"games/mod/msmbwiijala/save")
         protected+=File(inside,"games/mod/riivolution/config")
         protected+=File(inside,"save-manager")

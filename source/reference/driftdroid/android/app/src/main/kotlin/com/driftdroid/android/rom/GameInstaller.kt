@@ -23,6 +23,27 @@ object GameInstaller {
         private set
 
     val running get() = state.running || MkddPlusMod.state.running
+    @Volatile var recoveryError: String? = null
+        private set
+
+    /** Startup recovery shares the import monitor, before any readiness check or new worker. */
+    @Synchronized
+    fun recoverImports(context: Context) {
+        if (running || EclipseMod.state.running || MsmbwiiMod.state.running ||
+            com.driftdroid.android.SaveManagerProfiles.busy.get() ||
+            com.driftdroid.android.WiiDsUpdater.installing.get() ||
+            com.driftdroid.android.GameStorage.blocker(context) != null) return
+        if (runCatching { com.driftdroid.android.SaveManagerProfiles.requireStopped(context) }.isFailure) return
+        recoveryError = null
+        val destinations = GameCatalog.Disc.values().filter { it != GameCatalog.Disc.GALAXY_USA }
+            .map { it.installDir(context) } +
+            File(dev.thor.mkdd.MkddStorage.root(context), "plus/game")
+        for (destination in destinations) {
+            val error = runCatching { DiscInstallCommit.recover(destination) }
+                .getOrElse { "The previous disc import could not be recovered. Keep its recovery files and reopen WiiDS." }
+            if (error != null && recoveryError == null) recoveryError = error
+        }
+    }
     @Volatile private var importCancelled = false
 
     fun start(context: Context, disc: GameCatalog.Disc, source: WiiDsDisc.Source): Boolean {

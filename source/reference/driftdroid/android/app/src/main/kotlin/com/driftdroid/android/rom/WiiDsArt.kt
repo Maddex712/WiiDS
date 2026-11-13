@@ -138,18 +138,39 @@ object WiiDsArt {
     }.getOrDefault(false)
 
     private fun run(job: Job): String? {
-        val dest = if (job.ownFolder) File(job.target.parentFile, job.target.name + ".building") else job.target
-        if (job.ownFolder) dest.deleteRecursively()
+        // Kart can start during repair. Keep its shared HUD and map files readable while baking.
+        val sharedKartFiles = job.kind == "mkw-art" || job.kind == "mkw-maps"
+        val staged = job.ownFolder || sharedKartFiles
+        val dest = when {
+            sharedKartFiles -> File(job.target, ".${job.kind}.building")
+            job.ownFolder -> File(job.target.parentFile, job.target.name + ".building")
+            else -> job.target
+        }
+        if (staged) dest.deleteRecursively()
         dest.mkdirs()
         val error = runCatching {
             WiiDsDisc.ensureLoaded()
             if (job.kind == "mkw-maps") nativeBuildMaps(job.source.absolutePath, dest.absolutePath)
             else nativeBuild(job.kind, job.source.absolutePath, dest.absolutePath)
         }.getOrElse { it.message ?: "The art couldn't be built." }
-        if (!job.ownFolder) return error
+        if (!staged) return error
         if (error != null) {
             dest.deleteRecursively()
             return error
+        }
+        if (sharedKartFiles) {
+            try {
+                val files = dest.walkTopDown().filter { it.isFile }
+                    .sortedBy { it.extension == "json" || it.extension == "tsv" }
+                for (file in files) {
+                    val target = File(job.target, file.relativeTo(dest).path)
+                    target.parentFile?.mkdirs()
+                    if (!file.renameTo(target)) return "The artwork couldn't be moved into place."
+                }
+                return null
+            } finally {
+                dest.deleteRecursively()
+            }
         }
         job.target.deleteRecursively()
         if (!dest.renameTo(job.target)) {

@@ -55,6 +55,9 @@ object WiiDsDisc {
     /** libwiidsdisc also holds the art builder (WiiDsArt). */
     fun ensureLoaded() = load()
 
+    /** Parse the runtime's exact TOML syntax; byte arrays preserve standard UTF-8 paths. */
+    fun configuredNand(config: ByteArray): String { load(); return nativeConfiguredNand(config).toString(Charsets.UTF_8) }
+
     // Shared descriptor entry points for the embedded Brawl recovery importer.
     // Native calls consume the descriptors, just as Source.open does for the common importer.
     fun identifyDescriptors(fds: IntArray): String { load();return nativeIdentify(fds) }
@@ -109,4 +112,5 @@ object WiiDsDisc {
     @JvmStatic private external fun nativeProgress(): LongArray
     @JvmStatic private external fun nativeCancel()
     @JvmStatic private external fun nativeResetCancel()
+    @JvmStatic private external fun nativeConfiguredNand(config: ByteArray): ByteArray
 }

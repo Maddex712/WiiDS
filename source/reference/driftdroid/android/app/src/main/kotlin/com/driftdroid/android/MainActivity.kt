@@ -42,7 +42,7 @@ import org.libsdl.app.SDLActivity
  * pieces of that lifecycle (see git history) - fighting SDLActivity's own plumbing kept
  * resurfacing the same class of bug, so this is the "do it the SDL way" version (P5 groundwork).
  *
- * Always started explicitly from ModePickerActivity (the real launcher - see AndroidManifest.xml)
+ * Always started explicitly from LibraryActivity (the real launcher - see AndroidManifest.xml)
  * with [EXTRA_PRODUCT] set: neither the combined native library (libGameCombined.so - both
  * products, see runtime/cmake/build_combined_android_lib.py, not yet safe to ship - see
  * getLibraries()'s own doc comment) nor a running game has a supported way to reset and switch
@@ -174,7 +174,7 @@ class MainActivity : SDLActivity() {
         }
 
         // A different product may already be running in this process from an earlier launch (e.g.
-        // the user backgrounded the game, returned to ModePickerActivity, and picked the OTHER
+        // the user backgrounded the game, returned to LibraryActivity, and picked the OTHER
         // mode without fully closing the app) - the guest engine has no supported way to reset
         // itself and switch profiles live, so the only correct fix is a full process restart into
         // the new choice.
@@ -411,7 +411,7 @@ class MainActivity : SDLActivity() {
     fun returnToMainMenu() {
         runOnUiThread {
             if (isFinishing || isDestroyed) return@runOnUiThread
-            startActivity(Intent(this, ModePickerActivity::class.java)
+            startActivity(Intent(this, LibraryActivity::class.java)
                 .addFlags(Intent.FLAG_ACTIVITY_REORDER_TO_FRONT))
         }
     }
@@ -739,7 +739,7 @@ class MainActivity : SDLActivity() {
 
         // Staging path for the Retro Rewind asset pack (tracks/textures - distinct from Code.pul,
         // which only carries the mod's patched game LOGIC and is already compiled into
-        // libGameCombined.so). Populated by ModePickerActivity's folder-import flow, mirroring how
+        // libGameCombined.so). Populated by LibraryActivity's folder-import flow, mirroring how
         // the PC version's Retro Rewind support works (WiiCompiled.Setup/RetroRewindSource.cs only
         // ever resolves a folder the user already has - it never packages or downloads one).
         const val RETRO_REWIND_STAGING_SUBDIR = "WiiCompiled/RetroRewind6"

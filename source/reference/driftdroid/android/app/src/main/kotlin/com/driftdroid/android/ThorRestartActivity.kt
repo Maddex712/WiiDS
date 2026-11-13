@@ -28,10 +28,10 @@ class ThorRestartActivity : Activity() {
             val gone = try { Os.kill(oldPid, 0); false }
                 catch (e: ErrnoException) { e.errno == OsConstants.ESRCH }
             if (gone && resumed && hasWindowFocus()) {
-                val next = Intent(this@ThorRestartActivity, ModePickerActivity::class.java)
+                val next = Intent(this@ThorRestartActivity, LibraryActivity::class.java)
                     .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                intent.getStringExtra(ModePickerActivity.EXTRA_RESTART_PRODUCT)?.let {
-                    next.putExtra(ModePickerActivity.EXTRA_RESTART_PRODUCT, it)
+                intent.getStringExtra(LibraryActivity.EXTRA_RESTART_PRODUCT)?.let {
+                    next.putExtra(LibraryActivity.EXTRA_RESTART_PRODUCT, it)
                 }
                 startActivity(next)
                 finish()

@@ -44,6 +44,18 @@ uint32_t Le32(const uint8_t* p) { return uint32_t(p[3]) << 24 | uint32_t(p[2]) <
 uint64_t Le64(const uint8_t* p) { return uint64_t(Le32(p + 4)) << 32 | Le32(p); }
 
 constexpr uint64_t kWiiCluster = 0x8000, kWiiClusterData = 0x7C00, kWiiClusterHashes = 0x400;
+// A supported disc needs at most a few MiB of indexing metadata, even at 32 KiB chunks.
+constexpr uint64_t kMaxDiscBytes = 16ull << 30;
+constexpr size_t kMaxTableBytes = 64u << 20;
+constexpr size_t kMaxDecodeBytes = 576u << 20;
+void CheckRange(uint64_t length, uint64_t offset, uint64_t bytes) {
+    if (offset > length || bytes > length - offset) Fail("This disc image contains an invalid data range.");
+}
+size_t TableBytes(uint32_t count, uint32_t stride) {
+    const uint64_t bytes = uint64_t(count) * stride;
+    if (bytes > kMaxTableBytes) Fail("This disc image's index is too large.");
+    return size_t(bytes);
+}
 constexpr uint32_t kWiiMagic = 0x5D1C9EA3, kGcMagic = 0xC2339F3D;
 
 // Retail Wii common key (index 0); long public, the same constant Dolphin and every Wii tool use.
@@ -189,8 +201,11 @@ public:
         dataSize_ = Le64(h + 16);
         blockSize_ = Le32(h + 24);
         const uint32_t blocks = Le32(h + 28);
-        if (blockSize_ == 0 || blockSize_ > (64u << 20) || uint64_t(blocks) * blockSize_ < dataSize_) Fail("This GCZ file is damaged.");
-        Bytes table(size_t(blocks) * 8);
+        if (!dataSize_ || dataSize_ > kMaxDiscBytes || blockSize_ == 0 || blockSize_ > (64u << 20) ||
+            uint64_t(blocks) != (dataSize_ + blockSize_ - 1) / blockSize_) Fail("This GCZ file is damaged.");
+        const size_t tableSize = TableBytes(blocks, 8);
+        CheckRange(file_.Size(), 32, uint64_t(blocks) * 12);
+        Bytes table(tableSize);
         file_.ReadAt(32, table.data(), table.size());
         for (uint32_t i = 0; i < blocks; ++i) pointers_.push_back(Le64(table.data() + 8 * i));
         dataStart_ = 32 + uint64_t(blocks) * 12;
@@ -216,7 +231,7 @@ private:
         constexpr uint64_t kUncompressed = 1ull << 63;
         const uint64_t start = pointers_[block] & ~kUncompressed;
         const uint64_t end = block + 1 < pointers_.size() ? pointers_[block + 1] & ~kUncompressed : compressedEnd_;
-        if (end < start || end - start > blockSize_ + 1024) Fail("This GCZ file is damaged.");
+        if (end < start || end > compressedEnd_ || end - start > blockSize_ + 1024) Fail("This GCZ file is damaged.");
         Bytes in(size_t(end - start));
         file_.ReadAt(dataStart_ + start, in.data(), in.size());
         cache_.assign(blockSize_, 0);
@@ -240,6 +255,7 @@ public:
     explicit WbfsBlob(Joined& file) : file_(file) {
         uint8_t h[12];
         file_.ReadAt(0, h, sizeof(h));
+        if (h[8] < 9 || h[8] > 30 || h[9] < 15 || h[9] > 30) Fail("This WBFS file is damaged.");
         const uint64_t hdSector = 1ull << h[8];
         sector_ = 1ull << h[9];
         if (sector_ < kWiiCluster || sector_ > (1ull << 30)) Fail("This WBFS file is damaged.");
@@ -315,6 +331,7 @@ public:
         uint8_t h1[0x48];
         file_.ReadAt(0, h1, sizeof(h1));
         discSize_ = Be64(h1 + 0x24);
+        if (!discSize_ || discSize_ > kMaxDiscBytes) Fail("This disc image has an invalid disc size.");
         if (Be64(h1 + 0x2C) != file_.Size()) Fail("This " + std::string(rvz ? "RVZ" : "WIA") + " file is incomplete (its size doesn't match).");
         const uint32_t h2Size = Be32(h1 + 0x0C);
         if (h2Size < 0xDC - 7 || h2Size > 0x1000) Fail("This disc image is damaged.");
@@ -337,7 +354,18 @@ public:
             Fail("This disc image uses an unsupported compression method.");
         if (chunkSize_ < 0x8000 || chunkSize_ > (512u << 20)) Fail("This disc image is damaged.");
 
-        Bytes parts(size_t(partCount) * partEntrySize);
+        if (partCount > 1024 || (partCount && (partEntrySize < 0x28 || partEntrySize > 0x1000)))
+            Fail("This disc image has an invalid partition table.");
+        const size_t partsSize = TableBytes(partCount, partEntrySize);
+        CheckRange(file_.Size(), partOffset, partsSize);
+        const size_t rawBytes = TableBytes(rawCount, 0x18);
+        const size_t groupEntry = rvz_ ? 12 : 8;
+        const size_t groupBytes = TableBytes(groupCount, uint32_t(groupEntry));
+        if (rawSize > kMaxTableBytes || groupSize > kMaxTableBytes)
+            Fail("This disc image's compressed index is too large.");
+        CheckRange(file_.Size(), rawOffset, rawSize);
+        CheckRange(file_.Size(), groupOffset, groupSize);
+        Bytes parts(partsSize);
         if (!parts.empty()) file_.ReadAt(partOffset, parts.data(), parts.size());
         for (uint32_t i = 0; i < partCount; ++i) {
             Partition p{};
@@ -349,13 +377,12 @@ public:
             }
             partitions_.push_back(p);
         }
-        const Bytes raw = Decompress(rawOffset, rawSize, size_t(rawCount) * 0x18, compression_, 0, 0, 0);
+        const Bytes raw = Decompress(rawOffset, rawSize, rawBytes, compression_, 0, 0, 0);
         for (uint32_t i = 0; i < rawCount; ++i) {
             const uint8_t* r = raw.data() + 0x18 * i;
             raws_.push_back({Be64(r), Be64(r + 8), Be32(r + 16), Be32(r + 20)});
         }
-        const size_t groupEntry = rvz_ ? 12 : 8;
-        const Bytes groups = Decompress(groupOffset, groupSize, size_t(groupCount) * groupEntry, compression_, 0, 0, 0);
+        const Bytes groups = Decompress(groupOffset, groupSize, groupBytes, compression_, 0, 0, 0);
         for (uint32_t i = 0; i < groupCount; ++i) {
             const uint8_t* g = groups.data() + groupEntry * i;
             groups_.push_back({Be32(g), Be32(g + 4), rvz_ ? Be32(g + 8) : 0});
@@ -456,6 +483,9 @@ private:
     // Decompresses one stored chunk, skips its hash-exception lists and undoes RVZ packing.
     Bytes Decompress(uint64_t fileOffset, uint32_t storedSize, size_t outSize, WiaCompression method,
                      uint32_t exceptionLists, uint32_t packedSize, uint64_t dataOffset) {
+        CheckRange(file_.Size(), fileOffset, storedSize);
+        if (storedSize > kMaxDecodeBytes || outSize > kMaxDecodeBytes || packedSize > kMaxDecodeBytes)
+            Fail("This disc image's compressed block is too large.");
         Bytes in(storedSize);
         if (storedSize) file_.ReadAt(fileOffset, in.data(), in.size());
         size_t pos = 0;
@@ -486,7 +516,11 @@ private:
                 break;
             }
             default:
-                out = Inflate(method, in.data() + pos, in.size() - pos, payload + (compressedLists ? size_t(exceptionLists) * 0x1000 * 23 : 0));
+                if (pos > in.size()) Fail("This disc image has a truncated exception list.");
+                const uint64_t extra = compressedLists ? uint64_t(exceptionLists) * 0x1000 * 23 : 0;
+                if (payload > kMaxDecodeBytes || extra > kMaxDecodeBytes - payload)
+                    Fail("This disc image's decoded block is too large.");
+                out = Inflate(method, in.data() + pos, in.size() - pos, payload + size_t(extra));
                 break;
         }
         size_t skip = 0;
@@ -560,6 +594,7 @@ private:
                 options.dict_size = prop == 40 ? 0xFFFFFFFFu : ((2u | (prop & 1u)) << (prop / 2 + 11));
                 filters[0].id = LZMA_FILTER_LZMA2;
             }
+            if (options.dict_size > (128u << 20)) Fail("This disc image requires too much decoder memory.");
             filters[0].options = &options;
             filters[1].id = LZMA_VLI_UNKNOWN;
             lzma_stream stream = LZMA_STREAM_INIT;
@@ -668,6 +703,8 @@ public:
         blob_.Read(partition_, header, sizeof(header));
         dataOffset_ = partition_ + (uint64_t(Be32(header + 0x2B8)) << 2);
         dataSize_ = uint64_t(Be32(header + 0x2BC)) << 2;
+        CheckRange(blob_.DiscSize(), dataOffset_, dataSize_);
+        if (!dataSize_ || dataSize_ % kWiiCluster) Fail("The game partition size is invalid.");
         if (!blob_.ReadsWiiDecrypted()) {
             if (header[0x1F1] != 0) Fail("This disc uses a Korean or vWii key, which isn't supported.");
             uint8_t iv[16] = {}, key[16];
@@ -678,6 +715,7 @@ public:
     }
     uint64_t DataSize() const { return dataSize_ / kWiiCluster * kWiiClusterData; }
     void Read(uint64_t offset, void* out, size_t size) {
+        CheckRange(DataSize(), offset, size);
         if (blob_.ReadsWiiDecrypted()) { blob_.ReadWiiDecrypted(dataOffset_, offset, out, size); return; }
         auto* p = static_cast<uint8_t*>(out);
         while (size) {
@@ -694,6 +732,7 @@ private:
 
     // Returns the decrypted data of one cluster, reading and decrypting 64 clusters at a time.
     const uint8_t* Load(uint64_t cluster) {
+        if (cluster >= dataSize_ / kWiiCluster) Fail("Read past the end of the game partition.");
         const uint64_t first = cluster / kBatch * kBatch;
         if (first != cachedFirst_) {
             const uint64_t clusters = std::min<uint64_t>(kBatch, dataSize_ / kWiiCluster - first);
@@ -737,18 +776,19 @@ void WriteRange(const ReadFn& read, uint64_t offset, uint64_t size, const fs::pa
     }
 }
 
-uint32_t DolSize(const ReadFn& read, uint64_t at) {
+uint64_t DolSize(const ReadFn& read, uint64_t at) {
     uint8_t h[0x100];
     read(at, h, sizeof(h));
-    uint32_t end = 0x100;
+    uint64_t end = 0x100;
     for (int i = 0; i < 18; ++i) {
         const uint32_t off = Be32(h + 4 * i), size = Be32(h + 0x90 + 4 * i);
-        if (off) end = std::max(end, off + size);
+        if (off) end = std::max(end, uint64_t(off) + size);
     }
     return end;
 }
 
-void ExtractTree(const ReadFn& read, bool wii, const fs::path& dest, Progress& progress) {
+void ExtractTree(const ReadFn& input, bool wii, uint64_t sourceSize, const fs::path& dest, Progress& progress) {
+    const ReadFn read = [&](uint64_t offset, void* out, size_t size) { CheckRange(sourceSize, offset, size); input(offset, out, size); };
     const int shift = wii ? 2 : 0;
     uint8_t boot[0x440];
     read(0, boot, sizeof(boot));
@@ -756,51 +796,72 @@ void ExtractTree(const ReadFn& read, bool wii, const fs::path& dest, Progress& p
     const uint64_t fstAt = uint64_t(Be32(boot + 0x424)) << shift;
     const uint64_t fstSize = uint64_t(Be32(boot + 0x428)) << shift;
     if (!fstAt || fstSize < 12 || fstSize > (64u << 20)) Fail("The disc's file table is damaged.");
+    CheckRange(sourceSize, fstAt, fstSize);
     Bytes fst(static_cast<size_t>(fstSize));
     read(fstAt, fst.data(), fst.size());
     const uint32_t count = Be32(fst.data() + 8);
-    if (uint64_t(count) * 12 > fst.size()) Fail("The disc's file table is damaged.");
+    if (!count || count > 262144 || fst[0] != 1 || uint64_t(count) * 12 > fst.size()) Fail("The disc's file table is damaged.");
     uint64_t total = 0;
     for (uint32_t i = 1; i < count; ++i)
         if (!fst[12 * i]) total += Be32(fst.data() + 12 * i + 8);
     uint8_t loader[0x20];
     read(0x2440, loader, sizeof(loader));
     const uint64_t loaderSize = 0x20ull + Be32(loader + 0x14) + Be32(loader + 0x18);
-    progress.total.store(total + 0x440 + 0x2000 + loaderSize + fstSize + DolSize(read, dol));
+    const uint64_t dolSize = DolSize(read, dol);
+    CheckRange(sourceSize, 0x2440, loaderSize);
+    CheckRange(sourceSize, dol, dolSize);
+    total += 0x440 + 0x2000 + loaderSize + fstSize + dolSize;
+    if (total > sourceSize) Fail("The disc's extracted files exceed its game partition size.");
+    progress.total.store(total);
     const char* names = reinterpret_cast<const char*>(fst.data()) + uint64_t(count) * 12;
     const char* namesEnd = reinterpret_cast<const char*>(fst.data() + fst.size());
     auto name = [&](uint32_t i) {
-        const char* n = names + (Be32(fst.data() + 12 * i) & 0xFFFFFF);
-        if (n >= namesEnd) Fail("The disc's file table is damaged.");
-        const std::string s(n, strnlen(n, size_t(namesEnd - n)));
+        const size_t offset = Be32(fst.data() + 12 * i) & 0xFFFFFF;
+        if (offset >= size_t(namesEnd - names)) Fail("The disc's file table is damaged.");
+        const char* n = names + offset;
+        const size_t length = strnlen(n, size_t(namesEnd - n));
+        if (length == size_t(namesEnd - n)) Fail("The disc's file table has an unterminated name.");
+        const std::string s(n, length);
         if (s.empty() || s == "." || s == ".." || s.find('/') != std::string::npos || s.find('\\') != std::string::npos)
             Fail("The disc's file table has an unsafe name.");
         return s;
     };
     const fs::path files = dest / "files", sys = dest / "sys";
-    std::function<void(uint32_t, uint32_t, const fs::path&)> walk = [&](uint32_t i, uint32_t end, const fs::path& dir) {
-        while (i < end) {
-            const uint8_t* e = fst.data() + 12 * i;
-            if (e[0]) {
-                const uint32_t next = Be32(e + 8);
-                if (next <= i || next > end) Fail("The disc's file table is damaged.");
-                fs::create_directories(dir / fs::u8path(name(i)));
-                walk(i + 1, next, dir / fs::u8path(name(i)));
-                i = next;
-            } else {
-                WriteRange(read, uint64_t(Be32(e + 4)) << shift, Be32(e + 8), dir / fs::u8path(name(i)), progress);
-                ++i;
-            }
-        }
-    };
+    struct Directory { uint32_t index, end; fs::path path; };
+    struct Entry { fs::path path; uint64_t offset, size; bool directory; };
+    std::vector<Directory> stack = {{0, count, fs::path()}};
+    std::vector<Entry> entries;
+    std::map<fs::path, bool> seen;
+    for (uint32_t i = 1; i < count; ++i) {
+        CheckCancel(progress);
+        while (stack.size() > 1 && i >= stack.back().end) stack.pop_back();
+        const uint8_t* e = fst.data() + 12 * i;
+        const auto path = stack.back().path / fs::u8path(name(i));
+        if (path.u8string().size() > 1024 || !seen.emplace(path, true).second) Fail("The disc's file table has duplicate or excessive paths.");
+        if (e[0] == 1) {
+            const uint32_t next = Be32(e + 8);
+            if (next <= i || next > stack.back().end || Be32(e + 4) != stack.back().index || stack.size() >= 64)
+                Fail("The disc's directory table is damaged or too deep.");
+            entries.push_back({path, 0, 0, true});
+            stack.push_back({i, next, path});
+        } else if (e[0] == 0) {
+            const uint64_t offset = uint64_t(Be32(e + 4)) << shift, size = Be32(e + 8);
+            CheckRange(sourceSize, offset, size);
+            entries.push_back({path, offset, size, false});
+        } else Fail("The disc's file table has an invalid entry type.");
+    }
     fs::create_directories(files);
-    walk(1, count, files);
+    for (const auto& entry : entries) {
+        CheckCancel(progress);
+        if (entry.directory) fs::create_directories(files / entry.path);
+        else WriteRange(read, entry.offset, entry.size, files / entry.path, progress);
+    }
     // The system files last; fst.bin and main.dol are renamed into place as the "complete" marker.
     WriteRange(read, 0, 0x440, sys / "boot.bin", progress);
     WriteRange(read, 0x440, 0x2000, sys / "bi2.bin", progress);
     WriteRange(read, 0x2440, loaderSize, sys / "apploader.img", progress);
     WriteRange(read, fstAt, fstSize, sys / "fst.bin.part", progress);
-    WriteRange(read, dol, DolSize(read, dol), sys / "main.dol.part", progress);
+    WriteRange(read, dol, dolSize, sys / "main.dol.part", progress);
     fs::rename(sys / "fst.bin.part", sys / "fst.bin");
     fs::rename(sys / "main.dol.part", sys / "main.dol");
 }
@@ -836,7 +897,7 @@ void ExtractWii(std::vector<std::unique_ptr<Part>>& parts, const std::string& de
     if (info.format == Format::Nkit) Fail("NKit images aren't complete copies of the disc. Convert it to RVZ or ISO in Dolphin first.");
     if (info.platform != Platform::Wii) Fail("This is a GameCube disc, not a Wii disc.");
     WiiPartition partition(*o.blob);
-    ExtractTree([&](uint64_t off, void* out, size_t n) { partition.Read(off, out, n); }, true, fs::u8path(destDir), progress);
+    ExtractTree([&](uint64_t off, void* out, size_t n) { partition.Read(off, out, n); }, true, partition.DataSize(), fs::u8path(destDir), progress);
 }
 
 void ExtractGameCubeIso(std::vector<std::unique_ptr<Part>>& parts, const std::string& destIso, Progress& progress) {

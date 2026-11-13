@@ -54,8 +54,8 @@ internal object ThorGameLaunch {
 
     fun launchKaizo(activity: Activity): Result = launch(activity, "dev.thor.galaxy.KaizoActivities\$Launch", KAIZO, kaizoInstalled(activity))
 
-    /** Brawl has its own imported disc and art inside WiiDS. */
-    fun brawlInstalled(context: Context): Boolean = dev.wiids.brawl.BrawlStorage.ready(context) && dev.wiids.brawl.BrawlArt.ready(context)
+    /** Brawl's lower screen and pause menu can fall back while their artwork is repaired. */
+    fun brawlInstalled(context: Context): Boolean = dev.wiids.brawl.BrawlStorage.ready(context)
     fun launchBrawl(activity: Activity): Result = resumeBrawlCase(activity, FrontendGame.BRAWL)
         ?: launch(activity, BRAWL_ENTRY, BRAWL, brawlInstalled(activity))
     fun projectPlusAvailable(context: Context): Boolean =
@@ -97,7 +97,7 @@ internal object ThorGameLaunch {
 
     private fun launch(activity: Activity, entry: String, game: String, ready: Boolean,
                        targetPackage: String = activity.packageName): Result {
-        SaveManagerProfiles.blocker(activity)?.let {
+        SaveManagerProfiles.launchBlocker(activity)?.let {
             android.widget.Toast.makeText(activity, it, android.widget.Toast.LENGTH_LONG).show()
             return Result.UNAVAILABLE
         }

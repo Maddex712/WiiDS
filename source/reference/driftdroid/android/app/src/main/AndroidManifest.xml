@@ -59,6 +59,8 @@
             </intent-filter>
         </activity>
 
+        <activity android:name=".LibraryActivity" android:exported="false" android:screenOrientation="sensorLandscape" />
+
         <activity android:name=".GameStorageActivity" android:exported="false" android:screenOrientation="sensorLandscape" />
         <activity android:name=".achievements.AchievementsActivity" android:exported="false"
             android:screenOrientation="sensorLandscape" android:theme="@android:style/Theme.Black.NoTitleBar.Fullscreen" />

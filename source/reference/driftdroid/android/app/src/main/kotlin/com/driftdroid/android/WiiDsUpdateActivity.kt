@@ -194,7 +194,7 @@ class WiiDsUpdateActivity : Activity() {
         val pending = WiiDsUpdater.pending(this) ?: return
         runCatching {
             synchronized(GameInstaller) {
-                SaveManagerProfiles.blocker(this)?.let { error(it) }
+                SaveManagerProfiles.launchBlocker(this)?.let { error(it) }
                 SaveManagerProfiles.requireStopped(this)
                 check(!GameInstaller.poll().running && !EclipseMod.state.running && !MsmbwiiMod.state.running && !RetroRewindInstallStatus.running) { "Finish the game import before installing an update." }
                 check(WiiDsUpdater.installing.compareAndSet(false, true)) { "An update is already being prepared." }
