@@ -402,6 +402,9 @@ class LibraryActivity : Activity() {
                 ThorLauncherView.Entry("Rumble", "Test the Thor's rumble, or turn on Android's Vibration setting.") {
                     RumbleSettings.show(this)
                 },
+                ThorLauncherView.Entry("Player profiles", "Import kart saves, rename drivers, choose Miis and restore Retro Rewind ratings.") {
+                    startActivity(Intent(this, SaveManagerActivity::class.java).putExtra("players", true))
+                },
                 ThorLauncherView.Entry("Mii Data", "Import and manage your own Mii data.") { miiDataButton.performClick() },
                 ThorLauncherView.Entry("Retro Rewind updates", "Check and download compatible Retro Rewind updates.", { BuildConfig.THOR_RETRO_REWIND }) { if (isRetroRewindInstalled()) showRetroRewindMenuDialog() else showInstallRetroRewindDialog() },
                 ThorLauncherView.Entry("Texture Packs", "Browse, download and enable texture packs.") { modsButton.performClick() },
@@ -1584,6 +1587,7 @@ class LibraryActivity : Activity() {
             container.addView(button, params)
         }
 
+        optionButton("Driver names / player data...") { startActivity(Intent(this, SaveManagerActivity::class.java).putExtra("players", true)) }
         optionButton("Export whole database...") { launchMiiExportPicker() }
         optionButton("Replace whole database...") { launchMiiImportPicker() }
         optionButton("Import single Mii (.rcd)...") { launchSingleMiiImportPicker() }

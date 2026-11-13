@@ -6,6 +6,8 @@ Play supported Wii and GameCube games on the AYN Thor, with a companion on its l
 
 ## Quick start
 
+**WiiDS 1.2.5** adds player-save import, driver renaming, Mii repair and matching Retro Rewind rating import, with automatic backups. Includes the recent launch, artwork, import and storage fixes. [1.2.5 patch notes](https://github.com/Maddex712/WiiDS/releases/tag/v1.2.5)
+
 **WiiDS 1.2.4 hotfix** fixes artwork-related launch delays, Your Games, interrupted imports and save staging, with stronger disc/font validation and custom NAND protection. [1.2.4 patch notes](https://github.com/Maddex712/WiiDS/releases/tag/v1.2.4)
 
 **WiiDS 1.2.3** supports Retro Rewind 6.13.5, improves pack updates, fixes a replay settings freeze, and adds a lower-screen map toggle and Mii portraits. [1.2.3 patch notes](https://github.com/Maddex712/WiiDS/releases/tag/v1.2.3)
@@ -20,7 +22,7 @@ Play supported Wii and GameCube games on the AYN Thor, with a companion on its l
 and your own [compatible game dump](#exact-game-files-for-each-game). The region and revision must match.
 **Games are not included.** Leave room for the APK, your dump and the prepared game files.
 
-1. **[Download WiiDS 1.2.4 (ARM64 APK)](https://github.com/Maddex712/WiiDS/releases/download/v1.2.4/WiiDS-1.2.4-arm64.apk)** on your Thor.
+1. **[Download WiiDS 1.2.5 (ARM64 APK)](https://github.com/Maddex712/WiiDS/releases/download/v1.2.5/WiiDS-1.2.5-arm64.apk)** on your Thor.
 2. **Install the APK and open WiiDS.** Allow your browser or file manager to install apps if Android asks.
    Wait for WiiDS to prepare its files. If you already use WiiDS, open **Options → Check for updates** or install the APK over your current copy to keep your data.
 3. **Copy your game dump to the Thor.** Open **Options → Your games** (it opens automatically on first use).

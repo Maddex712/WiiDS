@@ -1,6 +1,6 @@
 {
   "candidate_apk": {
-    "bytes": 384461414,
+    "bytes": 384492006,
     "license_assets": {
       "assets/licenses/COPYING-liblzma.txt": "ac024c350183a8253934be0145ae0fa1c567ab5b7d5a8e45bd644978e3651ea8",
       "assets/licenses/GCC-COPYING3.txt": "8ceb4b9ee5adedde47b31e975c1d90c73ad27b6b165a1dcd80c7c545eb65b903",
@@ -94,7 +94,7 @@
       "lib/arm64-v8a/libwiids_mkdd_plus_game.so": "c49f0035ca160a7e4751d48a2d1fb75749b6fa7acca3b691ff5aa2a63dbc000e",
       "lib/arm64-v8a/libwiidsdisc.so": "a66ce609d141626ac107b0a2e27ea0e5e92e4f146feb3c7b0a722cbccbcd6ef7"
     },
-    "sha256": "f9272fb99c040287ba13a760db5690867b8107284d04135ce9cacc0d0c61c529"
+    "sha256": "a3ced23e5ce35db9f87082c41b78b663be36e87040fd221bd0d5e419aa780a18"
   },
   "candidate_license_mismatches": [],
   "coverage_omissions": [],
@@ -3186,6 +3186,14 @@
       "bytes": 3910,
       "sha256": "129825b4e696d21548a93c9c014d21ad99e583a1f010643b362396ae8994211f"
     },
+    "diagnostics/player-profiles/KartPlayerDataTest.java": {
+      "bytes": 10406,
+      "sha256": "f093cd5633f018b8cda058c63785eda8634cec4e96826ca5ae59515282fbd1fe"
+    },
+    "diagnostics/player-profiles/README.md": {
+      "bytes": 473,
+      "sha256": "4fb1f7f82819ab9576bdf10ded0c77d2785beaf3bd30f68fa7334977cc3b807e"
+    },
     "diagnostics/src/dev/thor/mkw/screencheck/ScreenCheckActivity.java": {
       "bytes": 4730,
       "sha256": "df1284308909089171d505e382793df95ccdac8804da8f8edfa7e5104dd14915"
@@ -3197,6 +3205,10 @@
     "diagnostics/test_measure_thor_sysfs.py": {
       "bytes": 3462,
       "sha256": "0ea0dd7912b78638dce1e4939c91da78a4c61aa6f00291d6dabe537530e66b80"
+    },
+    "docs/PLAYER_PROFILES.md": {
+      "bytes": 1364,
+      "sha256": "a51c237a4ed4d3e00652402a9ab034acd1986c2247f0b653a5906b7ce88d5023"
     },
     "docs/release/1.1-ARTWORK-HOTFIX.md": {
       "bytes": 1699,
@@ -3237,6 +3249,10 @@
     "docs/release/PERMISSIONS.md": {
       "bytes": 1064,
       "sha256": "26f9d0165d3b92fd43870b479f6b84cb7a6ac38aa1e0a72a6dfa3dffb7bf6ef9"
+    },
+    "docs/release/PLAYER-PROFILES-1.2.5.md": {
+      "bytes": 3354,
+      "sha256": "fbafb2d3da80c8de98e09da75a758f4258a15b3e39cd9271862028ff04555d2b"
     },
     "docs/release/PRIVATE-1.2-REVIEW.md": {
       "bytes": 12069,
@@ -5162,6 +5178,10 @@
       "bytes": 6841,
       "sha256": "2c15f0dd7c959c7961048519ede4621ac5155b2c41bd19ae171ce24377fbfbe6"
     },
+    "reference/driftdroid/android/app/src/main/java/com/driftdroid/android/saves/KartPlayerData.java": {
+      "bytes": 13095,
+      "sha256": "a4b288a557fa290c5283e930e754ca8434efd45b708bcaee9ddfc21ce123cb84"
+    },
     "reference/driftdroid/android/app/src/main/java/com/driftdroid/android/saves/SaveArchive.java": {
       "bytes": 21142,
       "sha256": "10a54655bc1513dd70fbd61a16e8f1a14b5d687741a09a5fd207faa9b17bbc0e"
@@ -5751,8 +5771,8 @@
       "sha256": "e55703bbe7fa32a87bd74930fa2676542c1687b92445b038e0c9c79b86e2d6b5"
     },
     "reference/driftdroid/android/app/src/main/kotlin/com/driftdroid/android/LibraryActivity.kt": {
-      "bytes": 110439,
-      "sha256": "fe249984228a9f346aeb164d355eea8e690fc0e6dc522aca2d50d327559efbd4"
+      "bytes": 110854,
+      "sha256": "70b705c7c061ccb1f617d6bbdd21d46f283377e2a9bd5cba4eff5218daa83aaf"
     },
     "reference/driftdroid/android/app/src/main/kotlin/com/driftdroid/android/MainActivity.kt": {
       "bytes": 46243,
@@ -5803,12 +5823,12 @@
       "sha256": "0eeea628476fef3f629a27c8d9ac6c03a37b54eaefeedf4df24585be1c3f8dda"
     },
     "reference/driftdroid/android/app/src/main/kotlin/com/driftdroid/android/SaveManagerActivity.kt": {
-      "bytes": 21706,
-      "sha256": "e80697ff02bc96067ea239756917cc78aa46ab7c41ede2fc8b6764882381f292"
+      "bytes": 31089,
+      "sha256": "653853f8687b0d516c95f85b300d686ad64f26666461c8c79b1d20f1d2b3bc4a"
     },
     "reference/driftdroid/android/app/src/main/kotlin/com/driftdroid/android/SaveManagerProfiles.kt": {
-      "bytes": 8333,
-      "sha256": "89af59503fffaeb8ccca837ebd0e26e38a1f8f31f001a07c6ab530eac2e7cb61"
+      "bytes": 9179,
+      "sha256": "28e351de14c3194302864cb7df3bc86a04885f0e7afb8422abb1fe9dd39d0e34"
     },
     "reference/driftdroid/android/app/src/main/kotlin/com/driftdroid/android/TexturePacks.kt": {
       "bytes": 24600,
@@ -48452,7 +48472,7 @@
     },
     "release/version.properties": {
       "bytes": 123,
-      "sha256": "9f6bc67e731e8c8622a57cebec0aa03174a5e0d1f31252423740bc37db853a94"
+      "sha256": "918f9dba3f4fc4de1b2f9166e8764c33312266de2766afa5632637b73cd89160"
     },
     "scripts/Bake-ThorCustomMaps.py": {
       "bytes": 34004,
@@ -69378,11 +69398,9 @@
     "revision": "thor-2026-10-29-merged-v1-project-plus-covers"
   },
   "publication_export": {
-    "changed_native_libraries": [
-      "lib/arm64-v8a/libwiidsdisc.so"
-    ],
+    "changed_native_libraries": [],
     "exact_verified_apk_export": true,
-    "previous_public_tag": "v1.2.3",
+    "previous_public_tag": "v1.2.4",
     "private_qa_paths_excluded": [
       "experiments/galaxy-thor/MODLOG.md",
       "experiments/mkdd-thor/lab/drive.sh",
@@ -69391,7 +69409,7 @@
       "experiments/release/verify_private_device.py"
     ],
     "signed_apk_unchanged": false,
-    "signed_native_libraries_unchanged": false,
+    "signed_native_libraries_unchanged": true,
     "test_endpoint_defaults_sanitized": [
       "experiments/nsmbw-thor/tests/Test-DiscInterface.ps1",
       "experiments/nsmbw-thor/tests/Test-IosBootstrap.ps1",
@@ -69423,12 +69441,17 @@
     "diagnostics/audit-1.2.4/font_test.cpp": "Exact signed 1.2.4 hotfix input or public verification source",
     "diagnostics/audit-1.2.4/memory_guard.cpp": "Exact signed 1.2.4 hotfix input or public verification source",
     "diagnostics/audit-1.2.4/review_mutations.cpp": "Exact signed 1.2.4 hotfix input or public verification source",
+    "diagnostics/player-profiles/KartPlayerDataTest.java": "WiiDS 1.2.5 signed player-profile input or public documentation/regression source",
+    "diagnostics/player-profiles/README.md": "WiiDS 1.2.5 signed player-profile input or public documentation/regression source",
+    "docs/PLAYER_PROFILES.md": "WiiDS 1.2.5 signed player-profile input or public documentation/regression source",
     "docs/release/HOTFIX-1.2.4.md": "Exact signed 1.2.4 hotfix input or public verification source",
+    "docs/release/PLAYER-PROFILES-1.2.5.md": "WiiDS 1.2.5 signed player-profile input or public documentation/regression source",
     "reference/driftdroid/android/app/src/main/AndroidManifest.xml": "Exact signed 1.2.4 hotfix input or public verification source",
     "reference/driftdroid/android/app/src/main/java/com/driftdroid/android/achievements/AchievementCatalog.java": "exact integrated Android source; paused workbench left untouched",
     "reference/driftdroid/android/app/src/main/java/com/driftdroid/android/achievements/RaCredentials.java": "exact integrated Android source; paused workbench left untouched",
     "reference/driftdroid/android/app/src/main/java/com/driftdroid/android/achievements/RaLibrary.java": "exact integrated Android source; paused workbench left untouched",
     "reference/driftdroid/android/app/src/main/java/com/driftdroid/android/dualscreen/ThorRaceMapView.java": "Exact signed 1.2.4 hotfix input or public verification source",
+    "reference/driftdroid/android/app/src/main/java/com/driftdroid/android/saves/KartPlayerData.java": "WiiDS 1.2.5 signed player-profile input or public documentation/regression source",
     "reference/driftdroid/android/app/src/main/java/com/driftdroid/android/saves/SaveArchive.java": "Exact signed 1.2.4 hotfix input or public verification source",
     "reference/driftdroid/android/app/src/main/java/com/wither/nsmbw/GameActivity.java": "exact integrated Android source; paused workbench left untouched",
     "reference/driftdroid/android/app/src/main/java/com/wither/nsmbw/ThorLowerScreen.java": "Exact signed 1.2.4 hotfix input or public verification source",
@@ -69436,13 +69459,13 @@
     "reference/driftdroid/android/app/src/main/kotlin/com/driftdroid/android/GameStorage.kt": "Exact signed 1.2.4 hotfix input or public verification source",
     "reference/driftdroid/android/app/src/main/kotlin/com/driftdroid/android/GameStorageActivity.kt": "Exact signed 1.2.4 hotfix input or public verification source",
     "reference/driftdroid/android/app/src/main/kotlin/com/driftdroid/android/GamesActivity.kt": "Exact signed 1.2.4 hotfix input or public verification source",
-    "reference/driftdroid/android/app/src/main/kotlin/com/driftdroid/android/LibraryActivity.kt": "Exact signed 1.2.4 hotfix input or public verification source",
+    "reference/driftdroid/android/app/src/main/kotlin/com/driftdroid/android/LibraryActivity.kt": "WiiDS 1.2.5 signed player-profile input or public documentation/regression source",
     "reference/driftdroid/android/app/src/main/kotlin/com/driftdroid/android/MainActivity.kt": "Exact signed 1.2.4 hotfix input or public verification source",
     "reference/driftdroid/android/app/src/main/kotlin/com/driftdroid/android/ModePickerActivity.kt": "Exact signed 1.2.4 hotfix input or public verification source",
     "reference/driftdroid/android/app/src/main/kotlin/com/driftdroid/android/ProjectPlusLaunchActivity.kt": "Exact signed 1.2.4 hotfix input or public verification source",
     "reference/driftdroid/android/app/src/main/kotlin/com/driftdroid/android/RetroRewindRelease.kt": "Exact Android 1.2.3 release input",
-    "reference/driftdroid/android/app/src/main/kotlin/com/driftdroid/android/SaveManagerActivity.kt": "Exact signed 1.2.4 hotfix input or public verification source",
-    "reference/driftdroid/android/app/src/main/kotlin/com/driftdroid/android/SaveManagerProfiles.kt": "Exact signed 1.2.4 hotfix input or public verification source",
+    "reference/driftdroid/android/app/src/main/kotlin/com/driftdroid/android/SaveManagerActivity.kt": "WiiDS 1.2.5 signed player-profile input or public documentation/regression source",
+    "reference/driftdroid/android/app/src/main/kotlin/com/driftdroid/android/SaveManagerProfiles.kt": "WiiDS 1.2.5 signed player-profile input or public documentation/regression source",
     "reference/driftdroid/android/app/src/main/kotlin/com/driftdroid/android/ThorGameLaunch.kt": "Exact signed 1.2.4 hotfix input or public verification source",
     "reference/driftdroid/android/app/src/main/kotlin/com/driftdroid/android/ThorRestartActivity.kt": "Exact signed 1.2.4 hotfix input or public verification source",
     "reference/driftdroid/android/app/src/main/kotlin/com/driftdroid/android/ThorRetroRewindUpdateService.kt": "Exact Android 1.2.3 release input",
@@ -69469,7 +69492,7 @@
     "reference/nsmbw-android-e1/runtime/include/thor_ra.h": "omit paused experiment addition",
     "reference/nsmbw-android-e1/runtime/src/hle/vi.cpp": "pre-experiment source substitution",
     "reference/nsmbw-android-e1/runtime/src/thor_ra.cpp": "omit paused experiment addition",
-    "release/version.properties": "Exact signed 1.2.4 hotfix input or public verification source",
+    "release/version.properties": "WiiDS 1.2.5 signed player-profile input or public documentation/regression source",
     "third_party/mariokartdd-recomp/gcn-recomp/runtime/gx/render_gl.cpp": "exact current private native compile input; final candidate correspondence still requires review",
     "third_party/mariokartdd-recomp/gcn-recomp/runtime/gx/texture.cpp": "exact current private native compile input; final candidate correspondence still requires review",
     "wiids/achievements/CMakeLists.txt": "omit paused experiment addition",
@@ -69553,7 +69576,7 @@
     {
       "archive_root": "reference/driftdroid",
       "coverage_omissions": [],
-      "files_enumerated": 1461
+      "files_enumerated": 1462
     },
     {
       "archive_root": "reference/nsmbw-android-e1",
@@ -69593,7 +69616,7 @@
     {
       "archive_root": "reference/driftdroid/android",
       "coverage_omissions": [],
-      "files_enumerated": 251
+      "files_enumerated": 252
     },
     {
       "archive_root": "scripts",
@@ -69603,7 +69626,7 @@
     {
       "archive_root": "diagnostics",
       "coverage_omissions": [],
-      "files_enumerated": 20
+      "files_enumerated": 22
     },
     {
       "archive_root": "wiids",
@@ -69618,7 +69641,7 @@
     {
       "archive_root": "docs/release",
       "coverage_omissions": [],
-      "files_enumerated": 21
+      "files_enumerated": 22
     },
     {
       "archive_root": "experiments/release",
@@ -69838,5 +69861,5 @@
       }
     }
   },
-  "version_name": "1.2.4"
+  "version_name": "1.2.5"
 }

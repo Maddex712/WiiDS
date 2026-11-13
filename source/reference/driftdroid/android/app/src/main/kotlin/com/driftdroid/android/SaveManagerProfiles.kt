@@ -44,6 +44,7 @@ internal object SaveManagerProfiles {
         val work = work(context)
         if (SaveArchive.pending(work)) return
         for (game in FrontendGame.values()) SaveArchive.cleanup(profile(context, game, false), work, File(work, "backups"))
+        SaveArchive.cleanup(kartPlayers(context, false), work, File(work, "backups"))
         if (!cacheChecked.get()) {
             val pattern = Regex("wiids-save-[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\\.zip")
             for (file in context.cacheDir.listFiles() ?: throw IOException("Cannot inspect temporary backup files.")) {
@@ -81,6 +82,18 @@ internal object SaveManagerProfiles {
             }
         }
         return roots
+    }
+
+    /** Separate archive identity: existing per-game save archive formats stay unchanged. */
+    fun kartPlayers(context: Context, backup: Boolean = true): SaveArchive.Profile {
+        val original = profile(context, FrontendGame.MARIO_KART, backup)
+        val retro = profile(context, FrontendGame.RETRO_REWIND, backup)
+        return SaveArchive.Profile(com.driftdroid.android.saves.KartPlayerData.ID, linkedMapOf(
+            "mkw" to original.roots.getValue("main"),
+            "retro" to retro.roots.getValue("main"),
+            "retro-alt" to retro.roots.getValue("alternate"),
+            "miis" to File(context.filesDir.canonicalFile, "WiiCompiled/NAND/shared2/menu/FaceLib"),
+            "ratings" to retro.roots.getValue("mod-settings")))
     }
 
     private fun profile(context: Context, game: FrontendGame, backup: Boolean): SaveArchive.Profile {
