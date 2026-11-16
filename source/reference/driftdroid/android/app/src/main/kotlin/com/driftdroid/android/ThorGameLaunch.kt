@@ -81,6 +81,10 @@ internal object ThorGameLaunch {
         return if (runCatching { existing.moveToFront() }.isSuccess) Result.OPENED else Result.UNAVAILABLE
     }
 
+    fun pokemonXdInstalled(context: Context): Boolean = dev.wiids.xd.XdStorage.ready(context)
+    fun launchPokemonXd(activity: Activity): Result = resumeBrawlCase(activity, FrontendGame.POKEMON_XD)
+        ?: launch(activity, "dev.wiids.xd.XdLaunchActivity", FrontendGame.POKEMON_XD.id, pokemonXdInstalled(activity))
+
     fun mkddInstalled(context: Context): Boolean = dev.thor.mkdd.MkddStorage.ready(context)
     fun launchMkdd(activity: Activity): Result = launch(activity, MKDD_ENTRY, MKDD, mkddInstalled(activity))
     fun mkddPlusInstalled(context: Context): Boolean = dev.thor.mkdd.MkddProfiles.plusReady(context)

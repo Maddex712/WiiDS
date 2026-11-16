@@ -139,6 +139,9 @@ object GameInstaller {
                 return "This image isn't the supported Eclipse 1.1.0 build. Apply the official 1.1.0 patch to an unchanged USA Sunshine revision 0 disc. Your existing game and saves were kept."
             }
         }
+        if (disc == GameCatalog.Disc.POKEMON_XD_USA) {
+            dev.wiids.xd.XdDisc.validate(temp) { importCancelled }?.let { problem -> temp.deleteRecursively(); return problem }
+        }
         if (disc == GameCatalog.Disc.MKDD_USA) {
             dev.thor.mkdd.MkddStorage.validate(temp) { importCancelled }?.let { problem -> temp.deleteRecursively(); return problem }
         }

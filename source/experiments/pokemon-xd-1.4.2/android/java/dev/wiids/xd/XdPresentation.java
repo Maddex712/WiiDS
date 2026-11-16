@@ -11,7 +11,7 @@ public final class XdPresentation extends Presentation {
     private XdCompanionView view;
     private boolean started;
     private final XdState.Decoder decoder=new XdState.Decoder();
-
+    
     private final Runnable tick=new Runnable(){public void run(){
         if(!started)return;
         XdState state;

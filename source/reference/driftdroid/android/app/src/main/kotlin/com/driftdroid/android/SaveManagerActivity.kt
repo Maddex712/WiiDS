@@ -179,7 +179,7 @@ class SaveManagerActivity : Activity() {
     }
     private fun importPlayerSave() {
         val game = selected
-        if (game == FrontendGame.BRAWL || game == FrontendGame.PROJECT_PLUS || game == FrontendGame.MKDD || game == FrontendGame.MKDD_PLUS) {
+        if (game == FrontendGame.BRAWL || game == FrontendGame.PROJECT_PLUS || game == FrontendGame.MKDD || game == FrontendGame.MKDD_PLUS || game == FrontendGame.POKEMON_XD) {
             status.text = "This game supports WiiDS backup and restore. Dolphin save-file import is not supported yet."; return
         }
         ThorDialogs.builder(this).setTitle("Import for ${game.label}")

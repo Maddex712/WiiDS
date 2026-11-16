@@ -1,11 +1,11 @@
 # WiiDS game guide
 
-Eight library entries share one Android app. Galaxy needs Android API 32+; see its setup section below. Each needs the supported base disc listed below; no original
+Stable WiiDS 1.2.5 has twelve library entries in one Android app; the 1.26 prerelease adds Pokemon XD as the thirteenth. Galaxy needs Android API 32+; see its setup section below. Each needs the supported base disc listed below; no original
 or patched game image ships in the APK. All use the Thor's physical controls. The lower screen is a
 companion display, with no touch gameplay-button overlay.
 
 The main shelf groups each original game with its mod: Mario Kart Wii/Retro Rewind,
-NSMB Wii/MSMBWii, Sunshine/Eclipse, and Galaxy/Kaizo. Choose a family first, then choose the game inside it.
+NSMB Wii/MSMBWii, Sunshine/Eclipse, Galaxy/Kaizo, Brawl/Project+, and Double Dash/Double Dash Plus. Choose a family first, then choose the game inside it.
 The printed cases and lower-screen readiness panel identify which version will launch.
 
 For split WBFS imports, keep the `.wbfs` file and its `.wbf1`/later numbered parts together in the
@@ -185,3 +185,10 @@ their existing controller config, now reachable from WiiDS. Mario Kart/Retro Rew
 Back > Controller; their prebuilt page still uses Xbox position labels.
 NSMB rebinding was checked on the earlier Thor build; MSMBWii shares its code but
 was not independently checked on Thor.
+
+
+## Pokemon XD: Gale of Darkness - 1.26 prerelease
+
+Install the integrated prerelease over the main WiiDS app. Open **Options > Your games > Pokemon XD: Gale of Darkness > Choose file**, choose your own supported USA `GXXE01` revision 0 disc, and wait for import and checksum verification. Open the new XD case in the library. The document picker works without granting all-files access.
+
+XD uses a separate save profile in the main app. Use **Options > Save manager**, select Pokemon XD, then back up/export/restore. Manage games offloads only the imported disc. Saves in the earlier separate XD app are not migrated automatically; retain that app and its files. Integrated gameplay/lifecycle acceptance and audible-audio checks remain pending. See [the preview notes](release/WIIDS-1.26-PRERELEASE.md).

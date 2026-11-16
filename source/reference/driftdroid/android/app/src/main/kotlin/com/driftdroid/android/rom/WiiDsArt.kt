@@ -44,6 +44,7 @@ object WiiDsArt {
             GameCatalog.Disc.BRAWL_USA_REV2 -> emptyList()
             // Double Dash builds its duo-screen art in Java (dev.thor.mkdd.MkddArt).
             GameCatalog.Disc.MKDD_USA -> emptyList()
+            GameCatalog.Disc.POKEMON_XD_USA -> emptyList()
             GameCatalog.Disc.GALAXY_USA -> emptyList()
             GameCatalog.Disc.MARIO_KART_PAL -> listOf(
                 Job("mkw-art", root, thorMap(context), "menu.json", false),

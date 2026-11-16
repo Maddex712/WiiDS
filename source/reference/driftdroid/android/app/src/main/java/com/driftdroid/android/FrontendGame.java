@@ -13,7 +13,8 @@ public enum FrontendGame {
     BRAWL("brawl", "Super Smash Bros. Brawl", "brawl"),
     MKDD("mkdd", "Mario Kart: Double Dash!!", "mkdd"),
     MKDD_PLUS("mkdd-plus", "Mario Kart: Double Dash!! Plus", "mkdd-plus"),
-    PROJECT_PLUS("project-plus", "Project+", "project-plus");
+    PROJECT_PLUS("project-plus", "Project+", "project-plus"),
+    POKEMON_XD("pokemon-xd", "Pokemon XD: Gale of Darkness", "pokemon-xd");
 
     public final String id;
     public final String label;

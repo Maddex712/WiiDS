@@ -82,6 +82,9 @@ android {
         jniLibs {
             // Preserve the accepted Brawl engine and its PNG dependency byte-for-byte.
             keepDebugSymbols += "**/libwiids_brawl*.so"
+            keepDebugSymbols += "**/libSDL3.so"
+            keepDebugSymbols += "**/libxd.so"
+            keepDebugSymbols += "**/libwiids_xd_*.so"
             // Compressed in the APK (about 330 MB of game libraries), extracted at install.
             useLegacyPackaging = true
             if (thorBuild) {

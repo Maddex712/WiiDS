@@ -628,6 +628,7 @@ class GamesActivity : Activity() {
                     FrontendGame.KAIZO -> buildCard(Game.KAIZO)
                     FrontendGame.BRAWL -> buildCard(Game.BRAWL)
                     FrontendGame.MKDD -> buildCard(Game.MKDD)
+                    FrontendGame.POKEMON_XD -> buildCard(Game.POKEMON_XD)
                 }
                 line.addView(card, LinearLayout.LayoutParams(0, -1, 1f).apply {
                     if (index == 0 && row.size > 1) marginEnd = dp(16)

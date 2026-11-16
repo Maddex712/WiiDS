@@ -3,20 +3,24 @@ package dev.wiids.xd;
 import android.app.Activity;
 import android.os.Bundle;
 import android.content.Intent;
-import android.widget.*;
+import android.widget.Toast;
+import com.driftdroid.android.SaveManagerProfiles;
 
-/** Gated engineering entry. It must never pretend that the companion library runs the game. */
+/** Cold launch only, after the library has resumed any existing native task. */
 public final class XdLaunchActivity extends Activity {
     @Override public void onCreate(Bundle state) {
-        super.onCreate(state);getWindow().addFlags(android.view.WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE);
-        if(XdStorage.ready(this)) {
-            startActivity(new Intent(this,XdGameActivity.class)); finish(); return;
+        super.onCreate(state);
+        String problem = SaveManagerProfiles.INSTANCE.launchBlocker(this);
+        if (problem == null) {
+            try { SaveManagerProfiles.INSTANCE.requireStopped(this); }
+            catch (Exception busy) { problem = busy.getMessage(); }
         }
-        LinearLayout box=new LinearLayout(this);box.setOrientation(LinearLayout.VERTICAL);
-        TextView status=new TextView(this);status.setText("Pokemon XD engineering preview\n"+
-            (XdStorage.imported(this)?"USA revision 0 disc imported.\n":"Import your USA revision 0 disc through Your games.\n")+
-            (XdStorage.NATIVE_GAME_AVAILABLE ? "Import the supported disc before starting this private runtime preview." :
-            "The Android game runtime is not built yet. Gameplay is unavailable."));
-        box.addView(status);Button back=new Button(this);back.setText("Return to WiiDS");back.setOnClickListener(v->finish());box.addView(back);setContentView(box);
+        if (problem == null && !XdStorage.ready(this)) problem = "Import your USA Pokemon XD revision 0 disc in Your games first.";
+        if (problem != null) {
+            Toast.makeText(this, problem, Toast.LENGTH_LONG).show();
+            finish(); return;
+        }
+        startActivity(new Intent(this, XdGameActivity.class).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_SINGLE_TOP));
+        finish();
     }
 }

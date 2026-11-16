@@ -240,6 +240,11 @@
         </activity>
         <activity android:name="dev.thor.galaxy.GalaxyImportActivity" android:exported="false" android:process=":galaxy_import" android:screenOrientation="landscape" android:theme="@android:style/Theme.Material.NoActionBar" />
         <activity android:name="dev.thor.galaxy.GalaxyBackupActivity" android:exported="false" android:process=":galaxy_import" android:screenOrientation="landscape" />
+        <activity android:name="dev.wiids.xd.XdLaunchActivity" android:exported="false" android:screenOrientation="userLandscape" />
+        <activity android:name="dev.wiids.xd.XdGameActivity" android:exported="false" android:process=":xd_game"
+            android:launchMode="singleTask" android:screenOrientation="userLandscape" android:resizeableActivity="false"
+            android:preferMinimalPostProcessing="true" android:theme="@android:style/Theme.Material.NoActionBar.Fullscreen"
+            android:configChanges="keyboard|keyboardHidden|orientation|screenSize|smallestScreenSize|screenLayout|uiMode|navigation|density" />
     </application>
 
 </manifest>

@@ -39,6 +39,7 @@ public final class RaSets {
         new Game("eclipse", GAMECUBE, null, "super mario eclipse"),
         new Game("galaxy", WII, "Super Mario Galaxy"),
         new Game("kaizo", WII, null, "kaizo mario galaxy"),
+        new Game("pokemon-xd", GAMECUBE, "Pok\u00e9mon XD: Gale of Darkness"),
     };
     public static boolean known(String game) { for (Game g : GAMES) if (g.id.equals(game)) return true; return false; }
 

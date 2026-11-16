@@ -173,6 +173,7 @@ class LibraryActivity : Activity() {
                 FrontendGame.BRAWL -> launchBrawlFromLibrary()
                 FrontendGame.PROJECT_PLUS -> launchProjectPlusFromLibrary()
                 FrontendGame.MKDD -> launchMkddFromLibrary()
+                FrontendGame.POKEMON_XD -> launchPokemonXdFromLibrary()
                 FrontendGame.MKDD_PLUS -> launchMkddPlusFromLibrary()
             }
         }
@@ -309,6 +310,7 @@ class LibraryActivity : Activity() {
                 PROJECT_PLUS_CASE -> projectPlusAvailable
                 MKDD_CASE -> mkddInstalled
                 MKDD_PLUS_CASE -> mkddPlusInstalled
+                12 -> ThorGameLaunch.pokemonXdInstalled(this)
                 else -> true
             }
             thorCompanion?.setLibrarySelection(thorLibraryProduct, thorLibraryOptions, ready, status = status,
@@ -380,6 +382,9 @@ class LibraryActivity : Activity() {
                     discScale = ThorLauncherView.GAMECUBE_DISC) { launchMkddPlusFromLibrary() },
                 ThorLauncherView.Entry("Project+", "Play the Brawl mod with its own saves.", { projectPlusAvailable },
                     art = "project-plus", updatesShortcut = false) { launchProjectPlusFromLibrary() },
+                ThorLauncherView.Entry("Pokemon XD: Gale of Darkness", "Play your own USA disc with dual screen menus and separate saves.", { ThorGameLaunch.pokemonXdInstalled(this) },
+                    art = "pokemon-xd", casePlastic = ThorLauncherView.CasePlastic.GAMECUBE_BLACK, updatesShortcut = false,
+                    discScale = ThorLauncherView.GAMECUBE_DISC) { launchPokemonXdFromLibrary() },
                 ThorLauncherView.Entry("Manage games", "Install or offload games while keeping saves and settings.") {
                     startActivity(Intent(this, GameStorageActivity::class.java))
                 },
@@ -451,6 +456,19 @@ class LibraryActivity : Activity() {
     // --- DriftDroid updating itself (see AppUpdate; the flow is KartPad's) ---
 
     /** Runs once, from the case launcher's commit point (or a closed case whose game is missing). */
+    private fun openGamesForPokemonXd() {
+        startActivity(Intent(this, GamesActivity::class.java).putExtra("storage_game", FrontendGame.POKEMON_XD.id))
+    }
+
+    private fun launchPokemonXdFromLibrary() {
+        val result = ThorGameLaunch.launchPokemonXd(this)
+        if (result == ThorGameLaunch.Result.OPENED) return
+        val message = if (result == ThorGameLaunch.Result.NOT_INSTALLED) "Import your USA Pokemon XD revision 0 disc in Your games first."
+            else "Pokemon XD could not be opened. Close any running game or importer and try again."
+        if (result == ThorGameLaunch.Result.NOT_INSTALLED) openGamesForPokemonXd()
+        thorLauncher?.launchFailed(message) ?: Toast.makeText(this, message, Toast.LENGTH_LONG).show()
+    }
+
     private fun launchNsmbFromLibrary() {
         val message = when (ThorGameLaunch.launchNsmb(this)) {
             ThorGameLaunch.Result.OPENED -> return
@@ -1215,6 +1233,10 @@ class LibraryActivity : Activity() {
      */
     private fun thorLaunchBlocker(product: Int): String? {
         SaveManagerProfiles.launchBlocker(this)?.let { return it }
+        if (product == 12) {
+            if (!ThorGameLaunch.pokemonXdInstalled(this)) mainHandler.post { openGamesForPokemonXd() }
+            return if (ThorGameLaunch.pokemonXdInstalled(this)) null else "Import your USA Pokemon XD revision 0 disc in Your games first."
+        }
         if (product == KAIZO_CASE) {
             refreshNsmbInstalled()
             if (!kaizoInstalled) mainHandler.post { openGames() }
@@ -2009,12 +2031,12 @@ class LibraryActivity : Activity() {
         private const val REQUEST_CODE_IMPORT_MII_DATA = 0x52520004
         private const val REQUEST_CODE_IMPORT_SINGLE_MII = 0x52520005
         /** Existing shelf order is stable; Eclipse follows Sunshine in its GameCube stack. */
-        private const val LIBRARY_CASES = 12
+        private const val LIBRARY_CASES = 13
         /** Base game first, then its mods: they share one stack on the main shelf. */
-        private val LIBRARY_BUNDLES = listOf(listOf(0, 1), listOf(2, 3), listOf(4, 5), listOf(6, 7), listOf(8, 11), listOf(9, 10))
+        private val LIBRARY_BUNDLES = listOf(listOf(0, 1), listOf(2, 3), listOf(4, 5), listOf(6, 7), listOf(8, 11), listOf(9, 10), listOf(12))
         /** Stable game identity of each library case, in shelf order. */
         private val LIBRARY_GAMES = listOf(FrontendGame.MARIO_KART, FrontendGame.RETRO_REWIND, FrontendGame.NSMB, FrontendGame.MSMBWII,
-            FrontendGame.SUNSHINE, FrontendGame.ECLIPSE, FrontendGame.GALAXY, FrontendGame.KAIZO, FrontendGame.BRAWL, FrontendGame.MKDD, FrontendGame.MKDD_PLUS, FrontendGame.PROJECT_PLUS)
+            FrontendGame.SUNSHINE, FrontendGame.ECLIPSE, FrontendGame.GALAXY, FrontendGame.KAIZO, FrontendGame.BRAWL, FrontendGame.MKDD, FrontendGame.MKDD_PLUS, FrontendGame.PROJECT_PLUS, FrontendGame.POKEMON_XD)
         private const val GALAXY_CASE = ThorLibraryCompanionView.GALAXY
         private const val KAIZO_CASE = ThorLibraryCompanionView.KAIZO
         private const val NSMB_CASE = ThorLibraryCompanionView.NSMB

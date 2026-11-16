@@ -1,8 +1,10 @@
 # WiiDS
 
-## Pokémon XD: Gale of Darkness
+## 1.26 prerelease - Pokemon XD in the main WiiDS app
 
-[WiiDS Pokémon XD 1.4.2](https://github.com/Maddex712/WiiDS/releases/tag/v1.4.2) is available as a separate XD app, with dual screen menus and a new 1080p resolution option. Install over an existing XD preview to keep its saves. The multi-game WiiDS release remains available below.
+[Download the integrated WiiDS 1.26 prerelease](https://github.com/Maddex712/WiiDS/releases/tag/v1.4.2). Install **WiiDS-1.26-arm64.apk** over your multi-game WiiDS app. Open **Options > Your games > Pokemon XD: Gale of Darkness > Choose file**, select your own USA `GXXE01` revision 0 disc, and wait for import to finish. XD has its own library case and saves, with Save manager backup/restore support. [Setup and preview limits](docs/release/WIIDS-1.26-PRERELEASE.md).
+
+This is the main WiiDS package. Saves from the earlier separate XD app are not automatically migrated; keep that app and its data. Integrated gameplay/device lifecycle testing is still pending. **Stable WiiDS 1.2.5 remains below.**
 
 <img src="docs/images/wiids-minimal-logo.png" width="120" alt="Minimal WiiDS dual-screen app logo">
 
@@ -101,6 +103,7 @@ and your own [compatible game dump](#exact-game-files-for-each-game). The region
 | **Mario Kart: Double Dash!! Plus** | Separate Double Dash mod profile | Maps for all five course sets, plus live race information | Same Double Dash disc plus Plus 3.3 NTSC xdelta |
 | **Super Smash Bros. Brawl** | Native Wii recompilation | Match information and Battle Records | USA, `RSBE01` revision 2 |
 | **Project+** | Separate Brawl mod profile | Match information, stock, and Battle Records | Same Brawl disc plus Project+ SD image and codes |
+| **Pokemon XD: Gale of Darkness (1.26 prerelease)** | Native runtime inside the main WiiDS app | Lower-screen field/battle menus, party and item views; separate saves | USA `GXXE01` revision 0; import through Your games |
 
 Galaxy setup automatically generates its private lower-screen art and models from your disc. Read [Galaxy setup/migration and current limits](docs/release/GALAXY-SETUP.md). The 1.1 development builds passed bounded physical Thor checks for original Galaxy and Kaizo: existing-save loading, lower-screen pointing, camera controls, sleep/wake and normal exit. Clean dev28 also verified the corrected opening-attack colors. This is not an all-stage compatibility guarantee; each screenshot retains its actual capture-build label.
 
@@ -122,7 +125,7 @@ legacy-save migration and current limits.
 ## Highlights
 
 - **The complete presentation:** WiiDS bundles selected covers, discs, Wii Menu music, UI sounds, and companion artwork. Setup prepares course maps from imported game data. Existing user overrides and saves are preserved.
-- **Twelve game and mod entries:** each original and mod has its own case and save profile.
+- **Twelve game and mod entries in stable WiiDS 1.2.5, with Pokemon XD added as a thirteenth in the 1.26 prerelease:** each original and mod has its own case and save profile.
 - **Printed case spines:** Mario Kart, NSMB Wii and Sunshine use crops from retail full-cover scans;
   Retro Rewind and Eclipse use community cover artwork. MSMBWii's spine is an explicit custom
   adaptation. [Artwork sources](docs/GAMES.md#case-artwork).

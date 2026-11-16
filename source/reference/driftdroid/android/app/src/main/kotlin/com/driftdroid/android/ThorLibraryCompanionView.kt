@@ -202,10 +202,10 @@ internal class ThorLibraryCompanionView(context: Context, private val folder: Fi
 
     /** Separate games validate their own data and never inherit Mario Kart update/video state. */
     private fun separateGame() = (selection.product == NSMB || selection.product == SUNSHINE ||
-        selection.product == MSMBWII || selection.product == ECLIPSE || selection.product == GALAXY || selection.product == KAIZO || selection.product == BRAWL || selection.product == MKDD || selection.product == MKDD_PLUS || selection.product == PROJECT_PLUS) && !selection.options
+        selection.product == MSMBWII || selection.product == ECLIPSE || selection.product == GALAXY || selection.product == KAIZO || selection.product == BRAWL || selection.product == MKDD || selection.product == MKDD_PLUS || selection.product == PROJECT_PLUS || selection.product == POKEMON_XD) && !selection.options
     /** MSMBWii's disc is there but its mod isn't (yet). */
     private fun modPending() = selection.product == MSMBWII && nsmbDiscImported && !selection.available
-    private fun separateGameName() = when (selection.product) { PROJECT_PLUS -> "Project+"; MKDD_PLUS -> "Double Dash Plus"; MKDD -> "Double Dash"; BRAWL -> "Brawl"; KAIZO -> "Kaizo Rebalanced"; GALAXY -> "Galaxy"; SUNSHINE -> "Sunshine"; ECLIPSE -> "Eclipse"; MSMBWII -> "MSMBWii"; else -> "NSMB Wii" }
+    private fun separateGameName() = when (selection.product) { POKEMON_XD -> "Pokemon XD"; PROJECT_PLUS -> "Project+"; MKDD_PLUS -> "Double Dash Plus"; MKDD -> "Double Dash"; BRAWL -> "Brawl"; KAIZO -> "Kaizo Rebalanced"; GALAXY -> "Galaxy"; SUNSHINE -> "Sunshine"; ECLIPSE -> "Eclipse"; MSMBWII -> "MSMBWii"; else -> "NSMB Wii" }
 
     private fun updateGated() = BuildConfig.THOR_RETRO_REWIND && !separateGame() &&
         (snapshot.running || pendingUpdate || recoveryRequired)
@@ -255,6 +255,7 @@ internal class ThorLibraryCompanionView(context: Context, private val folder: Fi
         PROJECT_PLUS -> "Project+"
         MKDD -> "Mario Kart: Double Dash!!"
         MKDD_PLUS -> "Mario Kart: Double Dash!! Plus"
+        POKEMON_XD -> "Pokemon XD: Gale of Darkness"
         MSMBWII -> "MSMBWii: Just a Little Adventure"
         else -> "Mario Kart Wii"
     }
@@ -273,6 +274,7 @@ internal class ThorLibraryCompanionView(context: Context, private val folder: Fi
         PROJECT_PLUS -> FrontendGame.PROJECT_PLUS.id
         MKDD -> FrontendGame.MKDD.id
         MKDD_PLUS -> FrontendGame.MKDD_PLUS.id
+        POKEMON_XD -> FrontendGame.POKEMON_XD.id
         else -> null
     }
 
@@ -287,6 +289,7 @@ internal class ThorLibraryCompanionView(context: Context, private val folder: Fi
         PROJECT_PLUS -> "project-plus"
         MKDD -> "mkdd"
         MKDD_PLUS -> "mkdd-plus"
+        POKEMON_XD -> "pokemon-xd"
         MSMBWII -> "msmbwii"
         else -> "original"
     }
@@ -437,6 +440,7 @@ internal class ThorLibraryCompanionView(context: Context, private val folder: Fi
                 selection.product == BRAWL -> if (selection.available) "Brawl ready" else "Import your Brawl disc"
                 selection.product == PROJECT_PLUS -> if (selection.available) "Project+ ready" else "Set up Project+ first"
                 selection.product == MKDD -> if (selection.available) "Double Dash ready" else "Import your Double Dash disc"
+                selection.product == POKEMON_XD -> if (selection.available) "Pokemon XD ready" else "Import your Pokemon XD disc"
                 selection.product == MKDD_PLUS -> if (selection.available) "Double Dash Plus ready" else "Set up Double Dash Plus first"
                 selection.product == ECLIPSE -> if (selection.available) "Eclipse app installed" else "Install the Eclipse Thor app"
                 selection.available -> "Disc imported"
@@ -449,6 +453,7 @@ internal class ThorLibraryCompanionView(context: Context, private val folder: Fi
                 PROJECT_PLUS -> "Uses your Brawl disc with separate saves"
                 MKDD -> "USA GameCube disc"
                 MKDD_PLUS -> "Plus 3.3 / separate memory card"
+                POKEMON_XD -> "USA GameCube disc, revision 0"
                 SUNSHINE -> "USA GameCube disc"
                 ECLIPSE -> "Separate game data and saves"
                 MSMBWII -> "Mod included, on your NSMB Wii disc"
@@ -561,6 +566,7 @@ internal class ThorLibraryCompanionView(context: Context, private val folder: Fi
         const val MKDD = 9
         const val MKDD_PLUS = 10
         const val PROJECT_PLUS = 11
+        const val POKEMON_XD = 12
         private val main = Handler(Looper.getMainLooper())
         private val achievementWorker = Executors.newSingleThreadExecutor { task ->
             Thread(task, "ThorLibraryAchievements").apply { isDaemon = true }
@@ -609,7 +615,7 @@ internal class ThorLibraryCompanionView(context: Context, private val folder: Fi
         }
 
         /** GameCube mini discs are 8 cm against the 12 cm Wii disc; the 15 mm hole is the same. */
-        private fun discScale(prefix: String) = if (prefix == "sunshine" || prefix == "eclipse" || prefix == "mkdd" || prefix == "mkdd-plus") ThorLauncherView.GAMECUBE_DISC else 1f
+        private fun discScale(prefix: String) = if (prefix == "sunshine" || prefix == "eclipse" || prefix == "mkdd" || prefix == "mkdd-plus" || prefix == "pokemon-xd") ThorLauncherView.GAMECUBE_DISC else 1f
 
         private fun roundDisc(source: Bitmap, scale: Float): Bitmap {
             val size = 400

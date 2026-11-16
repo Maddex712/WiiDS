@@ -530,7 +530,7 @@ public class SDLActivity extends Activity implements View.OnSystemUiVisibilityCh
 
         if (mHIDDeviceManager != null) {
             mHIDDeviceManager.setFrozen(true);
-        }
+        }        
 
         if (!mHasMultiWindow) {
             pauseNativeThread();
@@ -544,7 +544,7 @@ public class SDLActivity extends Activity implements View.OnSystemUiVisibilityCh
 
         if (mHIDDeviceManager != null) {
             mHIDDeviceManager.setFrozen(false);
-        }
+        }        
 
         if (!mHasMultiWindow) {
             resumeNativeThread();
@@ -623,7 +623,7 @@ public class SDLActivity extends Activity implements View.OnSystemUiVisibilityCh
         if (hasFocus || !SDLActivity.nativeGetHintBoolean("SDL_JOYSTICK_ALLOW_BACKGROUND_EVENTS", false)) {
             if (mHIDDeviceManager != null) {
                 mHIDDeviceManager.setFrozen(!hasFocus);
-            }
+            }            
         }
 
         if (SDLActivity.mBrokenLibraries) {
@@ -1469,10 +1469,10 @@ public class SDLActivity extends Activity implements View.OnSystemUiVisibilityCh
         int source = event.getSource();
 
         if ((event.getFlags() & KeyEvent.FLAG_FALLBACK) != 0) {
-            // If this is a fallback event -- e.g., the mouse is being turned into dpad navigational keys
-            // just eat it, since that's almost never what we actually want to have happen. This will
+            // If this is a fallback event -- e.g., the mouse is being turned into dpad navigational keys 
+            // just eat it, since that's almost never what we actually want to have happen. This will 
             // happen with Logitech mice on Amazon Fire TV devices and some Samsung devices.
-            return true;
+            return true; 
         }
 
         if (source == InputDevice.SOURCE_UNKNOWN) {
@@ -2244,3 +2244,4 @@ class SDLClipboardHandler implements
         SDLActivity.onNativeClipboardChanged();
     }
 }
+

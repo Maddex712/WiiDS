@@ -26,6 +26,7 @@ public final class FrontendResume {
             case PROJECT_PLUS: return ":brawl_plus_game";
             case MKDD: return ":mkdd_game";
             case MKDD_PLUS: return ":mkdd_plus_game";
+            case POKEMON_XD: return ":xd_game";
             default: return null;
         }
     }
@@ -42,6 +43,7 @@ public final class FrontendResume {
             case PROJECT_PLUS: return "dev.wiids.brawl.ProjectPlusGameActivity";
             case MKDD: return "dev.thor.mkdd.WiiDsMkddGameActivity";
             case MKDD_PLUS: return "dev.thor.mkdd.WiiDsMkddPlusGameActivity";
+            case POKEMON_XD: return "dev.wiids.xd.XdGameActivity";
             default: return null;
         }
     }

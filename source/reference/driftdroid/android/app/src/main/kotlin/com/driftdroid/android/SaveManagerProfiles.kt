@@ -129,6 +129,10 @@ internal object SaveManagerProfiles {
                 if (external == null) throw IOException("Game save storage is unavailable.")
                 root("main", external, (if (game == FrontendGame.SUNSHINE) "sms" else "eclipse") + "/saves/card-a")
             }
+            FrontendGame.POKEMON_XD -> {
+                if (external == null) throw IOException("Pokemon XD save storage is unavailable.")
+                root("main", external, "pokemon-xd/saves")
+            }
             FrontendGame.MKDD, FrontendGame.MKDD_PLUS -> {
                 if (external == null) throw IOException("Double Dash save storage is unavailable.")
                 root("main", external, if (game == FrontendGame.MKDD_PLUS) "mkdd/plus/saves" else "mkdd/saves")

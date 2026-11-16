@@ -22,7 +22,8 @@ object GameCatalog {
         ECLIPSE_110("GMSE04", 0, WiiDsDisc.Platform.GAMECUBE, "Super Mario Eclipse 1.1.0", "Patched USA"),
         BRAWL_USA_REV2("RSBE01", 2, WiiDsDisc.Platform.WII, "Super Smash Bros. Brawl", "USA"),
         GALAXY_USA("RMGE01", 0, WiiDsDisc.Platform.WII, "Super Mario Galaxy", "USA"),
-        MKDD_USA("GM4E01", 0, WiiDsDisc.Platform.GAMECUBE, "Mario Kart: Double Dash!!", "USA");
+        MKDD_USA("GM4E01", 0, WiiDsDisc.Platform.GAMECUBE, "Mario Kart: Double Dash!!", "USA"),
+        POKEMON_XD_USA("GXXE01", 0, WiiDsDisc.Platform.GAMECUBE, "Pokemon XD: Gale of Darkness", "USA");
 
         val requirement: String
             get() = "$gameName, $regionName ${if (platform == WiiDsDisc.Platform.GAMECUBE) "GameCube " else ""}disc, " +
@@ -49,6 +50,7 @@ object GameCatalog {
             BRAWL_USA_REV2 -> File(context.getExternalFilesDir(null) ?: File(context.filesDir,"data"), "brawl/game")
             // Only the disc: the importer replaces this folder whole. Saves are mkdd/saves.
             MKDD_USA -> File(dev.thor.mkdd.MkddStorage.root(context), "game")
+            POKEMON_XD_USA -> dev.wiids.xd.XdStorage.game(context)
             MARIO_KART_PAL -> File(context.filesDir, "WiiCompiled/DiscData")
             NSMB_USA_REV1 -> File(context.filesDir, "games/nsmbw")
             SUNSHINE_USA -> File(context.filesDir, "games/sms")
@@ -64,7 +66,8 @@ object GameCatalog {
         }
 
         fun isInstalled(context: Context) =
-            if (this == GALAXY_USA) com.driftdroid.android.ThorGameLaunch.galaxyInstalled(context) else installedFile(context).isFile
+            if (this == GALAXY_USA) com.driftdroid.android.ThorGameLaunch.galaxyInstalled(context)
+            else if (this == POKEMON_XD_USA) dev.wiids.xd.XdStorage.imported(context) else installedFile(context).isFile
     }
 
     enum class Game(val title: String, val disc: Disc, val note: String? = null) {
@@ -79,6 +82,7 @@ object GameCatalog {
         GALAXY("Super Mario Galaxy", Disc.GALAXY_USA,
             "Runs inside WiiDS with its own game data and saves. Import your USA revision 0 disc; the lower screen is generated automatically."),
         MKDD("Mario Kart: Double Dash!!", Disc.MKDD_USA, "Import your own USA disc (GM4E01). Double Dash runs inside WiiDS with its own memory card; the lower screen's standings, items and course maps are built from your disc."),
+        POKEMON_XD("Pokemon XD: Gale of Darkness", Disc.POKEMON_XD_USA, "Import your own USA GXXE01 revision 0 disc using Choose file. Runs inside WiiDS with dual screen menus and its own saves. Your original disc file is kept."),
         KAIZO("Kaizo Mario Galaxy Rebalanced 2.1", Disc.GALAXY_USA,
             "Uses your USA Galaxy revision 0 disc and the creator’s original Rebalanced 2.1 ZIP. Separate saves and mod-generated lower-screen models."),
     }
@@ -95,6 +99,7 @@ object GameCatalog {
 
     fun isPlayable(context: Context, game: Game) =
         if (game == Game.KAIZO) com.driftdroid.android.ThorGameLaunch.kaizoInstalled(context)
+        else if (game == Game.POKEMON_XD) dev.wiids.xd.XdStorage.ready(context)
         else game.disc.isInstalled(context) && (game != Game.MSMBWII || msmbwiiModInstalled(context))
 
     const val ACCEPTED_FORMATS = "ISO, WBFS (one file or split), RVZ, WIA, GCZ or CISO. NKit images aren't accepted."
