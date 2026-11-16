@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="io.github.maddex712.wiids.xddebug"
+    android:versionCode="1261"
+    android:versionName="1.4.2" >
+
+    <uses-sdk
+        android:minSdkVersion="30"
+        android:targetSdkVersion="34" />
+
+    <uses-feature
+        android:glEsVersion="0x00030000"
+        android:required="true" />
+
+    <uses-permission android:name="android.permission.INTERNET" />
+
+    <application
+        android:allowBackup="false"
+        android:debuggable="false"
+        android:extractNativeLibs="true"
+        android:hasCode="true"
+        android:label="WiiDS"
+        android:theme="@android:style/Theme.Material.NoActionBar.Fullscreen" >
+        <activity
+            android:name="com.driftdroid.android.LibraryActivity"
+            android:exported="true"
+            android:screenOrientation="userLandscape" >
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+
+                <data
+                    android:host="play"
+                    android:path="/pokemon-xd"
+                    android:scheme="wiids" />
+            </intent-filter>
+        </activity>
+        <activity
+            android:name="dev.wiids.xd.XdLaunchActivity"
+            android:exported="false"
+            android:screenOrientation="userLandscape" />
+        <activity
+            android:name="dev.wiids.xd.XdGameActivity"
+            android:configChanges="keyboard|keyboardHidden|orientation|screenSize|smallestScreenSize|screenLayout|uiMode|navigation|density"
+            android:exported="false"
+            android:process=":xd_game"
+            android:screenOrientation="userLandscape" />
+    </application>
+
+</manifest>

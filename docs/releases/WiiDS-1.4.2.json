@@ -1,0 +1,21 @@
+{
+  "package": "io.github.maddex712.wiids.xddebug",
+  "version": "1.4.2",
+  "versionCode": 1261,
+  "build": "v42",
+  "artifacts": {
+    "WiiDS-1.4.2-arm64.apk": {
+      "bytes": 55911492,
+      "sha256": "bc1a17064e3c50faa0b75936e543642ae840db29d791d55b91bb91ba9398ce10"
+    }
+  },
+  "test_results": {
+    "render": "1920x1080 field PASS",
+    "resolution_persistence": "PASS",
+    "original_resolution_restored": "3x",
+    "save_hashes": "16/16 unchanged",
+    "gateon_presentations_per_second": 58.281434172305865,
+    "first_walk_presentations_per_second": 51.272819057091596,
+    "crash": false
+  }
+}

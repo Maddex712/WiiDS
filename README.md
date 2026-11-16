@@ -1,5 +1,9 @@
 # WiiDS
 
+## Pokémon XD: Gale of Darkness
+
+[WiiDS Pokémon XD 1.4.2](https://github.com/Maddex712/WiiDS/releases/tag/v1.4.2) is available as a separate XD app, with dual screen menus and a new 1080p resolution option. Install over an existing XD preview to keep its saves. The multi-game WiiDS release remains available below.
+
 <img src="docs/images/wiids-minimal-logo.png" width="120" alt="Minimal WiiDS dual-screen app logo">
 
 Play supported Wii and GameCube games on the AYN Thor, with a companion on its lower screen.
