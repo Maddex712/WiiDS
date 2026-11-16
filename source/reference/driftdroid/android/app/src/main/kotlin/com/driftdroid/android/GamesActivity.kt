@@ -269,16 +269,18 @@ class GamesActivity : Activity() {
                     }
                     projectPlusReady -> {
                         show(card, "Ready. Open the Brawl stack in the library to play Project+.", GREEN)
-                        button(card, "Ready", false) {}
+                        button(card, "Project+ setup", !installBusy) { startActivity(Intent(this, ProjectPlusImportActivity::class.java)) }
                     }
                     !brawlReady -> {
                         show(card, "Import your USA Brawl revision 2 disc using the Brawl card first. Project+ shares that disc.", MUTED)
-                        button(card, "Brawl required", false) {}
+                        button(card, "Import Brawl", !installBusy) {
+                            startActivity(Intent(this, GamesActivity::class.java).putExtra("storage_game", FrontendGame.BRAWL.id))
+                        }
                     }
                     else -> {
-                        show(card, "Set up or enable Project+ in Manage games. Project+ uses its own saves.", MUTED)
-                        button(card, "Manage games", !installBusy) {
-                            startActivity(Intent(this, GameStorageActivity::class.java))
+                        show(card, "Choose your Project+ ZIP, or select sd.raw and RSBE01.gct. WiiDS copies them for you. Project+ uses its own saves.", MUTED)
+                        button(card, "Import Project+", !installBusy) {
+                            startActivity(Intent(this, ProjectPlusImportActivity::class.java))
                         }
                     }
                 }

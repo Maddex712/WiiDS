@@ -111,6 +111,8 @@
             android:preferMinimalPostProcessing="true" android:theme="@android:style/Theme.Material.NoActionBar.Fullscreen"
             android:configChanges="layoutDirection|locale|grammaticalGender|fontScale|fontWeightAdjustment|orientation|uiMode|screenLayout|screenSize|smallestScreenSize|keyboard|keyboardHidden|navigation" />
 
+        <activity android:name=".ProjectPlusImportActivity" android:exported="false"
+            android:screenOrientation="sensorLandscape" />
         <activity android:name=".ProjectPlusLaunchActivity" android:exported="false"
             android:screenOrientation="sensorLandscape" />
         <activity android:name="dev.wiids.brawl.ProjectPlusLauncherActivity" android:exported="false"

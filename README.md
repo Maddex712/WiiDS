@@ -1,10 +1,10 @@
 # WiiDS
 
-## 1.26 prerelease - Pokemon XD in the main WiiDS app
+## 1.26.1 prerelease - easier Project+ imports
 
-[Download the integrated WiiDS 1.26 prerelease](https://github.com/Maddex712/WiiDS/releases/tag/v1.4.2). Install **WiiDS-1.26-arm64.apk** over your multi-game WiiDS app. Open **Options > Your games > Pokemon XD: Gale of Darkness > Choose file**, select your own USA `GXXE01` revision 0 disc, and wait for import to finish. XD has its own library case and saves, with Save manager backup/restore support. [Setup and preview limits](docs/release/WIIDS-1.26-PRERELEASE.md).
+[Download WiiDS 1.26.1 prerelease](https://github.com/Maddex712/WiiDS/releases/tag/v1.26.1). Install **WiiDS-1.26.1-arm64.apk** over your multi-game WiiDS app. Import the supported USA Brawl revision 2 disc first, then open **Options > Your games > Project+ > Import Project+** and choose a Project+ Dolphin ZIP, or the extracted `sd.raw` and `RSBE01.gct` files. WiiDS copies them automatically and retains replaced mod files in a backup. [Setup and preview limits](docs/release/WIIDS-1.26.1-PRERELEASE.md).
 
-This is the main WiiDS package. Saves from the earlier separate XD app are not automatically migrated; keep that app and its data. Integrated gameplay/device lifecycle testing is still pending. **Stable WiiDS 1.2.5 remains below.**
+Includes Pokemon XD from the [preceding 1.26 preview](https://github.com/Maddex712/WiiDS/releases/tag/v1.4.2). Standalone XD saves are not automatically migrated. Actual downloaded Project+ pack/gameplay testing remains pending; the newly reported XD menu scrolling/frame hitching issues remain under investigation. **Stable WiiDS 1.2.5 remains below.**
 
 <img src="docs/images/wiids-minimal-logo.png" width="120" alt="Minimal WiiDS dual-screen app logo">
 
@@ -48,7 +48,7 @@ and your own [compatible game dump](#exact-game-files-for-each-game). The region
 - **Kaizo Mario Galaxy Rebalanced 2.1:** select its card in **Your games**, use your clean USA Galaxy disc, and choose **Set up Rebalanced**. Select the creator's original 2.1 ZIP when prompted; the setup dialog includes an **Official download** link. The mod ZIP is not bundled.
 
 - **Double Dash!! Plus:** import standard Double Dash first. In **Your games → Double Dash Plus**, select **Choose Plus 3.3 patch** and pick the creator's NTSC xdelta. WiiDS builds the Plus course maps and keeps a separate memory card. [Double Dash Plus patch topic](https://retroachievements.org/forums/topic/27182)
-- **Project+:** import Brawl first, then enable Project+ in **Options → Manage games**. WiiDS can migrate an existing setup. If it needs the mod files, place your Project+ SD image and codes in the WiiDS Project+ folder as prompted. Open the Brawl stack to select the Project+ case.
+- **Project+:** in the **1.26.1 prerelease**, import Brawl first, then open **Your games → Project+ → Import Project+**. Choose a Project+ Dolphin ZIP or select `sd.raw` and `RSBE01.gct` separately; WiiDS copies them for you. Existing setups can still be enabled through **Manage games**. Open the Brawl stack to select the Project+ case. Stable 1.2.5 retains the earlier manual mod-file setup.
 
 [Supported discs and formats](#what-youll-need) · [Galaxy setup](docs/release/GALAXY-SETUP.md) · [Per-game guide](docs/GAMES.md) · [Join the WiiDS Discord](https://discord.gg/vTEKP8wpQm)
 

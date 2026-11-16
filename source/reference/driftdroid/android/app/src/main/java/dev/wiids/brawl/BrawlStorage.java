@@ -24,16 +24,19 @@ public final class BrawlStorage extends ContextWrapper {
     static boolean projectPlusEnabled(Context c) {
         return !com.driftdroid.android.GameStorage.INSTANCE.disabled(c, com.driftdroid.android.FrontendGame.PROJECT_PLUS);
     }
+    public static File projectPlusDirectory(Context c) { return profileDir(c, "project-plus"); }
+    public static void recoverProjectPlusImport(Context c) throws IOException { ProjectPlusImport.recover(projectPlusDirectory(c)); }
     public static boolean projectPlusInstalled(Context c) {
         return ProjectPlusFiles.ready(profileDir(c, "project-plus"));
     }
     public static boolean projectPlusAvailable(Context c) {
-        return projectPlusInstalled(c) || ProjectPlusFiles.ready(profileDir(c, "brawl"));
+        return !ProjectPlusImport.pending(projectPlusDirectory(c)) && (projectPlusInstalled(c) || ProjectPlusFiles.ready(profileDir(c, "brawl")));
     }
     static void snapshotProjectPlusSave(Context c) throws IOException {
         ProjectPlusFiles.snapshot(profileDir(c, "brawl"), profileDir(c, "project-plus"));
     }
     public static void prepareProjectPlus(Context c) throws IOException {
+        recoverProjectPlusImport(c);
         String problem = validate(new File(profileDir(c, "brawl"), "game"));
         if (problem != null) throw new IOException(problem);
         ProjectPlusFiles.prepare(profileDir(c, "brawl"), profileDir(c, "project-plus"));

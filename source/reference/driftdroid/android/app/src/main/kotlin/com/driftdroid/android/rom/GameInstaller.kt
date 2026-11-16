@@ -35,6 +35,8 @@ object GameInstaller {
             com.driftdroid.android.GameStorage.blocker(context) != null) return
         if (runCatching { com.driftdroid.android.SaveManagerProfiles.requireStopped(context) }.isFailure) return
         recoveryError = null
+        runCatching { dev.wiids.brawl.BrawlStorage.recoverProjectPlusImport(context) }
+            .exceptionOrNull()?.let { recoveryError = it.message ?: "Project+ import needs recovery. Open Project+ setup." }
         val destinations = GameCatalog.Disc.values().filter { it != GameCatalog.Disc.GALAXY_USA }
             .map { it.installDir(context) } +
             File(dev.thor.mkdd.MkddStorage.root(context), "plus/game")

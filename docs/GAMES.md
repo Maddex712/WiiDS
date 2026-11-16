@@ -12,6 +12,10 @@ For split WBFS imports, keep the `.wbfs` file and its `.wbf1`/later numbered par
 same folder. Grant storage access and use **Search again** in **Your games**, which collects sibling
 parts. **Choose file** opens only the single selected file.
 
+## Project+ setup in the 1.26.1 prerelease
+
+Import the supported USA Brawl `RSBE01` revision 2 disc first. Open **Options > Your games > Project+ > Import Project+** and choose a Project+ Dolphin ZIP, or select its extracted `sd.raw` and `RSBE01.gct` files. Use both files from the same download. WiiDS copies them automatically into the separate Project+ profile and retains old mod files when replacing a setup. Extract `.7z`/`.rar` downloads first. [Setup, backups and preview limits](release/WIIDS-1.26.1-PRERELEASE.md).
+
 ## Mario Kart Wii
 
 The original Wii racing game, with its normal courses, characters, items and race rules. The race runs

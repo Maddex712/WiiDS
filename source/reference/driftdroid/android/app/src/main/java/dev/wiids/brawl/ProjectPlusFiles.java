@@ -24,7 +24,7 @@ final class ProjectPlusFiles {
     private ProjectPlusFiles() {}
 
     static boolean ready(File profile) {
-        return Files.isDirectory(profile.toPath(), NO_LINKS)
+        return !ProjectPlusImport.pending(profile) && Files.isDirectory(profile.toPath(), NO_LINKS)
                 && isNonempty(profile, CARD) && isNonempty(profile, CODE);
     }
 
@@ -39,10 +39,13 @@ final class ProjectPlusFiles {
     /** The two launch processes share the lock. The card is published last, after a complete copy. */
     private static synchronized void runSetup(File original, File projectPlus, boolean install) throws IOException {
         Path destination = projectPlus.toPath();
+        ProjectPlusImport.safe(destination);
         Files.createDirectories(destination.getParent());
         Path lockPath = destination.resolveSibling(".project-plus-setup.lock");
-        try (FileChannel channel = FileChannel.open(lockPath, StandardOpenOption.CREATE, StandardOpenOption.WRITE);
+        ProjectPlusImport.safe(lockPath);
+        try (FileChannel channel = FileChannel.open(lockPath, StandardOpenOption.CREATE, StandardOpenOption.WRITE, NO_LINKS);
              java.nio.channels.FileLock ignored = channel.lock()) {
+            ProjectPlusImport.recoverLocked(destination);
             if (ready(projectPlus)) return;
             if (!ready(original)) {
                 if (install) throw new IOException("Project+ needs your SD card image and Gecko codes.");

@@ -125,7 +125,7 @@ class GameStorageActivity : Activity() {
                     return
                 }
                 if (!dev.wiids.brawl.BrawlStorage.projectPlusAvailable(this)) {
-                    message("Place your Project+ sd.raw and Codes/RSBE01.gct in the WiiDS project-plus folder, then reopen Manage games.")
+                    startActivity(Intent(this, ProjectPlusImportActivity::class.java))
                     return
                 }
                 GameStorage.enable(this, g)
