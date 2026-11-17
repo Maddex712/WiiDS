@@ -6,6 +6,10 @@ import android.os.Bundle
 
 /** Public app icon. Internal game requests enter through FrontendLaunchActivity. */
 class ModePickerActivity : Activity() {
+    override fun startActivity(request: Intent, options: Bundle?) {
+        super.startActivity(request, com.driftdroid.android.dualscreen.WiiDsScreens.launchOptions(this, request, options))
+    }
+
     override fun onCreate(state: Bundle?) {
         super.onCreate(state)
         startActivity(Intent(this, LibraryActivity::class.java)

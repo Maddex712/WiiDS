@@ -9,6 +9,10 @@ import android.widget.Toast;
 
 /** Entry point from the WiiDS launcher. No native library is loaded in this process. */
 public class ThorLaunchActivity extends Activity {
+    @Override public void startActivity(Intent request, Bundle options) {
+        super.startActivity(request, com.driftdroid.android.dualscreen.WiiDsScreens.launchOptions(this, request, options));
+    }
+
     static final String EXTRA_SESSION = "thor_launcher_session";
     private static final String ACTION_PLAY = "dev.thor.launcher.action.PLAY_GAME";
     private static final String HOME = "com.driftdroid.android.ModePickerActivity";

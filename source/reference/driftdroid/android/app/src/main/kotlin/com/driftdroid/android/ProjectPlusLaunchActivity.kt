@@ -11,6 +11,10 @@ import dev.wiids.brawl.ProjectPlusGameActivity
 
 /** Prepares the installed mod on a worker before starting its isolated SDL process. */
 class ProjectPlusLaunchActivity : Activity() {
+    override fun startActivity(request: Intent, options: Bundle?) {
+        super.startActivity(request, com.driftdroid.android.dualscreen.WiiDsScreens.launchOptions(this, request, options))
+    }
+
     private var preparing = false
 
     override fun onCreate(state: Bundle?) {

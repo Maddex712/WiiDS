@@ -1,7 +1,7 @@
 package com.driftdroid.android.dualscreen;
 
 import android.app.Activity;
-import android.app.Presentation;
+import com.driftdroid.android.dualscreen.WiiDsPresentation;
 import android.content.Context;
 import android.hardware.display.DisplayManager;
 import android.os.Bundle;
@@ -78,7 +78,7 @@ public final class ThorDualScreenController implements DisplayManager.DisplayLis
     @Override public void onDisplayRemoved(int id) { refresh(); }
     @Override public void onDisplayChanged(int id) { refresh(); }
 
-    private final class MapPresentation extends Presentation {
+    private final class MapPresentation extends WiiDsPresentation {
         private final ThorRaceMapView map;
         private Choreographer.FrameCallback frameCallback;
         MapPresentation(Display display) {
@@ -105,8 +105,7 @@ public final class ThorDualScreenController implements DisplayManager.DisplayLis
                     if (mode.getPhysicalWidth() == current.getPhysicalWidth()
                             && mode.getPhysicalHeight() == current.getPhysicalHeight()
                             && Math.abs(mode.getRefreshRate() - 60) < 1) {
-                        WindowManager.LayoutParams attrs = window.getAttributes();
-                        attrs.preferredDisplayModeId = mode.getModeId(); window.setAttributes(attrs); break;
+                        WiiDsDisplayPolicy.requestMode(window, mode); break;
                     }
                 }
             }

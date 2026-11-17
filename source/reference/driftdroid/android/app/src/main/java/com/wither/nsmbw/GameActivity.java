@@ -189,17 +189,12 @@ public class GameActivity extends SDLActivity
         }
         if (best == null) best = fastest;
         if (best != null) {
-            final WindowManager.LayoutParams attributes = getWindow().getAttributes();
-            attributes.preferredDisplayModeId = best.getModeId();
-            attributes.preferredRefreshRate = best.getRefreshRate();
-            getWindow().setAttributes(attributes);
+            com.driftdroid.android.dualscreen.WiiDsDisplayPolicy.requestMode(getWindow(), best);
         }
         final android.view.Surface surface = mSurface != null && mSurface.getHolder() != null ? mSurface.getHolder().getSurface() : null;
         if (surface != null && surface.isValid()) {
             try {
-                if (Build.VERSION.SDK_INT >= 31) surface.setFrameRate(target, android.view.Surface.FRAME_RATE_COMPATIBILITY_FIXED_SOURCE,
-                        android.view.Surface.CHANGE_FRAME_RATE_ALWAYS);
-                else surface.setFrameRate(target, android.view.Surface.FRAME_RATE_COMPATIBILITY_FIXED_SOURCE);
+                com.driftdroid.android.dualscreen.WiiDsDisplayPolicy.requestFrameRate(this, surface, target);
             } catch (RuntimeException unavailable) { Log.w(TAG, "Frame-rate vote unavailable", unavailable); }
         }
         Log.i(TAG, "Upper output target " + target + " Hz" + (best == null ? "" : " (mode " + best.getRefreshRate() + " Hz)"));

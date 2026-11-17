@@ -37,7 +37,7 @@ public class GameActivity extends SDLActivity {
                 if (Build.VERSION.SDK_INT >= 30 && (fps > 30 || settings().getBoolean("match_display_rate", false))) {
                     float rate = fps;
                     try {
-                        holder.getSurface().setFrameRate(rate, Surface.FRAME_RATE_COMPATIBILITY_FIXED_SOURCE);
+                        com.driftdroid.android.dualscreen.WiiDsDisplayPolicy.requestFrameRate(getContext(), holder.getSurface(), rate);
                         displayRequest = "requested " + rate + " FPS";
                     } catch (RuntimeException e) { displayRequest = "rejected: " + e.getClass().getSimpleName(); }
                 } else displayRequest = Build.VERSION.SDK_INT < 30 ? "unavailable" : "disabled";
@@ -88,11 +88,7 @@ public class GameActivity extends SDLActivity {
             if (best == null || mode.getRefreshRate() < best.getRefreshRate()) best = mode;
         }
         if (best == null) return;
-        android.view.WindowManager.LayoutParams params = getWindow().getAttributes();
-        if (params.preferredDisplayModeId != best.getModeId()) {
-            params.preferredDisplayModeId = best.getModeId();
-            getWindow().setAttributes(params);
-        }
+        com.driftdroid.android.dualscreen.WiiDsDisplayPolicy.requestMode(getWindow(), best);
         android.util.Log.i("SMS-Thor", "Panel mode for " + frameRate() + " FPS: " + best.getRefreshRate() + " Hz");
     }
     private void hideSystemBars() {

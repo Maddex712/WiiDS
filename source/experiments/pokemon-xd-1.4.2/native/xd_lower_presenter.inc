@@ -6,6 +6,7 @@
 #include <android/native_window.h>
 #include <imgui.h>
 #include <mutex>
+#include <atomic>
 #include <string>
 #include <cstdio>
 #include <chrono>
@@ -18,7 +19,8 @@ namespace {
 std::mutex xdSurfaceMutex;
 ANativeWindow* xdRequestedWindow=nullptr;
 uint64_t xdSurfaceRevision=0;
-int xdRequestedWidth=0,xdRequestedHeight=0;
+std::atomic<aurora::gfx::PresentTargetId> xdPublishedLowerTarget{0};
+int xdRequestedWidth=0,xdRequestedHeight=0,xdRequestedFormat=0;
 struct XdLowerSurface {
     ANativeWindow* window=nullptr;
     aurora::gfx::PresentTargetId target=0;
@@ -30,6 +32,7 @@ void xdSurfaceReconcile(){
     std::lock_guard hold(xdSurfaceMutex);
     if(xdLower.revision==xdSurfaceRevision)return;
     WiidsXD_LowerReadySet(0);
+    xdPublishedLowerTarget.store(0,std::memory_order_release);
     if(xdLower.target)gfx::destroy_present_target(xdLower.target);
     if(xdLower.window)ANativeWindow_release(xdLower.window);
     xdLower={};xdLower.revision=xdSurfaceRevision;
@@ -54,6 +57,7 @@ void xdSurfaceReconcile(){
     xdLower.target=gfx::create_present_target({.label="XD lower",.surface=std::move(surface),
         .width=(uint32_t)xdLower.width,.height=(uint32_t)xdLower.height,
         .preferredFormat=gfx::color_format(),.preferredAlphaMode=alphaMode,.vsync=false});
+    xdPublishedLowerTarget.store(xdLower.target,std::memory_order_release);
     WiidsXD_LowerReadySet(xdLower.target!=0);
 }
 uint64_t xdMeshRevision=0;
@@ -166,8 +170,18 @@ void xdQueueLower(aurora::gfx::detail::FramePacket& frame,const aurora::webgpu::
 }
 extern "C" void WiidsXD_LowerWindow(void* window,int width,int height){
     std::lock_guard hold(xdSurfaceMutex);
+    const int format=window?ANativeWindow_getFormat((ANativeWindow*)window):0;
+    if(window==xdRequestedWindow&&width==xdRequestedWidth&&height==xdRequestedHeight&&format==xdRequestedFormat){
+        if(!window)return;
+        const auto target=xdPublishedLowerTarget.load(std::memory_order_acquire);
+        const auto status=aurora::gfx::present_target_status(target);
+        // Retain the healthy target for duplicate Android callbacks. Missing or
+        // failed targets still need the existing callback-driven retry path.
+        if(target&&(status==aurora::gfx::PresentTargetStatus::Ready
+                ||status==aurora::gfx::PresentTargetStatus::Pending))return;
+    }
     WiidsXD_LowerReadySet(0);
     if(window)ANativeWindow_acquire((ANativeWindow*)window);
     if(xdRequestedWindow)ANativeWindow_release(xdRequestedWindow);
-    xdRequestedWindow=(ANativeWindow*)window;xdRequestedWidth=width;xdRequestedHeight=height;++xdSurfaceRevision;
+    xdRequestedWindow=(ANativeWindow*)window;xdRequestedWidth=width;xdRequestedHeight=height;xdRequestedFormat=format;++xdSurfaceRevision;
 }

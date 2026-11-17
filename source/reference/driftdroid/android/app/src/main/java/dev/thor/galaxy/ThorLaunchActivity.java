@@ -8,6 +8,10 @@ import java.io.File;
 import java.io.FileInputStream;
 
 public class ThorLaunchActivity extends Activity {
+    @Override public void startActivity(Intent request, Bundle options) {
+        super.startActivity(request, com.driftdroid.android.dualscreen.WiiDsScreens.launchOptions(this, request, options));
+    }
+
     protected boolean kaizoProfile() { return false; }
     @Override protected void attachBaseContext(android.content.Context base) { super.attachBaseContext(new GalaxyStorage(base, kaizoProfile())); }
     static boolean ready(android.content.Context context) {

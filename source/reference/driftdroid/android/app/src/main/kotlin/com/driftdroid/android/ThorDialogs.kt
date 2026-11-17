@@ -21,6 +21,14 @@ import java.util.WeakHashMap
 internal object ThorDialogs {
     private val artCache = WeakHashMap<Context, ThorMenuArtwork>()
     private val styledViews = WeakHashMap<View, Boolean>()
+    private val focusAlpha = WeakHashMap<View, Float>()
+
+    /** The lower input host can own OS focus while this upper menu receives its controller events. */
+    fun refreshFocus(view: View) {
+        focusAlpha[view]?.let { alpha ->
+            view.alpha = if (com.driftdroid.android.dualscreen.WiiDsPresentation.windowHasInputFocus(view)) alpha else 0f
+        }
+    }
 
     fun builder(activity: Activity): AlertDialog.Builder {
         if (!BuildConfig.THOR_BUILD) return AlertDialog.Builder(activity)
@@ -56,21 +64,29 @@ internal object ThorDialogs {
                         // A child dialog owns window focus. Keep this parent's
                         // layout, selections and input focus, but not fragments
                         // of its title/actions visible around the child.
-                        dialog.window?.decorView?.alpha = if (focused) originalAlpha else 0f
+                        dialog.window?.decorView?.let { decor ->
+                            decor.alpha = if (focused || com.driftdroid.android.dualscreen.WiiDsPresentation.windowHasInputFocus(decor)) originalAlpha else 0f
+                            decor.postOnAnimation {
+                                if (decor.isAttachedToWindow && dialog.isShowing)
+                                    decor.alpha = if (com.driftdroid.android.dualscreen.WiiDsPresentation.windowHasInputFocus(decor)) originalAlpha else 0f
+                            }
+                        }
                     }
 
                     override fun onViewAttachedToWindow(v: View) {
                         originalAlpha = v.alpha
+                        focusAlpha[v] = originalAlpha
                         observer = v.viewTreeObserver.also { it.addOnWindowFocusChangeListener(focusListener) }
                         v.post {
                             if (v.isAttachedToWindow && dialog.isShowing) {
                                 style(activity, dialog)
-                                v.alpha = if (v.hasWindowFocus()) originalAlpha else 0f
+                                v.alpha = if (com.driftdroid.android.dualscreen.WiiDsPresentation.windowHasInputFocus(v)) originalAlpha else 0f
                             }
                         }
                     }
 
                     override fun onViewDetachedFromWindow(v: View) {
+                        focusAlpha.remove(v)
                         observer?.takeIf { it.isAlive }?.removeOnWindowFocusChangeListener(focusListener)
                         observer = null
                         v.alpha = originalAlpha

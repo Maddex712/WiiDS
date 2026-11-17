@@ -13,6 +13,10 @@ import java.io.File
 
 /** Public entry point. Identifies a disc; launches only already imported, validated game data. */
 class FrontendLaunchActivity : Activity() {
+    override fun startActivity(request: Intent, options: Bundle?) {
+        super.startActivity(request, com.driftdroid.android.dualscreen.WiiDsScreens.launchOptions(this, request, options))
+    }
+
     override fun onCreate(state: Bundle?) {
         super.onCreate(state)
         if (!BuildConfig.THOR_BUILD) { fail("This build does not support WiiDS frontend launches."); return }

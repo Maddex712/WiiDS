@@ -3,7 +3,7 @@ package com.wither.nsmbw;
 import com.driftdroid.android.dualscreen.WiiDsDisplays;
 
 import android.app.Activity;
-import android.app.Presentation;
+import com.driftdroid.android.dualscreen.WiiDsPresentation;
 import android.content.Context;
 import android.graphics.Canvas;
 import android.graphics.Color;
@@ -198,7 +198,7 @@ final class ThorLowerScreen implements DisplayManager.DisplayListener {
     @Override public void onDisplayRemoved(int id) { refresh(); }
     @Override public void onDisplayChanged(int id) { refresh(); }
 
-    private final class HudPresentation extends Presentation {
+    private final class HudPresentation extends WiiDsPresentation {
         final HudView view;
         HudPresentation(Display display) { super(activity, display); view = new HudView(getContext()); }
         @Override protected void onCreate(Bundle saved) {

@@ -1,10 +1,10 @@
 # WiiDS
 
-## 1.26.1 prerelease - easier Project+ imports
+## 1.26.2 prerelease - screen setup and Pokemon XD repairs
 
-[Download WiiDS 1.26.1 prerelease](https://github.com/Maddex712/WiiDS/releases/tag/v1.26.1). Install **WiiDS-1.26.1-arm64.apk** over your multi-game WiiDS app. Import the supported USA Brawl revision 2 disc first, then open **Options > Your games > Project+ > Import Project+** and choose a Project+ Dolphin ZIP, or the extracted `sd.raw` and `RSBE01.gct` files. WiiDS copies them automatically and retains replaced mod files in a backup. [Setup and preview limits](docs/release/WIIDS-1.26.1-PRERELEASE.md).
+[Download WiiDS 1.26.2 prerelease](https://github.com/Maddex712/WiiDS/releases/tag/v1.26.2). Install **WiiDS-1.26.2-arm64.apk** over your multi-game WiiDS app. **Options > Screen setup** lets you choose the top and companion displays, including independent screen attachments on supported Android firmware. This targets OneXSugar and Retroid Pocket 5/6 attachment layouts; those physical combinations have not yet been verified.
 
-Includes Pokemon XD from the [preceding 1.26 preview](https://github.com/Maddex712/WiiDS/releases/tag/v1.4.2). Standalone XD saves are not automatically migrated. Actual downloaded Project+ pack/gameplay testing remains pending; the newly reported XD menu scrolling/frame hitching issues remain under investigation. **Stable WiiDS 1.2.5 remains below.**
+Includes targeted XD sample-freshness, companion-window reuse, shader-ready wait and presentation-recovery repairs, plus the Project+ picker imports from 1.26.1. **Physical gameplay stutter/flicker resolution and named-device compatibility remain unverified.** Standalone XD saves are not automatically migrated. [Full fixes, setup and preview limits](docs/release/WIIDS-1.26.2-PRERELEASE.md). Stable **WiiDS 1.2.5** remains below; the stable updater does not offer this prerelease.
 
 <img src="docs/images/wiids-minimal-logo.png" width="120" alt="Minimal WiiDS dual-screen app logo">
 

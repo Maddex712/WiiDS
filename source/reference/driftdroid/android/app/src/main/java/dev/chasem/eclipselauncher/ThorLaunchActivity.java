@@ -9,6 +9,10 @@ import dev.chasem.eclipselauncher.ThorStorage;
 
 /** Explicit, versioned transport from the shared Thor library. */
 public final class ThorLaunchActivity extends Activity {
+    @Override public void startActivity(Intent request, Bundle options) {
+        super.startActivity(request, com.driftdroid.android.dualscreen.WiiDsScreens.launchOptions(this, request, options));
+    }
+
     @Override public void onCreate(Bundle state) {
         super.onCreate(state);
         Intent request = getIntent();

@@ -2,7 +2,7 @@ package com.driftdroid.android.achievements
 
 import android.app.Activity
 import android.app.Dialog
-import android.app.Presentation
+import com.driftdroid.android.dualscreen.WiiDsPresentation as Presentation
 import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.Canvas
@@ -169,12 +169,7 @@ class AchievementsActivity : Activity(), DisplayManager.DisplayListener {
 
     private fun refreshLower() {
         if (closed || isFinishing) return
-        val upper = windowManager.defaultDisplay.displayId
-        var target: Display? = null
-        for (display in displays?.getDisplays(DisplayManager.DISPLAY_CATEGORY_PRESENTATION).orEmpty()) {
-            if (!display.isValid || display.displayId == upper) continue
-            if (target == null || display.name == "Screen-2") target = display
-        }
+        val target = com.driftdroid.android.dualscreen.WiiDsDisplays.companion(this, displays)
         if (target != null && lower?.isShowing == true && lower?.display?.displayId == target.displayId) return
         closeLower()
         if (target != null) {

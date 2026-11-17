@@ -90,6 +90,7 @@ class LibraryActivity : Activity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        if (BuildConfig.THOR_BUILD && com.driftdroid.android.dualscreen.ScreenSetupActivity.enterLibrary(this)) return
         if (BuildConfig.THOR_BUILD) {
             presentationLoading = true
             val preparing = TextView(this).apply {
@@ -129,9 +130,19 @@ class LibraryActivity : Activity() {
         createLibrary()
     }
 
+    override fun startActivity(request: Intent, options: Bundle?) {
+        super.startActivity(request, com.driftdroid.android.dualscreen.WiiDsScreens.launchOptions(this, request, options))
+    }
+
     private fun createLibrary() {
         refreshNsmbInstalled()
         buildUi()
+        if (BuildConfig.THOR_BUILD) {
+            root.addView(Button(this).apply {
+                text = "Screen setup"
+                setOnClickListener { com.driftdroid.android.dualscreen.ScreenSetupActivity.open(this@LibraryActivity) }
+            })
+        }
         if (routePendingFrontend()) return
         if (routePendingThorUpdate()) return
         if (BuildConfig.THOR_BUILD) {
@@ -182,6 +193,7 @@ class LibraryActivity : Activity() {
 
     override fun onResume() {
         super.onResume()
+        if (isFinishing) return
         libraryResumed = true
         if (!presentationLoading) resumeLibrary()
     }
@@ -421,6 +433,7 @@ class LibraryActivity : Activity() {
                     updateLowerStatus()
                     Toast.makeText(this, "Menu theme: ${style.label}", Toast.LENGTH_SHORT).show()
                 },
+                ThorLauncherView.Entry("Screen setup", "Choose top and bottom screens for your handheld or screen attachment.") { com.driftdroid.android.dualscreen.ScreenSetupActivity.open(this) },
                 ThorLauncherView.Entry("Server Settings", "Configure an optional private server.") { serverSettingsButton.performClick() },
             )
             val view = ThorLauncherView(this, artwork, chrome, entries, LIBRARY_CASES, LIBRARY_BUNDLES,
@@ -881,7 +894,7 @@ class LibraryActivity : Activity() {
         title.setPadding(0, dp(8), 0, 0)
 
         val subtitle = TextView(this)
-        subtitle.text = if (BuildConfig.THOR_BUILD) "AYN Thor · Dual Screen" else "Kart Channel"
+        subtitle.text = if (BuildConfig.THOR_BUILD) "WiiDS · Screen setup available" else "Kart Channel"
         subtitle.setTextColor(Color.argb(230, 0xDD, 0xDD, 0xDD))
         subtitle.textSize = 14f
         subtitle.gravity = Gravity.CENTER

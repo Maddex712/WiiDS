@@ -17,6 +17,10 @@ import java.io.File;
  * library is loaded in this process. The game itself runs in :mkdd_game (WiiDsMkddGameActivity).
  */
 public final class MkddLaunchActivity extends Activity {
+    @Override public void startActivity(Intent request, Bundle options) {
+        super.startActivity(request, com.driftdroid.android.dualscreen.WiiDsScreens.launchOptions(this, request, options));
+    }
+
     private static final String ACTION_PLAY = "dev.thor.launcher.action.PLAY_GAME";
     static final String GAME = "mkdd";
     static final String PLUS = "mkdd-plus";

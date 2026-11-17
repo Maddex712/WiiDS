@@ -3,7 +3,7 @@ package dev.chasem.eclipselauncher;
 import com.driftdroid.android.dualscreen.WiiDsDisplays;
 
 import android.app.Activity;
-import android.app.Presentation;
+import com.driftdroid.android.dualscreen.WiiDsPresentation;
 import android.content.Context;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
@@ -433,7 +433,7 @@ final class ThorSunshineScreen implements DisplayManager.DisplayListener {
         }
     }
 
-    private final class Screen extends Presentation {
+    private final class Screen extends WiiDsPresentation {
         final Board view;
         Screen(Display display) {
             super(activity, display);

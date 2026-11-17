@@ -319,10 +319,7 @@ class MainActivity : SDLActivity() {
                 .minByOrNull { it.refreshRate }
                 ?: sameSizeModes.maxByOrNull { it.refreshRate }
                 ?: return
-        val attributes = window.attributes
-        attributes.preferredDisplayModeId = mode.modeId
-        attributes.preferredRefreshRate = mode.refreshRate
-        window.attributes = attributes
+        com.driftdroid.android.dualscreen.WiiDsDisplayPolicy.requestMode(window, mode)
     }
 
     private fun applyConfiguredFrameRate() {
@@ -335,12 +332,7 @@ class MainActivity : SDLActivity() {
         val surface = mSurface?.holder?.surface
         if (Build.VERSION.SDK_INT >= 30 && surface?.isValid == true) {
             runCatching {
-                if (Build.VERSION.SDK_INT >= 31) {
-                    surface.setFrameRate(target.toFloat(), Surface.FRAME_RATE_COMPATIBILITY_FIXED_SOURCE,
-                        Surface.CHANGE_FRAME_RATE_ALWAYS)
-                } else {
-                    surface.setFrameRate(target.toFloat(), Surface.FRAME_RATE_COMPATIBILITY_FIXED_SOURCE)
-                }
+                com.driftdroid.android.dualscreen.WiiDsDisplayPolicy.requestFrameRate(this, surface, target.toFloat())
             }.onFailure { Log.w("ThorDisplay", "Upper surface frame-rate vote failed", it) }
         }
         Log.i("ThorDisplay", "Upper output target=$target Hz, interpolation=${target > 60}")
@@ -470,7 +462,7 @@ class MainActivity : SDLActivity() {
         settingsButton = gearButton
         val now = SystemClock.uptimeMillis()
         settingsButtonAutoHide.setManuallyHidden(nativeSettingsButtonHidden, now)
-        settingsButtonAutoHide.setActive(activityResumed && hasWindowFocus(), now)
+        settingsButtonAutoHide.setActive(activityResumed && com.driftdroid.android.dualscreen.WiiDsPresentation.hasInputFocus(this), now)
         settingsButtonAutoHide.reveal(now)
         updateSettingsButtonVisibility()
         // Thor uses its physical controls. Never create a touch pad in this build,
@@ -514,7 +506,7 @@ class MainActivity : SDLActivity() {
     override fun onResume() {
         super.onResume()
         activityResumed = true
-        settingsButtonAutoHide.setActive(hasWindowFocus(), SystemClock.uptimeMillis())
+        settingsButtonAutoHide.setActive(com.driftdroid.android.dualscreen.WiiDsPresentation.hasInputFocus(this), SystemClock.uptimeMillis())
         updateSettingsButtonVisibility()
         thorImportCompanion?.start()
         thorScreens?.start()

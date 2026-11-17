@@ -8,6 +8,10 @@ import com.driftdroid.android.SaveManagerProfiles;
 
 /** Cold launch only, after the library has resumed any existing native task. */
 public final class XdLaunchActivity extends Activity {
+    @Override public void startActivity(Intent request, Bundle options) {
+        super.startActivity(request, com.driftdroid.android.dualscreen.WiiDsScreens.launchOptions(this, request, options));
+    }
+
     @Override public void onCreate(Bundle state) {
         super.onCreate(state);
         String problem = SaveManagerProfiles.INSTANCE.launchBlocker(this);

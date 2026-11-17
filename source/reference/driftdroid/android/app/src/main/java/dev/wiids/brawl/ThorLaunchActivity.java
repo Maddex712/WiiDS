@@ -13,6 +13,10 @@ import android.widget.Toast;
  * loaded in this process. A game opened this way returns to WiiDS from its Main Menu item.
  */
 public final class ThorLaunchActivity extends Activity {
+    @Override public void startActivity(Intent request, Bundle options) {
+        super.startActivity(request, com.driftdroid.android.dualscreen.WiiDsScreens.launchOptions(this, request, options));
+    }
+
     static final String EXTRA_SESSION = "thor_launcher_session";
     private static final String ACTION_PLAY = "dev.thor.launcher.action.PLAY_GAME";
     static final String GAME = "brawl";

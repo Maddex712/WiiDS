@@ -59,6 +59,80 @@
             </intent-filter>
         </activity>
 
+        <activity android:name=".dualscreen.CompanionHostActivity" android:exported="false"
+            android:taskAffinity="${applicationId}.companion.library" android:excludeFromRecents="true"
+            android:screenOrientation="sensorLandscape" android:resizeableActivity="true"
+            android:configChanges="orientation|screenSize|screenLayout|density|keyboardHidden|uiMode"
+            android:theme="@android:style/Theme.Black.NoTitleBar.Fullscreen" />
+
+        <activity android:name=".dualscreen.CompanionHostActivity$Nsmb" android:exported="false" android:process=":nsmbw_game"
+            android:taskAffinity="${applicationId}.companion.nsmbw_game" android:excludeFromRecents="true"
+            android:screenOrientation="sensorLandscape" android:resizeableActivity="true"
+            android:configChanges="orientation|screenSize|screenLayout|density|keyboardHidden|uiMode"
+            android:theme="@android:style/Theme.Black.NoTitleBar.Fullscreen" />
+
+        <activity android:name=".dualscreen.CompanionHostActivity$Msmb" android:exported="false" android:process=":msmbwii_game"
+            android:taskAffinity="${applicationId}.companion.msmbwii_game" android:excludeFromRecents="true"
+            android:screenOrientation="sensorLandscape" android:resizeableActivity="true"
+            android:configChanges="orientation|screenSize|screenLayout|density|keyboardHidden|uiMode"
+            android:theme="@android:style/Theme.Black.NoTitleBar.Fullscreen" />
+
+        <activity android:name=".dualscreen.CompanionHostActivity$Sunshine" android:exported="false" android:process=":sms_game"
+            android:taskAffinity="${applicationId}.companion.sms_game" android:excludeFromRecents="true"
+            android:screenOrientation="sensorLandscape" android:resizeableActivity="true"
+            android:configChanges="orientation|screenSize|screenLayout|density|keyboardHidden|uiMode"
+            android:theme="@android:style/Theme.Black.NoTitleBar.Fullscreen" />
+
+        <activity android:name=".dualscreen.CompanionHostActivity$Eclipse" android:exported="false" android:process=":eclipse_game"
+            android:taskAffinity="${applicationId}.companion.eclipse_game" android:excludeFromRecents="true"
+            android:screenOrientation="sensorLandscape" android:resizeableActivity="true"
+            android:configChanges="orientation|screenSize|screenLayout|density|keyboardHidden|uiMode"
+            android:theme="@android:style/Theme.Black.NoTitleBar.Fullscreen" />
+
+        <activity android:name=".dualscreen.CompanionHostActivity$Galaxy" android:exported="false" android:process=":galaxy_game"
+            android:taskAffinity="${applicationId}.companion.galaxy_game" android:excludeFromRecents="true"
+            android:screenOrientation="sensorLandscape" android:resizeableActivity="true"
+            android:configChanges="orientation|screenSize|screenLayout|density|keyboardHidden|uiMode"
+            android:theme="@android:style/Theme.Black.NoTitleBar.Fullscreen" />
+
+        <activity android:name=".dualscreen.CompanionHostActivity$Kaizo" android:exported="false" android:process=":galaxy_kaizo_game"
+            android:taskAffinity="${applicationId}.companion.galaxy_kaizo_game" android:excludeFromRecents="true"
+            android:screenOrientation="sensorLandscape" android:resizeableActivity="true"
+            android:configChanges="orientation|screenSize|screenLayout|density|keyboardHidden|uiMode"
+            android:theme="@android:style/Theme.Black.NoTitleBar.Fullscreen" />
+
+        <activity android:name=".dualscreen.CompanionHostActivity$Brawl" android:exported="false" android:process=":brawl_game"
+            android:taskAffinity="${applicationId}.companion.brawl_game" android:excludeFromRecents="true"
+            android:screenOrientation="sensorLandscape" android:resizeableActivity="true"
+            android:configChanges="orientation|screenSize|screenLayout|density|keyboardHidden|uiMode"
+            android:theme="@android:style/Theme.Black.NoTitleBar.Fullscreen" />
+
+        <activity android:name=".dualscreen.CompanionHostActivity$ProjectPlus" android:exported="false" android:process=":brawl_plus_game"
+            android:taskAffinity="${applicationId}.companion.brawl_plus_game" android:excludeFromRecents="true"
+            android:screenOrientation="sensorLandscape" android:resizeableActivity="true"
+            android:configChanges="orientation|screenSize|screenLayout|density|keyboardHidden|uiMode"
+            android:theme="@android:style/Theme.Black.NoTitleBar.Fullscreen" />
+
+        <activity android:name=".dualscreen.CompanionHostActivity$Mkdd" android:exported="false" android:process=":mkdd_game"
+            android:taskAffinity="${applicationId}.companion.mkdd_game" android:excludeFromRecents="true"
+            android:screenOrientation="sensorLandscape" android:resizeableActivity="true"
+            android:configChanges="orientation|screenSize|screenLayout|density|keyboardHidden|uiMode"
+            android:theme="@android:style/Theme.Black.NoTitleBar.Fullscreen" />
+
+        <activity android:name=".dualscreen.CompanionHostActivity$MkddPlus" android:exported="false" android:process=":mkdd_plus_game"
+            android:taskAffinity="${applicationId}.companion.mkdd_plus_game" android:excludeFromRecents="true"
+            android:screenOrientation="sensorLandscape" android:resizeableActivity="true"
+            android:configChanges="orientation|screenSize|screenLayout|density|keyboardHidden|uiMode"
+            android:theme="@android:style/Theme.Black.NoTitleBar.Fullscreen" />
+
+        <activity android:name=".dualscreen.CompanionHostActivity$Xd" android:exported="false" android:process=":xd_game"
+            android:taskAffinity="${applicationId}.companion.xd_game" android:excludeFromRecents="true"
+            android:screenOrientation="sensorLandscape" android:resizeableActivity="true"
+            android:configChanges="orientation|screenSize|screenLayout|density|keyboardHidden|uiMode"
+            android:theme="@android:style/Theme.Black.NoTitleBar.Fullscreen" />
+
+        <activity android:name=".dualscreen.ScreenSetupActivity" android:exported="false" android:screenOrientation="sensorLandscape" />
+
         <activity android:name=".LibraryActivity" android:exported="false" android:screenOrientation="sensorLandscape" />
 
         <activity android:name=".GameStorageActivity" android:exported="false" android:screenOrientation="sensorLandscape" />

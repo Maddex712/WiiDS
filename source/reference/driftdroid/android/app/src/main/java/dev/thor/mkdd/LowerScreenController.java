@@ -1,7 +1,7 @@
 package dev.thor.mkdd;
 
 import android.app.Activity;
-import android.app.Presentation;
+import com.driftdroid.android.dualscreen.WiiDsPresentation;
 import android.content.Context;
 import android.hardware.display.DisplayManager;
 import android.os.Handler;
@@ -71,15 +71,7 @@ public final class LowerScreenController implements DisplayManager.DisplayListen
     private void reconcile() {
         mainThread();
         if (!resumed || closed) return;
-        Display upper=activity.getDisplay(), lower=null;
-        if (upper == null) { removePanel(); return; }
-        long upperArea=area(upper), best=Long.MAX_VALUE;
-        for (Display d : displays.getDisplays(DisplayManager.DISPLAY_CATEGORY_PRESENTATION)) {
-            // Dynamic IDs, matching the existing Thor smaller-presentation policy.
-            if (!d.isValid() || d.getDisplayId()==upper.getDisplayId() ||
-                    (d.getFlags() & Display.FLAG_PRIVATE) != 0 || area(d)>=upperArea) continue;
-            if (area(d)<best) { lower=d; best=area(d); }
-        }
+        Display lower=com.driftdroid.android.dualscreen.WiiDsDisplays.companion(activity, displays);
         if (panel != null && lower != null && panel.getDisplay().getDisplayId()==lower.getDisplayId()
                 && panel.isShowing()) return;
         removePanel();
@@ -91,9 +83,6 @@ public final class LowerScreenController implements DisplayManager.DisplayListen
         } catch (WindowManager.InvalidDisplayException e) {
             Log.w("WiiDS-MKDD","Lower display disappeared",e); removePanel();
         }
-    }
-    private static long area(Display d) {
-        Display.Mode m=d.getMode(); return (long)m.getPhysicalWidth()*m.getPhysicalHeight();
     }
     private void schedule() {
         if (resumed && panel != null && panel.isShowing() && !queued) {
@@ -132,7 +121,7 @@ public final class LowerScreenController implements DisplayManager.DisplayListen
         if (Looper.myLooper()!=Looper.getMainLooper()) throw new IllegalStateException("Use the Activity thread");
     }
     // Static, not inner: build-tools 34 d8 crashes on javac 21's MethodParameters for inner ctors.
-    private static final class Panel extends Presentation {
+    private static final class Panel extends WiiDsPresentation {
         final Renderer renderer;
         Panel(Activity activity, Display display, Factory factory) {
             super(activity,display);

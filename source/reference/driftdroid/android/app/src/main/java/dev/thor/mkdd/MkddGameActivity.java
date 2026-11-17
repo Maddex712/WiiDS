@@ -110,6 +110,13 @@ public class MkddGameActivity extends NativeActivity implements DuoMenu.Host, In
                 controllers[0] = id;
             else controllers[count++] = id;
         }
+        // A built-in controller on another handheld can be reported as an external USB pad.
+        // Prefer the known/internal device above, otherwise make the first physical pad player 1.
+        if (controllers[0] < 0 && count > 1) {
+            controllers[0] = controllers[1];
+            System.arraycopy(controllers, 2, controllers, 1, count - 2);
+            count--;
+        }
         MkddNative.setControllerDevices(Arrays.copyOf(controllers, count));
     }
 

@@ -64,44 +64,79 @@ extern "C" int32_t WiidsXD_TitleFloorGet(){return titleFloor.load(std::memory_or
 extern "C" int WiidsXD_TopSkyClean(){return skyClean.load(std::memory_order_relaxed);}
 extern "C" void WiidsXD_TopProbe(){
     const bool title=titleProbeEnabled.load(std::memory_order_relaxed),field=fieldProbeEnabled.load(std::memory_order_relaxed);
-    if(!title&&!field)return;
-    static uint64_t sampleFrame=0;const auto f=uint64_t(aurora::gfx::current_frame());
-    if(f<sampleFrame)return;sampleFrame=f+(title?2:60);
+    const int mode=title?1:field?2:0;
+    static int previousMode=0;
+    static uint64_t sampleFrame=0,firstSequence=0,lastSequence=0;
+    static float ref=24;
+    static int prev=-1,still=0,run=0;
+    const bool changed=mode!=previousMode;
+    previousMode=mode;
+    if(!mode)return;
+    const auto f=uint64_t(aurora::gfx::current_frame());
+    if(changed){
+        // A field's one-second deadline must not delay title samples. Require a
+        // capture recorded in this mode before changing its colour/fade state.
+        // Keep the brightness reference across mode changes so an in-progress
+        // game fade is not mistaken for a newly settled bright scene.
+        sampleFrame=f;firstSequence=0;prev=-1;still=0;run=0;
+    }
+    if(f<sampleFrame)return;
+    sampleFrame=f+(title?2:60);
     enum{NX=6,NY=4,G=NX*NY,N=G+3};
     static AuroraReadbackStream stream=0;
-    static float ref=24;static int prev=-1,still=0;
     if(!stream)stream=AuroraReadbackCreateStream();
     if(!stream)return;
-    u32 px[N];AuroraReadbackDest dest[N];
-    for(int i=0;i<N;i++)dest[i]={(u64)i,&px[i],sizeof(u32),GX_FALSE};
-    if(AuroraReadbackGet(stream,dest,N)){
-        int m=0,rs=0,gs=0,bs=0,found=0;
-        static int run=0;int panel=0;
-        for(int i=G;i<N;i++)if(dest[i].found){
+    // latest() retains its packet. Read sequence and pixels from one immutable
+    // snapshot, so stalled GPU readback cannot advance debounce/settling timers.
+    const auto packet=aurora::gfx::readback::supported()?aurora::gfx::readback::latest(stream):nullptr;
+    if(firstSequence&&packet&&packet->sequence>=firstSequence&&packet->sequence>lastSequence){
+        lastSequence=packet->sequence;
+        u32 px[N]={};bool found[N]={};
+        for(int i=0;i<N;i++){
+            const auto* output=packet->find((u64)i);
+            if(!output||output->payloadSize!=sizeof(u32)||output->payloadOffset>packet->payload.size()
+                    ||packet->payload.size()-output->payloadOffset<sizeof(u32))continue;
+            std::memcpy(&px[i],packet->payload.data()+output->payloadOffset,sizeof(u32));
+            found[i]=true;
+        }
+        int panel=0,panelFound=0;
+        for(int i=G;i<N;i++)if(found[i]){
             const u32 c=px[i];const int r=(c>>16)&255,g=(c>>8)&255,b=c&255;
-            panel+=std::max({r,g,b})-std::min({r,g,b})<10&&((r*77+g*150+b*29)>>8)>12;}
-        const int clean=panel<2;
-        run=clean==skyClean.load(std::memory_order_relaxed)?0:run+1;
-        if(run>=6){skyClean.store(clean,std::memory_order_relaxed);run=0;}
-        for(int i=0;i<G;i++)if(dest[i].found){
-            const u32 c=px[i];rs+=(c>>16)&255;gs+=(c>>8)&255;bs+=c&255;++found;m=std::max<int>(m,(int)((((c>>16)&255)*77+((c>>8)&255)*150+(c&255)*29)>>8));}
-        if(field&&found)fieldColor.store(((rs/found)<<16)|((gs/found)<<8)|(bs/found),std::memory_order_relaxed);
-        const bool cut=prev>=0&&m>3&&m*2<prev&&prev-m>24;
-        still=std::abs(m-prev)<=2?still+1:0;prev=m;
-        if(m>ref||cut||(still>=20&&m>=24))ref=(float)std::max(m,24);
-        const float r=m<=3?0.f:std::min(1.f,m/ref/0.9f);   // proportional: the top's own fade curve
-        topLight.store((int)std::lround(r*1000),std::memory_order_relaxed);
+            panel+=std::max({r,g,b})-std::min({r,g,b})<10&&((r*77+g*150+b*29)>>8)>12;
+            ++panelFound;
+        }
+        if(panelFound==3){
+            const int clean=panel<2;
+            run=clean==skyClean.load(std::memory_order_relaxed)?0:run+1;
+            if(run>=6){skyClean.store(clean,std::memory_order_relaxed);run=0;}
+        }
+        int m=0,rs=0,gs=0,bs=0,gridFound=0;
+        for(int i=0;i<G;i++)if(found[i]){
+            const u32 c=px[i];rs+=(c>>16)&255;gs+=(c>>8)&255;bs+=c&255;++gridFound;
+            m=std::max<int>(m,(int)((((c>>16)&255)*77+((c>>8)&255)*150+(c&255)*29)>>8));
+        }
+        // The normal producer returns the complete grid. Missing data is not a
+        // black frame, and must not change the last valid field colour or fade.
+        if(gridFound==G){
+            if(field)fieldColor.store(((rs/G)<<16)|((gs/G)<<8)|(bs/G),std::memory_order_relaxed);
+            const bool cut=prev>=0&&m>3&&m*2<prev&&prev-m>24;
+            still=std::abs(m-prev)<=2?still+1:0;prev=m;
+            if(m>ref||cut||(still>=20&&m>=24))ref=(float)std::max(m,24);
+            const float r=m<=3?0.f:std::min(1.f,m/ref/0.9f);
+            topLight.store((int)std::lround(r*1000),std::memory_order_relaxed);
+        }
     }
-    // XD's EFB is 640x448; the grid stays inside it.
     AuroraReadbackPeekRequest req[N];
     for(int k=0;k<3;k++)req[G+k]={(u64)(G+k),AURORA_READBACK_PEEK_ARGB,19,(u16)(76+k*56)};
     for(int j=0;j<NY;j++)for(int i=0;i<NX;i++){
-        const int k=j*NX+i;req[k]={(u64)k,AURORA_READBACK_PEEK_ARGB,(u16)(48+i*544/(NX-1)),(u16)(40+j*368/(NY-1))};}
-    // The Android port stages game GX in display lists and presents without GXCopyDisp.
-    // At its drained frame boundary, use the existing peek handler directly.
+        const int k=j*NX+i;req[k]={(u64)k,AURORA_READBACK_PEEK_ARGB,(u16)(48+i*544/(NX-1)),(u16)(40+j*368/(NY-1))};
+    }
+    const auto sequence=aurora::gfx::readback::next_sequence(stream);
+    if(!sequence)return;
+    if(!firstSequence)firstSequence=sequence;
     std::vector<uint8_t> bytes;bytes.reserve(21+N*13);
     auto be=[&](uint64_t v,int n){for(int i=n-1;i>=0;i--)bytes.push_back((uint8_t)(v>>(i*8)));};
-    be(stream,8);be(aurora::gfx::readback::next_sequence(stream),8);be(N,4);be(GX_READ_FF,1);
+    be(stream,8);be(sequence,8);be(N,4);be(GX_READ_FF,1);
     for(const auto& q:req){be(q.key,8);be(q.kind,1);be(q.x,2);be(q.y,2);}
     aurora::ByteReader reader(bytes.data(),bytes.size());aurora::gx::readback::handle_capture_peeks(reader);
     WiidsXD_PeekDisplay(stream);

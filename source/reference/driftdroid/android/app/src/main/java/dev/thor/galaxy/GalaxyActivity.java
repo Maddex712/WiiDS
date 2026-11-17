@@ -3,7 +3,7 @@ package dev.thor.galaxy;
 import com.driftdroid.android.dualscreen.WiiDsDisplays;
 
 import android.app.NativeActivity;
-import android.app.Presentation;
+import com.driftdroid.android.dualscreen.WiiDsPresentation;
 import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
@@ -22,7 +22,7 @@ public class GalaxyActivity extends NativeActivity implements DisplayManager.Dis
     @Override protected void attachBaseContext(Context base) { super.attachBaseContext(new GalaxyStorage(base, kaizoProfile())); }
     private static GalaxyActivity instance;
     private DisplayManager displays;
-    private Presentation lower;
+    private WiiDsPresentation lower;
     private boolean resumed;
     private boolean leaving;
     private final GalaxyTouchHint touchHint = new GalaxyTouchHint();
@@ -140,7 +140,7 @@ public class GalaxyActivity extends NativeActivity implements DisplayManager.Dis
         if (target == null) { closeLower(); return; }
         if (lower != null && lower.isShowing() && lower.getDisplay().getDisplayId() == target.getDisplayId()) return;
         closeLower();
-        lower = new Presentation(this, target);
+        lower = new WiiDsPresentation(this, target);
         // The observatory field guide: the galaxy's star chart / the Observatory's ledger, from the
         // game's own state; the owner's art is staged privately in files/ThorHud.
         java.io.File art = new java.io.File(getExternalFilesDir(null), "GalaxyData/ThorHud");
@@ -209,9 +209,7 @@ public class GalaxyActivity extends NativeActivity implements DisplayManager.Dis
         GalaxyActivity current = instance;
         if (current == null) return;
         current.runOnUiThread(() -> {
-            WindowManager.LayoutParams params = current.getWindow().getAttributes();
-            params.preferredRefreshRate = 60f;
-            current.getWindow().setAttributes(params);
+            com.driftdroid.android.dualscreen.WiiDsDisplayPolicy.requestRefreshRate(current.getWindow(), 60f);
         });
     }
 

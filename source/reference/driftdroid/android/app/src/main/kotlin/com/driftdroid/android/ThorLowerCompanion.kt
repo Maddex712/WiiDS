@@ -1,7 +1,7 @@
 package com.driftdroid.android
 
 import android.app.Activity
-import android.app.Presentation
+import com.driftdroid.android.dualscreen.WiiDsPresentation as Presentation
 import android.hardware.display.DisplayManager
 import android.os.Bundle
 import android.os.Handler

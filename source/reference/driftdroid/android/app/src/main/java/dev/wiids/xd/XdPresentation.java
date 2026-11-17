@@ -1,12 +1,12 @@
 package dev.wiids.xd;
 
-import android.app.Presentation;
+import com.driftdroid.android.dualscreen.WiiDsPresentation;
 import android.content.Context;
 import android.os.*;
 import android.view.*;
 
 /** Runtime host supplies the existing WiiDS-selected built-in companion display. */
-public final class XdPresentation extends Presentation {
+public final class XdPresentation extends WiiDsPresentation {
     private final Handler handler=new Handler(Looper.getMainLooper());
     private XdCompanionView view;
     private boolean started;
