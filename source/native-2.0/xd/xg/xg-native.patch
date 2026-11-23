@@ -1,0 +1,202 @@
+--- a/games/xd/src/data/main_program_map.cpp
++++ b/games/xd/src/data/main_program_map.cpp
+@@ -35,6 +35,24 @@
+ constexpr size_t kMapCount = sizeof(kMap) / sizeof(kMap[0]);
+ 
+ std::vector<const XDMainProgramAddress*> sSorted;
++
++uintptr_t dol_host_address(uint32_t address) {
++#if defined(__ANDROID__)
++  // The Android DOL loader writes into the relocated MEM1 region.
++  return XdMem1ToHost(address);
++#else
++  return address;
++#endif
++}
++
++uintptr_t dol_guest_address(const void* pointer) {
++  const auto address = reinterpret_cast<uintptr_t>(pointer);
++#if defined(__ANDROID__)
++  return XdMem1ToGuest(address);
++#else
++  return address;
++#endif
++}
+ 
+ struct ScriptBlock {
+   uint32_t gc;
+@@ -116,7 +134,7 @@
+   if (gcAddress < 0x80003100u || gcAddress >= imageEnd) {
+     fatal_address(gcAddress, "it's outside main.dol");
+   }
+-  return reinterpret_cast<void*>(static_cast<uintptr_t>(gcAddress));
++  return reinterpret_cast<void*>(dol_host_address(gcAddress));
+ }
+ 
+ extern "C" void* PortXD_GameAddressIfKnown(uint32_t gcAddress, uint32_t* size) {
+@@ -142,7 +160,7 @@
+     return nullptr;
+   }
+   *size = imageEnd - gcAddress;
+-  return reinterpret_cast<void*>(static_cast<uintptr_t>(gcAddress));
++  return reinterpret_cast<void*>(dol_host_address(gcAddress));
+ }
+ 
+ extern "C" uint32_t PortXD_GameAddressOf(const void* p) {
+@@ -161,7 +179,7 @@
+   }
+   uint32_t bssStart, bssEnd, imageEnd;
+   PortXD_DolImage(&bssStart, &bssEnd, &imageEnd);
+-  const auto u = reinterpret_cast<uintptr_t>(p);
++  const auto u = dol_guest_address(p);
+   if (u >= 0x80003100u && u < imageEnd) {
+     return static_cast<uint32_t>(u);
+   }
+--- a/wiids_companion/xd_effectiveness.cpp
++++ b/wiids_companion/xd_effectiveness.cpp
+@@ -1,4 +1,5 @@
+ #include "xd_companion.h"
++#include "xd_xg.h"
+ #include <stdint.h>
+ extern "C" {
+ uint16_t fightOutPokemonGetZokuseiDataId(void*,uint8_t);
+@@ -29,14 +30,32 @@
+     return base;
+ }
+ extern "C" uint16_t WiidsXD_ResolveBattleMoveType(void* actor,void* pokemon,uint16_t id,uint16_t base){
+-    if(actor&&xd::challenges::Active("gen4_rules")&&fightOutPokemonGetTokuseiDataId(actor)==96)return 0;
++    if(actor&&!xd::xg::On()&&xd::challenges::Active("gen4_rules")&&fightOutPokemonGetTokuseiDataId(actor)==96)return 0;
+     return WiidsXD_ResolveMoveType(pokemon,id,base);
+ }
+ // Read-only native type chart. Never run fightSeqTypeCheck: even apply=0 writes
+ // ServerWork, move flags and battle globals. Mirror its read-only conditions.
+ extern "C" void WiidsXD_ReadBattleEffectiveness(void* actor,void* target,XdSnapshot* frame) {
++    const bool xg = xd::xg::On();
++    if (xg) {
++        // Retail type abbreviations do not identify the right icon and color.
++        static const char* const names[] = {
++            "NORMAL", "FIGHTING", "FLYING", "POISON", "GROUND", "ROCK", "BUG", "GHOST", "STEEL",
++            "FAIRY", "FIRE", "WATER", "GRASS", "ELECTRIC", "PSYCHIC", "ICE", "DRAGON", "DARK"
++        };
++        for (int i = 0; i < 4; ++i) {
++            const auto& move = frame->moves[i];
++            if (!move.id || move.type < 0 || move.type >= 18 || wazaCheckDarkWaza((uint16_t)move.id)) continue;
++            const char* name = names[move.type];
++            auto& label = frame->move_type_names[i];
++            for (auto& letter : label) letter = 0;
++            for (int j = 0; name[j]; ++j) label[j] = (uint16_t)name[j];
++        }
++    }
+     if(!target){for(auto& move:frame->moves)if(move.id&&move.id!=0x176&&!wazaDB_GetIryoku((uint16_t)move.id))move.effectiveness_info=2;return;}
+-    const bool modified=xd::challenges::Active("gen4_rules");
++    const bool modified = !xg && xd::challenges::Active("gen4_rules");
++    // XG uses the original typeless slot for Fairy. Its disc supplies the chart.
++    const auto hasType = [xg](uint16_t type) { return xg || type != 9; };
+     const uint16_t targetAbility=fightOutPokemonGetTokuseiDataId(target);
+     const uint16_t actorAbility=actor?fightOutPokemonGetTokuseiDataId(actor):0;
+     const bool mold=modified&&actor&&actor!=target&&actorAbility==104;
+@@ -84,7 +103,7 @@
+                     (burn&&(types[0]==0xa||types[1]==0xa)))move.effectiveness_info=5;
+             if(sleep||poison||paralysis||burn||confusion){
+                 const bool foresight=fightOutPokemonIsJoutaiDataId(target,0x19)&&(types[0]==7||types[1]==7)&&move.type<=1;
+-                if(paralysis&&!foresight)for(auto type:types)if(type!=9&&match((uint16_t)move.type,type)==0x43)move.effectiveness_info=5;
++                if(paralysis&&!foresight)for(auto type:types)if(hasType(type)&&match((uint16_t)move.type,type)==0x43)move.effectiveness_info=5;
+                 if(fightOutPokemonIsJoutaiDataId(target,0x14)||
+                    fightSideIsJoutaiDataId(fightTargetGetPtrAsNowFightType(2,target),0x4b))move.effectiveness_info=6;
+                 if(sleep&&ability!=0x2b){void* active[8]={};
+@@ -104,7 +123,7 @@
+         if(dark){num=pokemonIsDarkPokemon(fightOutPokemonGetPokemonPtr(target))?1:2;den=num==1?2:1;}
+         else if(targetAbility==0x1a&&move.type==4&&!skip){num=0;}
+         else if(!skip&&!foresight)for(int i=0;i<2;i++) {
+-            if(types[i]==9||(i==1&&types[0]==types[1]))continue;
++            if(!hasType(types[i])||(i==1&&types[0]==types[1]))continue;
+             switch(match((uint16_t)move.type,types[i])) {
+                 case 0x3f:break;
+                 case 0x41:num*=2;break;
+--- a/third_party/aurora/lib/gfx/xd_lower_presenter.inc
++++ b/third_party/aurora/lib/gfx/xd_lower_presenter.inc
+@@ -14,6 +14,7 @@
+ #include "xd_lower_draw.inc"
+ namespace aurora::imgui { DrawData freeze_list(const ImDrawList&,float,float) noexcept; }
+ extern "C" bool PortMenu_Active(void);
++extern "C" int PortXD_IsXG(void);
+ namespace {
+ std::mutex xdSurfaceMutex;
+ ANativeWindow* xdRequestedWindow=nullptr;
+@@ -82,7 +83,7 @@
+     // No ImGui windows/widgets, input, focus, or navigation. Only immutable mesh.
+     ImDrawList list(ImGui::GetDrawListSharedData());list._ResetForNewFrame();
+     list.PushTextureID(ImGui::GetIO().Fonts->TexID);list.PushClipRect({0,0},{(float)width,(float)height});
+-    xdLowerPaint(list,s,width,height,top,topAspect,skyW,skyH);
++    xdLowerPaint(list,s,width,height,top,topAspect,skyW,skyH,PortXD_IsXG()!=0);
+     xdLowerFade(list,width,height,light);
+     list.PopClipRect();list.PopTextureID();
+     WiidsXD_TouchRegions(xdHits,xdHitCount);
+@@ -94,7 +95,7 @@
+     s.page=s.kind==XD_SCREEN_SUMMARY?10:s.page;s.kind=XD_SCREEN_DETAIL;
+     ImDrawList list(ImGui::GetDrawListSharedData());list._ResetForNewFrame();
+     list.PushTextureID(ImGui::GetIO().Fonts->TexID);list.PushClipRect({0,0},{(float)width,(float)height});
+-    xdLowerPaint(list,s,width,height);list.PopClipRect();list.PopTextureID();
++    xdLowerPaint(list,s,width,height,0,16.f/9.f,0,0,PortXD_IsXG()!=0);list.PopClipRect();list.PopTextureID();
+     return aurora::imgui::freeze_list(list,(float)width,(float)height);
+ }
+ void xdQueueLower(aurora::gfx::detail::FramePacket& frame,const aurora::webgpu::TextureWithSampler& modelSource){
+--- a/third_party/aurora/lib/gfx/xd_lower_draw.inc
++++ b/third_party/aurora/lib/gfx/xd_lower_draw.inc
+@@ -57,7 +57,7 @@
+ static thread_local ImTextureID xdSummaryImage=0;
+ static thread_local XdTouchRegion xdHits[160];static thread_local int xdHitCount=0;
+ 
+-static void xdLowerPaint(ImDrawList& list,const XdPresentationState& s,int width,int height,ImTextureID topFrame=0,float topAspect=16.f/9.f,float skyW=0,float skyH=0){
++static void xdLowerPaint(ImDrawList& list,const XdPresentationState& s,int width,int height,ImTextureID topFrame=0,float topAspect=16.f/9.f,float skyW=0,float skyH=0,bool xg=false){
+     typedef uint32_t C; // 0xAARRGGBB, as in XdSkin
+     const float PI=3.14159265f;
+     const float u=width/320.f,H=height/u;
+@@ -365,22 +365,27 @@
+             t=="ICE"?0xFF9CD5DE:t=="FIGHTING"?0xFFBD3131:t=="POISON"?0xFFA4419C:t=="GROUND"?0xFFE6BD6A:t=="FLYING"?0xFFAC94EE:
+             t=="PSYCHIC"?0xFFEE628B:t=="BUG"?0xFFA4AC4A:t=="ROCK"?0xFFA4944A:t=="GHOST"?0xFF735A94:t=="DRAGON"?0xFF7B52EE:
+             t=="DARK"?0xFF735A4A:t=="STEEL"?0xFFBDBDCD:t=="FAIRY"?0xFFEE99AC:t=="SHADOW"?0xFF5A2E78:0xFF6AC594;};
+-    auto typeTag=[](const std::string& t)->std::string{
++    auto typeTag=[xg](const std::string& t)->std::string{
++        if (xg && !t.empty()) return t;
+         return t=="PSYCHIC"?"PSYCHC":t=="ELECTRIC"?"ELECTR":t=="FIGHTING"?"FIGHT":t.empty()?"???":t;};
+ 
+     // Night Colosseum backdrop (XdSkin.arena at rest): Cipher-violet sky, two spotlight cones, a teal
+     // perspective floor grid, two elliptical ring marks, a horizon glow and a vignette.
+     auto arena=[&](){
+         const float w=320,h=H,hz=h*0.36f,cx=160;const S all=mk(0,0,w,h,0);
+-        const St sky[4]={{0,0xFF07060D},{0.36f,0xFF1E1233},{0.62f,0xFF130C22},{1,0xFF06050A}};slices(all,0,h,sky,4,0,h);
++        const St sky[4]={{0,0xFF07060D},{0.36f,0xFF1E1233},{0.62f,0xFF130C22},{1,0xFF06050A}};
++        const St xgSky[4]={{0,0xFF0C0611},{0.36f,0xFF32152F},{0.62f,0xFF241022},{1,0xFF0A050D}};
++        slices(all,0,h,xg ? xgSky : sky,4,0,h);
++        const C grid=xg ? 0xFFD880A2 : TEAL;
++        const C ring=xg ? 0xFFE4517F : 0xFF9A5CFF;
+         for(int i=0;i<2;i++){
+             const float sx=i==0?w*0.18f:w*0.82f,sway=std::sin(i*2.1f)*w*0.06f,bx=cx+sway+(i==0?w*0.02f:-w*0.02f);
+             quad(P(sx-6,0),P(sx+6,0),P(bx+w*0.12f,h),P(bx-w*0.12f,h),0x26E8E0FF,0x26E8E0FF,0x00E8E0FF,0x00E8E0FF);}
+-        for(int i=-12;i<=12;i++)list.AddLine(P(cx+i*3,hz),P(cx+i*w*0.16f,h),im(alpha(TEAL,0.34f-std::abs(i)*0.016f)),0.45f*u);
+-        for(float y=hz,step=1.6f;y<h;step*=1.22f,y+=step)list.AddLine(P(0,y),P(w,y),im(alpha(TEAL,std::min(0.32f,0.08f+(y-hz)/h*0.45f))),0.45f*u);
++        for(int i=-12;i<=12;i++)list.AddLine(P(cx+i*3,hz),P(cx+i*w*0.16f,h),im(alpha(grid,0.34f-std::abs(i)*0.016f)),0.45f*u);
++        for(float y=hz,step=1.6f;y<h;step*=1.22f,y+=step)list.AddLine(P(0,y),P(w,y),im(alpha(grid,std::min(0.32f,0.08f+(y-hz)/h*0.45f))),0.45f*u);
+         const float ry0=h-h*0.3f,ry1=h+h*0.06f,ecx=cx,ecy=(ry0+ry1)/2;
+-        list.AddEllipse(P(ecx,ecy),ImVec2(w*0.42f*u,(ry1-ry0)/2*u),im(0x809A5CFF),0,96,0.9f*u);
+-        list.AddEllipse(P(ecx,ecy),ImVec2(w*0.32f*u,((ry1-ry0)/2-h*0.05f)*u),im(0x559A5CFF),0,96,0.9f*u);
++        list.AddEllipse(P(ecx,ecy),ImVec2(w*0.42f*u,(ry1-ry0)/2*u),im(alpha(ring,0.5f)),0,96,0.9f*u);
++        list.AddEllipse(P(ecx,ecy),ImVec2(w*0.32f*u,((ry1-ry0)/2-h*0.05f)*u),im(alpha(ring,0.333f)),0,96,0.9f*u);
+         const St glow[3]={{0,0x006A3A86},{0.5f,0x2A6A3A86},{1,0x006A3A86}};slices(all,hz-10,hz+10,glow,3,hz-10,hz+10);
+         radial(all,cx,h*0.5f,std::max(w,h)*0.75f,0x00000000,0x80000000,12,10);};
+ 
+@@ -607,11 +612,11 @@
+             if(m.effectiveness_info==5)effect="No effect";
+             else if(m.effectiveness_info==1&&m.effectiveness_num>=0&&m.effectiveness_den>0){
+                 const long a=m.effectiveness_num,b=m.effectiveness_den;
+-                effect=a==0?"No effect":a<b?"Not very effective":a>b?"Super effective":"Effective";}
++                effect=a==0?"No effect":a<b?(xg ? "Resisted" : "Not very effective"):a>b?"Super effective":"Effective";}
+             if(effect){
+                 const std::string e=effect;const float mw=std::min(tw(font,e,8,0)+8,in.w-ppw-14);
+                 const S tg=mk(in.x+4,by-11.5f,mw,11,2);fillS(tg,0xB3000000);
+-                const C tone=e=="Super effective"?0xFFFFE04A:e=="Not very effective"?0xFFB8C8E8:e=="Effective"?WHITE:0xFFFFB0A8;
++                const C tone=e=="Super effective"?0xFFFFE04A:(e=="Not very effective"||e=="Resisted")?0xFFB8C8E8:e=="Effective"?WHITE:0xFFFFB0A8;
+                 draw(font,fit(font,e,8,mw-6,0),tg.x+4,tg.y+5.5f+2.9f,8,tone,0,0,0,LEFT);}
+             if(grey)veil(r);
+             if(sel)cursor(r);

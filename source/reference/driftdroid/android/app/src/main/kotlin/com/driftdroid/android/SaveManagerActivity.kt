@@ -23,7 +23,6 @@ import com.driftdroid.android.saves.KartPlayerData
 import java.io.File
 import java.io.FileInputStream
 import java.io.FileOutputStream
-import java.io.RandomAccessFile
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -31,6 +30,7 @@ import java.util.UUID
 
 /** Library-only save tools. Native games never share a process with a restore. */
 class SaveManagerActivity : Activity() {
+    private val wiiTheme by lazy { ThorMenuTheme.wii(this) }
     private var playerMode = false
     private var ratingDriver: KartPlayerData.Driver? = null
     private var selected = FrontendGame.NSMB
@@ -62,10 +62,12 @@ class SaveManagerActivity : Activity() {
         chrome = runCatching { org.json.JSONObject(File(artFolder, "menu.json").readText()).getJSONObject("images") }.getOrNull()
         val layout = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL; setPadding(dp(26), dp(16), dp(26), dp(16)); setBackgroundColor(Color.rgb(22, 27, 34))
-            image("background")?.let { background = BitmapDrawable(resources, it) }
+            if (wiiTheme) background = ThorMenuTheme.drawable("background")
+            else image("background")?.let { background = BitmapDrawable(resources, it) }
         }
-        layout.addView(label(if (playerMode) "Player profiles" else "Save manager", 25f))
-        layout.addView(label(if (playerMode) "Import a kart save, change your driver name, or choose a Mii. Close games first." else "Close games before managing saves. Originals and mods have separate backups.", 13f))
+        val title = if (playerMode) "Player profiles" else "Save manager"
+        layout.addView(label(if (wiiTheme) "WiiDS  /  $title" else title, 25f))
+        layout.addView(label(if (playerMode) "Import a kart save, change your driver name, or choose a Mii. Close games first." else "Close games before managing saves. Saves redirected into custom Riivolution packs stay with the pack. Restore removed packs from the mods menu.", 13f))
         status = label("", 15f).apply { setPadding(0, dp(12), 0, dp(12)); minLines = 3; maxLines = 4 }
         layout.addView(status)
         val scroll = ScrollView(this)
@@ -77,6 +79,19 @@ class SaveManagerActivity : Activity() {
         if (playerMode) {
             button("Rename driver...") { chooseDriver { driver -> renameDriver(driver) } }
             button("Choose driver Mii...") { chooseDriver { driver -> chooseDriverMii(driver) } }
+            button("Restore Mii from driver save...") {
+                chooseDriver { driver ->
+                    ThorDialogs.builder(this).setTitle("Restore the Mii for ${driver.name}?")
+                        .setMessage("Copy the Mii stored in this license into WiiDS. If WiiDS already has the same Mii ID, its appearance will be restored from this save. Your other Miis, licenses and progress are kept.")
+                        .setPositiveButton("Back up and restore") { _, _ ->
+                            operation("Restoring ${driver.name}'s Mii...") {
+                                KartPlayerData.restoreSavedMii(SaveManagerProfiles.kartPlayers(this), driver,
+                                    SaveManagerProfiles.work(this), dated(selected, "before-mii-recovery", true))
+                                "Mii restored. Open the game from the library to check the driver."
+                            }
+                        }.setNegativeButton("Cancel", null).show()
+                }
+            }
             button("Import Retro Rewind ratings...") {
                 if (selected != FrontendGame.RETRO_REWIND) status.text = "Choose Retro Rewind first."
                 else chooseDriver { driver ->
@@ -123,9 +138,10 @@ class SaveManagerActivity : Activity() {
     }
     private fun pick(request: Intent, code: Int) { awaitingPicker = true; startActivityForResult(request, code) }
     private fun dp(value: Int) = (value * resources.displayMetrics.density).toInt()
-    private fun styled(text: String): CharSequence = art?.styledText(text.replace("…", "...")) ?: text
+    private fun styled(text: String): CharSequence =
+        if (wiiTheme) text else art?.styledText(text.replace("…", "...")) ?: text
     private fun label(text: String, size: Float) = TextView(this).apply {
-        this.text = styled(text); textSize = size; setTextColor(Color.WHITE); includeFontPadding = true
+        this.text = styled(text); textSize = size; setTextColor(if (wiiTheme) ThorMenuTheme.TEXT else Color.WHITE); includeFontPadding = true
     }
     private fun image(role: String): Bitmap? = runCatching { art?.bitmap(chrome!!.getJSONObject(role).getString("texture")) }.getOrNull()
     private fun buttonArt(bitmap: Bitmap): Drawable = object : Drawable() {
@@ -147,7 +163,9 @@ class SaveManagerActivity : Activity() {
                 if (event.actionMasked == MotionEvent.ACTION_DOWN) view.requestFocus()
                 false
             }
-            val normal = image("button"); val focus = image("button_selected")
+            if (wiiTheme) ThorMenuTheme.styleToolButton(this)
+            val normal = if (wiiTheme) null else image("button")
+            val focus = if (wiiTheme) null else image("button_selected")
             if (normal != null && focus != null) {
                 backgroundTintList = null
                 background = StateListDrawable().apply {
@@ -179,13 +197,15 @@ class SaveManagerActivity : Activity() {
     }
     private fun importPlayerSave() {
         val game = selected
-        if (game == FrontendGame.BRAWL || game == FrontendGame.PROJECT_PLUS || game == FrontendGame.MKDD || game == FrontendGame.MKDD_PLUS || game == FrontendGame.POKEMON_XD) {
+        if (game == FrontendGame.BRAWL || game == FrontendGame.PROJECT_PLUS || game == FrontendGame.MKDD ||
+            game == FrontendGame.MKDD_PLUS || game == FrontendGame.POKEMON_XD || game == FrontendGame.POKEMON_XG ||
+            game == FrontendGame.POKEMON_COLOSSEUM || game == FrontendGame.CITY_FOLK) {
             status.text = "This game supports WiiDS backup and restore. Dolphin save-file import is not supported yet."; return
         }
         ThorDialogs.builder(this).setTitle("Import for ${game.label}")
             .setMessage(DolphinSaveImport.instructions(game.id) + "\n\nCopy the file to Downloads, then choose it here. This replaces all licenses in this game's save and backs up the current save first.\n\n" +
                 if (game == FrontendGame.MARIO_KART || game == FrontendGame.RETRO_REWIND)
-                    "Your saved online account IDs and progress are retained. Miis and console identity are separate. Import your Mii in Options > Mii Data, then use Choose driver Mii if needed. Retro Rewind ratings can be imported separately from RRRating.pul. Online login is still subject to the server's identity checks."
+                    "Your saved online account IDs and progress are retained. To recover the Mii after import, choose Restore Mii from driver save in Player profiles. If the game save does not contain a copy, import the Mii in Options > Mii Data and use Choose driver Mii. Retro Rewind ratings can be imported separately from RRRating.pul. Online login is still subject to the server's identity checks."
                 else "Dolphin save states and full NAND/card backups are not supported.")
             .setPositiveButton("Choose save") { _, _ ->
                 importGame = game
@@ -417,13 +437,9 @@ class SaveManagerActivity : Activity() {
         buttons.forEach { it.isEnabled = false }
         Thread {
             val result = runCatching {
-                GameStorage.blocker(this)?.let { error(it) }
-                SaveManagerProfiles.requireStopped(this)
-                val work = SaveManagerProfiles.work(this); SaveArchive.mkdir(work)
-                if (!recovery && SaveArchive.pending(work)) error("Recover the interrupted restore by reopening Save manager first.")
-                RandomAccessFile(File(work, ".lock"), "rw").use { lockFile ->
-                    val lock = lockFile.channel.tryLock() ?: error("Another save operation is running.")
-                    lock.use { SaveManagerProfiles.cleanup(this); action() }
+                SaveManagerProfiles.withSaveLock(this, recovery) {
+                    SaveManagerProfiles.cleanup(this)
+                    action()
                 }
             }
             try { complete?.invoke() } finally { SaveManagerProfiles.busy.set(false) }

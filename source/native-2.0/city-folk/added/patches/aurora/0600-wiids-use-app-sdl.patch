@@ -1,0 +1,12 @@
+diff --git a/cmake/AuroraSDL3Provider.cmake b/cmake/AuroraSDL3Provider.cmake
+--- a/cmake/AuroraSDL3Provider.cmake
++++ b/cmake/AuroraSDL3Provider.cmake
+@@ -161,7 +161,7 @@
+     "(must be auto, vendor, system, or package)")
+ endif ()
+ 
+-if (ANDROID)
++if (ANDROID AND NOT WIIDS_CF_SDL_ROOT)
+   if (NOT _aurora_sdl3_provider STREQUAL "vendor")
+     message(FATAL_ERROR "aurora: Android builds require AURORA_SDL3_PROVIDER=vendor")
+   endif ()

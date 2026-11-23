@@ -85,7 +85,8 @@ object TexturePacks {
         FrontendGame.MARIO_KART, FrontendGame.RETRO_REWIND -> listOf(kartReloaded)
         FrontendGame.NSMB, FrontendGame.MSMBWII -> listOf(nsmbHud)
         FrontendGame.BRAWL -> listOf(brawlHd)
-        FrontendGame.PROJECT_PLUS, FrontendGame.POKEMON_XD -> emptyList()
+        FrontendGame.PROJECT_PLUS, FrontendGame.POKEMON_XD, FrontendGame.POKEMON_XG,
+        FrontendGame.POKEMON_COLOSSEUM, FrontendGame.CITY_FOLK -> emptyList()
         FrontendGame.GALAXY, FrontendGame.KAIZO -> listOf(galaxyHd)
         FrontendGame.MKDD, FrontendGame.MKDD_PLUS -> listOf(doubleDashUi)
 

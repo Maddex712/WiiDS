@@ -1,6 +1,8 @@
 package com.driftdroid.android
 
 import android.app.Activity
+import android.graphics.Canvas
+import android.graphics.RectF
 import com.driftdroid.android.dualscreen.WiiDsPresentation as Presentation
 import android.hardware.display.DisplayManager
 import android.os.Bundle
@@ -26,6 +28,11 @@ class ThorLowerCompanion @JvmOverloads constructor(private val activity: Activit
     private var librarySelection: ThorLibraryCompanionView.Selection? = null
     /** Touching an achievement preview or View all (game id, achievement id or null). */
     var onOpenAchievements: ((String, String?) -> Unit)? = null
+    /** The Wii Home Menu theme's channel buttons below: "start" or "menu". */
+    var onChannelButton: ((String) -> Unit)? = null
+    internal var drawChannelBanner: ((Canvas, RectF, Int, Long) -> Unit)? = null
+
+    internal fun invalidateChannelBanner() { presentation?.library?.invalidate() }
 
     /** Re-read achievement previews (back from a game or the browser); never contacts RA. */
     fun refreshAchievements() { presentation?.library?.refreshAchievements() }
@@ -107,6 +114,7 @@ class ThorLowerCompanion @JvmOverloads constructor(private val activity: Activit
         private lateinit var content: FrameLayout
 
         fun showStatus(title: String, message: String) {
+            library?.stopChannelPreview()
             library?.visibility = View.GONE
             status.visibility = View.VISIBLE
             status.setStatus(title, message)
@@ -129,12 +137,17 @@ class ThorLowerCompanion @JvmOverloads constructor(private val activity: Activit
             val view = library ?: ThorLibraryCompanionView(context, folder).also {
                 library = it
                 it.onOpenAchievements = { game, item -> onOpenAchievements?.invoke(game, item) }
+                it.onChannelButton = { name -> onChannelButton?.invoke(name) }
+                it.drawChannelBanner = drawChannelBanner
+                val player = WiiChannelPreviewPlayer(context, it::invalidate)
+                it.channelPlayer = player
+                content.addView(player, FrameLayout.LayoutParams(0, 0))
                 content.addView(it, FrameLayout.LayoutParams(-1, -1))
             }
             status.visibility = View.GONE
             view.visibility = View.VISIBLE
             view.setSelection(selection)
-            touchable(onOpenAchievements != null)
+            touchable(onOpenAchievements != null || onChannelButton != null)
         }
 
         override fun onCreate(savedInstanceState: Bundle?) {

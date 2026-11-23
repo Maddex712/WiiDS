@@ -17,8 +17,10 @@ internal object ThorBundledPresentation {
     private const val MAX_MANIFEST = 1024 * 1024
     private const val MAX_FILE = 64L * 1024 * 1024
     private const val MAX_TOTAL = 768L * 1024 * 1024
-    private val groups = setOf("launcher", "launcher-audio", "thor-map", "nsmbw-hud", "msmbwii-hud", "sms-hud", "eclipse-hud")
+    private val stagedGroups = setOf("launcher", "launcher-audio", "wii-channels")
+    private val groups = stagedGroups + setOf("thor-map", "nsmbw-hud", "msmbwii-hud", "sms-hud", "eclipse-hud")
     private val extensions = setOf("png", "jpg", "jpeg", "wav", "json", "tsv", "rgba")
+    private val channelExtensions = setOf("png", "webp", "mp4")
     // Release labels use dotted versions (for example thor-2026-10-22-v1.0).
     // This remains one bounded path component; safe() rejects traversal segments.
     private val revisionPattern = Regex("[A-Za-z0-9][A-Za-z0-9_.-]{0,63}")
@@ -83,8 +85,10 @@ internal object ThorBundledPresentation {
             if (asset != "presentation/files/$target") throw IOException("Presentation asset and target do not match.")
             val group = target.substringBefore('/')
             val relative = target.substringAfter('/', "")
+            val allowedExtensions = if (group == "wii-channels") channelExtensions else extensions
             if (group !in groups || relative.isEmpty() || !sha.matches(hashPattern) || length !in 1..MAX_FILE ||
-                relative.substringAfterLast('.', "").lowercase() !in extensions || !targets.add(target) || !assets.add(asset))
+                relative.substringAfterLast('.', "").lowercase() !in allowedExtensions ||
+                !targets.add(target) || !assets.add(asset))
                 throw IOException("Invalid bundled presentation entry.")
             total += length
             if (total > MAX_TOTAL) throw IOException("Bundled presentation exceeds the size limit.")
@@ -96,8 +100,9 @@ internal object ThorBundledPresentation {
         val name = "$revision-${hash.take(12)}"
         val folder = safe(base, name)
         val complete = safe(folder, ".complete")
+        val (launcherEntries, compatibilityEntries) = entries.partition { it.group in stagedGroups }
         val ready = complete.isFile && complete.length() == 64L && complete.readText() == hash &&
-            entries.filter { it.group == "launcher" || it.group == "launcher-audio" }.all {
+            launcherEntries.all {
                 safe(folder, "ThorMap/${it.group}/${it.relative}").let { file -> file.isFile && file.length() == it.bytes }
             }
         val staged = safe(base, "$name-installing")
@@ -107,19 +112,8 @@ internal object ThorBundledPresentation {
         }
         var done = 0
         try {
-            for (entry in entries) {
-                if (entry.group == "launcher" || entry.group == "launcher-audio") {
-                    if (!ready) copy(context, entry, safe(staged, "ThorMap/${entry.group}/${entry.relative}"), missingOnly = false)
-                } else {
-                    val destination = when (entry.group) {
-                        "thor-map" -> safe(File(context.filesDir.canonicalFile, "WiiCompiled/ThorMap"), entry.relative)
-                        else -> {
-                            val external = context.getExternalFilesDir(null) ?: throw IOException("Presentation storage is unavailable.")
-                            safe(File(external.canonicalFile, "${entry.group.removeSuffix("-hud")}/ThorHud"), entry.relative)
-                        }
-                    }
-                    copy(context, entry, destination, missingOnly = true)
-                }
+            for (entry in launcherEntries) {
+                if (!ready) copy(context, entry, safe(staged, "ThorMap/${entry.group}/${entry.relative}"), missingOnly = false)
                 progress(++done, entries.size)
             }
             if (!ready) {
@@ -131,6 +125,20 @@ internal object ThorBundledPresentation {
             write(safe(base, "active.json"), JSONObject().put("folder", name).put("manifest_sha256", hash).toString().toByteArray())
         } finally {
             if (!ready && staged.exists()) staged.deleteRecursively()
+        }
+
+        // Older installs may have a conflicting path in their disc-derived cache.
+        // Stage the launcher first so that cache cannot hold back the new channels.
+        for (entry in compatibilityEntries) {
+            val destination = when (entry.group) {
+                "thor-map" -> safe(File(context.filesDir.canonicalFile, "WiiCompiled/ThorMap"), entry.relative)
+                else -> {
+                    val external = context.getExternalFilesDir(null) ?: throw IOException("Presentation storage is unavailable.")
+                    safe(File(external.canonicalFile, "${entry.group.removeSuffix("-hud")}/ThorHud"), entry.relative)
+                }
+            }
+            copy(context, entry, destination, missingOnly = true)
+            progress(++done, entries.size)
         }
     }
 

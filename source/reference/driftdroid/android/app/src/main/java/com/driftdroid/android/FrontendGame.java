@@ -14,7 +14,10 @@ public enum FrontendGame {
     MKDD("mkdd", "Mario Kart: Double Dash!!", "mkdd"),
     MKDD_PLUS("mkdd-plus", "Mario Kart: Double Dash!! Plus", "mkdd-plus"),
     PROJECT_PLUS("project-plus", "Project+", "project-plus"),
-    POKEMON_XD("pokemon-xd", "Pokemon XD: Gale of Darkness", "pokemon-xd");
+    POKEMON_XD("pokemon-xd", "Pokemon XD: Gale of Darkness", "pokemon-xd"),
+    POKEMON_XG("pokemon-xg", "Pokémon XG: NeXt Gen", "pokemon-xg"),
+    POKEMON_COLOSSEUM("pokemon-colosseum", "Pokémon Colosseum", "pokemon-colosseum"),
+    CITY_FOLK("city-folk", "Animal Crossing: Let’s Go to the City", "city-folk");
 
     public final String id;
     public final String label;

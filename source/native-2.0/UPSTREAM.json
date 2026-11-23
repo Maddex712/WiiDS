@@ -1,0 +1,121 @@
+{
+  "colosseum": {
+    "upstream": "https://github.com/dougchansan/pkmn-colosseum-recomp",
+    "commit": "ac0bc2de32dd6a65fc571506e467f675bb8045c2",
+    "added": [
+      "tools/aurora-mirror/colo_perf.h",
+      "tools/aurora-mirror/companion_state.cpp",
+      "tools/aurora-mirror/companion_state.h",
+      "tools/aurora-mirror/hud_trace.h"
+    ]
+  },
+  "colosseum-gxruntime": {
+    "upstream": "https://github.com/dougchansan/RecompCore-ModernGekko",
+    "commit": "f2376b74bdbe77a8f9c451fe50a1e28de13e1a6d",
+    "added": [
+      "GXRuntime/include/gxruntime/wiids_gxdiag.h"
+    ]
+  },
+  "city-folk": {
+    "upstream": "https://github.com/rob646464/city-folk-recompiled",
+    "commit": "1597da4d2d000a9c0fd3b633864626cc9c92657e",
+    "added": [
+      "patches/aurora/0600-wiids-use-app-sdl.patch",
+      "patches/aurora/zz-wiids-luma-probe.patch",
+      "src/recomp/wiids_android.cpp",
+      "src/recomp/wiids_android.h",
+      "src/recomp/wiids_pipelines.inc"
+    ]
+  },
+  "city-folk-aurora": {
+    "upstream": "https://github.com/encounter/aurora",
+    "commit": "50e5be30ec12cc72768bc564bc016b55e82be868",
+    "added": [
+      "include/aurora/efb_ram.h",
+      "include/aurora/enhanced.h",
+      "include/aurora/lights.h",
+      "include/aurora/mem_stats.h",
+      "include/aurora/pipeline_cache.h",
+      "include/aurora/postfx.h",
+      "include/aurora/present_timing.h",
+      "include/aurora/thread_hooks.h",
+      "include/aurora/world_fx.h",
+      "lib/activity.hpp",
+      "lib/gfx/beam_profile.hpp",
+      "lib/gfx/efb_blend6.cpp",
+      "lib/gfx/efb_blend6.hpp",
+      "lib/gfx/efb_ram.cpp",
+      "lib/gfx/efb_ram.hpp",
+      "lib/gfx/enhanced.cpp",
+      "lib/gfx/enhanced.hpp",
+      "lib/gfx/world_fx.cpp",
+      "lib/gfx/world_fx.hpp",
+      "lib/webgpu/postfx.cpp",
+      "lib/webgpu/postfx.hpp"
+    ]
+  },
+  "xd": {
+    "upstream": "https://github.com/imyourhuckleberryponcho/Pokemon-XD-PC-Port",
+    "commit": "b08d884f1a090b4fbbe36a78dc46d949738488d0",
+    "added": [
+      "wiids_android/Platform.cmake",
+      "wiids_android/Runtime.cmake",
+      "wiids_android/TableFlags.cmake",
+      "wiids_android/allocator.cpp",
+      "wiids_android/base_hooks.cpp",
+      "wiids_android/context.S",
+      "wiids_android/context.cpp",
+      "wiids_android/crash.cpp",
+      "wiids_android/early_memory.cpp",
+      "wiids_android/early_plan.h",
+      "wiids_android/gsthread_port.h",
+      "wiids_android/host.cpp",
+      "wiids_android/input_bindings.inc",
+      "wiids_android/low_stack_map.h",
+      "wiids_android/sdl_jni_wrappers.cpp",
+      "wiids_android/stack_bridge.cpp",
+      "wiids_android/stack_bridge.h",
+      "wiids_android/xd_backtrace.h",
+      "wiids_android/xd_context.h",
+      "wiids_android/xd_mem1_address.h",
+      "wiids_android/xd_surface_state.h",
+      "wiids_companion/CMakeLists.txt",
+      "wiids_companion/pokemon_level.cpp",
+      "wiids_companion/xd_actor_scope.h",
+      "wiids_companion/xd_battle_hook.inc",
+      "wiids_companion/xd_chain.cpp",
+      "wiids_companion/xd_chain.h",
+      "wiids_companion/xd_companion.cpp",
+      "wiids_companion/xd_companion.h",
+      "wiids_companion/xd_effectiveness.cpp",
+      "wiids_companion/xd_field.h",
+      "wiids_companion/xd_field_hook.inc",
+      "wiids_companion/xd_field_menu_hook.inc",
+      "wiids_companion/xd_frame_pacer.cpp",
+      "wiids_companion/xd_gen4_read_hook.inc",
+      "wiids_companion/xd_host_probe.cpp",
+      "wiids_companion/xd_jni.cpp",
+      "wiids_companion/xd_menu_hook.inc",
+      "wiids_companion/xd_move_policy.h",
+      "wiids_companion/xd_name_hook.inc",
+      "wiids_companion/xd_objective.cpp",
+      "wiids_companion/xd_party_hook.inc",
+      "wiids_companion/xd_pocket_hook.inc",
+      "wiids_companion/xd_present_hook.inc",
+      "wiids_companion/xd_presentation.cpp",
+      "wiids_companion/xd_presentation.h",
+      "wiids_companion/xd_prompt.cpp",
+      "wiids_companion/xd_prompt.h",
+      "wiids_companion/xd_runtime_controls.cpp",
+      "wiids_companion/xd_screenshot_worker.cpp",
+      "wiids_companion/xd_secret_hook.inc",
+      "wiids_companion/xd_snag.cpp",
+      "wiids_companion/xd_spsc.h",
+      "wiids_companion/xd_status_hook.inc",
+      "wiids_companion/xd_sweep_map.h",
+      "wiids_companion/xd_text.cpp",
+      "wiids_companion/xd_text.h",
+      "wiids_companion/xd_world.cpp"
+    ]
+  }
+}

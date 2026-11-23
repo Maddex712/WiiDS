@@ -99,7 +99,8 @@ public final class RaLibrary {
         long now = System.currentTimeMillis();
         JSONArray plan;
         long catalogAt;
-        if (previous != null && now - previous.getLong("catalog_at") < WEEK && now >= previous.getLong("catalog_at")) {
+        if (previous != null && previous.optInt("catalog_revision") == RaSets.CATALOG_REVISION &&
+            now - previous.getLong("catalog_at") < WEEK && now >= previous.getLong("catalog_at")) {
             plan = previous.getJSONArray("sets");
             catalogAt = previous.getLong("catalog_at");
         } else {
@@ -120,7 +121,7 @@ public final class RaLibrary {
                 .put("title", entry.getString("title")).put("kind", entry.getInt("kind")).put("achievements", rows));
         }
         JSONObject library = new JSONObject().put("schema", 2).put("account", connection[0]).put("synced_at", now)
-            .put("catalog_at", catalogAt).put("sets", sets);
+            .put("catalog_at", catalogAt).put("catalog_revision", RaSets.CATALOG_REVISION).put("sets", sets);
         synchronized (RaCredentials.class) {
             // A request finishing after disconnect/account change must not restore removed history.
             String[] current = credentials.read();

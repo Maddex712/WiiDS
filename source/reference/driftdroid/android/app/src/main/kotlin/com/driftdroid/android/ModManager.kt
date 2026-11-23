@@ -18,7 +18,7 @@ import androidx.recyclerview.widget.ItemTouchHelper
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import java.io.File
-import java.util.zip.ZipInputStream
+import java.io.IOException
 
 /**
  * User-imported Riivolution-shaped mods (e.g. GameBanana downloads: a riivolution folder with an
@@ -74,7 +74,7 @@ object ModManager {
     /** Persists a new priority order - top of the list (index 0) wins, matching
      * [installedPacks]'s convention above. */
     fun setOrder(activity: Activity, orderedNames: List<String>) {
-        orderFile(activity).writeText(orderedNames.joinToString("\n"))
+        AtomicConfigFile.writeText(orderFile(activity), orderedNames.joinToString("\n"))
     }
 
     /** Called from MainActivity right before super.onCreate(), same timing rule as
@@ -88,84 +88,22 @@ object ModManager {
         if (enabled) marker.delete() else marker.createNewFile()
     }
 
-    fun delete(pack: Pack) {
-        pack.dir.deleteRecursively()
+    private fun remove(activity: Activity, pack: Pack) {
+        GameStorage.requireIdle(activity)
+        RiivolutionPackStore.remove(packsDir(activity).toPath(), pack.dir.toPath())
     }
 
-    // --- Import ---
-
-    /** Extracts a zip (Zip-Slip guarded, same pattern as RetroRewindInstallService) into a fresh
-     * subdirectory of [packsDir] named after the mod, on a background thread. [onDone] runs on
-     * the UI thread with an error message, or null on success. */
     fun importZip(activity: Activity, source: Uri, packName: String, onDone: (String?) -> Unit) {
-        val safeName = packName.trim().ifEmpty { "Mod" }.replace(Regex("[^A-Za-z0-9 _-]"), "_")
+        val safeName = packName.trim().replace(Regex("[^A-Za-z0-9 _-]"), "_").take(100).ifBlank { "Mod" }
+        val app = activity.applicationContext
+        val root = packsDir(activity).toPath()
         Thread {
-            val error = runCatching { extractZip(activity, source, safeName) }
-                .fold(onSuccess = { it }, onFailure = { it.message ?: "unknown error" })
-            activity.runOnUiThread { onDone(error) }
-        }.start()
-    }
-
-    private fun extractZip(activity: Activity, source: Uri, safeName: String): String? {
-        val root = packsDir(activity)
-        root.mkdirs()
-        var dest = File(root, safeName)
-        var suffix = 2
-        while (dest.exists()) {
-            dest = File(root, "$safeName ($suffix)")
-            suffix++
-        }
-        val scratch = File(activity.cacheDir, "mod_import_scratch")
-        scratch.deleteRecursively()
-        scratch.mkdirs()
-        val scratchCanonical = scratch.canonicalFile
-        try {
-            val stream = activity.contentResolver.openInputStream(source)
-                ?: return "couldn't open the selected file"
-            stream.use { input ->
-                ZipInputStream(input).use { zip ->
-                    var entry = zip.nextEntry
-                    var any = false
-                    while (entry != null) {
-                        val outFile = File(scratch, entry.name)
-                        if (!outFile.canonicalPath.startsWith(scratchCanonical.path + File.separator) &&
-                            outFile.canonicalPath != scratchCanonical.path
-                        ) {
-                            return "archive contains an unsafe file path"
-                        }
-                        if (entry.isDirectory) {
-                            outFile.mkdirs()
-                        } else {
-                            outFile.parentFile?.mkdirs()
-                            outFile.outputStream().use { output -> zip.copyTo(output) }
-                            any = true
-                        }
-                        zip.closeEntry()
-                        entry = zip.nextEntry
-                    }
-                    if (!any) return "archive was empty"
-                }
-            }
-        } catch (e: Exception) {
-            return e.message ?: "extraction failed"
-        }
-
-        // A GameBanana zip commonly wraps its actual riivolution/ folder one level deep (a single
-        // top-level folder named after the mod) - unwrap that one level so `dest` itself becomes
-        // the overlay root riivolution.cpp expects (its riivolution/*.xml at the top).
-        val resolved = resolveOverlayRoot(scratch)
-        if (!resolved.renameTo(dest)) {
-            resolved.copyRecursively(dest, overwrite = true)
-        }
-        scratch.deleteRecursively()
-        return null
-    }
-
-    private fun resolveOverlayRoot(extracted: File): File {
-        if (File(extracted, "riivolution").isDirectory) return extracted
-        val children = extracted.listFiles { f -> f.isDirectory } ?: return extracted
-        if (children.size == 1 && File(children[0], "riivolution").isDirectory) return children[0]
-        return extracted
+            val error = runCatching {
+                val input = app.contentResolver.openInputStream(source) ?: throw IOException("Couldn't open the selected file.")
+                input.use { RiivolutionPackStore.importZip(root, it, safeName) { GameStorage.requireIdle(app) } }
+            }.exceptionOrNull()?.let { it.message ?: "Import failed." }
+            activity.runOnUiThread { if (!activity.isFinishing && !activity.isDestroyed) onDone(error) }
+        }.apply { name = "WiiDsRiivolutionImport"; isDaemon = true }.start()
     }
 
     // --- UI ---
@@ -180,7 +118,7 @@ object ModManager {
     }
 
     /** Call from the activity's onActivityResult for [REQUEST_CODE_PICK_ZIP]. */
-    fun onZipPicked(activity: Activity, uri: Uri?) {
+    fun onZipPicked(activity: Activity, uri: Uri?, retroRewind: Boolean = false) {
         if (uri == null) return
         val nameInput = EditText(activity)
         nameInput.hint = "Mod name"
@@ -199,7 +137,7 @@ object ModManager {
                         ThorDialogs.builder(activity).setTitle("Import failed").setMessage(error)
                             .setPositiveButton("OK", null).show()
                     } else {
-                        showManagerDialog(activity)
+                        showManagerDialog(activity, retroRewind)
                     }
                 }
             }
@@ -217,7 +155,7 @@ object ModManager {
 
     /** Lists installed mods with enable/disable + delete, and an Import button. Restart-required
      * note matches the same limitation Retro Rewind's own install/update flow already has. */
-    fun showManagerDialog(activity: Activity) {
+    fun showManagerDialog(activity: Activity, retroRewind: Boolean = false) {
         currentDialog?.dismiss()
         val dp: (Int) -> Int = { (it * activity.resources.displayMetrics.density).toInt() }
         val container = LinearLayout(activity)
@@ -226,12 +164,27 @@ object ModManager {
         container.setPadding(pad, pad, pad, pad)
 
         val note = TextView(activity)
-        note.text = "Enabled mods load next time you start a race. Higher mods in the list win " +
-            "when two mods replace the same file."
+        note.text = "Changes apply the next time you launch the game. Higher mods win when they " +
+            "replace the same file. Race assets appear when a race uses them."
         note.setTextColor(Color.GRAY)
         note.textSize = 13f
         note.setPadding(0, 0, 0, dp(12))
         container.addView(note)
+
+        if (retroRewind) {
+            val startup = CheckBox(activity).apply {
+                text = "Load mods at startup"
+                isChecked = RetroRewindStartupMods.enabled(activity)
+                setOnCheckedChangeListener { _, enabled -> RetroRewindStartupMods.setEnabled(activity, enabled) }
+            }
+            container.addView(startup)
+            container.addView(TextView(activity).apply {
+                text = "Use My Stuff and Retro Rewind archive patches from the title screen onward. " +
+                    "Menu mods must match your Retro Rewind version."
+                textSize = 13f
+                setPadding(0, 0, 0, dp(12))
+            })
+        }
 
         val packs = installedPacks(activity)
         val emptyLabel = TextView(activity)
@@ -243,7 +196,7 @@ object ModManager {
         val recyclerView = RecyclerView(activity)
         recyclerView.layoutManager = LinearLayoutManager(activity)
         recyclerView.visibility = if (packs.isEmpty()) View.GONE else View.VISIBLE
-        val adapter = PackAdapter(activity, packs.toMutableList())
+        val adapter = PackAdapter(activity, packs.toMutableList(), retroRewind)
         recyclerView.adapter = adapter
         val itemTouchHelper = ItemTouchHelper(DragCallback(adapter))
         itemTouchHelper.attachToRecyclerView(recyclerView)
@@ -265,13 +218,30 @@ object ModManager {
         importButton.setPadding(0, dp(16), 0, 0)
         importButton.setOnClickListener { startPickZip(activity) }
         container.addView(importButton)
+        val removed = RiivolutionPackStore.removed(packsDir(activity).toPath())
+        if (removed.isNotEmpty()) {
+            container.addView(Button(activity).apply {
+                text = "Restore a removed mod"
+                setOnClickListener {
+                    ThorDialogs.builder(activity).setTitle("Removed mods")
+                        .setItems(removed.map { it.name }.toTypedArray()) { _, index ->
+                            runCatching {
+                                GameStorage.requireIdle(activity)
+                                RiivolutionPackStore.restore(packsDir(activity).toPath(), removed[index].toPath())
+                            }.onSuccess { showManagerDialog(activity, retroRewind) }
+                                .onFailure { android.widget.Toast.makeText(activity, it.message ?: "Restore failed.", android.widget.Toast.LENGTH_LONG).show() }
+                        }.setNegativeButton("Back", null).show()
+                }
+            })
+        }
+
 
         val scroll = ScrollView(activity)
         scroll.addView(container)
 
         val dialog =
             ThorDialogs.builder(activity)
-                .setTitle("Mods")
+                .setTitle(if (retroRewind) "Retro Rewind mods" else "Mods")
                 .setView(scroll)
                 .setPositiveButton("Close", null)
                 .setOnDismissListener { if (currentDialog === it) currentDialog = null }
@@ -284,7 +254,7 @@ object ModManager {
     // Delete button doesn't fight with their own touch handling. Order is persisted (setOrder)
     // as soon as a drag ends, not deferred to dialog close, so it survives even if the user backs
     // out with the system back button rather than tapping Close.
-    private class PackAdapter(private val activity: Activity, val items: MutableList<Pack>) :
+    private class PackAdapter(private val activity: Activity, val items: MutableList<Pack>, private val retroRewind: Boolean) :
         RecyclerView.Adapter<PackAdapter.VH>() {
 
         var dragStarter: ((RecyclerView.ViewHolder) -> Unit)? = null
@@ -310,7 +280,7 @@ object ModManager {
             row.addView(checkBox, checkParams)
 
             val deleteButton = Button(activity)
-            deleteButton.text = "Delete"
+            deleteButton.text = "Remove"
             row.addView(deleteButton)
 
             return VH(row, handle, checkBox, deleteButton)
@@ -334,15 +304,12 @@ object ModManager {
 
             holder.deleteButton.setOnClickListener {
                 ThorDialogs.builder(activity)
-                    .setTitle("Delete \"${pack.name}\"?")
-                    .setPositiveButton("Delete") { _, _ ->
-                        val index = items.indexOf(pack)
-                        if (index >= 0) {
-                            items.removeAt(index)
-                            notifyItemRemoved(index)
-                            delete(pack)
-                            setOrder(activity, items.map { it.name })
-                        }
+                    .setTitle("Remove \"${pack.name}\"?")
+                    .setMessage("WiiDS keeps the pack and any saves inside it. You can restore it from this menu.")
+                    .setPositiveButton("Remove") { _, _ ->
+                        runCatching { remove(activity, pack) }
+                            .onSuccess { showManagerDialog(activity, retroRewind) }
+                            .onFailure { android.widget.Toast.makeText(activity, it.message ?: "Removal failed.", android.widget.Toast.LENGTH_LONG).show() }
                     }
                     .setNegativeButton("Cancel", null)
                     .show()

@@ -115,6 +115,9 @@ public class SDLSurface extends SurfaceView implements SurfaceHolder.Callback,
         SDLActivity.onNativeSurfaceDestroyed();
     }
 
+    /** Native renderers can publish drawable readiness before SDL resumes. */
+    protected void onSurfaceReady() {}
+
     // Called when the surface is resized
     @Override
     public void surfaceChanged(SurfaceHolder holder,
@@ -195,6 +198,7 @@ public class SDLSurface extends SurfaceView implements SurfaceHolder.Callback,
 
         /* Surface is ready */
         mIsSurfaceReady = true;
+        onSurfaceReady();
 
         SDLActivity.mNextNativeState = SDLActivity.NativeState.RESUMED;
         SDLActivity.handleNativeState();

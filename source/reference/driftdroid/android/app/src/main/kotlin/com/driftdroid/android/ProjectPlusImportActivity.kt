@@ -20,6 +20,7 @@ class ProjectPlusImportActivity : Activity() {
     private lateinit var rawLabel: TextView
     private lateinit var codeLabel: TextView
     private lateinit var progress: ProgressBar
+    private lateinit var official: Button
     private lateinit var chooseZip: Button
     private lateinit var chooseRaw: Button
     private lateinit var chooseCode: Button
@@ -53,11 +54,14 @@ class ProjectPlusImportActivity : Activity() {
             text = value;isAllCaps = false;setOnClickListener { action() };column.addView(this)
         }
         text("Set up Project+", 27f)
-        text("Import Brawl first, then choose your Project+ Dolphin ZIP below. WiiDS finds the SD image and USA codes inside and copies them for you.")
+        text("Install the official Project+ 3.2.1 pack after importing USA Brawl revision 2. WiiDS downloads the SD image and sets up the matching codes and launch configuration.")
         text("Already extracted the download? Choose sd.raw and RSBE01.gct separately. You do not need to create a WiiDS folder or copy files into Android/data.")
         status = text("Checking Project+ setup")
         progress = ProgressBar(this, null, android.R.attr.progressBarStyleHorizontal).apply {
             isIndeterminate = true;visibility = View.GONE;column.addView(this,LinearLayout.LayoutParams(-1,dp(10)))
+        }
+        official = button("Install official Project+") {
+            ProjectPlusInstaller.requestOfficial(this) { message = it; refresh() }
         }
         chooseZip = button("Choose Project+ ZIP") { pick(PICK_ZIP) }
         text("Or choose the two extracted files:",18f)
@@ -73,7 +77,7 @@ class ProjectPlusImportActivity : Activity() {
             refresh()
         }
         cancel = button("Cancel import") { ProjectPlusInstaller.cancel();refresh() }
-        text("Use the SD image and codes from the same Project+ download. ZIP import checks their file structure; it does not guarantee every Project+ version is supported. Extract .7z or .rar downloads first.")
+        text("You can also import the official Project+ Dolphin ZIP for 3.2.1. For other builds, choose the SD image and USA codes from the same download.")
         text("Your source files, Brawl disc and save folders are kept. Replaced Project+ mod files are retained in a backup.")
         button("Back") { onBackPressed() }
         setContentView(ScrollView(this).apply { isFillViewport = true;addView(column) })
@@ -118,9 +122,9 @@ class ProjectPlusImportActivity : Activity() {
             refresh()
         }
         val root = BrawlStorage.projectPlusDirectory(this)
-        if (File(root,"sd.raw").exists() || File(root,"Codes/RSBE01.gct").exists()) {
+        if (File(root,"sd.raw").exists() || File(root,"Codes/RSBE01.gct").exists() || File(root,"Codes/gc.txt").exists()) {
             ThorDialogs.builder(this).setTitle("Replace Project+ mod files?")
-                .setMessage("The existing writable SD image and codes will be kept in a backup before replacement. Brawl's disc and both games' save folders stay in place.")
+                .setMessage("Any replaced SD image, codes, and launch configuration will be backed up. Brawl's disc and both games' save folders stay in place.")
                 .setPositiveButton("Import") { _, _ -> start() }.setNegativeButton("Cancel",null).show()
         } else start()
     }
@@ -130,7 +134,7 @@ class ProjectPlusImportActivity : Activity() {
         val existing = runCatching { BrawlStorage.projectPlusAvailable(this) }.getOrDefault(false)
         val blocker = if (state.running) null else SaveManagerProfiles.launchBlocker(this)
         val allowed = !state.running && brawl && blocker == null
-        for (button in listOf(chooseZip,chooseRaw,chooseCode)) button.isEnabled = allowed
+        for (button in listOf(official,chooseZip,chooseRaw,chooseCode)) button.isEnabled = allowed
         importPair.isEnabled = allowed && raw != null && codes != null
         enable.visibility = if (existing && !state.running) View.VISIBLE else View.GONE
         enable.isEnabled = allowed

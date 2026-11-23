@@ -130,8 +130,23 @@
             android:screenOrientation="sensorLandscape" android:resizeableActivity="true"
             android:configChanges="orientation|screenSize|screenLayout|density|keyboardHidden|uiMode"
             android:theme="@android:style/Theme.Black.NoTitleBar.Fullscreen" />
+        <activity android:name=".dualscreen.CompanionHostActivity$Xg" android:exported="false" android:process=":xg_game"
+            android:taskAffinity="${applicationId}.companion.xg_game" android:excludeFromRecents="true"
+            android:screenOrientation="sensorLandscape" android:resizeableActivity="true"
+            android:configChanges="orientation|screenSize|screenLayout|density|keyboardHidden|uiMode"
+            android:theme="@android:style/Theme.Black.NoTitleBar.Fullscreen" />
+        <activity android:name=".dualscreen.CompanionHostActivity$Colosseum" android:exported="false" android:process=":colosseum_game"
+            android:taskAffinity="${applicationId}.companion.colosseum_game" android:excludeFromRecents="true"
+            android:screenOrientation="sensorLandscape" android:resizeableActivity="true"
+            android:configChanges="orientation|screenSize|screenLayout|density|keyboardHidden|uiMode"
+            android:theme="@android:style/Theme.Black.NoTitleBar.Fullscreen" />
 
         <activity android:name=".dualscreen.ScreenSetupActivity" android:exported="false" android:screenOrientation="sensorLandscape" />
+        <activity android:name=".dualscreen.CompanionHostActivity$CityFolk" android:exported="false"
+            android:process=":city_folk_game" android:taskAffinity="${applicationId}.companion.city_folk_game"
+            android:excludeFromRecents="true" android:screenOrientation="sensorLandscape" android:resizeableActivity="true"
+            android:configChanges="orientation|screenSize|screenLayout|density|keyboardHidden|uiMode"
+            android:theme="@android:style/Theme.Black.NoTitleBar.Fullscreen" />
 
         <activity android:name=".LibraryActivity" android:exported="false" android:screenOrientation="sensorLandscape" />
 
@@ -319,6 +334,23 @@
         <activity android:name="dev.wiids.xd.XdLaunchActivity" android:exported="false" android:screenOrientation="userLandscape" />
         <activity android:name="dev.wiids.xd.XdGameActivity" android:exported="false" android:process=":xd_game"
             android:launchMode="singleTask" android:screenOrientation="userLandscape" android:resizeableActivity="false"
+            android:preferMinimalPostProcessing="true" android:theme="@android:style/Theme.Material.NoActionBar.Fullscreen"
+            android:configChanges="keyboard|keyboardHidden|orientation|screenSize|smallestScreenSize|screenLayout|uiMode|navigation|density" />
+        <activity android:name="dev.wiids.xd.XgGameActivity" android:exported="false" android:process=":xg_game"
+            android:launchMode="singleTask" android:taskAffinity="${applicationId}.xg" android:screenOrientation="userLandscape" android:resizeableActivity="false"
+            android:preferMinimalPostProcessing="true" android:theme="@android:style/Theme.Material.NoActionBar.Fullscreen"
+            android:configChanges="keyboard|keyboardHidden|orientation|screenSize|smallestScreenSize|screenLayout|uiMode|navigation|density" />
+        <activity android:name="dev.wiids.colosseum.ColosseumLaunchActivity" android:exported="false"
+            android:screenOrientation="userLandscape" />
+        <activity android:name="dev.wiids.colosseum.ColosseumGameActivity" android:exported="false"
+            android:process=":colosseum_game" android:launchMode="singleTask"
+            android:taskAffinity="${applicationId}.colosseum" android:screenOrientation="userLandscape"
+            android:resizeableActivity="false" android:preferMinimalPostProcessing="true"
+            android:theme="@android:style/Theme.Material.NoActionBar.Fullscreen"
+            android:configChanges="keyboard|keyboardHidden|orientation|screenSize|smallestScreenSize|screenLayout|uiMode|navigation|density" />
+        <activity android:name="dev.wiids.cityfolk.CityFolkGameActivity" android:exported="false"
+            android:process=":city_folk_game" android:launchMode="singleTask" android:taskAffinity="${applicationId}.city_folk"
+            android:screenOrientation="userLandscape" android:resizeableActivity="false"
             android:preferMinimalPostProcessing="true" android:theme="@android:style/Theme.Material.NoActionBar.Fullscreen"
             android:configChanges="keyboard|keyboardHidden|orientation|screenSize|smallestScreenSize|screenLayout|uiMode|navigation|density" />
     </application>

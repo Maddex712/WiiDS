@@ -8,6 +8,7 @@ import android.system.ErrnoException;
 import android.system.Os;
 import android.util.Log;
 import android.view.InputDevice;
+import android.view.KeyEvent;
 import android.view.WindowInsets;
 import android.view.WindowInsetsController;
 import android.view.WindowManager;
@@ -122,6 +123,14 @@ public class MkddGameActivity extends NativeActivity implements DuoMenu.Host, In
 
     @SuppressWarnings("deprecation")
     @Override public void onBackPressed() { openMenu(); }
+
+    @Override public boolean dispatchKeyEvent(KeyEvent event) {
+        if (event.getKeyCode() == KeyEvent.KEYCODE_BACK) {
+            if (event.getAction() == KeyEvent.ACTION_UP && !event.isCanceled()) openMenu();
+            return true;
+        }
+        return super.dispatchKeyEvent(event);
+    }
 
     private void openMenu() {
         if (menu != null || isFinishing()) return;

@@ -721,6 +721,11 @@ public class SDLActivity extends Activity implements View.OnSystemUiVisibilityCh
         super.onDestroy();
     }
 
+    /** Called after SDL has cleaned up its finished native main thread. */
+    protected void onNativeMainFinished() {
+        finish();
+    }
+
     @Override
     public void onBackPressed() {
         // Check if we want to block the back button in case of mouse right click.
@@ -2185,7 +2190,7 @@ class SDLMain implements Runnable {
             // Let's finish the Activity
             SDLActivity.mSDLThread = null;
             SDLActivity.mSDLMainFinished = true;
-            SDLActivity.mSingleton.finish();
+            SDLActivity.mSingleton.onNativeMainFinished();
         }  // else: Activity is already being destroyed
 
     }

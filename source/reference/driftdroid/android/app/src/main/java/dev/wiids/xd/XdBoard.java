@@ -30,6 +30,8 @@ final class XdBoard extends ViewGroup {
     private final RectF foePlate=new RectF(),youPlate=new RectF(),screen=new RectF(),tab=new RectF(),strip=new RectF(),map=new RectF(),
             objective=new RectF(),content=new RectF(),side=new RectF(),cap=new RectF(),r=new RectF();
     private final boolean motion;
+    private final boolean xg;
+    private final String mapTitle;
     private final Paint fieldPaint=new Paint();
     private float fr=1,fg=1,fb=1;private int fieldKey=-1;
     void fieldColor(int color){
@@ -50,10 +52,12 @@ final class XdBoard extends ViewGroup {
     private long drawingBucket=-1;
     private int drawingWidth,drawingHeight;
 
-    XdBoard(Context c){
+    XdBoard(Context c, boolean xg){
         super(c);setWillNotDraw(false);setClickable(false);setFocusable(false);setLongClickable(false);
         boolean animate;try{animate=ValueAnimator.areAnimatorsEnabled();}catch(Throwable old){animate=true;}
         motion=animate;
+        this.xg=xg;
+        mapTitle=xg ? "XG MAP" : "MAP";
     }
     void bind(XdState s){drawingDirty=true;state=s;for(int i=0;i<getChildCount();i++)((XdKey)getChildAt(i)).u=u;invalidate();}
 
@@ -91,7 +95,7 @@ final class XdBoard extends ViewGroup {
         if(device()){
             // The P*DA fills the panel: no dock, so the screen runs to the bottom edge.
             screen.set(u*8,u*34,W-u*8,H-u*8);
-            tab.set(0,u*6,u*50+XdSkin.captionWidth("MAP",u*9.5f,0.12f),u*27);
+            tab.set(0,u*6,u*50+XdSkin.captionWidth(mapTitle,u*9.5f,0.12f),u*27);
             content.set(screen.left+u*6,screen.top+u*6,screen.right-u*6,screen.bottom-u*6);
             strip.setEmpty();foePlate.setEmpty();youPlate.setEmpty();
             float sw=u*94,cg=u*3,ch=(content.height()-cg*5)/6;
@@ -193,8 +197,8 @@ final class XdBoard extends ViewGroup {
     /** Black header tab on the bezel's left edge: teal P*DA mark and the app name in tracked capitals. */
     private void drawTab(Canvas c){
         XdSkin.headerTab(c,tab,u);
-        float g=u*14;XdSkin.glyph(c,"pda",u*10,tab.centerY()-g/2,g,XdSkin.SAND_TOP,u);
-        XdSkin.caption(c,"MAP",u*29,tab.centerY()+u*3.4f,u*9.5f,0xFFDDF8F6,0xFF001014,u*1f,0.12f,Paint.Align.LEFT);
+        float g=u*14;XdSkin.glyph(c,"pda",u*10,tab.centerY()-g/2,g,xg ? 0xFFFF7379 : XdSkin.SAND_TOP,u);
+        XdSkin.caption(c,mapTitle,u*29,tab.centerY()+u*3.4f,u*9.5f,0xFFDDF8F6,0xFF001014,u*1f,0.12f,Paint.Align.LEFT);
         drawMonitor(c);
         drawTag(c,getWidth()-u*8,tab.centerY());
     }

@@ -5,6 +5,7 @@ import android.content.Context
 import com.driftdroid.android.saves.SaveArchive
 import java.io.File
 import java.io.IOException
+import java.io.RandomAccessFile
 import java.util.concurrent.atomic.AtomicBoolean
 
 /** Exact engine storage paths; never accept a destination path from a backup or launch intent. */
@@ -14,6 +15,22 @@ internal object SaveManagerProfiles {
     // Android supplies /data/user/0 as an alias in the app's mount namespace.
     // Resolve only trusted Context bases; SaveArchive still rejects links beneath them.
     fun work(context: Context) = File(context.filesDir.canonicalFile, "save-manager")
+
+    fun <T> withSaveLock(context: Context, recovery: Boolean = false, action: () -> T): T {
+        GameStorage.blocker(context)?.let { throw IOException(it) }
+        requireStopped(context)
+        val work = work(context)
+        SaveArchive.mkdir(work)
+        if (!recovery && SaveArchive.pending(work)) {
+            throw IOException("Recover the interrupted restore by reopening Save manager first.")
+        }
+        val lockPath = File(work, ".lock")
+        SaveArchive.safe(lockPath)
+        return RandomAccessFile(lockPath, "rw").use { file ->
+            val lock = file.channel.tryLock() ?: throw IOException("Another save operation is running.")
+            lock.use { action() }
+        }
+    }
     /** Artwork only reads imported data and writes presentation files. */
     fun launchBlocker(context: Context): String? = GameStorage.blocker(context) ?: when {
         com.driftdroid.android.rom.GameInstaller.recoveryError != null -> com.driftdroid.android.rom.GameInstaller.recoveryError
@@ -129,10 +146,12 @@ internal object SaveManagerProfiles {
                 if (external == null) throw IOException("Game save storage is unavailable.")
                 root("main", external, (if (game == FrontendGame.SUNSHINE) "sms" else "eclipse") + "/saves/card-a")
             }
-            FrontendGame.POKEMON_XD -> {
-                if (external == null) throw IOException("Pokemon XD save storage is unavailable.")
-                root("main", external, "pokemon-xd/saves")
+            FrontendGame.POKEMON_XD, FrontendGame.POKEMON_XG -> {
+                if (external == null) throw IOException("Pokémon save storage is unavailable.")
+                root("main", external, "${game.id}/saves")
             }
+            FrontendGame.POKEMON_COLOSSEUM -> root("main", external ?: File(internal, "data"), "pokemon-colosseum/saves")
+            FrontendGame.CITY_FOLK -> root("main", external ?: File(internal, "data"), "city-folk/saves")
             FrontendGame.MKDD, FrontendGame.MKDD_PLUS -> {
                 if (external == null) throw IOException("Double Dash save storage is unavailable.")
                 root("main", external, if (game == FrontendGame.MKDD_PLUS) "mkdd/plus/saves" else "mkdd/saves")

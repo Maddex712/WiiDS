@@ -85,6 +85,20 @@ internal object ThorGameLaunch {
     fun launchPokemonXd(activity: Activity): Result = resumeBrawlCase(activity, FrontendGame.POKEMON_XD)
         ?: launch(activity, "dev.wiids.xd.XdLaunchActivity", FrontendGame.POKEMON_XD.id, pokemonXdInstalled(activity))
 
+    fun pokemonXgInstalled(context: Context): Boolean = GameStorage.ready(context, FrontendGame.POKEMON_XG)
+    fun launchPokemonXg(activity: Activity): Result = resumeBrawlCase(activity, FrontendGame.POKEMON_XG)
+        ?: launch(activity, "dev.wiids.xd.XdLaunchActivity", FrontendGame.POKEMON_XG.id, pokemonXgInstalled(activity))
+
+    fun pokemonColosseumInstalled(context: Context): Boolean = GameStorage.ready(context, FrontendGame.POKEMON_COLOSSEUM)
+    fun launchPokemonColosseum(activity: Activity): Result = resumeBrawlCase(activity, FrontendGame.POKEMON_COLOSSEUM)
+        ?: launch(activity, "dev.wiids.colosseum.ColosseumLaunchActivity", FrontendGame.POKEMON_COLOSSEUM.id,
+            pokemonColosseumInstalled(activity))
+
+    fun cityFolkInstalled(context: Context): Boolean = GameStorage.ready(context, FrontendGame.CITY_FOLK)
+    fun launchCityFolk(activity: Activity): Result = resumeBrawlCase(activity, FrontendGame.CITY_FOLK)
+        ?: launch(activity, "dev.wiids.cityfolk.CityFolkGameActivity", FrontendGame.CITY_FOLK.id,
+            cityFolkInstalled(activity))
+
     fun mkddInstalled(context: Context): Boolean = dev.thor.mkdd.MkddStorage.ready(context)
     fun launchMkdd(activity: Activity): Result = launch(activity, MKDD_ENTRY, MKDD, mkddInstalled(activity))
     fun mkddPlusInstalled(context: Context): Boolean = dev.thor.mkdd.MkddProfiles.plusReady(context)

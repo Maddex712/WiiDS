@@ -1,0 +1,6 @@
+enable_language(ASM)
+set(CMAKE_POSITION_INDEPENDENT_CODE ON)
+set(CMAKE_CXX_SCAN_FOR_MODULES OFF)
+include_directories(BEFORE "${PROJECT_SOURCE_DIR}/wiids_android")
+add_compile_options(-ffp-contract=off)
+add_compile_options("$<$<COMPILE_LANGUAGE:C,CXX>:-include;${PROJECT_SOURCE_DIR}/wiids_android/xd_mem1_address.h>")

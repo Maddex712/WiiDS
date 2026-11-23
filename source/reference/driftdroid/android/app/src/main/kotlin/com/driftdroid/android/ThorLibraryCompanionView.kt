@@ -4,11 +4,13 @@ import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.Color
+import android.graphics.LinearGradient
 import android.graphics.Paint
 import android.graphics.Path
 import android.graphics.PorterDuff
 import android.graphics.PorterDuffXfermode
 import android.graphics.RadialGradient
+import android.graphics.Rect
 import android.graphics.RectF
 import android.graphics.Shader
 import android.os.Handler
@@ -20,9 +22,11 @@ import com.driftdroid.android.achievements.AchievementBadges
 import com.driftdroid.android.achievements.AchievementCatalog
 import com.driftdroid.android.achievements.AchievementText
 import com.driftdroid.android.achievements.RaLibrary
+import com.driftdroid.android.dualscreen.WiiDsSkin
 import org.json.JSONObject
 import java.io.File
 import java.util.concurrent.Executors
+import kotlin.math.roundToInt
 
 /**
  * Lower-screen companion to the physical-case launcher. It never repeats the upper cover:
@@ -55,10 +59,39 @@ internal class ThorLibraryCompanionView(context: Context, private val folder: Fi
     private var recoveryRequired = false
     private var closed = false
     private var phaseAt = SystemClock.uptimeMillis()
+    private var previewAt = phaseAt
     private val area = RectF()
     private val paint = Paint(Paint.ANTI_ALIAS_FLAG or Paint.FILTER_BITMAP_FLAG)
     /** Touching a preview card or View all: (game id, achievement id or null). */
     var onOpenAchievements: ((String, String?) -> Unit)? = null
+    /** Wii Home Menu theme: the channel screen's buttons ("start", "menu", "prev", "next"). */
+    var onChannelButton: ((String) -> Unit)? = null
+    private val channelHits = ArrayList<Pair<RectF, String>>()
+    private val channelStroke = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.STROKE }
+    var drawChannelBanner: ((Canvas, RectF, Int, Long) -> Unit)? = null
+    var channelPlayer: WiiChannelPreviewPlayer? = null
+    private val channelShell = RectF(20f, 26f, 1260f, 1054f)
+    private val channelBanner = RectF(47f, 49f, 1233f, 709f)
+    private val channelBannerClip = Path().apply { addRoundRect(channelBanner, 22f, 22f, Path.Direction.CW) }
+    private val channelVideoBounds = Rect()
+    private val channelArrow = Path()
+    private val channelSeam = Path().apply {
+        moveTo(21f, 755f)
+        lineTo(278f, 755f)
+        cubicTo(389f, 755f, 420f, 787f, 508f, 787f)
+        lineTo(772f, 787f)
+        cubicTo(860f, 787f, 891f, 755f, 1002f, 755f)
+        lineTo(1259f, 755f)
+    }
+    private val channelControls = Path(channelSeam).apply {
+        lineTo(1259f, 1031f)
+        quadTo(1259f, 1053f, 1237f, 1053f)
+        lineTo(43f, 1053f)
+        quadTo(21f, 1053f, 21f, 1031f)
+        lineTo(21f, 755f)
+        close()
+    }
+    private var channelPressed: String? = null
     /** The selected game's previews; replaced only by the latest request for that game. */
     private var preview: ThorAchievementPreview.Data? = null
     private val previewArt = ThorAchievementPreview()
@@ -112,6 +145,10 @@ internal class ThorLibraryCompanionView(context: Context, private val folder: Fi
     fun setSelection(value: Selection) {
         if (closed) return
         if (value.phase != selection.phase) phaseAt = SystemClock.uptimeMillis()
+        if (value.product != selection.product) {
+            previewAt = SystemClock.uptimeMillis()
+            stopChannelPreview()
+        }
         selection = value
         val game = if (value.options) null else gameId(value.product)
         if (game != previewGame) { previewGame = game; preview = null; previewArt.pressed = null; requestAchievements(game) }
@@ -202,10 +239,27 @@ internal class ThorLibraryCompanionView(context: Context, private val folder: Fi
 
     /** Separate games validate their own data and never inherit Mario Kart update/video state. */
     private fun separateGame() = (selection.product == NSMB || selection.product == SUNSHINE ||
-        selection.product == MSMBWII || selection.product == ECLIPSE || selection.product == GALAXY || selection.product == KAIZO || selection.product == BRAWL || selection.product == MKDD || selection.product == MKDD_PLUS || selection.product == PROJECT_PLUS || selection.product == POKEMON_XD) && !selection.options
+        selection.product == MSMBWII || selection.product == ECLIPSE || selection.product == GALAXY || selection.product == KAIZO || selection.product == BRAWL || selection.product == MKDD || selection.product == MKDD_PLUS || selection.product == PROJECT_PLUS ||
+        selection.product == POKEMON_XD || selection.product == POKEMON_XG ||
+        selection.product == COLOSSEUM || selection.product == CITY_FOLK) && !selection.options
     /** MSMBWii's disc is there but its mod isn't (yet). */
     private fun modPending() = selection.product == MSMBWII && nsmbDiscImported && !selection.available
-    private fun separateGameName() = when (selection.product) { POKEMON_XD -> "Pokemon XD"; PROJECT_PLUS -> "Project+"; MKDD_PLUS -> "Double Dash Plus"; MKDD -> "Double Dash"; BRAWL -> "Brawl"; KAIZO -> "Kaizo Rebalanced"; GALAXY -> "Galaxy"; SUNSHINE -> "Sunshine"; ECLIPSE -> "Eclipse"; MSMBWII -> "MSMBWii"; else -> "NSMB Wii" }
+    private fun separateGameName() = when (selection.product) {
+        CITY_FOLK -> "Animal Crossing"
+        COLOSSEUM -> "Pokémon Colosseum"
+        POKEMON_XG -> "Pokémon XG"
+        POKEMON_XD -> "Pokemon XD"
+        PROJECT_PLUS -> "Project+"
+        MKDD_PLUS -> "Double Dash Plus"
+        MKDD -> "Double Dash"
+        BRAWL -> "Brawl"
+        KAIZO -> "Kaizo Rebalanced"
+        GALAXY -> "Galaxy"
+        SUNSHINE -> "Sunshine"
+        ECLIPSE -> "Eclipse"
+        MSMBWII -> "MSMBWii"
+        else -> "NSMB Wii"
+    }
 
     private fun updateGated() = BuildConfig.THOR_RETRO_REWIND && !separateGame() &&
         (snapshot.running || pendingUpdate || recoveryRequired)
@@ -233,11 +287,20 @@ internal class ThorLibraryCompanionView(context: Context, private val folder: Fi
     }
 
     override fun onDetachedFromWindow() {
+        stopChannelPreview()
         removeCallbacks(poll)
         super.onDetachedFromWindow()
     }
 
+    override fun onWindowVisibilityChanged(visibility: Int) {
+        super.onWindowVisibilityChanged(visibility)
+        if (visibility != VISIBLE) stopChannelPreview()
+    }
+
+    fun stopChannelPreview() { channelPlayer?.show(null) }
+
     fun close() {
+        stopChannelPreview()
         closed = true
         removeCallbacks(poll)
         fallback.close()
@@ -256,6 +319,9 @@ internal class ThorLibraryCompanionView(context: Context, private val folder: Fi
         MKDD -> "Mario Kart: Double Dash!!"
         MKDD_PLUS -> "Mario Kart: Double Dash!! Plus"
         POKEMON_XD -> "Pokemon XD: Gale of Darkness"
+        POKEMON_XG -> "Pokémon XG: NeXt Gen"
+        COLOSSEUM -> "Pokémon Colosseum"
+        CITY_FOLK -> dev.wiids.cityfolk.CityFolkStorage.TITLE
         MSMBWII -> "MSMBWii: Just a Little Adventure"
         else -> "Mario Kart Wii"
     }
@@ -275,6 +341,9 @@ internal class ThorLibraryCompanionView(context: Context, private val folder: Fi
         MKDD -> FrontendGame.MKDD.id
         MKDD_PLUS -> FrontendGame.MKDD_PLUS.id
         POKEMON_XD -> FrontendGame.POKEMON_XD.id
+        POKEMON_XG -> FrontendGame.POKEMON_XG.id
+        COLOSSEUM -> FrontendGame.POKEMON_COLOSSEUM.id
+        CITY_FOLK -> FrontendGame.CITY_FOLK.id
         else -> null
     }
 
@@ -290,23 +359,44 @@ internal class ThorLibraryCompanionView(context: Context, private val folder: Fi
         MKDD -> "mkdd"
         MKDD_PLUS -> "mkdd-plus"
         POKEMON_XD -> "pokemon-xd"
+        POKEMON_XG -> "pokemon-xg"
+        COLOSSEUM -> "pokemon-colosseum"
+        CITY_FOLK -> "city-folk"
         MSMBWII -> "msmbwii"
         else -> "original"
     }
 
     override fun onDraw(canvas: Canvas) {
-        canvas.drawColor(Color.rgb(24, 29, 37))
         if (width <= 0 || height <= 0) return
-        val art = artwork ?: run { fallback.render(canvas, width, height); return }
         val scale = minOf(width / 1280f, height / 1080f)
         designScale = scale; designLeft = (width - 1280f * scale) / 2f; designTop = (height - 1080f * scale) / 2f
         if (selection.options || selection.product == null || selection.phase == ThorLauncherView.Phase.LAUNCHING) previewArt.hits.clear()
         canvas.save()
-        canvas.translate((width - 1280f * scale) / 2f, (height - 1080f * scale) / 2f)
+        canvas.translate(designLeft, designTop)
         canvas.scale(scale, scale)
-        val font = art.font
         drawnStyle = ThorMenuTheme.current(context)
-        val wii = drawnStyle == ThorMenuTheme.Style.WII_MENU
+        channelHits.clear()
+        if (drawnStyle?.channels == true) {
+            val product = selection.product
+            if (!selection.options && product != null) {
+                drawChannelScreen(canvas, product)
+            } else {
+                stopChannelPreview()
+                drawChannelHome(canvas)
+            }
+            canvas.restore()
+            return
+        }
+        stopChannelPreview()
+        canvas.drawColor(Color.rgb(24, 29, 37))
+        val art = artwork
+        if (art == null) {
+            canvas.restore()
+            fallback.render(canvas, width, height)
+            return
+        }
+        val font = art.font
+        val wii = drawnStyle != ThorMenuTheme.Style.MARIO_KART
         fun image(role: String, left: Float, top: Float, right: Float, bottom: Float, rounded: Boolean = false, alpha: Int = 255) {
             area.set(left, top, right, bottom)
             if (wii && ThorMenuTheme.chrome(canvas, role, area, alpha)) return
@@ -357,7 +447,7 @@ internal class ThorLibraryCompanionView(context: Context, private val folder: Fi
             val role = "${game.artwork}-cover"
             if (artwork?.images?.containsKey(role) == true) image(role, x, y, x + w, y + h, false, 255)
             else {
-                paint.color = if (drawnStyle == ThorMenuTheme.Style.WII_MENU) 0xffdce6ef.toInt() else 0xff25364c.toInt()
+                paint.color = if (drawnStyle != ThorMenuTheme.Style.MARIO_KART) 0xffdce6ef.toInt() else 0xff25364c.toInt()
                 c.drawRoundRect(x, y, x + w, y + h, 6f, 6f, paint)
                 text(game.label, x + w / 2, y + h / 2 - 9f, 18f, w - 6f, true)
             }
@@ -411,6 +501,9 @@ internal class ThorLibraryCompanionView(context: Context, private val folder: Fi
                 selection.product == PROJECT_PLUS -> "Set up Project+ in Manage games"
                 selection.product == MKDD -> "Import your Double Dash USA disc"
                 selection.product == MKDD_PLUS -> "Set up Double Dash Plus to play"
+                selection.product == POKEMON_XG -> "Set up Pokémon XG to play"
+                selection.product == COLOSSEUM -> "Import your Pokémon Colosseum disc"
+                selection.product == CITY_FOLK -> "Import your Animal Crossing disc"
                 else -> "Import your ${if (selection.product == MSMBWII) "NSMB Wii" else separateGameName()} disc to play"
             } to "Left / Right  Choose a game     X  Options$achievementsKey"
             else -> (selection.status.trim().ifEmpty { "Left / Right  Choose a game" }) to "A  Open case     X  Options$achievementsKey"
@@ -441,6 +534,9 @@ internal class ThorLibraryCompanionView(context: Context, private val folder: Fi
                 selection.product == PROJECT_PLUS -> if (selection.available) "Project+ ready" else "Set up Project+ first"
                 selection.product == MKDD -> if (selection.available) "Double Dash ready" else "Import your Double Dash disc"
                 selection.product == POKEMON_XD -> if (selection.available) "Pokemon XD ready" else "Import your Pokemon XD disc"
+                selection.product == POKEMON_XG -> if (selection.available) "Pokémon XG ready" else "Set up Pokémon XG first"
+                selection.product == COLOSSEUM -> if (selection.available) "Pokémon Colosseum ready" else "Import your Pokémon Colosseum disc"
+                selection.product == CITY_FOLK -> if (selection.available) "Animal Crossing ready" else "Import your Animal Crossing disc"
                 selection.product == MKDD_PLUS -> if (selection.available) "Double Dash Plus ready" else "Set up Double Dash Plus first"
                 selection.product == ECLIPSE -> if (selection.available) "Eclipse app installed" else "Install the Eclipse Thor app"
                 selection.available -> "Disc imported"
@@ -454,6 +550,9 @@ internal class ThorLibraryCompanionView(context: Context, private val folder: Fi
                 MKDD -> "USA GameCube disc"
                 MKDD_PLUS -> "Plus 3.3 / separate memory card"
                 POKEMON_XD -> "USA GameCube disc, revision 0"
+                POKEMON_XG -> "NeXt Gen 1.2.1 / separate saves"
+                COLOSSEUM -> "USA GameCube disc, revision 0"
+                CITY_FOLK -> "European Wii disc, revision 1"
                 SUNSHINE -> "USA GameCube disc"
                 ECLIPSE -> "Separate game data and saves"
                 MSMBWII -> "Mod included, on your NSMB Wii disc"
@@ -502,7 +601,158 @@ internal class ThorLibraryCompanionView(context: Context, private val folder: Fi
     /** Back in the library (from a game or the browser), or a refresh finished: re-read this game's previews. */
     fun refreshAchievements() { if (!closed) { badgeArt(context.applicationContext).forgetImported(); requestAchievements(previewGame) } }
 
+    private fun drawChannelHome(c: Canvas) {
+        area.set(-400f, -400f, 1680f, 1480f)
+        ThorMenuTheme.chrome(c, "background", area)
+        val settings = selection.phase == ThorLauncherView.Phase.OPTIONS
+        val title = if (settings) "WiiDS Settings" else "WiiDS Menu"
+        val hint = if (settings) "Choose a setting on the upper screen." else "Highlight a channel on the upper screen."
+        ThorMenuTheme.text(c, title, 640f, 419f, 76f, 1040f, true)
+        paint.color = ThorMenuTheme.tone(0xff79c3dc.toInt(), ThorMenuTheme.accent)
+        c.drawRoundRect(592f, 529f, 688f, 533f, 2f, 2f, paint)
+        ThorMenuTheme.text(c, hint, 640f, 580f, 44f, 1000f, true)
+    }
+
+    /** Keep the highlighted channel open below while the upper display browses the grid. */
+    private fun drawChannelScreen(c: Canvas, product: Int) {
+        val phase = selection.phase
+        val launching = phase == ThorLauncherView.Phase.LAUNCHING
+        val now = SystemClock.uptimeMillis()
+        val elapsed = now - previewAt
+        val motion = WiiDsSkin.motion() && windowVisibility == VISIBLE && isShown &&
+            !launching && phase != ThorLauncherView.Phase.BLOCKED
+        val reveal = if (motion) (elapsed / 200f).coerceIn(0f, 1f) else 1f
+        val artId = artPrefix()
+        val live = channelPlayer
+        channelVideoBounds.set(
+            (designLeft + channelBanner.left * designScale).roundToInt(),
+            (designTop + channelBanner.top * designScale).roundToInt(),
+            (designLeft + channelBanner.right * designScale).roundToInt(),
+            (designTop + channelBanner.bottom * designScale).roundToInt(),
+        )
+        live?.place(channelVideoBounds, 22f * designScale)
+        // Show the poster immediately and wait for focus to settle before opening its decoder.
+        live?.show(if (motion && reveal >= 1f) artId else null)
+        val video = motion && live?.hasFrame == true
+        val artMotion = motion && WiiChannelArtwork.hasChannelLoop(artId)
+
+        c.save()
+        if (video) c.clipOutPath(channelBannerClip)
+        paint.color = ThorMenuTheme.tone(0xffe5ebef.toInt(), ThorMenuTheme.surfaceBottom)
+        c.drawRect(-400f, -400f, 1680f, 1480f, paint)
+        paint.color = ThorMenuTheme.tone(0x250e3346, 0x33000000)
+        c.drawRoundRect(channelShell.left, channelShell.top + 6f, channelShell.right, channelShell.bottom + 6f, 33f, 33f, paint)
+        paint.color = Color.WHITE
+        paint.shader = LinearGradient(0f, channelShell.top, 0f, channelShell.bottom,
+            ThorMenuTheme.tone(0xfffbfdfe.toInt(), ThorMenuTheme.panel),
+            ThorMenuTheme.tone(0xffe4ecf1.toInt(), ThorMenuTheme.surfaceBottom), Shader.TileMode.CLAMP)
+        c.drawRoundRect(channelShell, 33f, 33f, paint)
+        paint.shader = null
+        if (!video) {
+            paint.color = ThorMenuTheme.tone(0xffdde9ef.toInt(), ThorMenuTheme.buttonBottom)
+            c.drawRoundRect(channelBanner, 22f, 22f, paint)
+            c.clipPath(channelBannerClip)
+            val zoom = 1f - 0.06f * (1f - reveal) * (1f - reveal)
+            c.scale(zoom, zoom, channelBanner.centerX(), channelBanner.centerY())
+            val banner = drawChannelBanner
+            if (banner != null) banner(c, channelBanner, product, if (artMotion) elapsed else 0L)
+            else ThorMenuTheme.text(c, productTitle(), 640f, 338f, 82f, 1040f, true)
+        }
+        c.restore()
+        channelStroke.color = ThorMenuTheme.tone(0xff9cabb5.toInt(), ThorMenuTheme.border)
+        channelStroke.strokeWidth = 2.5f
+        c.drawRoundRect(channelBanner, 22f, 22f, channelStroke)
+
+        drawChannelArrow(c, next = false)
+        drawChannelArrow(c, next = true)
+        paint.color = Color.WHITE
+        paint.shader = LinearGradient(0f, 755f, 0f, 1053f,
+            ThorMenuTheme.tone(0xfff5f8fa.toInt(), ThorMenuTheme.panel),
+            ThorMenuTheme.tone(0xffcfdae2.toInt(), ThorMenuTheme.surfaceBottom), Shader.TileMode.CLAMP)
+        c.drawPath(channelControls, paint)
+        paint.shader = null
+        channelStroke.color = ThorMenuTheme.tone(0xff77bdd5.toInt(), ThorMenuTheme.accent)
+        channelStroke.strokeWidth = 3f
+        c.drawPath(channelSeam, channelStroke)
+        drawChannelButton(c, "WiiDS Menu", "menu", 171f, primary = false)
+        drawChannelButton(c, if (selection.available) "Start" else "Set up", "start", 683f, primary = true)
+
+        if (phase == ThorLauncherView.Phase.BLOCKED && selection.message.isNotEmpty()) {
+            area.set(100f, 614f, 1180f, 696f)
+            paint.color = ThorMenuTheme.panel
+            c.drawRoundRect(area, 32f, 32f, paint)
+            ThorMenuTheme.text(c, selection.message, 640f, 630f, 46f, 990f, true)
+        }
+        if (launching) {
+            val fade = ((now - phaseAt) / 520f).coerceIn(0f, 1f)
+            paint.color = (ThorMenuTheme.tone(Color.WHITE, ThorMenuTheme.surfaceBottom) and 0x00ffffff) or ((255 * fade).toInt() shl 24)
+            c.drawRect(-400f, -400f, 1680f, 1480f, paint)
+            channelHits.clear()
+        }
+        if (launching || reveal < 1f) postInvalidateOnAnimation()
+        else if (artMotion) postInvalidateDelayed(32L)
+    }
+
+    private fun drawChannelArrow(c: Canvas, next: Boolean) {
+        val id = if (next) "next" else "prev"
+        val x = if (next) 1191f else 89f
+        val y = channelBanner.centerY()
+        val direction = if (next) 1f else -1f
+        channelHits.add(RectF(x - 57f, y - 78f, x + 57f, y + 78f) to id)
+        channelArrow.reset()
+        channelArrow.moveTo(x - 9f * direction, y - 24f)
+        channelArrow.lineTo(x + 14f * direction, y)
+        channelArrow.lineTo(x - 9f * direction, y + 24f)
+        channelArrow.close()
+        paint.color = if (channelPressed == id) ThorMenuTheme.tone(0xff83d2ec.toInt(), ThorMenuTheme.accent) else ThorMenuTheme.tone(0xf8f8fdff.toInt(), ThorMenuTheme.buttonTop)
+        c.drawPath(channelArrow, paint)
+        channelStroke.color = ThorMenuTheme.tone(0xff3d9fbd.toInt(), ThorMenuTheme.accent)
+        channelStroke.strokeWidth = 4f
+        channelStroke.strokeJoin = Paint.Join.ROUND
+        c.drawPath(channelArrow, channelStroke)
+    }
+
+    private fun drawChannelButton(c: Canvas, label: String, id: String, left: Float, primary: Boolean) {
+        area.set(left - 15f, 829f, left + 441f, 978f)
+        channelHits.add(RectF(area) to id)
+        area.set(left, 845f, left + 426f, 962f)
+        val pressed = channelPressed == id
+        if (pressed) area.offset(0f, 3f)
+        paint.color = ThorMenuTheme.tone(0x29152735, 0x33000000)
+        c.drawRoundRect(area.left, area.top + 5f, area.right, area.bottom + 5f, 58f, 58f, paint)
+        paint.color = Color.WHITE
+        paint.shader = LinearGradient(0f, area.top, 0f, area.bottom,
+            intArrayOf(ThorMenuTheme.buttonTop, ThorMenuTheme.tone(0xfff6f9fa.toInt(), ThorMenuTheme.panel),
+                ThorMenuTheme.tone(if (pressed) 0xffc7e8f3.toInt() else 0xffdce8ed.toInt(),
+                    if (pressed) ThorMenuTheme.buttonTop else ThorMenuTheme.buttonBottom)),
+            floatArrayOf(0f, 0.53f, 1f), Shader.TileMode.CLAMP)
+        c.drawRoundRect(area, 58f, 58f, paint)
+        paint.shader = null
+        channelStroke.color = if (primary) ThorMenuTheme.tone(0xff58adcc.toInt(), ThorMenuTheme.accent)
+            else ThorMenuTheme.tone(0xff94aeba.toInt(), ThorMenuTheme.border)
+        channelStroke.strokeWidth = if (primary) 4f else 3f
+        c.drawRoundRect(area, 58f, 58f, channelStroke)
+        ThorMenuTheme.text(c, label, area.centerX(), area.centerY() - 28f, 55f, area.width() - 50f, true,
+            if (primary) ThorMenuTheme.tone(0xff275367.toInt(), ThorMenuTheme.accentText) else ThorMenuTheme.TEXT)
+    }
+
     override fun onTouchEvent(event: MotionEvent): Boolean {
+        if (channelHits.isNotEmpty() && onChannelButton != null) {
+            val x = (event.x - designLeft) / designScale
+            val y = (event.y - designTop) / designScale
+            val hit = channelHits.firstOrNull { it.first.contains(x, y) }?.second
+            when (event.actionMasked) {
+                MotionEvent.ACTION_DOWN -> channelPressed = hit
+                MotionEvent.ACTION_UP -> {
+                    val target = channelPressed
+                    channelPressed = null
+                    if (target != null && target == hit) onChannelButton?.invoke(target)
+                }
+                MotionEvent.ACTION_CANCEL -> channelPressed = null
+            }
+            invalidate()
+            return true
+        }
         if (onOpenAchievements == null || selection.options || selection.product == null ||
             selection.phase == ThorLauncherView.Phase.LAUNCHING) return false
         val x = (event.x - designLeft) / designScale
@@ -567,6 +817,9 @@ internal class ThorLibraryCompanionView(context: Context, private val folder: Fi
         const val MKDD_PLUS = 10
         const val PROJECT_PLUS = 11
         const val POKEMON_XD = 12
+        const val POKEMON_XG = 13
+        const val COLOSSEUM = 14
+        const val CITY_FOLK = 15
         private val main = Handler(Looper.getMainLooper())
         private val achievementWorker = Executors.newSingleThreadExecutor { task ->
             Thread(task, "ThorLibraryAchievements").apply { isDaemon = true }
@@ -615,7 +868,7 @@ internal class ThorLibraryCompanionView(context: Context, private val folder: Fi
         }
 
         /** GameCube mini discs are 8 cm against the 12 cm Wii disc; the 15 mm hole is the same. */
-        private fun discScale(prefix: String) = if (prefix == "sunshine" || prefix == "eclipse" || prefix == "mkdd" || prefix == "mkdd-plus" || prefix == "pokemon-xd") ThorLauncherView.GAMECUBE_DISC else 1f
+        private fun discScale(prefix: String) = if (prefix == "sunshine" || prefix == "eclipse" || prefix == "mkdd" || prefix == "mkdd-plus" || prefix == "pokemon-xd" || prefix == "pokemon-xg" || prefix == "pokemon-colosseum") ThorLauncherView.GAMECUBE_DISC else 1f
 
         private fun roundDisc(source: Bitmap, scale: Float): Bitmap {
             val size = 400

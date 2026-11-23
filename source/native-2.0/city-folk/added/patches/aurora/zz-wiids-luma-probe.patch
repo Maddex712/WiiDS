@@ -1,0 +1,135 @@
+diff --git a/include/aurora/aurora.h b/include/aurora/aurora.h
+index 5c7e452..d9d23fd 100644
+--- a/include/aurora/aurora.h
++++ b/include/aurora/aurora.h
+@@ -141,6 +141,11 @@ void aurora_set_timescale(float scale);
+ /** Test aid (0224): saves the next frame's game image (render resolution, before post-processing
+  * and UI) as a binary PPM at `path`. */
+ void aurora_request_screenshot(const char* path);
++/** WiiDS: average luminance (0..255, lightly smoothed) of the game image before post-processing
++ * and UI, sampled from nine rows of every sixth frame and read back asynchronously (no stall).
++ * -1 until the first sample; off until enabled. */
++void aurora_luma_probe_enable(bool enabled);
++int aurora_luma_probe_level(void);
+ 
+ SDL_Window* aurora_get_window();
+ AuroraWindowSize aurora_get_window_size();
+diff --git a/lib/aurora.cpp b/lib/aurora.cpp
+index 9e4b41a..3c6b292 100644
+--- a/lib/aurora.cpp
++++ b/lib/aurora.cpp
+@@ -139,6 +139,82 @@ void shot_finish() {
+   g_shot = {};
+ }
+ 
++// WiiDS: the average luminance of the game image (0..255), for a companion screen that follows
++// the picture going black. Nine rows of every sixth frame are copied to a small buffer and mapped
++// asynchronously (no wait anywhere); off until aurora_luma_probe_enable(true).
++std::atomic<bool> g_lumaEnabled{false};
++std::atomic<int> g_lumaLevel{-1};
++std::atomic<bool> g_lumaBusy{false};
++struct LumaJob {
++  wgpu::Buffer buffer;
++  uint32_t width = 0, pitch = 0;
++  bool bgra = false, encoded = false;
++  uint32_t tick = 0;
++};
++LumaJob g_luma; // render worker (and the map callback while busy)
++constexpr uint32_t kLumaRows = 9;
++
++void luma_encode(const wgpu::CommandEncoder& encoder) {
++  static const bool sLateSubmit = std::getenv("AURORA_LATE_SUBMIT") != nullptr;
++  if (sLateSubmit || !g_lumaEnabled.load(std::memory_order_relaxed) || g_lumaBusy.load(std::memory_order_acquire) ||
++      ++g_luma.tick % 6 != 0) {
++    return;
++  }
++  const auto& src = webgpu::present_source();
++  if (!src.texture || src.size.width == 0 || src.size.height < kLumaRows ||
++      (src.format != wgpu::TextureFormat::BGRA8Unorm && src.format != wgpu::TextureFormat::RGBA8Unorm)) {
++    return;
++  }
++  const uint32_t pitch = AURORA_ALIGN(src.size.width * 4, 256);
++  if (!g_luma.buffer || g_luma.pitch != pitch) {
++    const wgpu::BufferDescriptor bd{.label = "Luminance probe readback",
++                                    .usage = wgpu::BufferUsage::MapRead | wgpu::BufferUsage::CopyDst,
++                                    .size = uint64_t(pitch) * kLumaRows};
++    g_luma.buffer = g_device.CreateBuffer(&bd);
++    g_luma.pitch = pitch;
++  }
++  g_luma.width = src.size.width;
++  g_luma.bgra = src.format == wgpu::TextureFormat::BGRA8Unorm;
++  for (uint32_t r = 0; r < kLumaRows; ++r) {
++    const wgpu::TexelCopyTextureInfo s{.texture = src.texture,
++                                       .origin = {0, (2 * r + 1) * src.size.height / (2 * kLumaRows), 0}};
++    const wgpu::TexelCopyBufferInfo d{.layout = {.offset = uint64_t(pitch) * r, .bytesPerRow = pitch, .rowsPerImage = 1},
++                                      .buffer = g_luma.buffer};
++    const wgpu::Extent3D extent{g_luma.width, 1, 1};
++    encoder.CopyTextureToBuffer(&s, &d, &extent);
++  }
++  g_luma.encoded = true;
++}
++
++void luma_after_submit() {
++  if (!g_luma.encoded) {
++    return;
++  }
++  g_luma.encoded = false;
++  g_lumaBusy.store(true, std::memory_order_release);
++  g_luma.buffer.MapAsync(wgpu::MapMode::Read, 0, g_luma.buffer.GetSize(), wgpu::CallbackMode::AllowSpontaneous,
++                         [](wgpu::MapAsyncStatus status, wgpu::StringView) {
++    if (status == wgpu::MapAsyncStatus::Success) {
++      const auto* px = static_cast<const uint8_t*>(g_luma.buffer.GetConstMappedRange(0, g_luma.buffer.GetSize()));
++      if (px != nullptr) {
++        uint64_t sum = 0;
++        const int ri = g_luma.bgra ? 2 : 0, bi = g_luma.bgra ? 0 : 2;
++        for (uint32_t r = 0; r < kLumaRows; ++r) {
++          const uint8_t* row = px + size_t(r) * g_luma.pitch;
++          for (uint32_t x = 0; x < g_luma.width; ++x) {
++            sum += 54u * row[x * 4 + ri] + 183u * row[x * 4 + 1] + 19u * row[x * 4 + bi];
++          }
++        }
++        const int now = static_cast<int>(sum / (uint64_t(256) * kLumaRows * g_luma.width));
++        const int old = g_lumaLevel.load(std::memory_order_relaxed);
++        g_lumaLevel.store(old < 0 ? now : (old + now + 1) / 2, std::memory_order_relaxed); // lightly smoothed
++      }
++      g_luma.buffer.Unmap();
++    }
++    g_lumaBusy.store(false, std::memory_order_release);
++  });
++}
++
+ uint32_t clamp_scissor_coord(double value, uint32_t maximum) noexcept {
+   if (!std::isfinite(value)) {
+     return 0;
+@@ -594,12 +670,14 @@ void end_frame() noexcept {
+     const activity::Scope busy{activity::Thread::RenderWorker, "finishing the frame (keep-warm, submit)"};
+     present_timing::encode_keep_warm(encoder);  // 0215: after the frame's own work
+     shot_encode(encoder);                       // 0224 test aid
++    luma_encode(encoder);                       // WiiDS luminance probe
+     if (!sLateSubmit) {
+       ZoneScopedN("Frame Submit");
+       const wgpu::CommandBufferDescriptor frameBufDescriptor{.label = "Frame command buffer"};
+       const auto frameBuffer = encoder.Finish(&frameBufDescriptor);
+       g_queue.Submit(1, &frameBuffer);
+       shot_finish();
++      luma_after_submit();
+       for (auto& callback : afterSubmitCallbacks) {
+         if (callback) {
+           callback();
+@@ -899,4 +977,16 @@ void aurora_request_screenshot(const char* path) {
+   aurora::g_shotPath = path != nullptr ? path : "";
+ #endif
+ }
++void aurora_luma_probe_enable(bool enabled) {
++#ifdef AURORA_ENABLE_GX
++  aurora::g_lumaEnabled.store(enabled, std::memory_order_relaxed);
++#endif
++}
++int aurora_luma_probe_level(void) {
++#ifdef AURORA_ENABLE_GX
++  return aurora::g_lumaLevel.load(std::memory_order_relaxed);
++#else
++  return -1;
++#endif
++}
+ float aurora_get_timescale() { return aurora::time::scale(); }

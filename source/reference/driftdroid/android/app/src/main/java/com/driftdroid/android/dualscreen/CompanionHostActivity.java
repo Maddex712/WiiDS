@@ -24,6 +24,9 @@ public class CompanionHostActivity extends Activity {
             case "mkdd_game": return Mkdd.class;
             case "mkdd_plus_game": return MkddPlus.class;
             case "xd_game": return Xd.class;
+            case "xg_game": return Xg.class;
+            case "colosseum_game": return Colosseum.class;
+            case "city_folk_game": return CityFolk.class;
             default:
                 if (process.equals(packageName)) return CompanionHostActivity.class;
                 throw new IllegalStateException("No companion host for " + suffix);
@@ -72,4 +75,7 @@ public class CompanionHostActivity extends Activity {
     public static final class Mkdd extends CompanionHostActivity {}
     public static final class MkddPlus extends CompanionHostActivity {}
     public static final class Xd extends CompanionHostActivity {}
+    public static final class Xg extends CompanionHostActivity {}
+    public static final class Colosseum extends CompanionHostActivity {}
+    public static final class CityFolk extends CompanionHostActivity {}
 }

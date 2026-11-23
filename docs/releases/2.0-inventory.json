@@ -1,0 +1,37 @@
+{
+  "schema": 1,
+  "package": "io.github.maddex712.wiids",
+  "tag": "v2.0.0",
+  "version": "2.0",
+  "displayVersion": "2.0",
+  "versionCode": 2000,
+  "debuggable": false,
+  "prerelease": false,
+  "signing_certificate_sha256": "72eef06b956bc1c6848a09bf4956b158095736a6e81f43131cf93cb30788345f",
+  "artifacts": {
+    "WiiDS-2.0-arm64.apk": {
+      "bytes": 655881149,
+      "sha256": "cee0edb20333824274342a548c3c0d02bb7b4ebc40c53578980c8050363fc011"
+    },
+    "WiiDS-2.0-source.zip": {
+      "bytes": 921590986,
+      "sha256": "3a7dcc2137c7925d61df889d624d05b4660532e619e77e88b9708b5983bc5ed3"
+    },
+    "PRESENTATION-MANIFEST.json": {
+      "bytes": 124779,
+      "sha256": "8ec572a723a9a39f26c5004ebe4e4ca0b91d4f81681ca04c2fb6b5b5d0b9b787"
+    }
+  },
+  "presentation": {
+    "embedded_manifest": "assets/presentation/manifest.json",
+    "revision": "thor-2026-11-23-wiids-2.0",
+    "manifest_sha256": "8ec572a723a9a39f26c5004ebe4e4ca0b91d4f81681ca04c2fb6b5b5d0b9b787",
+    "bundled_files": 648,
+    "channel_files": 93,
+    "music_sha256": {
+      "menu_music_kart.mp3": "ca4177b12638c2f50db787d6d8ac994c30c6e81c3926f57f117f9c663743c5e2",
+      "menu_music_wii.mp3": "3c794848864f82143b2a3cd644788a583dbac1116bf5eb8ce6a813dd98164578",
+      "menu_music_settings.mp3": "6ab6f33d4dff8bdaf63dd428f20c2615f4e2efbf8251a41a26c1425456319434"
+    }
+  }
+}

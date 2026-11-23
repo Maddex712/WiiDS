@@ -14,6 +14,7 @@ import java.io.File
 
 /** Uses the same game-derived artwork and controls as the existing Save manager. */
 class GameStorageActivity : Activity() {
+    private val wiiTheme by lazy { ThorMenuTheme.wii(this) }
     private lateinit var status: TextView
     private lateinit var controls: LinearLayout
     private val buttons=ArrayList<Button>()
@@ -44,9 +45,11 @@ class GameStorageActivity : Activity() {
         chrome=runCatching { org.json.JSONObject(File(folder,"menu.json").readText()).getJSONObject("images") }.getOrNull()
         val layout=LinearLayout(this).apply {
             orientation=LinearLayout.VERTICAL;setPadding(dp(26),dp(16),dp(26),dp(16))
-            setBackgroundColor(Color.rgb(22,27,34));image("background")?.let { background=BitmapDrawable(resources,it) }
+            setBackgroundColor(Color.rgb(22,27,34))
+            if (wiiTheme) background = ThorMenuTheme.drawable("background")
+            else image("background")?.let { background = BitmapDrawable(resources, it) }
         }
-        layout.addView(label("Manage games",25f))
+        layout.addView(label(if (wiiTheme) "WiiDS  /  Manage games" else "Manage games",25f))
         layout.addView(label("Offload game files to free space. Saves, backups, settings and case art are kept.",13f))
         status=label("Checking stored game files...",15f).apply { minLines=2;setPadding(0,dp(8),0,dp(8)) }
         layout.addView(status)
@@ -125,7 +128,7 @@ class GameStorageActivity : Activity() {
                     return
                 }
                 if (!dev.wiids.brawl.BrawlStorage.projectPlusAvailable(this)) {
-                    startActivity(Intent(this, ProjectPlusImportActivity::class.java))
+                    startActivity(Intent(this, GamesActivity::class.java).putExtra("storage_game", FrontendGame.PROJECT_PLUS.id))
                     return
                 }
                 GameStorage.enable(this, g)
@@ -169,9 +172,10 @@ class GameStorageActivity : Activity() {
         }.apply { name="WiiDsOffload";isDaemon=true }.start()
     }
     private fun dp(value: Int) = (value * resources.displayMetrics.density).toInt()
-    private fun styled(text: String): CharSequence = art?.styledText(text.replace("â€¦", "...")) ?: text
+    private fun styled(text: String): CharSequence =
+        if (wiiTheme) text else art?.styledText(text.replace("…", "...")) ?: text
     private fun label(text: String, size: Float) = TextView(this).apply {
-        this.text = styled(text); textSize = size; setTextColor(Color.WHITE); includeFontPadding = true
+        this.text = styled(text); textSize = size; setTextColor(if (wiiTheme) ThorMenuTheme.TEXT else Color.WHITE); includeFontPadding = true
     }
     private fun image(role: String): Bitmap? = runCatching { art?.bitmap(chrome!!.getJSONObject(role).getString("texture")) }.getOrNull()
     private fun buttonArt(bitmap: Bitmap): Drawable = object : Drawable() {
@@ -193,7 +197,9 @@ class GameStorageActivity : Activity() {
                 if (event.actionMasked == MotionEvent.ACTION_DOWN) view.requestFocus()
                 false
             }
-            val normal = image("button"); val focus = image("button_selected")
+            if (wiiTheme) ThorMenuTheme.styleToolButton(this)
+            val normal = if (wiiTheme) null else image("button")
+            val focus = if (wiiTheme) null else image("button_selected")
             if (normal != null && focus != null) {
                 backgroundTintList = null
                 background = StateListDrawable().apply {

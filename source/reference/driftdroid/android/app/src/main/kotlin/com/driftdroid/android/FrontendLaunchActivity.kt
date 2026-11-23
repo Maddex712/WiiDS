@@ -102,12 +102,15 @@ class FrontendLaunchActivity : Activity() {
             GameCatalog.Disc.GALAXY_USA -> FrontendGame.GALAXY
             GameCatalog.Disc.MKDD_USA -> FrontendGame.MKDD
             GameCatalog.Disc.POKEMON_XD_USA -> FrontendGame.POKEMON_XD
+            GameCatalog.Disc.POKEMON_COLOSSEUM_USA -> FrontendGame.POKEMON_COLOSSEUM
+            GameCatalog.Disc.CITY_FOLK_PAL_REV1 -> FrontendGame.CITY_FOLK
         }
         val base = when (explicit) {
             FrontendGame.RETRO_REWIND -> FrontendGame.MARIO_KART
             FrontendGame.MSMBWII -> FrontendGame.NSMB
             FrontendGame.KAIZO -> FrontendGame.GALAXY
             FrontendGame.MKDD_PLUS -> FrontendGame.MKDD
+            FrontendGame.POKEMON_XG -> FrontendGame.POKEMON_XD
             FrontendGame.PROJECT_PLUS -> FrontendGame.BRAWL
             else -> explicit
         }

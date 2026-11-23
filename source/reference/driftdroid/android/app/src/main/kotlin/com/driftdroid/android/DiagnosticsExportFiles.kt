@@ -25,6 +25,18 @@ internal object DiagnosticsExportFiles {
             file.canonicalFile.parentFile == parent.canonicalFile
     }
 
+    /** The GCN runtime writes its guest stack and allocator summary here on OSPanic. */
+    fun doubleDashPanic(root: File, plus: Boolean): File? {
+        val profile = if (plus) File(root, "plus") else root
+        val saves = File(profile, "saves")
+        val panic = File(saves, "panic.txt")
+        if (!listOf(root, profile, saves).all { Files.isDirectory(it.toPath(), LinkOption.NOFOLLOW_LINKS) } ||
+            !Files.isRegularFile(panic.toPath(), LinkOption.NOFOLLOW_LINKS)) return null
+        val canonicalProfile = if (plus) File(root.canonicalFile, "plus") else root.canonicalFile
+        val canonicalPanic = File(canonicalProfile, "saves/panic.txt")
+        return panic.takeIf { it.canonicalFile == canonicalPanic }
+    }
+
     fun collect(root: File): List<File> {
         val logs = File(root, "Logs")
         if (!Files.isDirectory(root.toPath(), LinkOption.NOFOLLOW_LINKS)) return emptyList()

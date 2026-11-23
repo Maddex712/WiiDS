@@ -1,0 +1,855 @@
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index 9c744fb..08ee774 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -65,7 +65,16 @@ endif ()
+ set(SDL_TEST_LIBRARY OFF CACHE BOOL "" FORCE)
+ set(SDL_EXAMPLES OFF CACHE BOOL "" FORCE)
+ set(SDL_TESTS OFF CACHE BOOL "" FORCE)
+-add_subdirectory(third_party/SDL EXCLUDE_FROM_ALL)
++if (ANDROID)
++  # Match the Java/JNI SDL ABI in the existing WiiDS application.
++  add_library(SDL3-shared SHARED IMPORTED GLOBAL)
++  set_target_properties(SDL3-shared PROPERTIES
++    IMPORTED_LOCATION "M:/WiiDS-1.26.2-prerelease-2026-11-16/android/app/src/main/jniLibs/arm64-v8a/libSDL3.so"
++    INTERFACE_INCLUDE_DIRECTORIES "${PROJECT_SOURCE_DIR}/third_party/SDL/include")
++  add_library(SDL3::SDL3 ALIAS SDL3-shared)
++else ()
++  add_subdirectory(third_party/SDL EXCLUDE_FROM_ALL)
++endif ()
+ 
+ set(AURORA_SDL3_PROVIDER vendor CACHE STRING "" FORCE)
+ if (CMAKE_SIZEOF_VOID_P EQUAL 4)
+@@ -78,7 +87,7 @@ if (APPLE)
+   set(AURORA_NOD_PROVIDER package CACHE STRING "" FORCE)
+ endif ()
+ set(XD_AURORA_DIR "${PROJECT_SOURCE_DIR}/third_party/aurora" CACHE PATH "Aurora source folder (patched here)")
+-file(GLOB _aurora_patches CONFIGURE_DEPENDS "${PROJECT_SOURCE_DIR}/third_party/patches/aurora/*.patch")
++file(GLOB _aurora_patches CONFIGURE_DEPENDS "C:/Users/super/Documents/ChatGPT/PORTING/build/xd-thor/pass4-2026-11-14/port/third_party/patches/aurora/*.patch")
+ list(SORT _aurora_patches)
+ set(_aurora_dir "${XD_AURORA_DIR}")
+ set(_aurora_stamp_file "${_aurora_dir}/.port_patches_applied")
+@@ -93,27 +102,7 @@ if (EXISTS "${_aurora_stamp_file}")
+   file(READ "${_aurora_stamp_file}" _aurora_old_stamp)
+ endif ()
+ if (NOT _aurora_old_stamp STREQUAL _aurora_stamp)
+-  message(STATUS "Aurora patches changed: resetting the Aurora checkout and applying them all")
+-  execute_process(COMMAND git checkout -- .
+-    WORKING_DIRECTORY "${_aurora_dir}" RESULT_VARIABLE _result)
+-  if (NOT _result EQUAL 0)
+-    message(FATAL_ERROR "Couldn't reset the Aurora checkout (${_aurora_dir})")
+-  endif ()
+-  execute_process(COMMAND git clean -fdq -e ".*"
+-    WORKING_DIRECTORY "${_aurora_dir}" RESULT_VARIABLE _result)
+-  if (NOT _result EQUAL 0)
+-    message(FATAL_ERROR "Couldn't remove the patches' added files in ${_aurora_dir}")
+-  endif ()
+-  file(REMOVE "${_aurora_stamp_file}")
+-  foreach (_patch ${_aurora_patches})
+-    execute_process(COMMAND git apply "${_patch}"
+-      WORKING_DIRECTORY "${_aurora_dir}" RESULT_VARIABLE _result)
+-    if (NOT _result EQUAL 0)
+-      message(FATAL_ERROR "Aurora patch doesn't apply: ${_patch}")
+-    endif ()
+-    message(STATUS "Applied Aurora patch ${_patch}")
+-  endforeach ()
+-  file(WRITE "${_aurora_stamp_file}" "${_aurora_stamp}")
++  message(FATAL_ERROR "Private Aurora patch receipt differs; preserve this tree and prepare a NEW output directory")
+ endif ()
+ if (NOT MSVC)
+   include(CheckCXXSourceCompiles)
+@@ -191,10 +180,18 @@ if (MSVC)
+ endif ()
+ 
+ include_directories(${CMAKE_CURRENT_SOURCE_DIR}/engine/i18n/include)
++if (ANDROID)
++include(wiids_android/Platform.cmake)
++endif ()
+ add_subdirectory(platform)
+ add_subdirectory(engine)
++if (NOT ANDROID)
+ add_subdirectory(launcher)
++endif ()
+ add_subdirectory(games/xd)
++if (ANDROID)
++include(wiids_android/Runtime.cmake)
++endif ()
+ 
+ if (MSVC AND DEFINED ENV{XD_TARGET_NOOPT} AND NOT "$ENV{XD_TARGET_NOOPT}" STREQUAL "")
+   function(_xd_collect_targets _dir _out)
+diff --git a/engine/gs/gsthread_ucontext.cpp b/engine/gs/gsthread_ucontext.cpp
+index 9f97539..2f351d0 100644
+--- a/engine/gs/gsthread_ucontext.cpp
++++ b/engine/gs/gsthread_ucontext.cpp
+@@ -1,16 +1,22 @@
++#include <unistd.h>
+ #include "gsthread_port.h"
+ 
+ #include <sys/mman.h>
+-#include <ucontext.h>
++#include "xd_context.h"
+ 
+ #include <cstdio>
+ #include <cstdlib>
+ #include <unordered_map>
++#include <cerrno>
++#include <cstring>
++#ifdef __ANDROID__
++#include <android/log.h>
++#endif
+ 
+ namespace {
+ 
+ struct Task {
+-  ucontext_t context{};
++  XdContext context{};
+   void* stack = nullptr;
+   size_t stackSize = 0;
+   bool made = false;
+@@ -20,7 +26,7 @@ struct Task {
+ };
+ 
+ std::unordered_map<void*, Task> sTasks;
+-ucontext_t sSchedulerContext;
++XdContext sSchedulerContext;
+ bool sSchedulerRunning = false;
+ Task* sStarting = nullptr;
+ Task* sCurrent = nullptr;
+@@ -28,6 +34,9 @@ Task* sCurrent = nullptr;
+ [[noreturn]] void fatal(const char* what) {
+   std::fprintf(stderr, "[engine/gs] GSthread: %s\n", what);
+   std::fflush(stderr);
++#ifdef __ANDROID__
++  __android_log_assert("GSthread", "XD-stack", "%s", what);
++#endif
+   std::abort();
+ }
+ 
+@@ -63,25 +72,33 @@ void PortGSthread_Create(void* thread, void* entry, PortGSthreadExit exitFunc, u
+ #ifdef __APPLE__
+   constexpr size_t kReserve = 0x100000, kGuard = 0x4000;
+ #else
+-  constexpr size_t kReserve = 0x100000, kGuard = 0x1000;
++  const size_t kReserve = 0x100000, kGuard = static_cast<size_t>(sysconf(_SC_PAGESIZE));
+ #endif
+   size_t usable = (pc_stack_size(stackSize) + 0x3FFF) & ~size_t{0x3FFF};
+   if (usable < kReserve) usable = kReserve;
+   t.stackSize = usable + kGuard;
+-  void* stack = mmap(nullptr, t.stackSize, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS | MAP_32BIT | MAP_STACK,
+-                     -1, 0);
++  void* stack = XdMapLow(t.stackSize);
+   if (stack == MAP_FAILED) {
+-    fatal("no memory below 2 GB for a task's stack");
++    const int e=errno;
++    char reason[192];
++    std::snprintf(reason,sizeof(reason),"no low task stack: bytes=%zu errno=%d (%s)",t.stackSize,e,std::strerror(e));
++    fatal(reason);
++  }
++  if (mprotect(stack, kGuard, PROT_NONE) != 0) {
++    const int e=errno;
++    munmap(stack,t.stackSize);
++    char reason[192];
++    std::snprintf(reason,sizeof(reason),"task stack guard failed: bytes=%zu errno=%d (%s)",kGuard,e,std::strerror(e));
++    fatal(reason);
+   }
+-  mprotect(stack, kGuard, PROT_NONE);
+   t.stack = stack;
+-  if (getcontext(&t.context) != 0) {
++  if (XdContext_Init(&t.context) != 0) {
+     fatal("getcontext failed");
+   }
+   t.context.uc_stack.ss_sp = static_cast<char*>(t.stack) + kGuard;
+   t.context.uc_stack.ss_size = usable;
+   t.context.uc_link = nullptr;
+-  makecontext(&t.context, task_start, 0);
++  XdContext_Make(&t.context, task_start, 0);
+   t.made = true;
+ }
+ 
+@@ -100,9 +117,9 @@ void PortGSthread_Run(void* thread) {
+   }
+   sSchedulerRunning = true;
+   sStarting = &it->second;
+-  ucontext_t* from = sCurrent != nullptr ? &sCurrent->context : &sSchedulerContext;
++  XdContext* from = sCurrent != nullptr ? &sCurrent->context : &sSchedulerContext;
+   sCurrent = &it->second;
+-  swapcontext(from, &it->second.context);
++  XdContext_Swap(from, &it->second.context);
+ }
+ 
+ void (*PortGSthread_SwitchOutHook)(void) = nullptr;
+@@ -116,7 +133,7 @@ void PortGSthread_SwitchToScheduler(void) {
+   }
+   Task* me = sCurrent;
+   sCurrent = nullptr;
+-  swapcontext(&me->context, &sSchedulerContext);
++  XdContext_Swap(&me->context, &sSchedulerContext);
+ }
+ 
+ void PortGSthread_Destroy(void* thread) {
+diff --git a/games/xd/CMakeLists.txt b/games/xd/CMakeLists.txt
+index 6aa8c0e..ff4c5d6 100644
+--- a/games/xd/CMakeLists.txt
++++ b/games/xd/CMakeLists.txt
+@@ -72,6 +72,8 @@ file(WRITE "${_xd_dt_dir}/flags.json.new" "{\"defines\": [\"AURORA\", \"AURORA_E
+  \"force_includes\": [\"${CMAKE_CURRENT_SOURCE_DIR}/src/game_code_seg.h\", \"${PROJECT_SOURCE_DIR}/platform/compat/include/cw_compat.h\", \"${PROJECT_SOURCE_DIR}/platform/sdk/include/sdk_port.h\"],
+  \"system_includes\": [\"${_xd_dt_sysinc}\"]}
+ ")
++elseif (ANDROID)
++  include("${PROJECT_SOURCE_DIR}/wiids_android/TableFlags.cmake")
+ elseif (APPLE)
+   execute_process(COMMAND "${CMAKE_C_COMPILER}" -print-resource-dir OUTPUT_VARIABLE _xd_clang_res
+     OUTPUT_STRIP_TRAILING_WHITESPACE)
+@@ -155,6 +157,7 @@ endforeach ()
+ list(APPEND XD_GAME_SOURCES ${XD_DISC_TABLE_WRAPPERS} "${_xd_dt_dir}/disc_tables_list.c")
+ 
+ add_library(xd_game OBJECT ${XD_GAME_SOURCES})
++target_include_directories(xd_game PRIVATE "${PROJECT_SOURCE_DIR}/wiids_companion")
+ 
+ if (DEFINED ENV{XD_GAME_NOOPT} AND NOT "$ENV{XD_GAME_NOOPT}" STREQUAL "")
+   set(_noopt_count 0)
+@@ -723,6 +726,7 @@ target_link_libraries(xd_extra_sources PUBLIC engine_mods engine_settings xd_lan
+ add_executable(xd_extra_sources_test tools/xd_extra_sources_test.cpp)
+ target_link_libraries(xd_extra_sources_test PRIVATE xd_extra_sources xd_settings_list)
+ 
++if (NOT ANDROID)
+ add_executable(xd_launcher WIN32 launcher/xd_launcher.cpp launcher/xd_gba_page.cpp launcher/xd_colosseum_page.cpp src/disc_verify.c)
+ target_include_directories(xd_launcher PRIVATE src tools)
+ target_link_libraries(xd_launcher PRIVATE xd_modrules xd_playthrough_files xd_randomizer xd_extra_sources engine_card_sources xd_gba_disc xd_legality_disc xd_colosseum) # (Save page: the randomizer's style)
+@@ -788,6 +792,7 @@ add_library(xd_gba STATIC gba/xd_gba_convert.cpp gba/xd_gba_trade.cpp)
+ target_include_directories(xd_gba PUBLIC gba/include)
+ target_link_libraries(xd_gba PUBLIC xd_save engine_gba_trade)
+ 
++endif ()
+ add_executable(xd_gba_test gba/tests/xd_gba_test.cpp)
+ target_link_libraries(xd_gba_test PRIVATE xd_gba)
+ 
+@@ -846,7 +851,11 @@ if (NOT WIN32)
+     list(APPEND XD_PROGRAM_PORT_SOURCES src/not_on_linux.cpp)
+   endif ()
+   if (NOT APPLE)
+-    list(APPEND XD_PROGRAM_PORT_SOURCES src/state_dump_linux.cpp)
++    if (ANDROID)
++list(APPEND XD_PROGRAM_PORT_SOURCES src/not_on_linux.cpp)
++else ()
++list(APPEND XD_PROGRAM_PORT_SOURCES src/state_dump_linux.cpp)
++endif ()
+   endif ()
+   list(APPEND XD_PROGRAM_PORT_SOURCES src/bug_report_linux.cpp)
+ endif ()
+@@ -875,7 +884,12 @@ endif ()
+ get_filename_component(_xd_snapshot_id "${XD_SNAPSHOT_DIR}" NAME)
+ set_property(SOURCE src/boot.c APPEND PROPERTY COMPILE_DEFINITIONS "XD_SNAPSHOT_ID=\"${_xd_snapshot_id}\"")
+ set_property(SOURCE src/boot.c APPEND PROPERTY COMPILE_DEFINITIONS "XD_PORT_VERSION=\"${PROJECT_VERSION}\"")
++if (ANDROID)
++add_library(xd SHARED ${XD_PROGRAM_PORT_SOURCES} $<TARGET_OBJECTS:xd_game> $<TARGET_OBJECTS:xd_musyx>)
++set_target_properties(xd PROPERTIES OUTPUT_NAME xd_xg)
++else ()
+ add_executable(xd ${XD_PROGRAM_PORT_SOURCES} $<TARGET_OBJECTS:xd_game> $<TARGET_OBJECTS:xd_musyx>)
++endif ()
+ target_compile_definitions(xd PRIVATE XD_RELGLOBAL_IS_U32=${XD_RELGLOBAL_IS_U32})
+ file(STRINGS "${XD_SNAPSHOT_DIR}/src/game/pxdvs/app/fight/fightSeq/fightSeqWazaseq.cpp" _xd_metro_never REGEX "pc_metronome_never_pick_count")
+ if (_xd_metro_never)
+@@ -884,7 +898,9 @@ endif ()
+ set_property(SOURCE src/warp.cpp src/render_icon.cpp src/settings_menu.cpp src/playthrough.cpp src/audio_categories.cpp src/button_icons.cpp src/settings_switches.cpp src/hd_textures.cpp src/texture_observers.cpp src/type_icons.cpp
+   src/replay_pacing.cpp src/widescreen.cpp src/online_mirror.cpp src/fsys_unpack_cost.cpp src/challenges.cpp src/walk_helper.cpp src/gen4_eevee.cpp src/online_draft_game.cpp src/online_vs_row.cpp src/pc_trade.cpp src/starter.cpp APPEND PROPERTY INCLUDE_DIRECTORIES ${PROJECT_SOURCE_DIR}/platform/compat/include
+   ${XD_AURORA_DIR}/include ${XD_SNAPSHOT_DIR}/include)
+-if (MSVC)
++if (ANDROID)
++  set(XD_PROGRAM_LINK_OPTIONS -Wl,-Bsymbolic-functions -Wl,-z,max-page-size=16384)
++elseif (MSVC)
+   set(XD_PROGRAM_LINK_OPTIONS /BASE:0x40000000 /DYNAMICBASE:NO /INCREMENTAL:NO)
+ elseif (APPLE) # macOS (docs/MAC.md, never run): the same address, and the reserved ranges of mac_low_reserve.c
+   set(XD_PROGRAM_LINK_OPTIONS ${XD_MAC_LOW_LINK_OPTIONS}
+diff --git a/games/xd/src/boot.c b/games/xd/src/boot.c
+index ac7bee3..e45f6df 100644
+--- a/games/xd/src/boot.c
++++ b/games/xd/src/boot.c
+@@ -37,11 +37,8 @@
+ #include <port_win_compat.h>
+ #include <malloc.h>
+ #include <sys/mman.h>
+-#include <ucontext.h>
+-#ifdef __linux__
+-#include <sys/personality.h>
++#include "xd_context.h"
+ #include <unistd.h>
+-#endif
+ #define _InterlockedExchange(target, value) __atomic_exchange_n((target), (value), __ATOMIC_SEQ_CST)
+ #endif
+ #ifdef _WIN32
+@@ -307,6 +304,8 @@ static void frame_hook(void) {
+   PortPhoto_Frame(handle_events);
+   PortFocusPause_Frame();
+   PortMenu_Frame(handle_events);
++  extern void WiidsXD_RuntimeFrame(void (*pump)(void));
++  WiidsXD_RuntimeFrame(handle_events);
+   PortXD_PlaythroughFrame();
+   PortXD_SpeedupsFrame();
+   PortXD_ParticleCheckFrame();
+@@ -406,12 +405,12 @@ void PortXD_ShadersStart(void);
+ 
+ #ifndef _WIN32
+ static int xd_main(int argc, char** argv);
+-static ucontext_t sLowContext, sStartContext;
++static XdContext sLowContext, sStartContext;
+ static int sLowArgc, sLowResult;
+ static char** sLowArgv;
+ static void low_stack_entry(void) { sLowResult = xd_main(sLowArgc, sLowArgv); }
+ 
+-#ifdef __linux__
++#if defined(__linux__) && !defined(__ANDROID__)
+ static void linux_heap_low_enough(char** argv) {
+   extern char end;
+   const uintptr_t start = (uintptr_t)sbrk(0);
+@@ -433,17 +432,14 @@ static void linux_heap_low_enough(char** argv) {
+ #endif
+ 
+ int aurora_main(int argc, char** argv) {
+-#ifdef __linux__
++#if defined(__linux__) && !defined(__ANDROID__)
+   linux_heap_low_enough(argv);
+ #endif
+ #ifdef __APPLE__
+   const size_t size = 8u << 20, guard = 0x4000;
+ #else
+-  const size_t size = 8u << 20, guard = 4096;
++  const size_t size = 8u << 20, guard = (size_t)sysconf(_SC_PAGESIZE);
+ #endif
+-  mallopt(M_MMAP_THRESHOLD, 32 << 20);
+-  mallopt(M_ARENA_MAX, 1);
+-  mallopt(M_TOP_PAD, 512 << 20);
+   {
+     void* volatile grow = malloc(4 << 20);
+     free(grow);
+@@ -477,21 +473,22 @@ int aurora_main(int argc, char** argv) {
+     SDL_SetMemoryFunctions(malloc, calloc, realloc, free);
+   }
+ #endif
+-  char* stack = (char*)mmap(NULL, size + guard, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS | MAP_32BIT, -1, 0);
++  char* stack = (char*)XdMapLow(size + guard);
+   if (stack == MAP_FAILED) {
+     return fail(Tr("Could not place the program's main stack below 4 GB (the game keeps addresses in 4 bytes). "
+                    "On a Mac this means the system did not give the program its low memory: please send "
+                    "the report made by first_run_report.sh."));
+   }
+   mprotect(stack, guard, PROT_NONE);
+-  getcontext(&sLowContext);
++  XdContext_Init(&sLowContext);
+   sLowContext.uc_stack.ss_sp = stack + guard;
+   sLowContext.uc_stack.ss_size = size;
+   sLowContext.uc_link = &sStartContext;
+   sLowArgc = argc;
+   sLowArgv = argv;
+-  makecontext(&sLowContext, low_stack_entry, 0);
+-  swapcontext(&sStartContext, &sLowContext);
++  XdContext_Make(&sLowContext, low_stack_entry, 0);
++  extern void XdStack_RunMain(XdContext*, XdContext*);
++  XdStack_RunMain(&sStartContext, &sLowContext);
+   return sLowResult;
+ }
+ #define aurora_main xd_main
+@@ -527,7 +524,9 @@ int aurora_main(int argc, char** argv) {
+     PortXD_BugReportInstallAutomatic(test);
+   }
+   fprintf(stderr, "[user folder] %s (%s)\n", PortUser_FolderUtf8("Pokemon XD"), PortUser_FolderNote("Pokemon XD"));
++  extern void WiidsXD_RuntimeInit(void);
+   PortXD_LoadSettings();
++  WiidsXD_RuntimeInit();
+   {
+     extern void PortXD_LoadDspCoef(void);
+     PortXD_LoadDspCoef();
+@@ -542,7 +541,7 @@ int aurora_main(int argc, char** argv) {
+     }
+   }
+   if (!PortMem_ReserveMEM1()) {
+-    return fail(Tr("Could not place the game's memory at its GameCube addresses (0x80000000, 0xE0000000)"));
++    return fail("Could not adopt reserved MEM1 (0xC0000000), cache (0xE0000000), and low data arena. See XD-memory logs.");
+   }
+ #ifdef __APPLE__
+   {
+@@ -640,6 +639,7 @@ int aurora_main(int argc, char** argv) {
+   AuroraConfig config;
+   memset(&config, 0, sizeof(config));
+   config.appName = "Pokemon XD";
++  config.startFullscreen = true;
+   const char* cardDir = getenv("XD_CARD_DIR");
+   config.userPath = cardDir != NULL && cardDir[0] != '\0' ? cardDir : PortUser_FolderUtf8("Pokemon XD");
+   const char* cardRoot = PortXD_CardRootUtf8();
+@@ -701,6 +701,7 @@ int aurora_main(int argc, char** argv) {
+     config.resourcesPath = pipelineList;
+   }
+   config.logCallback = &log_callback;
++  config.logLevel = LOG_INFO; // Skip per-frame GX debug tracing before formatting or I/O.
+   config.windowPosX = 16;
+   config.windowPosY = 64;
+   config.vsync = true;
+diff --git a/games/xd/src/disc_tables.cpp b/games/xd/src/disc_tables.cpp
+index 206be9b..2e5ccaf 100644
+--- a/games/xd/src/disc_tables.cpp
++++ b/games/xd/src/disc_tables.cpp
+@@ -140,7 +140,7 @@ void* resolve_data(const XDDiscTable* t, uint32_t entry, uint32_t gcOff, uint32_
+     }
+   }
+   if (kind == XDDT_STR && in_loaded_data(v)) {
+-    return reinterpret_cast<void*>(static_cast<uintptr_t>(v));
++    return reinterpret_cast<void*>(XdMem1ToHost(v));
+   }
+   fail(t, entry, gcOff, "points at something the port doesn't know", v);
+ }
+@@ -161,7 +161,7 @@ uint32_t unresolve_data(const void* p) {
+       return var.gcAddress + static_cast<uint32_t>(static_cast<const uint8_t*>(p) - b);
+     }
+   }
+-  const auto u = reinterpret_cast<uintptr_t>(p);
++  const auto u = XdMem1ToGuest(reinterpret_cast<uintptr_t>(p));
+   return u < 0x100000000ull ? static_cast<uint32_t>(u) : 0xFFFFFFFFu;
+ }
+ 
+diff --git a/games/xd/src/disc_verify.c b/games/xd/src/disc_verify.c
+index 61b3fc7..2dda006 100644
+--- a/games/xd/src/disc_verify.c
++++ b/games/xd/src/disc_verify.c
+@@ -77,6 +77,13 @@ static bool check_game_id(const PortDiscInfo* info, PortXDDiscVerdict* out) {
+ 
+ static void check_content(const char* discPath, const PortDiscInfo* info, PortDiscHashProgress progress, void* user,
+                           PortXDDiscVerdict* out) {
++#ifdef __ANDROID__
++  if (!info->complete) {
++    out->kind = XD_DISC_PROBLEM;
++    snprintf(out->text, sizeof(out->text), "WiiDS requires the complete verified USA revision 0 import.");
++    return;
++  }
++#else
+   const char* skip = getenv("XD_SKIP_DISC_HASH");
+   if (skip != NULL && skip[0] == '1') {
+     char cache[2048], full[2048], sha1[41];
+@@ -103,6 +110,7 @@ static void check_content(const char* discPath, const PortDiscInfo* info, PortDi
+     return;
+   }
+ 
++#endif
+   char cache[2048];
+   const bool haveCache = cache_file(cache, sizeof(cache));
+   char sha1[41];
+@@ -274,6 +282,12 @@ bool PortXD_CheckDisc(const char* discPath) {
+   if (progress.shown >= 0) {
+     fprintf(stderr, "\n");
+   }
++#ifdef __ANDROID__
++  if (v.kind != XD_DISC_GOOD || !v.xg) {
++      problem("Choose the verified Pokémon XG 1.2.1 disc through WiiDS.");
++      return false;
++    }
++#endif
+   switch (v.kind) {
+   case XD_DISC_GOOD:
+     fprintf(stderr, "[disc check] %s\n", v.text);
+diff --git a/games/xd/src/dol_tables.c b/games/xd/src/dol_tables.c
+index 3749420..d7af04d 100644
+--- a/games/xd/src/dol_tables.c
++++ b/games/xd/src/dol_tables.c
+@@ -113,7 +113,7 @@ uint8_t* PortXD_GetDolTable(const char* name) {
+   return NULL;
+ }
+ 
+-uint32_t PortXD_ArenaLo(void) { return sArenaLo; }
++uint32_t PortXD_ArenaLo(void) { return (uint32_t)XdMem1ToHost(sArenaLo); }
+ 
+ void PortXD_DolImage(uint32_t* bssStart, uint32_t* bssEnd, uint32_t* imageEnd) {
+   *bssStart = sBssStart;
+diff --git a/games/xd/src/game_new.cpp b/games/xd/src/game_new.cpp
+index f28d118..e194069 100644
+--- a/games/xd/src/game_new.cpp
++++ b/games/xd/src/game_new.cpp
+@@ -47,7 +47,7 @@ bool called_from_game(void* returnAddress) {
+ 
+ bool in_game_heap(void* ptr) {
+   const auto a = reinterpret_cast<uintptr_t>(ptr);
+-  return a >= 0x80000000u && a < 0x81800000u;
++  return XdMem1Contains(a);
+ }
+ 
+ void* game_new(size_t size) { return GSmemIsInitialized() ? GSmemAlloc(static_cast<uint32_t>(size)) : nullptr; }
+diff --git a/games/xd/src/gen4_moves.cpp b/games/xd/src/gen4_moves.cpp
+index 51ea0b9..32e182e 100644
+--- a/games/xd/src/gen4_moves.cpp
++++ b/games/xd/src/gen4_moves.cpp
+@@ -1515,3 +1515,5 @@ uint8_t fightSeqFightOutPokemonTokuseiCheckWazaHit(void* attacker, void* defende
+ }
+ 
+ }
++
++#include "xd_gen4_read_hook.inc"
+diff --git a/games/xd/src/heap_check.cpp b/games/xd/src/heap_check.cpp
+index e99cdd5..9d057ce 100644
+--- a/games/xd/src/heap_check.cpp
++++ b/games/xd/src/heap_check.cpp
+@@ -29,9 +29,9 @@ struct Heap {
+   uint8_t unk2C;
+ };
+ 
+-constexpr uintptr_t kHeapArray = 0x80507DA0;
++constexpr uintptr_t kHeapArray = 0xC0507DA0;
+ constexpr int kMaxHeaps = 4;
+-constexpr uintptr_t kArenaEnd = 0x81800000;
++constexpr uintptr_t kArenaEnd = 0xC1800000;
+ constexpr int kMaxRecords = 1000000;
+ 
+ bool plausible(const Cell* c, bool type0) {
+diff --git a/games/xd/src/input_ticks.cpp b/games/xd/src/input_ticks.cpp
+index 6ecf37f..6678106 100644
+--- a/games/xd/src/input_ticks.cpp
++++ b/games/xd/src/input_ticks.cpp
+@@ -477,3 +477,5 @@ void PortTick_menuGetKeyInfo(void* out, s32 port) {
+ }
+ 
+ }
++
++extern "C" uint32_t WiidsXD_LogicTicks(){return sTickNumber;}
+diff --git a/games/xd/src/not_on_linux.cpp b/games/xd/src/not_on_linux.cpp
+index 74654d3..145f41c 100644
+--- a/games/xd/src/not_on_linux.cpp
++++ b/games/xd/src/not_on_linux.cpp
+@@ -18,7 +18,7 @@ bool asked(const char* variable) {
+ 
+ extern "C" {
+ 
+-#ifdef __APPLE__
++#if defined(__APPLE__) || defined(__ANDROID__)
+ void PortXD_StateDumpStart(void) {
+   if (asked("XD_STATE_PROBES")) not_yet("XD_STATE_PROBES (game variables by name)");
+   if (asked("XD_RNG_SEED")) not_yet("XD_RNG_SEED");
+diff --git a/games/xd/src/settings_boot.cpp b/games/xd/src/settings_boot.cpp
+index b9e6173..85531f3 100644
+--- a/games/xd/src/settings_boot.cpp
++++ b/games/xd/src/settings_boot.cpp
+@@ -17,10 +17,12 @@ std::string sSummary = "settings not loaded";
+ extern "C" const char* PortXD_Tr(const char* english) { return engine::i18n::Tr(english); }
+ extern "C" void PortXD_DiscVerifySetTranslator(const char* (*translate)(const char* english));
+ 
++extern "C" void WiidsXD_RegisterSettings();
+ extern "C" void PortXD_LoadSettings(void) {
+   namespace es = engine::settings;
+   es::Registry& registry = es::Global();
+   xd_settings::Register(registry);
++  WiidsXD_RegisterSettings();
+ 
+   const std::filesystem::path folder = xd::SettingsFolder();
+   if (registry.Load(folder)) {
+diff --git a/games/xd/src/settings_menu.cpp b/games/xd/src/settings_menu.cpp
+index 32d79c7..7a649f4 100644
+--- a/games/xd/src/settings_menu.cpp
++++ b/games/xd/src/settings_menu.cpp
+@@ -3483,11 +3483,23 @@ bool PortXD_OpenOnlineTradeLive() {
+   if (!PortMenu_Open(&ot::kPage)) { ot::sLive = false; return false; }
+   return true;
+ }
+-bool PortXD_PcTradeAvailable() { return sOn; }
++bool PortXD_PcTradeAvailable() {
++#ifdef __ANDROID__
++  return false;
++#else
++  return sOn;
++#endif
++}
+ bool PortXD_OpenNewGameSetup() { return PortMenu_Open(&ng::kSetupPage); }
+ bool PortXD_OpenSavePicker() { return sp::Open() && PortMenu_Open(&sp::kPage); }
+ extern "C" {
+-bool PortXD_VsRowEnabled(void) { return sOn && ex::sBattle != nullptr; }
++bool PortXD_VsRowEnabled(void) {
++#ifdef __ANDROID__
++  return false;
++#else
++  return sOn && ex::sBattle != nullptr;
++#endif
++}
+ int32_t PortXD_VsMenuExtraSelected(void) {
+   if (!PortXD_VsRowEnabled()) return 0;
+   if (menuIsCheck(0x118) == 1) menuCloseCustom(0x118, 2, 1);
+@@ -3517,3 +3529,8 @@ void PortXD_ShowNote(const std::string& text, float seconds) {
+   ng::noteUntil = std::chrono::steady_clock::now() + std::chrono::milliseconds(static_cast<int>(seconds * 1000.f));
+ }
+ 
++
++extern "C" int WiidsXD_SettingsEntry(int menu) {
++    auto* w=windowSearchID(menu);
++    return sOn&&MenuOf(w)?(sSelected?1:0):-1;
++}
+diff --git a/platform/CMakeLists.txt b/platform/CMakeLists.txt
+index fd6b6d1..6744ef2 100644
+--- a/platform/CMakeLists.txt
++++ b/platform/CMakeLists.txt
+@@ -26,7 +26,9 @@ target_include_directories(platform_input PUBLIC input/include)
+ target_link_libraries(platform_input PUBLIC engine_controls PRIVATE aurora::pad aurora::si platform_os)
+ target_link_libraries(platform_input PRIVATE aurora::core platform_video platform_audio)
+ 
+-if (CMAKE_SYSTEM_NAME STREQUAL "Linux")
++if (ANDROID)
++  set(XD_PLATFORM_OS_SYSTEM_SOURCES ${PROJECT_SOURCE_DIR}/wiids_android/crash.cpp os/log_tee_linux.cpp os/run_status_linux.cpp os/os_small_linux.cpp)
++elseif (CMAKE_SYSTEM_NAME STREQUAL "Linux")
+   set(XD_PLATFORM_OS_SYSTEM_SOURCES os/crash_report_linux.cpp os/log_tee_linux.cpp os/run_status_linux.cpp
+     os/os_small_linux.cpp)
+ elseif (APPLE)
+@@ -52,7 +54,7 @@ if (WIN32)
+   target_link_libraries(platform_disc PRIVATE bcrypt)
+ endif ()
+ 
+-if (CMAKE_SYSTEM_NAME STREQUAL "Linux" OR APPLE)
++if (CMAKE_SYSTEM_NAME STREQUAL "Linux" OR APPLE OR ANDROID)
+   set(XD_WINDOW_SHOT_SOURCE video/window_shot_linux.cpp) # PNG through libpng (Aurora's copy)
+ else ()
+   set(XD_WINDOW_SHOT_SOURCE video/window_shot.cpp video/window_shot_linux.cpp)
+@@ -60,7 +62,7 @@ endif ()
+ add_library(platform_video STATIC video/presentation.cpp video/photo_mode.cpp video/freeze_frame.cpp
+   video/port_menu.cpp video/focus_pause.cpp ${XD_WINDOW_SHOT_SOURCE} video/gx_texture_decode.cpp video/button_art.cpp
+   video/frame_capture.cpp video/fps_counter.cpp video/speedrun_overlay.cpp video/frame_rate.cpp)
+-if (CMAKE_SYSTEM_NAME STREQUAL "Linux" OR APPLE)
++if (CMAKE_SYSTEM_NAME STREQUAL "Linux" OR APPLE OR ANDROID)
+   target_link_libraries(platform_video PRIVATE PNG::PNG)
+ endif ()
+ target_include_directories(platform_video PUBLIC video/include)
+@@ -68,4 +70,6 @@ target_link_libraries(platform_video PUBLIC aurora::core engine_controls PRIVATE
+   platform_audio ${AURORA_SDL3_TARGET})
+ xd_link_windows_libs(platform_video PRIVATE dwmapi windowscodecs ole32)
+ 
++if (NOT ANDROID)
+ add_subdirectory(tests)
++endif ()
+diff --git a/platform/os/include/port_win_compat.h b/platform/os/include/port_win_compat.h
+index bb78356..4e9248a 100644
+--- a/platform/os/include/port_win_compat.h
++++ b/platform/os/include/port_win_compat.h
+@@ -4,7 +4,7 @@
+ #include "port_win_time.h"
+ #include "port_seh.h"
+ 
+-#include <execinfo.h>
++#include "xd_backtrace.h"
+ #include <stdint.h>
+ #include <stdlib.h>
+ #include <string.h>
+diff --git a/platform/os/include/port_win_time.h b/platform/os/include/port_win_time.h
+index 36b03e4..fdd33f1 100644
+--- a/platform/os/include/port_win_time.h
++++ b/platform/os/include/port_win_time.h
+@@ -25,6 +25,6 @@ static inline void Sleep(DWORD ms) {
+   t.tv_nsec = (long)(ms % 1000) * 1000000L;
+   nanosleep(&t, 0);
+ }
+-static inline void YieldProcessor(void) { __builtin_ia32_pause(); }
++static inline void YieldProcessor(void) { __asm__ __volatile__("yield"); }
+ #endif
+ #endif
+diff --git a/platform/os/user_folder.cpp b/platform/os/user_folder.cpp
+index 2bc53d2..7ca30b9 100644
+--- a/platform/os/user_folder.cpp
++++ b/platform/os/user_folder.cpp
+@@ -127,6 +127,15 @@ Folder& Find(const char* appName) {
+     return folder;
+   }
+ 
++  const char* profile = std::getenv("XD_WIIDS_PROFILE");
++  if (profile != nullptr && profile[0] != '\0') {
++    folder.path = fs::path(profile);
++    folder.utf8 = Utf8(folder.path);
++    folder.note = "WiiDS Pokemon XD profile";
++    std::error_code ec;
++    fs::create_directories(folder.path, ec);
++    return folder;
++  }
+   borealis::data::Options options;
+   options.portableRelativePath = "portable";
+   folder.manager = std::make_unique<borealis::data::Manager>(
+diff --git a/platform/sdk/async_callbacks.cpp b/platform/sdk/async_callbacks.cpp
+index b79c5ae..6dac26b 100644
+--- a/platform/sdk/async_callbacks.cpp
++++ b/platform/sdk/async_callbacks.cpp
+@@ -391,7 +391,7 @@ CARDCallback card_track(s32 chan, CARDCallback callback) {
+ }
+ 
+ constexpr uint64_t kCardCpuHz = 486000000u;
+-constexpr uint64_t kCardFieldCycles = kCardCpuHz * 1001u / 60000u;
++constexpr uint64_t kCardFieldCycles = kCardCpuHz / 60u;
+ constexpr uint64_t kCardReadByte = kCardCpuHz / (512u * 1024u);
+ constexpr uint64_t kCardWriteByte = kCardCpuHz / 98432u;
+ constexpr uint64_t kCardCmdDone = 5000u;
+diff --git a/platform/sdk/frame_cost.cpp b/platform/sdk/frame_cost.cpp
+index bbc2560..8edb593 100644
+--- a/platform/sdk/frame_cost.cpp
++++ b/platform/sdk/frame_cost.cpp
+@@ -14,7 +14,7 @@ int64_t PortOS_BusyFor(int64_t ticks);
+ 
+ namespace {
+ 
+-constexpr double kFieldTicks = 40500000.0 * 1001.0 / 60000.0;
++constexpr double kFieldTicks = 40500000.0 / 60.0;
+ 
+ std::once_flag sInit;
+ std::map<uint32_t, double> sCosts;
+diff --git a/platform/sdk/gc_memory.cpp b/platform/sdk/gc_memory.cpp
+index 628a210..3678ebb 100644
+--- a/platform/sdk/gc_memory.cpp
++++ b/platform/sdk/gc_memory.cpp
+@@ -1,4 +1,5 @@
+ #include <dolphin/os.h>
++#include "early_plan.h"
+ 
+ #ifdef _WIN32
+ #define WIN32_LEAN_AND_MEAN
+@@ -53,7 +54,7 @@ size_t sLowUsed = 0;
+ size_t sLowCommitted = 0;
+ std::mutex sLowLock;
+ 
+-constexpr uintptr_t kMem1Base = 0x80000000;
++constexpr uintptr_t kMem1Base = XD_MEM1_HOST_BASE;
+ constexpr uint32_t kMem1Size = 0x01800000;
+ constexpr uintptr_t kMem1UncachedBase = 0xC0000000;
+ constexpr uintptr_t kLockedCacheBase = 0xE0000000;
+@@ -66,8 +67,24 @@ bool sReserved = false;
+ 
+ extern "C" {
+ 
++int PortMem_AdoptEarly(const XdEarlyMemory* p) {
++  if(sReserved || sLowReserved || !p || p->abi!=1 || !p->ready ||
++     p->mem1!=kMem1Base || p->cache!=kLockedCacheBase ||
++     p->low<0x51000000 || p->low>0x80000000-kLowSize || (p->low&0xffff))return 0;
++  kLowBase=p->low;sReserved=true;sLowReserved=true;
++  std::fprintf(stderr,"[XD-memory] adopted early MEM1=%p cache=%p low=%p\n",
++               (void*)p->mem1,(void*)p->cache,(void*)p->low);
++  return 1;
++}
++
+ bool PortMem_ReserveMEM1(void) {
+   sGameProgram = true;
++  if(sReserved && sLowReserved)return true;
++#ifdef __ANDROID__
++  // Android must adopt the early reservation. Never retry over owned mappings.
++  std::fprintf(stderr,"[XD-memory] missing early memory handoff; refusing late allocation\n");
++  return false;
++#endif
+ #ifndef _WIN32
+   const int fd = memfd_create("gc_mem1", 0);
+   const bool sized = fd >= 0 && ftruncate(fd, kMem1Size) == 0;
+@@ -75,7 +92,7 @@ bool PortMem_ReserveMEM1(void) {
+                          MAP_SHARED | MAP_FIXED_NOREPLACE, fd, 0)
+                   : MAP_FAILED;
+   sReserved = p == reinterpret_cast<void*>(kMem1Base);
+-  if (sReserved && mmap(reinterpret_cast<void*>(kMem1UncachedBase), kMem1Size, PROT_READ | PROT_WRITE,
++  if (sReserved && kMem1UncachedBase != kMem1Base && mmap(reinterpret_cast<void*>(kMem1UncachedBase), kMem1Size, PROT_READ | PROT_WRITE,
+                         MAP_SHARED | MAP_FIXED_NOREPLACE, fd, 0) != reinterpret_cast<void*>(kMem1UncachedBase)) {
+     std::fprintf(stderr, "[platform/sdk] no uncached view of game memory at 0xC0000000 (range taken)\n");
+   }
+@@ -91,7 +108,7 @@ bool PortMem_ReserveMEM1(void) {
+                                                  reinterpret_cast<void*>(kMem1Base))
+                                : nullptr;
+   sReserved = p == reinterpret_cast<void*>(kMem1Base);
+-  if (sReserved && MapViewOfFileEx(section, FILE_MAP_ALL_ACCESS, 0, 0, kMem1Size,
++  if (sReserved && kMem1UncachedBase != kMem1Base && MapViewOfFileEx(section, FILE_MAP_ALL_ACCESS, 0, 0, kMem1Size,
+                                    reinterpret_cast<void*>(kMem1UncachedBase)) == nullptr) {
+     std::fprintf(stderr, "[platform/sdk] no uncached view of game memory at 0xC0000000 (range taken)\n");
+   }
+@@ -181,7 +198,7 @@ void PortMem_InitOS(uint32_t arenaLo) {
+   put32(0x28, kMem1Size);
+   put32(0xF8, kBusClock);
+   put32(0xFC, kCpuClock);
+-  OSSetArenaLo(arenaLo != 0 ? reinterpret_cast<uint8_t*>(static_cast<uintptr_t>(arenaLo)) : low + kArenaStart);
++  OSSetArenaLo(arenaLo != 0 ? reinterpret_cast<uint8_t*>(XdMem1ToHost(arenaLo)) : low + kArenaStart);
+   OSSetArenaHi(MEM1End);
+ }
+ 
+diff --git a/platform/sdk/gx_fifo.cpp b/platform/sdk/gx_fifo.cpp
+index f8c76bd..91f4fac 100644
+--- a/platform/sdk/gx_fifo.cpp
++++ b/platform/sdk/gx_fifo.cpp
+@@ -15,7 +15,7 @@
+ extern "C" __declspec(dllimport) unsigned short __stdcall RtlCaptureStackBackTrace(unsigned long, unsigned long,
+                                                                                   void**, unsigned long*);
+ #else
+-#include <execinfo.h>
++#include "xd_backtrace.h"
+ #endif
+ 
+ extern "C" {
+diff --git a/platform/sdk/os_threads.cpp b/platform/sdk/os_threads.cpp
+index 4efa6e5..4ff84f6 100644
+--- a/platform/sdk/os_threads.cpp
++++ b/platform/sdk/os_threads.cpp
+@@ -1,3 +1,4 @@
++#include <unistd.h>
+ #include <aurora/time.hpp>
+ 
+ #include <algorithm>
+@@ -27,7 +28,8 @@
+ #pragma comment(lib, "dbghelp.lib")
+ #else
+ #include <dlfcn.h>
+-#include <execinfo.h>
++#include "xd_backtrace.h"
++#include "xd_context.h"
+ #include <pthread.h>
+ #include <signal.h>
+ #include <sys/mman.h>
+@@ -466,10 +468,9 @@ void start_game_thread(PThread* t) {
+ #ifdef __APPLE__
+   constexpr size_t kStack = 0x100000, kGuard = 0x4000;
+ #else
+-  constexpr size_t kStack = 0x100000, kGuard = 0x1000;
++  const size_t kStack = 0x100000, kGuard = static_cast<size_t>(sysconf(_SC_PAGESIZE));
+ #endif
+-  void* block = mmap(nullptr, kGuard + kStack, PROT_READ | PROT_WRITE,
+-                     MAP_PRIVATE | MAP_ANONYMOUS | MAP_32BIT | MAP_STACK, -1, 0);
++  void* block = XdMapLow(kGuard + kStack);
+   if (block == MAP_FAILED) {
+     fatal("no memory below 2 GB for a game thread's stack");
+   }
+diff --git a/platform/sdk/vi_clock.cpp b/platform/sdk/vi_clock.cpp
+index 848d8f6..d688b87 100644
+--- a/platform/sdk/vi_clock.cpp
++++ b/platform/sdk/vi_clock.cpp
+@@ -25,7 +25,7 @@ bool PortTime_IsDeterministic(void);
+ namespace {
+ 
+ constexpr int64_t kTimerClock = 40500000;
+-constexpr int64_t kFieldTicks = kTimerClock * 1001 / 60000;
++constexpr int64_t kFieldTicks = kTimerClock / 60;
+ constexpr int64_t kLineTicks = kFieldTicks * 2 / 525;
+ 
+ struct PollXY {
+diff --git a/platform/video/presentation.cpp b/platform/video/presentation.cpp
+index e06e53f..779dd32 100644
+--- a/platform/video/presentation.cpp
++++ b/platform/video/presentation.cpp
+@@ -40,7 +40,7 @@ namespace {
+ 
+ namespace es = engine::settings;
+ 
+-constexpr double kGameHz = 60000.0 / 1001.0;
++constexpr double kGameHz = 60.0;
+ constexpr int kWindowHeight = 960;
+ 
+ enum class Pacing { Original, Auto, LowLatency };
+diff --git a/tools/gen_disc_tables.py b/tools/gen_disc_tables.py
+index 6a6479f..2de9303 100644
+--- a/tools/gen_disc_tables.py
++++ b/tools/gen_disc_tables.py
+@@ -135,6 +135,10 @@ def clang_args(flags, lang, target, extra=()):
+                 "-std=c11" if lang == "c" else "-std=c++20", "-fms-extensions", "-fms-compatibility",
+                 "-Wno-everything", "-ferror-limit=0", "-D_ALLOW_COMPILER_AND_STL_VERSION_MISMATCH"]
+         args += ["-fms-compatibility-version=19.44"]
++    if target.startswith("armv7a"):
++        args += ["-D_UINTPTR_T_DEFINED", "-include", "stdint.h"]
++        for i in flags.get("gc_system_includes", []):
++            args += ["-isystem", i]
+     for d in flags["defines"]:
+         args.append("-D" + d)
+     # ("first_includes": Linux only, the folder whose sys/types.h passes on the system's own; games/xd/CMakeLists.txt)
+@@ -142,7 +146,7 @@ def clang_args(flags, lang, target, extra=()):
+         args += ["-I", i]
+     for f in flags["force_includes"]:
+         args += ["-include", f]
+-    if target.startswith(("i686", "i386")):
++    if target.startswith(("i686", "i386", "armv7a")):
+         # The GameCube layout of tables with PC-only spare rows (the decomp's game/pcspare.h, 2026-11-12): the
+         # original row count, as main.dol has them. After the game's own forced includes (which may pull it in).
+         args += ["-include", str(LINUX_STUBS / "pcspare_gc_view.h")]

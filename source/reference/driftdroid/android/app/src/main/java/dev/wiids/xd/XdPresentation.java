@@ -9,6 +9,7 @@ import android.view.*;
 public final class XdPresentation extends WiiDsPresentation {
     private final Handler handler=new Handler(Looper.getMainLooper());
     private XdCompanionView view;
+    private final boolean xg;
     private boolean started;
     private final XdState.Decoder decoder=new XdState.Decoder();
     
@@ -19,12 +20,15 @@ public final class XdPresentation extends WiiDsPresentation {
         catch(UnsatisfiedLinkError missing){state=XdState.unavailable();}
         view.fieldColor(XdNative.fieldColor());view.render(state);handler.postDelayed(this,100);
     }};
-    public XdPresentation(Context context,Display display,Runnable openMenu){super(context,display);}
+    public XdPresentation(Context context, Display display, boolean xg) {
+        super(context, display);
+        this.xg = xg;
+    }
     public void setMenuOpen(boolean value){if(view!=null)view.setMenuOpen(value);}
     @Override protected void onCreate(Bundle state){
         super.onCreate(state);
         if(getWindow()!=null)getWindow().addFlags(WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE);
-        view=new XdCompanionView(getContext());
+        view=new XdCompanionView(getContext(), xg);
         android.widget.FrameLayout layers=new android.widget.FrameLayout(getContext());
         layers.addView(view,new android.widget.FrameLayout.LayoutParams(-1,-1));
         android.view.SurfaceView lower=new android.view.SurfaceView(getContext());

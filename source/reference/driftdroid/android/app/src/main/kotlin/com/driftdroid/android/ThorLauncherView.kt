@@ -62,7 +62,8 @@ internal class ThorLauncherView(
     private val onAchievements: ((product: Int) -> Unit)? = null,
     private val thorMap: File? = null,
     private val status: () -> String,
-) : View(context) {
+) : View(context), LibraryLauncher {
+    override fun redraw() = invalidate()
     /**
      * [art] names the optional private `<art>-cover`/`<art>-disc` images and [banner] an in-APK
      * fallback drawable (0: none). [updatesShortcut] lets Y open Retro Rewind updates while this
@@ -238,13 +239,13 @@ internal class ThorLauncherView(
     override fun onDetachedFromWindow() { removeCallbacks(caseArtPoll); super.onDetachedFromWindow() }
 
     /** Re-apply details when Android recreates the lower-display Presentation. */
-    fun refreshSelection() {
+    override fun refreshSelection() {
         onSelectionChanged(selection.takeIf { !options && it < caseCount }, options)
         publishPhase()
     }
 
     /** The launcher became visible again (Home return, game exit, sleep/wake). */
-    fun onHostResumed() {
+    override fun onHostResumed() {
         hostResumed = true
         reloadCaseArt()
         if (state == State.COMMITTED || state == State.EXTRACT || state == State.RETURN_DISC) {
@@ -262,9 +263,9 @@ internal class ThorLauncherView(
     }
 
     /** True from the launch commit until the launcher is shown again. */
-    val launchCommitted: Boolean get() = state == State.COMMITTED
+    override val launchCommitted: Boolean get() = state == State.COMMITTED
 
-    fun onHostPaused() {
+    override fun onHostPaused() {
         hostResumed = false
         if (state != State.COMMITTED) ThorLauncherAudio.hide()
     }
@@ -1009,7 +1010,10 @@ internal class ThorLauncherView(
     private fun remember(value: Int) {
         if (value == lastSelection) return
         lastSelection = value
-        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().putInt("selection", value).apply()
+        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit()
+            .putInt("selection", value)
+            .putBoolean("selection_is_options", value == caseCount)
+            .apply()
     }
 
     private fun move(direction: Int) {
@@ -1120,7 +1124,7 @@ internal class ThorLauncherView(
      * back and explain, instead of waiting on a black screen. Also used for a closed case whose
      * game is unavailable.
      */
-    fun launchFailed(message: String) {
+    override fun launchFailed(message: String) {
         ThorLauncherAudio.play(ThorLauncherAudio.Sound.REJECT)
         if (state == State.COMMITTED || state == State.EXTRACT) {
             spin = 0f; spinRate = 0f
@@ -1310,7 +1314,13 @@ internal class ThorLauncherView(
         private const val PREFS = "thor_launcher_library"
 
         private fun restoredSelection(context: Context, caseCount: Int): Int {
-            if (lastSelection < 0) lastSelection = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getInt("selection", 0)
+            if (lastSelection < 0) {
+                val preferences = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+                val saved = preferences.getInt("selection", 0)
+                // In 1.26.2, Options followed the 13 game cases at position 13.
+                val options = preferences.getBoolean("selection_is_options", saved == 13 && caseCount == 14)
+                lastSelection = if (options) caseCount else saved
+            }
             return lastSelection.coerceIn(0, caseCount)
         }
         private fun restoredBundle(context: Context): Boolean =

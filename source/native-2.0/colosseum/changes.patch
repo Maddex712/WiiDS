@@ -1,0 +1,1052 @@
+diff --git a/tools/aurora-mirror/CMakeLists.txt b/tools/aurora-mirror/CMakeLists.txt
+index 0d1745f..95851f1 100644
+--- a/tools/aurora-mirror/CMakeLists.txt
++++ b/tools/aurora-mirror/CMakeLists.txt
+@@ -51,8 +51,16 @@ target_link_libraries(aurora-native PRIVATE GXRuntime::aurora)
+ 
+ # colosseum-standalone: the recompiled game on GXRuntime alone, no Dolphin
+ # (standalone.cpp), drawing through the same renderer as aurora-native.
+-add_executable(colosseum-standalone standalone.cpp audio_out.cpp ax_hle.cpp gekko_interp.cpp host_config.cpp host_ui.cpp
+-               memcard.cpp native.cpp native_text.cpp pad_input.cpp presentation.cpp)
++set(COLOSSEUM_HOST_SOURCES standalone.cpp audio_out.cpp ax_hle.cpp gekko_interp.cpp host_config.cpp host_ui.cpp
++    memcard.cpp native.cpp native_text.cpp pad_input.cpp presentation.cpp)
++if(ANDROID)
++  list(APPEND COLOSSEUM_HOST_SOURCES companion_state.cpp)
++  add_library(colosseum-standalone SHARED ${COLOSSEUM_HOST_SOURCES})
++  set_target_properties(colosseum-standalone PROPERTIES OUTPUT_NAME wiids_colosseum_host)
++  target_link_options(colosseum-standalone PRIVATE -Wl,-z,max-page-size=16384)
++else()
++  add_executable(colosseum-standalone ${COLOSSEUM_HOST_SOURCES})
++endif()
+ target_link_libraries(colosseum-standalone PRIVATE GXRuntime::aurora ${AURORA_SDL3_TARGET})
+ target_compile_definitions(colosseum-standalone PRIVATE DOLRECOMP_NO_FASTMEM=1)
+ 
+diff --git a/tools/aurora-mirror/host_config.cpp b/tools/aurora-mirror/host_config.cpp
+index ffa9685..cbe6703 100644
+--- a/tools/aurora-mirror/host_config.cpp
++++ b/tools/aurora-mirror/host_config.cpp
+@@ -75,9 +75,22 @@ bool host_settings_load(HostSettings* s) {
+     else if (key == "frame_rate") s->frame_rate = value;
+     else if (key == "texture_pack") s->texture_pack = value;
+     else if (key == "hd_text") s->hd_text = parse_bool(value);
++    else if (key == "settings_version") s->settings_version = std::atoi(value.c_str());
+     else std::fprintf(stderr, "settings: unknown key %s\n", key.c_str());
+   }
+   std::fclose(f);
++#ifdef __ANDROID__
++  // Version 2 (2026-11-23): 60 FPS presentation and vsync became the Android
++  // defaults; files written before them carried native / 0 only because those
++  // were the old defaults.
++  if (s->settings_version < 2) {
++    const HostSettings defaults;
++    s->frame_rate = defaults.frame_rate;
++    s->vsync = defaults.vsync;
++    s->window_width = defaults.window_width;
++    s->window_height = defaults.window_height;
++  }
++#endif
+   if (s->window_width < 320 || s->window_height < 240) {
+     s->window_width = 1280;
+     s->window_height = 960;
+@@ -126,7 +139,8 @@ bool host_settings_save(const HostSettings& s) {
+                "# native, 60, 120, or display (up to 240 Hz); guest timing stays 59.94 Hz\n"
+                "frame_rate = %s\n"
+                "# optional replacement-texture directory; restart after changing\n"
+-               "texture_pack = %s\n",
++               "texture_pack = %s\n"
++               "settings_version = 2\n",
+                s.iso.c_str(), s.module.c_str(), s.memcard.c_str(), s.fullscreen, s.window_width, s.window_height,
+                s.vsync, s.audio, s.volume, s.deadzone, s.pause_on_focus_loss, s.verbose, s.aspect.c_str(),
+                s.hd_text, s.frame_rate.c_str(), s.texture_pack.c_str());
+diff --git a/tools/aurora-mirror/host_config.h b/tools/aurora-mirror/host_config.h
+index 53680cf..d93bd1c 100644
+--- a/tools/aurora-mirror/host_config.h
++++ b/tools/aurora-mirror/host_config.h
+@@ -11,8 +11,14 @@ struct HostSettings {
+   std::string module;   // gGC6E01_recomp module; empty: next to the exe or in settings folder
+   std::string memcard;  // slot A image; empty: MemoryCardA.USA.raw in the settings folder
+   bool fullscreen = false;
++#ifdef __ANDROID__
++  // The Thor's upper display; the render target follows the SDL surface.
++  int window_width = 1920, window_height = 1080;
++  bool vsync = true;  // FIFO: paced, tear-free presents on the 60/120 Hz panel
++#else
+   int window_width = 1280, window_height = 960;
+   bool vsync = false;
++#endif
+   bool audio = true;
+   int volume = 100;  // percent
+   float deadzone = 0.15f;
+@@ -21,7 +27,16 @@ struct HostSettings {
+   // "4:3", "16:9" or "auto": widescreen (Hor+) at the window's shape; see
+   // presentation.h. ModernGekko's launcher defaults to its auto too.
+   std::string aspect = "auto";
++#ifdef __ANDROID__
++  // 60 presented frames a second: 30 FPS scenes get one interpolated frame
++  // between game frames (Aurora drops it when the renderer cannot keep up).
++  std::string frame_rate = "60";
++#else
+   std::string frame_rate = "native";  // native, 60, 120, display (up to 240 Hz)
++#endif
++  // An older file gets the current defaults for settings whose defaults
++  // changed (host_config.cpp); written as 2.
++  int settings_version = 0;
+   std::string texture_pack;  // optional replacement-texture directory
+   bool hd_text = true;  // Colosseum's text from a host font (native_text.h)
+ };
+diff --git a/tools/aurora-mirror/host_ui.cpp b/tools/aurora-mirror/host_ui.cpp
+index e7c35b7..7b211aa 100644
+--- a/tools/aurora-mirror/host_ui.cpp
++++ b/tools/aurora-mirror/host_ui.cpp
+@@ -5,6 +5,9 @@
+ 
+ #include <SDL3/SDL.h>
+ #include <imgui.h>
++#if defined(__ANDROID__)
++#include <jni.h>
++#endif
+ 
+ #include <algorithm>
+ #include <atomic>
+@@ -22,6 +25,10 @@ void aurora_native_request_quit();
+ namespace {
+ 
+ std::atomic<bool> g_menu_open{false};
++#if defined(__ANDROID__)
++std::atomic<bool> g_external_pause{false};
++std::atomic<bool> g_android_settings_ready{false};
++#endif
+ std::atomic<bool> g_toggle_fullscreen{false};
+ std::atomic<bool> g_save_requested{false};
+ std::atomic<int> g_saved_state{0};  // 0 none, 1 saved, -1 failed
+@@ -268,11 +275,49 @@ void host_ui_init(const HostSettings& settings) {
+   if (settings.window_height > 0)
+     g_window_aspect = float(settings.window_width) / float(settings.window_height);
+   aurora_native_set_overlay(overlay_draw, overlay_snap);
++#if defined(__ANDROID__)
++  g_android_settings_ready.store(true, std::memory_order_release);
++#endif
+ }
+ 
+-void host_ui_start() { SDL_AddEventWatch(event_watch, nullptr); }
++void host_ui_start() {
++#if !defined(__ANDROID__)
++  SDL_AddEventWatch(event_watch, nullptr);
++#endif
++}
++
++bool host_ui_menu_open() {
++#if defined(__ANDROID__)
++  return g_menu_open || g_external_pause;
++#else
++  return g_menu_open;
++#endif
++}
++#if defined(__ANDROID__)
++void host_ui_set_external_pause(bool paused) { g_external_pause = paused; }
+ 
+-bool host_ui_menu_open() { return g_menu_open; }
++extern "C" JNIEXPORT jintArray JNICALL
++Java_dev_wiids_colosseum_ColosseumSettings_read(JNIEnv* env, jclass) {
++  if (!g_android_settings_ready.load(std::memory_order_acquire)) return nullptr;
++  const jint values[] = {g_aspect.load(), g_volume.load(), g_frame_rate.load(), g_saved_state.load()};
++  jintArray array = env->NewIntArray(4);
++  if (array) env->SetIntArrayRegion(array, 0, 4, values);
++  return array;
++}
++
++extern "C" JNIEXPORT jboolean JNICALL
++Java_dev_wiids_colosseum_ColosseumSettings_apply(JNIEnv*, jclass, jint aspect, jint volume, jint rate) {
++  if (!g_android_settings_ready.load(std::memory_order_acquire) ||
++      aspect < 0 || aspect > 2 || volume < 0 || volume > 100 || rate < 0 || rate > 3)
++    return JNI_FALSE;
++  g_aspect = aspect;
++  g_volume = volume;
++  g_frame_rate = rate;
++  g_saved_state = 0;
++  g_save_requested = true;
++  return JNI_TRUE;
++}
++#endif
+ void host_ui_set_menu(bool open) { g_menu_open = open; }
+ bool host_ui_take_save_request() { return g_save_requested.exchange(false); }
+ void host_ui_saved(bool ok) { g_saved_state = ok ? 1 : -1; }
+diff --git a/tools/aurora-mirror/host_ui.h b/tools/aurora-mirror/host_ui.h
+index 63fa5c9..9b25a3b 100644
+--- a/tools/aurora-mirror/host_ui.h
++++ b/tools/aurora-mirror/host_ui.h
+@@ -16,6 +16,9 @@ void host_ui_init(const HostSettings& settings);
+ void host_ui_start();
+ 
+ bool host_ui_menu_open();
++#if defined(__ANDROID__)
++void host_ui_set_external_pause(bool paused);
++#endif
+ void host_ui_set_menu(bool open);
+ // The menu's Save settings was chosen since the last call.
+ bool host_ui_take_save_request();
+diff --git a/tools/aurora-mirror/native.cpp b/tools/aurora-mirror/native.cpp
+index 66f9dd0..6efe332 100644
+--- a/tools/aurora-mirror/native.cpp
++++ b/tools/aurora-mirror/native.cpp
+@@ -22,6 +22,7 @@
+ //
+ // The same path as tools/aurora-mirror (main.cpp), without the second process.
+ 
++#include "colo_perf.h"
+ #include "frame_rate.h"
+ #include "gxruntime/utf8_file.h"
+ #include "presentation.h"
+@@ -509,6 +510,11 @@ std::atomic<uint64_t> g_rearmed_pages{0};
+ bool g_watch_on = false;
+ std::string g_texture_pack;
+ std::atomic<unsigned> g_interpolation_layers{0}, g_interpolation_fields{1};
++// aurora_native_perf_take (colo_perf.h): totals since the last take.
++std::atomic<uint64_t> g_perf_feed_ns{0}, g_perf_present_ns{0}, g_perf_render_cpu_ns{0}, g_perf_idle_ns{0},
++    g_perf_ship_wait_ns{0}, g_perf_ship_ns{0}, g_perf_snapshot_bytes{0}, g_perf_batches{0}, g_perf_late_pages{0},
++    g_perf_fed_bytes{0};
++std::atomic<int> g_perf_width{0}, g_perf_height{0};
+ 
+ bool start_aurora() {
+   aurora_backend_set_guest_address_resolver(&resolve, nullptr);
+@@ -568,8 +574,12 @@ void render_bytes(const uint8_t* data, size_t size) {
+   constexpr size_t kPiece = 8 * 1024;
+   for (size_t at = 0; at < size; at += kPiece)
+     aurora_backend_gx_write_bytes(data + at, static_cast<u32>(std::min(kPiece, size - at)));
+-  g_feed_time += Clock::now() - start;
++  const auto spent = Clock::now() - start;
++  g_feed_time += spent;
+   g_fed_bytes += size;
++  g_perf_feed_ns.fetch_add(uint64_t(std::chrono::duration_cast<std::chrono::nanoseconds>(spent).count()),
++                           std::memory_order_relaxed);
++  g_perf_fed_bytes.fetch_add(size, std::memory_order_relaxed);
+ }
+ 
+ void render_present(float aspect, int fill) {
+@@ -651,6 +661,15 @@ void render_present(float aspect, int fill) {
+     save_snapshot(g_frames);
+   const auto now = Clock::now();
+   g_present_time += now - start;
++  g_perf_present_ns.fetch_add(uint64_t(std::chrono::duration_cast<std::chrono::nanoseconds>(now - start).count()),
++                              std::memory_order_relaxed);
++  if (g_frames % 60 == 0) {
++    const ImGuiContext* context = ImGui::GetCurrentContext();
++    if (context) {
++      g_perf_width = int(ImGui::GetIO().DisplaySize.x);
++      g_perf_height = int(ImGui::GetIO().DisplaySize.y);
++    }
++  }
+   ++g_frames;
+   ++g_frames_since;
+   if (g_frames == 60)
+@@ -700,8 +719,8 @@ void render_present(float aspect, int fill) {
+ 
+ bool g_main_thread_renderer = false;
+ bool g_async = [] {
+-#ifdef __APPLE__
+-  // Cocoa/SDL video initialization must run on the application's main thread.
++#if defined(__APPLE__) || defined(__ANDROID__)
++  // Keep SDL video calls on its main thread on Cocoa and Android.
+   return false;
+ #else
+   const char* v = std::getenv("AURORA_NATIVE_ASYNC");
+@@ -775,6 +794,7 @@ void render_loop(void (*poll_main_thread)() = nullptr) {
+     if (poll_main_thread)
+       poll_main_thread();
+     Batch batch;
++    const auto wait_start = Clock::now();
+     {
+       std::unique_lock lock(g_mutex);
+       if (poll_main_thread) {
+@@ -791,6 +811,11 @@ void render_loop(void (*poll_main_thread)() = nullptr) {
+       batch = std::move(g_queue.front());
+       g_queue.pop_front();
+     }
++    g_perf_idle_ns.fetch_add(
++        uint64_t(std::chrono::duration_cast<std::chrono::nanoseconds>(Clock::now() - wait_start).count()),
++        std::memory_order_relaxed);
++    const uint64_t cpu_start = thread_cpu_ns();
++    const uint64_t late_start = g_late_pages;
+     uint8_t* snapshot = g_snapshots[batch.slot].data();
+     g_ram = snapshot;
+     g_snapshot_valid = g_snapshot_pages[batch.slot].data();
+@@ -819,6 +844,10 @@ void render_loop(void (*poll_main_thread)() = nullptr) {
+       render_bytes(batch.bytes.data() + at, batch.bytes.size() - at);
+     if (aurora_backend_should_quit())
+       g_quit_requested = true;
++    g_perf_render_cpu_ns.fetch_add(thread_cpu_ns() - cpu_start, std::memory_order_relaxed);
++    g_perf_batches.fetch_add(1, std::memory_order_relaxed);
++    if (g_late_pages >= late_start)
++      g_perf_late_pages.fetch_add(g_late_pages - late_start, std::memory_order_relaxed);
+     {
+       std::lock_guard lock(g_mutex);
+       g_free_slots.push_back(batch.slot);
+@@ -908,6 +937,7 @@ void ship() {
+       copy_streaming(dst + at, g_live_ram + at, size_t(1) << kPageShift);
+       copied_at[page] = gen;
+       g_snapshot_bytes += size_t(1) << kPageShift;
++      g_perf_snapshot_bytes.fetch_add(size_t(1) << kPageShift, std::memory_order_relaxed);
+     };
+     for (uint32_t page = 0; page < pages; ++page) {
+       if (!g_page_needed[page].load(std::memory_order_relaxed))
+@@ -955,6 +985,7 @@ void ship() {
+     copy_streaming(g_snapshots[slot].data() + at, g_live_ram + at, static_cast<size_t>(end - page) << kPageShift);
+     std::memset(valid + page, 1, end - page);
+     g_snapshot_bytes += static_cast<uint64_t>(end - page) << kPageShift;
++    g_perf_snapshot_bytes.fetch_add(static_cast<uint64_t>(end - page) << kPageShift, std::memory_order_relaxed);
+     page = end;
+   }
+   g_batch.slot = slot;
+@@ -967,8 +998,12 @@ void ship() {
+       g_spare_batches.pop_back();
+     }
+   }
+-  g_sync_wait_ns += std::chrono::duration_cast<std::chrono::nanoseconds>(got_slot - start).count();
+-  g_sync_ns += std::chrono::duration_cast<std::chrono::nanoseconds>(Clock::now() - got_slot).count();
++  const int64_t waited_ns = std::chrono::duration_cast<std::chrono::nanoseconds>(got_slot - start).count();
++  const int64_t copied_ns = std::chrono::duration_cast<std::chrono::nanoseconds>(Clock::now() - got_slot).count();
++  g_sync_wait_ns += waited_ns;
++  g_sync_ns += copied_ns;
++  g_perf_ship_wait_ns.fetch_add(uint64_t(waited_ns), std::memory_order_relaxed);
++  g_perf_ship_ns.fetch_add(uint64_t(copied_ns), std::memory_order_relaxed);
+   ++g_syncs;
+   g_cv.notify_all();
+ }
+@@ -1020,6 +1055,8 @@ AURORA_NATIVE_API void aurora_native_run_main_thread(void (*guest)(void*), void*
+   std::thread emulation([=] {
+ #ifdef __APPLE__
+     pthread_setname_np("Colosseum guest");
++#elif defined(__linux__)
++    pthread_setname_np(pthread_self(), "ColoGuest");
+ #endif
+     guest(data);
+     // Queue the final partial frame before telling the main thread to drain.
+@@ -1230,3 +1267,22 @@ AURORA_NATIVE_API void aurora_native_set_pda_fill(bool enabled) { g_pda_fill_req
+ AURORA_NATIVE_API void aurora_native_set_naming_fill(bool enabled) {
+   g_naming_fill_requested = enabled;
+ }
++
++// colo_perf.h: renderer counters since the last take.
++AURORA_NATIVE_API void aurora_native_perf_take(AuroraNativePerf* out) {
++  if (!out)
++    return;
++  out->render_cpu_ns = g_perf_render_cpu_ns.exchange(0, std::memory_order_relaxed);
++  out->feed_ns = g_perf_feed_ns.exchange(0, std::memory_order_relaxed);
++  out->present_ns = g_perf_present_ns.exchange(0, std::memory_order_relaxed);
++  out->render_idle_ns = g_perf_idle_ns.exchange(0, std::memory_order_relaxed);
++  out->ship_wait_ns = g_perf_ship_wait_ns.exchange(0, std::memory_order_relaxed);
++  out->ship_ns = g_perf_ship_ns.exchange(0, std::memory_order_relaxed);
++  out->snapshot_bytes = g_perf_snapshot_bytes.exchange(0, std::memory_order_relaxed);
++  out->batches = g_perf_batches.exchange(0, std::memory_order_relaxed);
++  out->late_pages = g_perf_late_pages.exchange(0, std::memory_order_relaxed);
++  out->fed_bytes = g_perf_fed_bytes.exchange(0, std::memory_order_relaxed);
++  out->async = g_async ? 1u : 0u;
++  out->width = g_perf_width.load(std::memory_order_relaxed);
++  out->height = g_perf_height.load(std::memory_order_relaxed);
++}
+diff --git a/tools/aurora-mirror/pad_input.cpp b/tools/aurora-mirror/pad_input.cpp
+index aebb902..af158c0 100644
+--- a/tools/aurora-mirror/pad_input.cpp
++++ b/tools/aurora-mirror/pad_input.cpp
+@@ -8,6 +8,11 @@
+ #include "pad_input.h"
+ 
+ #include <SDL3/SDL.h>
++#if defined(__ANDROID__)
++#include <android/keycodes.h>
++#include <jni.h>
++#include <atomic>
++#endif
+ 
+ #include <algorithm>
+ #include <cctype>
+@@ -22,6 +27,12 @@ namespace {
+ 
+ constexpr uint16_t kLeft = 0x0001, kRight = 0x0002, kDown = 0x0004, kUp = 0x0008, kZ = 0x0010, kR = 0x0020,
+                    kL = 0x0040, kA = 0x0100, kB = 0x0200, kX = 0x0400, kY = 0x0800, kStart = 0x1000;
++#if defined(__ANDROID__)
++std::atomic<uint16_t> g_androidButtons{0};
++std::atomic<uint16_t> g_touchButtons{0};
++std::atomic<bool> g_fastForward{false};
++bool g_touchStick = false;  // guest thread
++#endif
+ 
+ constexpr int kMainRadius = 100;  // GC main stick reach from center
+ constexpr int kCRadius = 90;
+@@ -230,9 +241,77 @@ PadInput pad_input_read(uint64_t field) {
+     return p;
+   }
+   update_gamepad();
+-  return g_pad ? read_gamepad() : read_keyboard();
++  PadInput pad = g_pad ? read_gamepad() : read_keyboard();
++#if defined(__ANDROID__)
++  const uint16_t touch = g_touchButtons.load(std::memory_order_relaxed);
++  constexpr uint16_t directions = kLeft | kRight | kUp | kDown;
++  const uint16_t buttons = g_androidButtons.load(std::memory_order_relaxed) |
++                          (g_touchStick ? uint16_t(touch & ~directions) : touch);
++  // The field uses the main stick. Menus get a D-pad press only.
++  if (g_touchStick && (touch & (kLeft | kRight)))
++    pad.stick_x = uint8_t(128 + 80 * (int(bool(touch & kRight)) - int(bool(touch & kLeft))));
++  if (g_touchStick && (touch & (kUp | kDown)))
++    pad.stick_y = uint8_t(128 + 80 * (int(bool(touch & kUp)) - int(bool(touch & kDown))));
++  pad.buttons |= buttons;
++  if (buttons & kL) pad.trigger_l = 255;
++  if (buttons & kR) pad.trigger_r = 255;
++#endif
++  return pad;
+ }
+ 
++#if defined(__ANDROID__)
++static bool android_button(std::atomic<uint16_t>& buttons, jint key, bool pressed) {
++  uint16_t button;
++  switch (key) {
++  case AKEYCODE_BUTTON_A: case AKEYCODE_X: button = kA; break;
++  case AKEYCODE_BUTTON_B: case AKEYCODE_Z: button = kB; break;
++  case AKEYCODE_BUTTON_X: case AKEYCODE_C: button = kX; break;
++  case AKEYCODE_BUTTON_Y: case AKEYCODE_S: button = kY; break;
++  case AKEYCODE_BUTTON_START: case AKEYCODE_ENTER: button = kStart; break;
++  case AKEYCODE_BUTTON_L1: case AKEYCODE_BUTTON_L2: button = kL; break;
++  case AKEYCODE_BUTTON_R1: button = kZ; break;
++  case AKEYCODE_BUTTON_R2: button = kR; break;
++  case AKEYCODE_DPAD_UP: button = kUp; break;
++  case AKEYCODE_DPAD_DOWN: button = kDown; break;
++  case AKEYCODE_DPAD_LEFT: button = kLeft; break;
++  case AKEYCODE_DPAD_RIGHT: button = kRight; break;
++  default: return JNI_FALSE;
++  }
++  if (pressed)
++    buttons.fetch_or(button, std::memory_order_relaxed);
++  else
++    buttons.fetch_and(uint16_t(~button), std::memory_order_relaxed);
++  return true;
++}
++
++extern "C" JNIEXPORT jboolean JNICALL
++Java_dev_wiids_colosseum_ColosseumGameActivity_updateButton(JNIEnv*, jclass, jint key, jboolean pressed) {
++  if (key == AKEYCODE_BUTTON_THUMBR) {
++    g_fastForward.store(pressed, std::memory_order_relaxed);
++    return JNI_TRUE;
++  }
++  return android_button(g_androidButtons, key, pressed);
++}
++
++extern "C" JNIEXPORT void JNICALL
++Java_dev_wiids_colosseum_ColosseumGameActivity_touchButton(JNIEnv*, jclass, jint key, jboolean pressed) {
++  android_button(g_touchButtons, key, pressed);
++}
++
++void pad_input_touch_stick(bool enabled) { g_touchStick = enabled; }
++
++bool pad_input_fast_forward() {
++  return g_fastForward.load(std::memory_order_relaxed);
++}
++
++extern "C" JNIEXPORT void JNICALL
++Java_dev_wiids_colosseum_ColosseumGameActivity_clearButtons(JNIEnv*, jclass) {
++  g_androidButtons.store(0, std::memory_order_relaxed);
++  g_touchButtons.store(0, std::memory_order_relaxed);
++  g_fastForward.store(false, std::memory_order_relaxed);
++}
++#endif
++
+ void pad_input_set_deadzone(float deadzone) { g_deadzone = std::clamp(deadzone, 0.0f, 0.9f); }
+ 
+ PadScriptAction pad_input_script_action(uint64_t field) {
+diff --git a/tools/aurora-mirror/pad_input.h b/tools/aurora-mirror/pad_input.h
+index cd94c39..a8d11c3 100644
+--- a/tools/aurora-mirror/pad_input.h
++++ b/tools/aurora-mirror/pad_input.h
+@@ -18,6 +18,10 @@ void pad_input_init();
+ PadInput pad_input_read(uint64_t field);
+ // Radial stick deadzone, 0..0.9 of full deflection (default 0.15).
+ void pad_input_set_deadzone(float deadzone);
++#ifdef __ANDROID__
++bool pad_input_fast_forward();
++void pad_input_touch_stick(bool enabled);
++#endif
+ // Host actions a script asks for at this field (test hooks): MENU opens the
+ // pause menu for its hold count of repaints (~1/60 s each), QUIT quits the
+ // way the menu's Quit does, CLOSE as closing the window does.
+diff --git a/tools/aurora-mirror/presentation.cpp b/tools/aurora-mirror/presentation.cpp
+index 4123aeb..a317dbe 100644
+--- a/tools/aurora-mirror/presentation.cpp
++++ b/tools/aurora-mirror/presentation.cpp
+@@ -8,6 +8,10 @@
+ // aurora_native_frame_end: ForceStandard is 4:3, Stretch the Hor+ target.
+ // SPDX-License-Identifier: GPL-2.0-or-later
+ #include "presentation.h"
++#ifdef __ANDROID__
++#include "companion_state.h"
++#include "pad_input.h"
++#endif
+ 
+ extern "C" void aurora_native_set_naming_fill(bool enabled);
+ extern "C" void aurora_native_set_pda_fill(bool enabled);
+@@ -289,7 +293,7 @@ void update_pyrite_sky(bool should_offset) {
+     wr32(root + kTranslateY, kLowered);
+ }
+ 
+-bool player_valid(unsigned* room) {
++bool player_valid(unsigned* room, float* player_x, float* player_z) {
+   bool valid = false;
+   const uint32_t people = rd32(kPeopleArray);
+   const uint32_t count = rd32(kPeopleCount);
+@@ -303,12 +307,17 @@ bool player_valid(unsigned* room) {
+     const float x = rdf(model + 0x18), z = rdf(model + 0x20);
+     if (!(std::isfinite(x) && std::isfinite(z) && std::abs(x) < 100000.0f && std::abs(z) < 100000.0f))
+       continue;
+-    if (rd32(person + 0x28) == 0 && rd32(person + 0x2C) == kPlayerIndex && std::isfinite(rdf(model + 0x28)))
++    if (rd32(person + 0x28) == 0 && rd32(person + 0x2C) == kPlayerIndex && std::isfinite(rdf(model + 0x28))) {
++      *player_x = x;
++      *player_z = z;
+       valid = true;
++    }
+   }
+   if (!valid) {
+     // ModernGekko's fallback: the player's position mirror.
+     const float x = rdf(kPlayerPositionGlobal), z = rdf(kPlayerPositionGlobal + 8);
++    *player_x = x;
++    *player_z = z;
+     valid = std::isfinite(x) && std::isfinite(z) && std::abs(x) < 100000.0f && std::abs(z) < 100000.0f;
+   }
+   *room = rd8(kRoomId);
+@@ -419,7 +428,8 @@ void presentation_field(uint8_t* ram, uint32_t ram_size, AspectSetting setting,
+   const bool complete_menu = menu_active && !field_overlay_active;
+ 
+   unsigned room = 0;
+-  const bool valid = player_valid(&room);
++  float player_x = 0, player_z = 0;
++  const bool valid = player_valid(&room, &player_x, &player_z);
+   if (g_trace && room == kFrontEndRoom) {
+     static uint64_t front_end_fields = 0;
+     if ((front_end_fields++ % 60) == 0) {
+@@ -452,6 +462,22 @@ void presentation_field(uint8_t* ram, uint32_t ram_size, AspectSetting setting,
+   g.battle_session = resolve_battle_session(g.battle_session,
+                                             battle_now_active && (!battle_field_archive || battle_now_observed),
+                                             battle_message, valid, naming, movie, battle_field_archive);
++#ifdef __ANDROID__
++  companion_ui(menu_active, pda, menu_active && g.start_menu_session, field_overlay_active, field_overlay_mode,
++               message_id);
++  companion_ui_extra(window_live, movie);
++  companion_menu_sample(ram, ram_size);   // the battle's input windows, every field
++  const bool field = valid && room && room != kFrontEndRoom && !naming && !movie;
++  const bool battle = !naming && !movie && (g.battle_session || companion_story_battle(ram, ram_size));
++  companion_field_control(ram, ram_size, field && !battle, menu_active, window_live);
++  pad_input_touch_stick(field && !menu_active && !battle && !window_live);
++  static unsigned next_sample = 0;
++  if (next_sample++ % 6 == 0) {
++    const int scene = battle ? 3 : field ? 2 : 1;
++    const std::string_view archive = g.archive_room == room ? std::string_view(g.archive) : std::string_view();
++    companion_publish(ram, ram_size, scene, room, archive, rd32(kColSysState), player_x, player_z);
++  }
++#endif
+   // The Start menu's Pokemon, Items and other field pages draw over the live
+   // field, so they keep the Hor+ world behind them like the field overlays.
+   // Only the PDA is an opaque 4:3 canvas; its sides get the PDA backdrop.
+diff --git a/tools/aurora-mirror/standalone.cpp b/tools/aurora-mirror/standalone.cpp
+index 9e68a86..d09ec43 100644
+--- a/tools/aurora-mirror/standalone.cpp
++++ b/tools/aurora-mirror/standalone.cpp
+@@ -33,8 +33,14 @@
+ #include "idle_wait.h"
+ #include "frame_rate.h"
+ #include "linux_guest_ram.h"
++#include "hud_trace.h"
++#include "companion_state.h"
++#include "colo_perf.h"
+ 
+ #include <SDL3/SDL.h>
++#if defined(__ANDROID__)
++#include <jni.h>
++#endif
+ 
+ extern "C" {
+ #include "core/cpu.h"
+@@ -165,6 +171,14 @@ const ModuleDesc* load_module(const char* path) {
+                  desc ? desc->cpu_state_size : 0);
+     return nullptr;
+   }
++#ifndef _WIN32
++  // A module built for WiiDS reports each recorded GS command, which lets the
++  // battle HUD code tell who drew what. Older modules lack the export.
++  if (auto observe = reinterpret_cast<void (*)(void (*)(CPUState*))>(dlsym(dll, "wiids_set_gs_queue_observer_v1")))
++    observe([](CPUState* cpu) {
++      hud_trace::queued(uint32_t(cpu->gpr[3]), uint32_t(cpu->gpr[13]), uint32_t(cpu->gpr[1]));
++    });
++#endif
+   g_module_alias_safe = false;
+ #if defined(__linux__) && defined(__x86_64__)
+   auto memory_features = reinterpret_cast<uint32_t (*)()>(dlsym(dll, "staticrecomp_memory_features_v1"));
+@@ -280,6 +294,21 @@ uint32_t vertex_size(uint32_t fmt) {
+   return size;
+ }
+ 
++// Where a draw's position sits in a vertex, for the battle HUD trace.
++hud_trace::Position position_layout(uint32_t fmt) {
++  const uint32_t a = g_vat[0][fmt];
++  hud_trace::Position layout;
++  layout.matrix_index = g_vcd_lo & 1;
++  for (int i = 0; i < 9; ++i)
++    layout.offset += (g_vcd_lo >> i) & 1;
++  layout.mode = (g_vcd_lo >> 9) & 3;
++  layout.count = a & 1 ? 3 : 2;
++  layout.format = (a >> 1) & 7;
++  layout.shift = layout.format < 4 ? (a >> 4) & 31 : 0;
++  layout.stride = vertex_size(fmt);
++  return layout;
++}
++
+ std::vector<uint8_t> g_fifo;  // gather-pipe bytes not yet a whole command
+ // The stream from the last XFB copy on (g_frame_building) and the frame before
+ // it, from its opening copy (which clears the EFB) through its draws
+@@ -313,6 +342,7 @@ void on_bp(uint32_t value) {
+       aurora_native_set_frame_rate(host_ui_frame_rate(),
+                                    presentation_interpolation_allowed() && !g_interpolation_catchup, frame_fields);
+       aurora_native_frame_end(presentation_present_aspect());
++      hud_trace::frame();
+       ++g_stat_frames;
+     }
+     break;
+@@ -341,6 +371,7 @@ void drain_fifo() {
+         g_vcd_hi = value;
+       else if (reg >= 0x70 && reg < 0xA0)
+         g_vat[(reg - 0x70) >> 4][reg & 7] = value;
++      hud_trace::cp(reg, value);
+       length = 6;
+     } else if (cmd == 0x10) {  // XF registers
+       if (pos + 5 > size)
+@@ -367,8 +398,17 @@ void drain_fifo() {
+     }
+     if (pos + length > size)
+       break;
++    if (cmd == 0x10)
++      hud_trace::xf(data + pos);
++    else if ((cmd & 0xE7) == 0x20)
++      hud_trace::xf_indexed(data + pos);
++    else if (cmd >= 0x80 && cmd < 0xC0 && hud_trace::draw(data + pos, length, position_layout(cmd & 7))) {
++      pos += length;  // the battle HUD experiment drops this draw
++      continue;
++    }
+     if (cmd == 0x61) {
+       const uint32_t bp = rd32(data + pos + 1);
++      hud_trace::bp(bp);
+       if ((bp >> 24) == 0x52 && ((bp >> 14) & 1)) {
+         g_last_frame.swap(g_frame_building);
+         g_frame_building.clear();
+@@ -382,10 +422,55 @@ void drain_fifo() {
+   g_fifo.erase(g_fifo.begin(), g_fifo.begin() + ptrdiff_t(pos));
+ }
+ 
++// Fast gather pipe (GXRuntime cpu.h, dolrecomp_gp_write / native_sdk.c
++// dolrecomp_gx_emit): the module stores a burst's first 31 bytes straight into
++// g_gp_buffer and calls external_write only for the store that completes it;
++// that call takes the buffered bytes first. Without it every GX store took the
++// external_write -> mmio_write -> byte-vector path (tens of ns each, 100k+ per
++// frame), and the module's native GX writers (matrix loads, projection) always
++// declined. While hud_trace wants each draw's first byte as it is written
++// (battle plate ownership, HUD diagnostics), the pipe is kept "full": base sits
++// 32 bytes behind ptr, so single stores still arrive one by one, and the native
++// writers' whole commands (never draws) land after the 32 fake bytes.
++// debug.wiids.colo.fastgp=0 (STANDALONE_FAST_GP=0) restores the old path.
++struct FastGatherPipe {
++  uint8_t* ptr;   // gp[0]: next write
++  uint8_t* base;  // gp[1]: start of the burst
++};
++alignas(64) uint8_t g_gp_buffer[512];
++FastGatherPipe g_gp{g_gp_buffer, g_gp_buffer};
++uint8_t* g_gp_data = g_gp_buffer;  // first real byte in g_gp_buffer
++bool g_fast_gp = false;
++uint64_t g_stat_dispatches = 0;
++// Extra cycles a module slice may run (see the dispatch loop);
++// debug.wiids.colo.slice / STANDALONE_SLICE, 0 restores 256-cycle slices.
++uint64_t g_slice_extra = 1024;
++
++void gp_absorb() {
++  if (g_gp.ptr > g_gp_data) {
++    g_fifo.insert(g_fifo.end(), g_gp_data, g_gp.ptr);
++    ++colo_perf::g_gp_bursts;
++  }
++  const bool armed = !hud_trace::wanted();
++  g_gp.base = g_gp_buffer;
++  g_gp_data = g_gp.ptr = g_gp_buffer + (armed ? 0 : 32);
++}
++
+ void gather_pipe_write(uint64_t value, uint8_t size) {
++  ++colo_perf::g_gp_external;
++  if (g_fast_gp) {
++    gp_absorb();
++    if (hud_trace::wanted() && !g_fifo.empty())
++      drain_fifo();  // whole commands the native writers queued come first
++  }
++  // While the battle HUD trace is on, commands are split as they are written
++  // so that an empty buffer means this byte starts a command.
++  const bool tracing = hud_trace::wanted();
++  if (tracing && g_fifo.empty() && size == 1 && (value & 0xC0) == 0x80)
++    hud_trace::begin(g_cpu.lr, uint32_t(g_cpu.gpr[1]));
+   for (int i = size - 1; i >= 0; --i)
+     g_fifo.push_back(uint8_t(value >> (8 * i)));
+-  if (g_fifo.size() >= 32)
++  if (tracing || g_fifo.size() >= 32)
+     drain_fifo();
+ }
+ 
+@@ -549,7 +634,14 @@ void dsp_write(uint32_t off, uint8_t size, uint64_t value) {
+     if (std::getenv("STANDALONE_DSP_LOG") && g_dsp.mails_received <= 400)
+       std::printf("  dsp mail <- 0x%08X\n", mail);
+     if (ax_active()) {
+-      ax_handle_mail(mail);
++      if (colo_perf::g_on) {
++        const auto t0 = std::chrono::steady_clock::now();
++        ax_handle_mail(mail);
++        colo_perf::g_ax_ns += uint64_t(
++            std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::steady_clock::now() - t0).count());
++      } else {
++        ax_handle_mail(mail);
++      }
+       break;
+     }
+     // The DSP ROM's task loader (Dolphin's ROMUCode).
+@@ -1105,6 +1197,19 @@ bool exi_transfer(void*, DolExiTransfer* t) {
+ // REL is found by its header in RAM, and each section's runtime address maps
+ // to its linked one (and back), as ModernGekko's StaticRecompCore does.
+ const ModuleDesc* g_module = nullptr;
++
++// Whether the module has code at pc (directly or through the physical alias
++// it tries itself). REL code counts as outside: this build compiles none.
++bool in_module_code(const ModuleDesc* module, uint32_t pc) {
++  if (module->num_rel_modules)
++    return true;  // the REL path in the dispatch loop decides
++  const uint32_t ea = pc < kRamSize ? (pc | 0x80000000u) : pc;
++  for (uint32_t i = 0; i < module->num_code_ranges; ++i)
++    if (ea >= module->code_ranges[i].start && ea < module->code_ranges[i].end)
++      return true;
++  return false;
++}
++
+ struct ActiveRelSection {
+   uint32_t linked_start, runtime_start, size;
+ };
+@@ -1219,6 +1324,8 @@ void* cb_pointer(CPUState*, uint32_t ea, uint32_t size) {
+ #endif
+   if (ea == 0xE0000000)
+     return g_l1;
++  if (ea == 0xCC008000 && size == 0 && g_fast_gp)
++    return &g_gp;  // gp[0] = write pointer, gp[1] = burst start (see FastGatherPipe)
+   // The Colosseum glyph hook's slot query (GXRuntime native_sdk.c): HD text's
+   // slot placement, asked once and called for every glyph.
+   if (ea == 0xFFFFE000 && size == 0)
+@@ -1428,14 +1535,23 @@ void vi_field() {
+   memcard_flush(false);
+   sync_device_interrupts();
+   ++g_fields;
+-  // Real time: one field per 1/59.94 s.
++  // Real time: one field per 1/59.94 s. Moving the epoch by half a
++  // field per accelerated field keeps release at normal speed immediately.
++#ifdef __ANDROID__
++  if (pad_input_fast_forward())
++    g_start -= std::chrono::nanoseconds(1001000000ull / 120ull);
++#endif
+   const auto due = g_start + std::chrono::nanoseconds(g_fields * 1001000000ull / 60ull);
+   const auto now = Clock::now();
+   g_interpolation_catchup = frame_interpolation_catchup(
+       g_interpolation_catchup, std::chrono::duration<double>(now - due).count());
+   g_interpolation_catchup_fields += g_interpolation_catchup;
+-  if (due > now)
++  if (due > now) {
+     std::this_thread::sleep_for(due - now);
++    if (colo_perf::g_on)
++      colo_perf::g_pacing_sleep_ns += uint64_t(std::chrono::duration_cast<std::chrono::nanoseconds>(Clock::now() - now).count());
++  }
++  colo_perf::tick(g_fields, g_stat_frames, g_stat_dispatches, g_fast_gp, host_ui_frame_rate());
+   if (g_resume_field && g_fields == g_resume_field + 120) {
+     VLOG("standalone: the 120 fields after resuming took %.3f s (2.002 s is real time)\n",
+          std::chrono::duration<double>(Clock::now() - g_resume_time).count());
+@@ -1447,6 +1563,9 @@ HostSettings g_settings;
+ 
+ void save_settings() {
+   host_ui_store(&g_settings);
++#ifdef __ANDROID__
++  audio_out_set_volume(float(g_settings.volume) / 100.0f);
++#endif
+   const bool ok = host_settings_save(g_settings);
+   host_ui_saved(ok);
+   VLOG("standalone: settings %s %s\n", ok ? "saved to" : "could not be saved to", host_settings_path().c_str());
+@@ -1656,7 +1775,11 @@ bool file_exists(const std::string& path) {
+ }
+ 
+ int fail(const std::string& message) {
++#if defined(__ANDROID__)
++  SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "%s", message.c_str());
++#else
+   std::fprintf(stderr, "standalone: %s\n", message.c_str());
++#endif
+   if (g_dialogs)
+     SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "Pokemon Colosseum", message.c_str(), nullptr);
+   return 1;
+@@ -1776,7 +1899,15 @@ static int standalone_main(int argc, char** argv) {
+   const char* no_dialogs = std::getenv("STANDALONE_NO_DIALOGS");
+   g_dialogs = player && !(no_dialogs && *no_dialogs && std::strcmp(no_dialogs, "0") != 0);
+   HostSettings& settings = g_settings;
+-  host_settings_load(&settings);
++  const bool settings_found = host_settings_load(&settings);
++#if defined(__ANDROID__)
++  // host_settings_load moved a version-1 file to the new defaults; keep them.
++  if (settings_found && settings.settings_version < 2) {
++    settings.settings_version = 2;
++    host_settings_save(settings);
++  }
++  settings.memcard = std::getenv("WIIDS_COLOSSEUM_CARD");
++#endif
+   const char* verbose_env = std::getenv("STANDALONE_VERBOSE");
+   g_verbose = verbose_flag || (verbose_env && *verbose_env ? std::strcmp(verbose_env, "0") != 0 : settings.verbose);
+   if (player)
+@@ -1871,13 +2002,62 @@ static int standalone_main(int argc, char** argv) {
+   // differs (presentation.cpp decides the aspect each frame).
+   aurora_native_set_exact_aspect(true);
+   native_text_set_guest_ram(g_ram.data(), kRamSize);
++  hud_trace::owns = companion_lower_owns_status;
++  hud_trace::dropped = companion_player_plate_dropped;
++  hud_trace::party_screen = companion_party_screen_drawn;
++  hud_trace::owns_menu = companion_lower_owns_menu;
++  hud_trace::menu_dropped = companion_menu_dropped;
++  hud_trace::menu_drawn = companion_menu_drawn;
++  hud_trace::menu_ready = companion_menu_ready;
++  hud_trace::init(g_ram.data(), kRamSize, g_l1, kLockedCacheSize);
+   native_text_set_enabled(settings.hd_text);
+   aurora_native_set_text_rasterizer(native_text_rasterize);
++  // Switches for the two performance paths below (default on): Android
++  // properties debug.wiids.colo.fastgp / .async, elsewhere STANDALONE_FAST_GP.
++  const auto switch_on = [](const char* property, const char* env) {
++#ifdef __ANDROID__
++    (void)env;
++    char value[PROP_VALUE_MAX] = {};
++    __system_property_get(property, value);
++    return std::strcmp(value, "0") != 0;
++#else
++    (void)property;
++    const char* v = std::getenv(env);
++    return !(v && std::strcmp(v, "0") == 0);
++#endif
++  };
++  g_fast_gp = switch_on("debug.wiids.colo.fastgp", "STANDALONE_FAST_GP");
++  {
++#ifdef __ANDROID__
++    char value[PROP_VALUE_MAX] = {};
++    if (__system_property_get("debug.wiids.colo.slice", value) > 0)
++      g_slice_extra = std::min<uint64_t>(std::strtoull(value, nullptr, 0), 8192);
++#else
++    if (const char* v = std::getenv("STANDALONE_SLICE"))
++      g_slice_extra = std::min<uint64_t>(std::strtoull(v, nullptr, 0), 8192);
++#endif
++  }
+ #ifdef __APPLE__
+   aurora_native_use_main_thread_renderer();
++#elif defined(__ANDROID__)
++  // Rendering (GX decode, Aurora recording, present) on SDL's thread and the
++  // guest on a worker of its own, as on Cocoa: the two no longer share one
++  // core. debug.wiids.colo.async=0 keeps both on SDL's thread (the old path).
++  if (switch_on("debug.wiids.colo.async", nullptr))
++    aurora_native_use_main_thread_renderer();
++#endif
++  SDL_Log("Colosseum performance paths: slice +%llu cycles, fast gather pipe %s, renderer %s",
++          (unsigned long long)g_slice_extra, g_fast_gp ? "on" : "off",
++#ifdef __ANDROID__
++          switch_on("debug.wiids.colo.async", nullptr) ? "on SDL thread, guest on worker" : "on guest thread");
++#else
++          "default");
+ #endif
+   if (!aurora_native_init(g_ram.data(), kRamSize))
+     return fail("the renderer did not start (no usable GPU device?)");
++#if defined(__ANDROID__)
++  SDL_Log("Colosseum initialized the recompiled module, disc and renderer");
++#endif
+   host_ui_start();
+ 
+   auto run_guest = [&] {
+@@ -1944,20 +2124,52 @@ static int standalone_main(int argc, char** argv) {
+       auto it = std::find_if(samples.begin(), samples.end(), [](auto& e) { return e.first == g_cpu.pc; });
+       if (it != samples.end()) ++it->second; else if (samples.size() < 4096) samples.push_back({g_cpu.pc, 1});
+     }
+-    g_cpu.downcount = 0;
++    // The slice: the module returns at a loop back-edge or return once
++    // downcount <= -256 (DOLRECOMP_C_LOOP_CYCLE_BUDGET). Starting above 0
++    // lengthens it, but never past the next scheduled device event, so VI,
++    // audio DMA, card and decrementer events land as before; only interrupts
++    // raised by the slice's own MMIO writes can wait up to g_slice_extra cycles.
++    int64_t slice_start = 0;
++    if (g_slice_extra) {
++      uint64_t next = g_next_field;
++      if (g_dsp.ai_dma_due && g_dsp.ai_dma_due < next) next = g_dsp.ai_dma_due;
++      if (const uint64_t card = memcard_next_event(); card && card < next) next = card;
++      if (int32_t(g_dec) >= 0) {
++        const uint64_t dec = g_cycles + (uint64_t(g_dec) + 1) * kCyclesPerTick - g_tick_remainder;
++        if (dec < next) next = dec;
++      }
++      if (next > g_cycles + 512)
++        slice_start = int64_t(std::min<uint64_t>(g_slice_extra, next - g_cycles - 512));
++    }
++    g_cpu.downcount = slice_start;
+     uint64_t idle_cycles = 0;
+-    if (idle_wait_enabled && g_cpu.pc == 0x800FEB9C) {
++    // GC6E01's idle loop (idle_wait.h). The module only ever stops in it at
++    // the back-edge 0x800FEB9C -> 0x800FEA90 (the call to OSRestoreInterrupts
++    // returns straight into the caller), so the loop head with lr still the
++    // return address is the same state as the end of an iteration.
++    const bool at_idle = g_cpu.pc == 0x800FEB9C || (g_cpu.pc == 0x800FEA90 && g_cpu.lr == 0x800FEB9C);
++    if (idle_wait_enabled && at_idle) {
+       // AX can post immediate mail; service it before proving the idle state.
+       ax_update();
+       idle_cycles = background_idle_cycles(g_ram.data(), g_ram.size(),
+-          {g_cpu.pc, g_cpu.msr, uint32_t(g_cpu.gpr[13]), uint32_t(g_cpu.gpr[3]), uint32_t(g_cpu.gpr[0]),
++          {0x800FEB9C, g_cpu.msr, uint32_t(g_cpu.gpr[13]), uint32_t(g_cpu.gpr[3]), uint32_t(g_cpu.gpr[0]),
+            g_cycles, g_next_field, g_dsp.ai_dma_due, memcard_next_event(), g_dec, uint32_t(g_tick_remainder),
+            dol_interrupts_external_pending(&g_pi), g_dec_pending, !g_dsp.mail_to_cpu.empty()});
+     }
++    uint64_t interp_cycles = 0;
+     if (!idle_cycles) {
+       const uint32_t dispatch_pc = g_cpu.pc;
+-      module->dispatch(&g_cpu, g_cpu.pc);
+-      if (g_cpu.downcount == 0 && g_cpu.pc == dispatch_pc && module->num_rel_modules) {
++      if (colo_perf::g_on && (g_stat_dispatches & 63) == 0)
++        colo_perf::sample_pc(dispatch_pc);
++      if (colo_perf::g_on && (g_stat_dispatches & 15) == 0) {
++        const auto t0 = Clock::now();
++        module->dispatch(&g_cpu, g_cpu.pc);
++        colo_perf::g_dispatch_sampled_ns +=
++            uint64_t(std::chrono::duration_cast<std::chrono::nanoseconds>(Clock::now() - t0).count());
++      } else {
++        module->dispatch(&g_cpu, g_cpu.pc);
++      }
++      if (g_cpu.downcount == slice_start && g_cpu.pc == dispatch_pc && module->num_rel_modules) {
+         uint32_t linked;
+         if (rel_linked(dispatch_pc, &linked) && linked != dispatch_pc) {
+           g_cpu.pc = linked;
+@@ -1967,6 +2179,7 @@ static int standalone_main(int argc, char** argv) {
+       if (module->num_rel_modules)
+         g_cpu.pc = rel_runtime(g_cpu.pc);
+       ++dispatches;
++      ++g_stat_dispatches;
+       if (g_cpu.exception) {  // the module already redirected to the vector
+         g_cpu.exception = 0;
+         g_cpu.program_exception = 0;
+@@ -1976,12 +2189,34 @@ static int standalone_main(int argc, char** argv) {
+       // code here. Dump the guest code around it and stop (bring-up aid).
+       static uint32_t stall_pc = 0, stall_count = 0;
+       static uint64_t interpreted = 0;
+-      if (g_cpu.downcount == 0 && g_cpu.pc == stall_pc && gekko_interpret(&g_cpu)) {
++      const bool no_progress = g_cpu.downcount == slice_start && g_cpu.pc == dispatch_pc && !g_cpu.exception;
++      if (no_progress && !in_module_code(module, dispatch_pc)) {
++        // Code the module cannot contain (the OS's low-memory exception
++        // stubs, the heap RELs of map scripts): interpret it right away and
++        // keep going while it stays outside the module, one cycle each as
++        // before, stopping where an enabled interrupt is pending.
++        const auto t0 = colo_perf::g_on ? Clock::now() : Clock::time_point{};
++        while (interp_cycles < 256 && gekko_interpret(&g_cpu)) {
++          ++interp_cycles;
++          if (g_cpu.exception || in_module_code(module, g_cpu.pc) ||
++              ((g_cpu.msr & kMsrEE) && (g_dec_pending || dol_interrupts_external_pending(&g_pi))))
++            break;
++        }
++        interpreted += interp_cycles;
++        colo_perf::g_interp_instructions += interp_cycles;
++        if (colo_perf::g_on)
++          colo_perf::g_interp_ns += uint64_t(std::chrono::duration_cast<std::chrono::nanoseconds>(Clock::now() - t0).count());
++        stall_count = 0;
++        stall_pc = 0;
++        if (!interp_cycles)
++          stall_pc = dispatch_pc;  // undecodable: the bring-up stall report below
++      } else if (g_cpu.downcount == slice_start && g_cpu.pc == stall_pc && gekko_interpret(&g_cpu)) {
+         ++interpreted;
+-        g_cpu.downcount = -1;
++        ++colo_perf::g_interp_instructions;
++        interp_cycles = 1;
+         stall_count = 0;
+         stall_pc = 0;
+-      } else if (g_cpu.downcount == 0 && g_cpu.pc == stall_pc) {
++      } else if (g_cpu.downcount == slice_start && g_cpu.pc == stall_pc) {
+         if (++stall_count == 1000) {
+           std::printf("standalone: stalled at 0x%08X (lr 0x%08X, srr0 0x%08X, srr1 0x%08X, msr 0x%08X)\n",
+                       g_cpu.pc, g_cpu.lr, g_cpu.srr0, g_cpu.srr1, g_cpu.msr);
+@@ -1998,9 +2233,11 @@ static int standalone_main(int argc, char** argv) {
+     } else {
+       ++idle_waits;
+       idle_cycles_waited += idle_cycles;
++      ++colo_perf::g_idle_hits;
++      colo_perf::g_idle_cycles += idle_cycles;
+     }
+-    const int64_t charge = -g_cpu.downcount;
+-    advance_time(idle_cycles ? idle_cycles : charge > 0 ? uint64_t(charge) : 1);
++    const int64_t charge = slice_start - g_cpu.downcount;
++    advance_time(idle_cycles ? idle_cycles : interp_cycles ? interp_cycles : charge > 0 ? uint64_t(charge) : 1);
+     ai_dma_tick();
+     ax_update();
+     if (memcard_tick(g_cycles))
+@@ -2008,6 +2245,10 @@ static int standalone_main(int argc, char** argv) {
+     if (g_cycles >= g_next_field) {
+       g_next_field += kCyclesPerField;
+       vi_field();
++#if defined(__ANDROID__)
++      if (g_fields == 60 || g_fields == 300 || g_fields == 900)
++        SDL_Log("Colosseum guest advanced to field %llu", (unsigned long long)g_fields);
++#endif
+       const PadScriptAction action = pad_input_script_action(g_fields);
+       if (action.quit)
+         aurora_native_request_quit();
+@@ -2025,6 +2266,10 @@ static int standalone_main(int argc, char** argv) {
+         host_ui_set_menu(true);
+       if (host_ui_menu_open() && !aurora_native_should_quit())
+         pause_loop(action.menu_repaints);
++#ifdef __ANDROID__
++      else if (host_ui_take_save_request())
++        save_settings();
++#endif
+       if (g_verbose && g_fields - last_report_fields >= 60) {
+         last_report_fields = g_fields;
+         std::printf("standalone: %llu fields, %llu frames, %llu draw-dones, pc 0x%08X, %llu dispatches, "
+@@ -2071,7 +2316,11 @@ static int standalone_main(int argc, char** argv) {
+   audio_out_shutdown();
+   aurora_native_shutdown();
+   VLOG("standalone: exit 0\n");
++#if defined(__ANDROID__)
++  return 0;
++#else
+   end_process(0);
++#endif
+ }
+ 
+ #ifdef _WIN32
+@@ -2096,5 +2345,34 @@ int wmain(int argc, wchar_t** wide_argv) {
+   return standalone_main(argc, argv.data());
+ }
+ #else
++#if defined(__ANDROID__)
++extern "C" JNIEXPORT void JNICALL
++Java_dev_wiids_colosseum_ColosseumGameActivity_setExternalPause(JNIEnv*, jclass, jboolean paused) {
++  host_ui_set_external_pause(paused == JNI_TRUE);
++}
++
++extern "C" JNIEXPORT void JNICALL
++Java_dev_wiids_colosseum_ColosseumGameActivity_setHudTrace(JNIEnv*, jclass, jint mode) {
++  hud_trace::mode.store(mode, std::memory_order_relaxed);
++}
++
++extern "C" JNIEXPORT void JNICALL
++Java_dev_wiids_colosseum_ColosseumGameActivity_setHudSkip(JNIEnv*, jclass, jint address) {
++  hud_trace::skip_end.store(0, std::memory_order_relaxed);
++  hud_trace::skip_start.store(uint32_t(address), std::memory_order_relaxed);
++}
++
++extern "C" JNIEXPORT void JNICALL
++Java_dev_wiids_colosseum_ColosseumGameActivity_requestQuit(JNIEnv*, jclass) {
++  aurora_native_request_quit();
++}
++
++extern "C" __attribute__((visibility("default"))) int SDL_main(int argc, char** argv) {
++  if (argc != 5 || setenv("STANDALONE_PREF_DIR", argv[3], 1) != 0 ||
++      setenv("WIIDS_COLOSSEUM_CARD", argv[4], 1) != 0) return 1;
++  return standalone_main(3, argv);
++}
++#else
+ int main(int argc, char** argv) { return standalone_main(argc, argv); }
+ #endif
++#endif

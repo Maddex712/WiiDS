@@ -804,15 +804,19 @@ class TouchControlsOverlay private constructor(private val activity: Activity, p
             }
             REQUEST_CODE_IMPORT_LAYOUT -> {
                 if (uri != null) {
-                    val text = activity.contentResolver.openInputStream(uri)?.use { it.readBytes() }?.toString(Charsets.UTF_8)
-                    if (text != null) {
-                        try {
-                            val json = JSONObject(text)
-                            promptImportedLayoutName(json)
-                        } catch (_: Exception) {
-                            // Not a valid layout file - silently ignored, same as a cancelled picker.
+                    val resolver = activity.applicationContext.contentResolver
+                    Thread {
+                        val json = runCatching {
+                            resolver.openInputStream(uri)?.use {
+                                JSONObject(com.driftdroid.android.BoundedInput.bytes(it, 1024 * 1024).toString(Charsets.UTF_8))
+                            }
+                        }.getOrNull()
+                        activity.runOnUiThread {
+                            if (!activity.isFinishing && !activity.isDestroyed && json != null) {
+                                promptImportedLayoutName(json)
+                            }
                         }
-                    }
+                    }.apply { name = "WiiDsLayoutImport"; isDaemon = true }.start()
                 }
                 return true
             }

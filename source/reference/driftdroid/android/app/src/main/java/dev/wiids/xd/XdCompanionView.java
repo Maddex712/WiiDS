@@ -7,8 +7,8 @@ public final class XdCompanionView extends FrameLayout {
     private XdState fieldState=XdState.unavailable();
     private final XdBoard board;
     private String lastFieldLocation="";
-    public XdCompanionView(Context context){
-        super(context);inert(this);board=new XdBoard(context);inert(board);
+    public XdCompanionView(Context context, boolean xg){
+        super(context);inert(this);board=new XdBoard(context, xg);inert(board);
         for(int i=0;i<6;i++){XdKey k=new XdKey(context,XdKey.PARTY);inert(k);board.party[i]=k;board.addView(k);}
         addView(board,new FrameLayout.LayoutParams(-1,-1));
     }

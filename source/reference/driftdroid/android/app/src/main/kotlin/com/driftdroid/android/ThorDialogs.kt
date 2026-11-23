@@ -182,12 +182,12 @@ internal object ThorDialogs {
         }
     }
 
-    /** The Wii Menu style: the same dialogs with Wii buttons, a white panel and the system font. */
+    /** The Wii Menu styles use Wii buttons, a themed panel and the system font. */
     private fun styleWii(activity: Activity, dialog: AlertDialog) {
         val density = activity.resources.displayMetrics.density
         dialog.window?.setBackgroundDrawable(WiiArt("panel", density))
         val choiceColors = android.content.res.ColorStateList(arrayOf(intArrayOf(android.R.attr.state_checked), intArrayOf()),
-            intArrayOf(ThorMenuTheme.WII_BLUE, Color.rgb(150, 157, 165)))
+            intArrayOf(ThorMenuTheme.accent, ThorMenuTheme.tone(Color.rgb(150, 157, 165), ThorMenuTheme.TEXT_SOFT)))
         fun visit(view: View) {
             if (view is TextView && styledViews.put(view, true) != true) {
                 if (view is EditText) {

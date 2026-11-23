@@ -1,0 +1,926 @@
+diff --git a/GXRuntime/backends/aurora/aurora_backend.cpp b/GXRuntime/backends/aurora/aurora_backend.cpp
+index 88b4628..fb65ee8 100644
+--- a/GXRuntime/backends/aurora/aurora_backend.cpp
++++ b/GXRuntime/backends/aurora/aurora_backend.cpp
+@@ -8,6 +8,9 @@
+ #include <cstdio>
+ #include <cstdlib>
+ #include <cstring>
++#ifdef __ANDROID__
++#include <android/log.h>
++#endif
+ 
+ namespace gx_aurora {
+ 
+@@ -131,8 +134,14 @@ void log_callback(AuroraLogLevel level, const char* module, const char* message,
+     case LOG_ERROR:   level_name = "error"; break;
+     case LOG_FATAL:   level_name = "fatal"; break;
+     }
++#ifdef __ANDROID__
++    __android_log_print(level >= LOG_ERROR ? ANDROID_LOG_ERROR : ANDROID_LOG_INFO,
++                        "WiiDSColosseum", "[%s:%s] %s", level_name,
++                        module ? module : "core", message ? message : "");
++#else
+     std::fprintf(level >= LOG_ERROR ? stderr : stdout, "[aurora:%s:%s] %s\n",
+                  level_name, module ? module : "core", message ? message : "");
++#endif
+     if (level == LOG_FATAL)
+         std::abort();
+ }
+diff --git a/GXRuntime/backends/aurora/aurora_graphics.cpp b/GXRuntime/backends/aurora/aurora_graphics.cpp
+index c17c88a..bf92570 100644
+--- a/GXRuntime/backends/aurora/aurora_graphics.cpp
++++ b/GXRuntime/backends/aurora/aurora_graphics.cpp
+@@ -10,8 +10,10 @@
+ #include <gx/gx.hpp>
+ #include <gx/recomp.hpp>
+ #include "gxruntime/gxcore/texture_decode.hpp"
++#include "gxruntime/wiids_gxdiag.h"
+ #include <SDL3/SDL_timer.h>
+ #include <algorithm>
++#include <atomic>
+ #include <chrono>
+ #include <cmath>
+ #include <cstdio>
+@@ -54,8 +56,11 @@ namespace {
+ using InterpClock = std::chrono::steady_clock;
+ uint64_t g_interp_revision = 0;
+ double g_interp_game_frame_seconds = 1001.0 / 60000.0;
++// aurora_backend_perf_take: images presented, draws, upload bytes, EFB copies.
++std::atomic<uint64_t> g_perf_presents{0}, g_perf_draws{0}, g_perf_upload{0}, g_perf_efb_copies{0};
+ void interp_end_present() {
+     aurora_end_frame();
++    g_perf_presents.fetch_add(1, std::memory_order_relaxed);
+     static const bool log = std::getenv("AURORA_PRESENT_INTERVALS") != nullptr;
+     if (!log) return;
+     static InterpClock::time_point previous;
+@@ -126,6 +131,10 @@ namespace gx_aurora {
+ #if GXRUNTIME_HAS_AURORA_RECOMP
+ // Skipped draws by reason, for DOL_GX_CORE_COUNTERS.
+ std::vector<std::pair<const char*, unsigned long long>> g_core_skip_reasons;
++// Per-frame plan outcomes for the debug.wiids.colo.gxdiag summary.
++unsigned long long g_diag_frame_submitted = 0;
++unsigned long long g_diag_frame_rejected = 0;
++unsigned long long g_diag_frame_skipped = 0;
+ 
+ // DOL_GX_CORE_TEXDUMP=<dir>: each distinct texture a draw binds, decoded as
+ // gxcore decodes it, written once as <dir>/<fmt>_<w>x<h>_<addr>[_t<tlut>].ppm.
+@@ -171,6 +180,12 @@ void dump_plan_texture(std::uint32_t address, std::uint32_t format, std::uint32_
+ }
+ 
+ void core_plan_observer(const gxruntime::gxcore::DrawPlan& plan, void*) {
++#ifdef __ANDROID__
++    // During surface loss the guest GX frontend can still maintain register
++    // state, but draw plans cannot allocate upload space without a frame.
++    if (!g_frame_open)
++        return;
++#endif
+     if (plan.ok) {
+         if (plan.has_texture)
+             dump_plan_texture(plan.tex_address, plan.tex_format, plan.tex_width, plan.tex_height,
+@@ -186,6 +201,10 @@ void core_plan_observer(const gxruntime::gxcore::DrawPlan& plan, void*) {
+     if (!plan.ok) {
+         // skip reasons are tallied in the sink gap counters; keep them by name too
+         const char* reason = plan.skip_reason != nullptr ? plan.skip_reason : "unknown";
++        ++g_diag_frame_skipped;
++        if (wiids_gxdiag::enabled())
++            wiids_gxdiag::log("frame=%llu DROP plan skipped: %s (vtx=%u)", wiids_gxdiag::frame(),
++                              reason, plan.vertex_count);
+         auto it = std::find_if(g_core_skip_reasons.begin(), g_core_skip_reasons.end(),
+                                [&](const auto& e) { return std::strcmp(e.first, reason) == 0; });
+         if (it == g_core_skip_reasons.end())
+@@ -194,13 +213,26 @@ void core_plan_observer(const gxruntime::gxcore::DrawPlan& plan, void*) {
+             ++it->second;
+         return;
+     }
+-    if (aurora::gfx::gxcore::submit_draw_plan(plan))
++    if (aurora::gfx::gxcore::submit_draw_plan(plan)) {
+         ++g_core_submitted;
+-    else
++        ++g_diag_frame_submitted;
++    } else {
+         ++g_core_rejected;
++        ++g_diag_frame_rejected;
++        if (wiids_gxdiag::enabled())
++            wiids_gxdiag::log("frame=%llu DROP submit rejected (vtx=%u idx=%zu textured=%u "
++                              "texmap_mask=0x%X tex=0x%08X)",
++                              wiids_gxdiag::frame(), plan.vertex_count, plan.indices.size(),
++                              unsigned(plan.pipeline.shader.textured), plan.texmap_mask,
++                              plan.tex_address);
++    }
+ }
+ 
+ void core_copy_observer(const gxruntime::gxcore::EfbCopyCommand& cmd, void*) {
++#ifdef __ANDROID__
++    if (!g_frame_open)
++        return;
++#endif
+     aurora::gfx::gxcore::copy_efb_to_texture(cmd);
+ }
+ 
+@@ -784,9 +816,32 @@ extern "C" {
+ void aurora_backend_present(void) {
+     if (!gx_aurora::g_initialized)
+         return;
++    if (const AuroraStats* stats = aurora_get_stats()) {
++        g_perf_draws.fetch_add(stats->drawCallCount, std::memory_order_relaxed);
++        g_perf_upload.fetch_add(stats->lastTextureUploadSize, std::memory_order_relaxed);
++    }
++#if GXRUNTIME_HAS_AURORA_RECOMP
++    if (gx_aurora::g_gx_core_enabled) {
++        static unsigned long long s_copies = 0;
++        const unsigned long long copies = gx_aurora::g_core_sink.counters().efb_copies;
++        g_perf_efb_copies.fetch_add(copies - s_copies, std::memory_order_relaxed);
++        s_copies = copies;
++    }
++#endif
+ #if GXRUNTIME_HAS_AURORA_RECOMP
+     if (gx_aurora::g_gx_core_enabled && !gx_aurora::g_shadow_frontend_failed)
+         gx_aurora::g_core_sink.flush_frame();
++    // debug.wiids.colo.gxdiag: close the frame (summary on logged frames), then
++    // decide whether the next one logs draw detail.
++    if (wiids_gxdiag::enabled() && wiids_gxdiag::sampling())
++        wiids_gxdiag::log("frame=%llu SUMMARY submitted=%llu rejected=%llu skipped=%llu frontend_failed=%d",
++                          wiids_gxdiag::frame(), gx_aurora::g_diag_frame_submitted,
++                          gx_aurora::g_diag_frame_rejected, gx_aurora::g_diag_frame_skipped,
++                          gx_aurora::g_shadow_frontend_failed ? 1 : 0);
++    gx_aurora::g_diag_frame_submitted = 0;
++    gx_aurora::g_diag_frame_rejected = 0;
++    gx_aurora::g_diag_frame_skipped = 0;
++    wiids_gxdiag::begin_frame();
+     if (gx_aurora::g_gx_core_enabled) {
+         // DOL_GX_CORE_COUNTERS=<n>: every n presents, every non-zero gxcore gap
+         // counter (running totals): what the renderer skipped or ignored.
+@@ -1181,6 +1236,12 @@ void aurora_backend_gx_write(u64 value, u8 size);
+ void aurora_backend_gx_write_bytes(const u8* data, u32 size) {
+     if (!gx_aurora::g_initialized || size == 0)
+         return;
++#ifdef __ANDROID__
++    // The first commands after resume can be the pause loop's saved frame,
++    // before the next present would otherwise start the recording frame.
++    if (!gx_aurora::g_frame_open && !gx_aurora::g_should_quit)
++        gx_aurora::g_frame_open = aurora_begin_frame();
++#endif
+ #if GXRUNTIME_HAS_AURORA_RECOMP
+     if (gx_aurora::g_gx_core_enabled && gx_aurora::g_shadow_frontend_enabled) {
+         gx_aurora::g_fifo_bytes += size;
+@@ -1491,3 +1552,12 @@ extern "C" void aurora_backend_set_frame_interpolation(uint32_t layers, uint32_t
+     aurora::gfx::gxcore::interp_configure(layers);
+ #endif
+ }
++
++// colo_perf.h (WiiDS Colosseum host): totals since the last take.
++extern "C" void aurora_backend_perf_take(uint64_t* presents, uint64_t* draws, uint64_t* texture_upload_bytes,
++                                         uint64_t* efb_copies) {
++    *presents = g_perf_presents.exchange(0, std::memory_order_relaxed);
++    *draws = g_perf_draws.exchange(0, std::memory_order_relaxed);
++    *texture_upload_bytes = g_perf_upload.exchange(0, std::memory_order_relaxed);
++    *efb_copies = g_perf_efb_copies.exchange(0, std::memory_order_relaxed);
++}
+diff --git a/GXRuntime/graphics/aurora/include/aurora/aurora.h b/GXRuntime/graphics/aurora/include/aurora/aurora.h
+index eba85f3..a94673a 100644
+--- a/GXRuntime/graphics/aurora/include/aurora/aurora.h
++++ b/GXRuntime/graphics/aurora/include/aurora/aurora.h
+@@ -140,6 +140,11 @@ void aurora_set_resampler(AuroraSampler sampler);
+ // acquired, no present), as a headless emulator renders; for measuring the
+ // renderer without a display's present cost. Default true.
+ void aurora_set_present_enabled(bool value);
++/** WiiDS: mean luminance (0..255, lightly smoothed) of the game image before the UI, from nine
++ * rows of every sixth frame, copied on the GPU and mapped asynchronously (no wait anywhere).
++ * -1 until the first reading; off until enabled. */
++void aurora_luma_probe_enable(bool enabled);
++int aurora_luma_probe_level(void);
+ 
+ AuroraBackend aurora_get_backend();
+ const AuroraBackend* aurora_get_available_backends(size_t* count);
+diff --git a/GXRuntime/graphics/aurora/lib/aurora.cpp b/GXRuntime/graphics/aurora/lib/aurora.cpp
+index da43da6..7b20062 100644
+--- a/GXRuntime/graphics/aurora/lib/aurora.cpp
++++ b/GXRuntime/graphics/aurora/lib/aurora.cpp
+@@ -22,6 +22,8 @@
+ #include <SDL3/SDL_timer.h>
+ #include <magic_enum.hpp>
+ 
++#include <atomic>
++
+ #include "system_info.hpp"
+ #include "tracy/Tracy.hpp"
+ 
+@@ -46,6 +48,86 @@ uint32_t clamp_scissor_coord(double value, uint32_t maximum) noexcept {
+   return static_cast<uint32_t>(std::clamp(value, 0.0, static_cast<double>(maximum)));
+ }
+ 
++// WiiDS: the mean luminance of the game image (0..255), for a companion screen that follows the
++// picture going black. Nine rows of every sixth frame are copied to a small buffer at the end of
++// the frame's own command buffer and mapped asynchronously; nothing waits for the result. Off
++// until aurora_luma_probe_enable(true).
++std::atomic<bool> g_lumaEnabled{false};
++std::atomic<int> g_lumaLevel{-1};
++std::atomic<bool> g_lumaBusy{false};
++struct LumaJob {
++  wgpu::Buffer buffer;
++  uint32_t width = 0, pitch = 0;
++  bool bgra = false, encoded = false;
++  uint32_t tick = 0;
++};
++LumaJob g_luma;  // the thread ending frames, and the map callback while g_lumaBusy
++constexpr uint32_t kLumaRows = 9;
++
++void luma_encode(const wgpu::CommandEncoder& encoder) {
++  if (!g_lumaEnabled.load(std::memory_order_relaxed) || g_lumaBusy.load(std::memory_order_acquire) ||
++      ++g_luma.tick % 6 != 0) {
++    return;
++  }
++  const auto& src = webgpu::present_source();
++  const bool bgra = src.format == wgpu::TextureFormat::BGRA8Unorm || src.format == wgpu::TextureFormat::BGRA8UnormSrgb;
++  const bool rgba = src.format == wgpu::TextureFormat::RGBA8Unorm || src.format == wgpu::TextureFormat::RGBA8UnormSrgb;
++  if (!src.texture || src.size.width == 0 || src.size.height < kLumaRows || (!bgra && !rgba)) {
++    return;
++  }
++  const uint32_t pitch = AURORA_ALIGN(src.size.width * 4, 256);
++  if (!g_luma.buffer || g_luma.pitch != pitch) {
++    const wgpu::BufferDescriptor descriptor{.label = "Luminance probe readback",
++                                            .usage = wgpu::BufferUsage::MapRead | wgpu::BufferUsage::CopyDst,
++                                            .size = uint64_t(pitch) * kLumaRows};
++    g_luma.buffer = g_device.CreateBuffer(&descriptor);
++    g_luma.pitch = pitch;
++    if (!g_luma.buffer) {
++      return;
++    }
++  }
++  g_luma.width = src.size.width;
++  g_luma.bgra = bgra;
++  for (uint32_t r = 0; r < kLumaRows; ++r) {
++    const wgpu::TexelCopyTextureInfo from{.texture = src.texture,
++                                          .origin = {0, (2 * r + 1) * src.size.height / (2 * kLumaRows), 0}};
++    const wgpu::TexelCopyBufferInfo to{.layout = {.offset = uint64_t(pitch) * r, .bytesPerRow = pitch, .rowsPerImage = 1},
++                                       .buffer = g_luma.buffer};
++    const wgpu::Extent3D extent{g_luma.width, 1, 1};
++    encoder.CopyTextureToBuffer(&from, &to, &extent);
++  }
++  g_luma.encoded = true;
++}
++
++void luma_after_submit() {
++  if (!g_luma.encoded) {
++    return;
++  }
++  g_luma.encoded = false;
++  g_lumaBusy.store(true, std::memory_order_release);
++  g_luma.buffer.MapAsync(wgpu::MapMode::Read, 0, g_luma.buffer.GetSize(), wgpu::CallbackMode::AllowSpontaneous,
++                         [](wgpu::MapAsyncStatus status, wgpu::StringView) {
++    if (status == wgpu::MapAsyncStatus::Success) {
++      const auto* px = static_cast<const uint8_t*>(g_luma.buffer.GetConstMappedRange(0, g_luma.buffer.GetSize()));
++      if (px != nullptr) {
++        uint64_t sum = 0;
++        const int ri = g_luma.bgra ? 2 : 0, bi = g_luma.bgra ? 0 : 2;
++        for (uint32_t r = 0; r < kLumaRows; ++r) {
++          const uint8_t* row = px + size_t(r) * g_luma.pitch;
++          for (uint32_t x = 0; x < g_luma.width; ++x) {
++            sum += 54u * row[x * 4 + ri] + 183u * row[x * 4 + 1] + 19u * row[x * 4 + bi];
++          }
++        }
++        const int now = static_cast<int>(sum / (uint64_t(256) * kLumaRows * g_luma.width));
++        const int old = g_lumaLevel.load(std::memory_order_relaxed);
++        g_lumaLevel.store(old < 0 ? now : (old + now + 1) / 2, std::memory_order_relaxed);  // lightly smoothed
++      }
++      g_luma.buffer.Unmap();
++    }
++    g_lumaBusy.store(false, std::memory_order_release);
++  });
++}
++
+ void set_present_viewport(const wgpu::RenderPassEncoder& pass, const gfx::Viewport& viewport, uint32_t surfaceWidth,
+                           uint32_t surfaceHeight) noexcept {
+   pass.SetViewport(viewport.left, viewport.top, viewport.width, viewport.height, viewport.znear, viewport.zfar);
+@@ -365,12 +447,14 @@ void end_frame() noexcept {
+       Log.info("Skipping present; window not presentable");
+     }
+     webgpu::gpu_prof::frame_end(encoder);
++    luma_encode(encoder);  // WiiDS luminance probe
+     const wgpu::CommandBufferDescriptor cmdBufDescriptor{.label = "Redraw command buffer"};
+     const auto buffer = encoder.Finish(&cmdBufDescriptor);
+     {
+       ZoneScopedN("Queue Submit");
+       g_queue.Submit(1, &buffer);
+     }
++    luma_after_submit();  // WiiDS luminance probe
+     webgpu::gpu_prof::after_submit();
+     if (canPresent && g_surface) {
+       ZoneScopedN("Present");
+@@ -455,6 +539,20 @@ const AuroraBackend* aurora_get_available_backends(size_t* count) {
+ }
+ void aurora_set_log_level(AuroraLogLevel level) { aurora::g_config.logLevel = level; }
+ void aurora_set_present_enabled(bool value) { aurora::g_presentEnabled = value; }
++void aurora_luma_probe_enable(bool enabled) {
++#ifdef AURORA_ENABLE_GX
++  aurora::g_lumaEnabled.store(enabled, std::memory_order_relaxed);
++#else
++  (void)enabled;
++#endif
++}
++int aurora_luma_probe_level(void) {
++#ifdef AURORA_ENABLE_GX
++  return aurora::g_lumaLevel.load(std::memory_order_relaxed);
++#else
++  return -1;
++#endif
++}
+ void aurora_set_pause_on_focus_lost(bool value) { aurora::g_config.pauseOnFocusLost = value; }
+ void aurora_set_background_input(bool value) {
+   aurora::g_config.allowJoystickBackgroundEvents = value;
+diff --git a/GXRuntime/graphics/aurora/lib/gfx/common.cpp b/GXRuntime/graphics/aurora/lib/gfx/common.cpp
+index 61292d4..f09864b 100644
+--- a/GXRuntime/graphics/aurora/lib/gfx/common.cpp
++++ b/GXRuntime/graphics/aurora/lib/gfx/common.cpp
+@@ -612,7 +612,7 @@ void end_color_pass() {
+ }
+ 
+ static inline void push_command(CommandType type, const Command::Data& data) {
+-  if (g_currentRenderPass == UINT32_MAX)
++  if (g_recordingFrame == nullptr || g_currentRenderPass == UINT32_MAX)
+     UNLIKELY {
+       Log.warn("Dropping command {}", magic_enum::enum_name(type));
+       return;
+@@ -647,7 +647,8 @@ static void push_draw_command(ShaderDrawCommand data) {
+ }
+ 
+ Vec2<uint32_t> get_render_target_size() noexcept {
+-  if (g_currentRenderPass < current_render_passes().size()) {
++  // GX state can change while the window has no drawable surface or frame.
++  if (g_recordingFrame != nullptr && g_currentRenderPass < current_render_passes().size()) {
+     const auto& size = current_render_passes()[g_currentRenderPass].targetSize;
+     return {size.width, size.height};
+   }
+diff --git a/GXRuntime/graphics/aurora/lib/gfx/gxcore_draw.cpp b/GXRuntime/graphics/aurora/lib/gfx/gxcore_draw.cpp
+index 4742002..b7b0ab3 100644
+--- a/GXRuntime/graphics/aurora/lib/gfx/gxcore_draw.cpp
++++ b/GXRuntime/graphics/aurora/lib/gfx/gxcore_draw.cpp
+@@ -10,6 +10,7 @@
+ 
+ #include <gxruntime/gxcore/gxcore.hpp> // EfbCopyCommand
+ #include <gxruntime/gxcore/texture_decode.hpp>
++#include <gxruntime/wiids_gxdiag.h>
+ 
+ #include <absl/container/flat_hash_map.h>
+ 
+@@ -564,13 +565,14 @@ wgpu::RenderPipeline create_pipeline(const PipelineConfig& config) {
+                        : wgpu::CompareFunction::Always,
+   };
+ 
+-  // GC subtract mode forces ONE/ONE with dst - src (Dolphin RenderState).
++  // Subtract is dst - src (Dolphin RenderState). gxcore puts ONE/ONE in the key
++  // for GC subtract mode and other factors for logic-op approximations.
+   wgpu::BlendState blendState{};
+   if (key.blend_subtract != 0) {
+     blendState.color = {
+         .operation = wgpu::BlendOperation::ReverseSubtract,
+-        .srcFactor = wgpu::BlendFactor::One,
+-        .dstFactor = wgpu::BlendFactor::One,
++        .srcFactor = to_blend_factor_src(static_cast<gxc::SrcBlendFactor>(key.src_factor)),
++        .dstFactor = to_blend_factor_dst(static_cast<gxc::DstBlendFactor>(key.dst_factor)),
+     };
+     blendState.alpha = blendState.color;
+   } else {
+@@ -746,6 +748,13 @@ void copy_efb_to_texture(const gxc::EfbCopyCommand& cmd) {
+     // becomes the next frame's EFB clear via the state mirrored above.
+     return;
+   }
++  ++wiids_gxdiag::state().copies;
++  if (wiids_gxdiag::enabled() && wiids_gxdiag::sampling())
++    wiids_gxdiag::log("frame=%llu EFBCOPY dest=0x%08X fmt=0x%X src=%u,%u %ux%u clear=%d rgba=%u,%u,%u,%u z=0x%06X",
++                      wiids_gxdiag::frame(), cmd.dest_address, cmd.format, unsigned(cmd.src_x),
++                      unsigned(cmd.src_y), unsigned(cmd.width), unsigned(cmd.height), cmd.clear ? 1 : 0,
++                      unsigned(cmd.clear_r), unsigned(cmd.clear_g), unsigned(cmd.clear_b), unsigned(cmd.clear_a),
++                      unsigned(cmd.clear_z));
+   const auto fmt = static_cast<GXTexFmt>(cmd.format);
+   // Source rect in render pixels, each edge rounded inward. At a fractional
+   // EFB scale a draw clipped to a viewport edge does not reach the partly
+@@ -817,6 +826,205 @@ void copy_efb_to_texture(const gxc::EfbCopyCommand& cmd) {
+                     clearDepthValue, fmt);
+ }
+ 
++// A 1x1 opaque white texture standing in for a texmap whose guest texture does
++// not resolve, so the draw still renders its geometry (render thread only).
++static TextureHandle fallback_white_texture() {
++  static TextureHandle s_white;
++  if (!s_white) {
++    const uint8_t white[4] = {255, 255, 255, 255};
++    s_white = new_static_texture_2d(1, 1, 1, GX_TF_RGBA8_PC, ArrayRef<uint8_t>{white, 4}, false,
++                                    "GXCore Fallback White");
++  }
++  return s_white;
++}
++
++// debug.wiids.colo.gxdiag: one line of GX state for a large 3D draw (or any draw
++// on a level-2 frame), with its screen coverage computed from the vertices as
++// the vertex shader places them.
++static void diag_log_draw(const gxc::DrawPlan& plan, const char* tag) {
++  const auto& c = plan.constants;
++  const auto& key = plan.pipeline.shader;
++  const bool persp = c.projection[3][3] == 0.f;
++  float minx = 1e30f, maxx = -1e30f, miny = 1e30f, maxy = -1e30f;
++  uint32_t behind = 0, counted = 0;
++  const bool idx = key.has_pos_mtx_idx != 0;
++  for (uint32_t v = 0; v < plan.vertex_count && !plan.vertices.empty(); ++v) {
++    const float* in = plan.vertices.data() + static_cast<size_t>(v) * gxc::kVertexFloats;
++    uint32_t row = 0;
++    if (idx)
++      std::memcpy(&row, in + gxc::kVertexPosMtxOffset / 4u, sizeof(row));
++    const float (*m)[4] = idx && row + 2u < 64u ? &c.transformmatrices[row] : &c.posnormalmatrix[0];
++    float view[4] = {0.f, 0.f, 0.f, 1.f};
++    for (int r = 0; r < 3; ++r)
++      view[r] = m[r][0] * in[0] + m[r][1] * in[1] + m[r][2] * in[2] + m[r][3];
++    float clip[4];
++    for (int r = 0; r < 4; ++r)
++      clip[r] = c.projection[r][0] * view[0] + c.projection[r][1] * view[1] + c.projection[r][2] * view[2] +
++                c.projection[r][3] * view[3];
++    ++counted;
++    if (clip[3] <= 0.f) {
++      ++behind;
++      continue;
++    }
++    minx = std::min(minx, clip[0] / clip[3]);
++    maxx = std::max(maxx, clip[0] / clip[3]);
++    miny = std::min(miny, clip[1] / clip[3]);
++    maxy = std::max(maxy, clip[1] / clip[3]);
++  }
++  const float cover = maxx > minx && maxy > miny
++                          ? (std::clamp(maxx, -1.f, 1.f) - std::clamp(minx, -1.f, 1.f)) *
++                                (std::clamp(maxy, -1.f, 1.f) - std::clamp(miny, -1.f, 1.f)) / 4.f
++                          : 0.f;
++  bool samples_copy = plan.has_texture && g_efbCopyTextures.contains(plan.tex_address);
++  for (uint32_t t = 0; t < 8u; ++t)
++    samples_copy = samples_copy || ((plan.texmap_mask & (1u << t)) != 0u && plan.textures[t].valid &&
++                                    g_efbCopyTextures.contains(plan.textures[t].address));
++  // Large 3D draws, draws reading an EFB copy, and every draw of the passes
++  // that build the frame's first two copies (screen-space masks).
++  const bool large = persp && cover >= 0.15f && plan.vertex_count >= 3u;
++  // Mask-pass casters are many and small: only their large members are logged.
++  const bool mask_pass = false;
++  if (!wiids_gxdiag::sampling() || (!large && !samples_copy && !mask_pass && wiids_gxdiag::state().level < 3))
++    return;
++  const auto& p = plan.pipeline;
++  wiids_gxdiag::log("frame=%llu %s vtx=%u idx=%zu persp=%d cover=%.2f ndc=[%.2f,%.2f]x[%.2f,%.2f] "
++                    "behind=%u/%u cull=%u z=%u/%u/%u blend=%u sub=%u src=%u dst=%u cupd=%u aupd=%u "
++                    "tev=%u stages=%u texgens=%u chans=%u lit=%u fog=%u/%u alpha=%u/%u/%u "
++                    "tex=%u mask=0x%X addr=0x%08X fmt=0x%X %ux%u mode0=0x%X vp=%.1f,%.1f,%.0f,%.1f,%.1f,%.0f "
++                    "sc=0x%06X/0x%06X/0x%06X cmode0=0x%06X zctl=0x%06X",
++                    wiids_gxdiag::frame(), tag, plan.vertex_count, plan.indices.size(), persp ? 1 : 0, cover,
++                    minx, maxx, miny, maxy, behind, counted, unsigned(p.cull_mode), unsigned(p.depth_test),
++                    unsigned(p.depth_func), unsigned(p.depth_update), unsigned(p.blend_enable),
++                    unsigned(p.blend_subtract), unsigned(p.src_factor), unsigned(p.dst_factor),
++                    unsigned(p.color_update), unsigned(p.alpha_update), unsigned(key.tev_valid),
++                    unsigned(key.num_tev_stages), unsigned(key.num_tex_gens), unsigned(key.num_color_chans),
++                    unsigned(key.lit_valid), unsigned(key.fog_fsel), unsigned(key.fog_proj),
++                    unsigned(key.alpha_comp0), unsigned(key.alpha_comp1), unsigned(key.alpha_logic),
++                    unsigned(key.textured), plan.texmap_mask, plan.tex_address, plan.tex_format, plan.tex_width,
++                    plan.tex_height, plan.tex_mode0, plan.viewport[0], plan.viewport[1], plan.viewport[2],
++                    plan.viewport[3], plan.viewport[4], plan.viewport[5], plan.scissor_tl, plan.scissor_br,
++                    plan.scissor_offset, plan.diag_cmode0, plan.diag_zcontrol);
++  for (uint32_t n = 0; n < key.num_tev_stages && n < 16u; ++n) {
++    const auto& s = key.tev_stages[n];
++    wiids_gxdiag::log("frame=%llu   tev%u c=%u,%u,%u,%u b%u o%u s%u d%u a=%u,%u,%u,%u d%u tex=%u/%u en%u ras=%u "
++                      "k=%u/%u ind=%u/%u",
++                      wiids_gxdiag::frame(), n, unsigned(s.cc_a), unsigned(s.cc_b), unsigned(s.cc_c),
++                      unsigned(s.cc_d), unsigned(s.cc_bias), unsigned(s.cc_op), unsigned(s.cc_scale),
++                      unsigned(s.cc_dest), unsigned(s.ac_a), unsigned(s.ac_b), unsigned(s.ac_c), unsigned(s.ac_d),
++                      unsigned(s.ac_dest), unsigned(s.tevorders_texmap), unsigned(s.tevorders_texcoord),
++                      unsigned(s.tevorders_enable), unsigned(s.tevorders_colorchan), unsigned(s.ksel_kc),
++                      unsigned(s.ksel_ka), unsigned(s.ind_mtx_index), unsigned(s.ind_bt));
++  }
++  for (uint32_t i = 0; i < key.num_tex_gens && i < 8u; ++i) {
++    const auto& tg = key.tex_gens[i];
++    // q range of this texgen at the vertices (regular, non-per-vertex matrices).
++    float qmin = 1e30f, qmax = -1e30f;
++    if (!plan.vertices.empty() && tg.texgentype == 0u && tg.projection != 0u) {
++      for (uint32_t v = 0; v < plan.vertex_count; ++v) {
++        const float* in = plan.vertices.data() + static_cast<size_t>(v) * gxc::kVertexFloats;
++        const float* r = c.texmatrices[3u * i + 2u];
++        const float q = r[0] * in[0] + r[1] * in[1] + r[2] * in[2] + r[3];
++        qmin = std::min(qmin, q);
++        qmax = std::max(qmax, q);
++      }
++    }
++    wiids_gxdiag::log("frame=%llu   texgen%u type=%u proj=%u src=%u post=%u q=[%g,%g]", wiids_gxdiag::frame(), i,
++                      unsigned(tg.texgentype), unsigned(tg.projection), unsigned(tg.sourcerow),
++                      unsigned(tg.posttransform), qmin, qmax);
++    // Final (post-transformed) s,t,q exactly as the vertex shader builds them
++    // for a position-sourced regular texgen, over the vertices IN FRONT of the
++    // camera (w > 0): how many have q <= 0, and the s/q, t/q range.
++    if (!plan.vertices.empty() && tg.texgentype == 0u && tg.sourcerow == 0u &&
++        (key.has_tex_mtx_idx == 0 || (key.tex_mtx_idx_mask & (1u << i)) == 0u)) {
++      uint32_t front = 0, qneg = 0, qpos_in = 0;
++      float smin = 1e30f, smax = -1e30f, tmin = 1e30f, tmax = -1e30f;
++      float nsmin = 1e30f, nsmax = -1e30f, ntmin = 1e30f, ntmax = -1e30f;
++      for (uint32_t v = 0; v < plan.vertex_count; ++v) {
++        const float* in = plan.vertices.data() + static_cast<size_t>(v) * gxc::kVertexFloats;
++        uint32_t row = 0;
++        if (idx)
++          std::memcpy(&row, in + gxc::kVertexPosMtxOffset / 4u, sizeof(row));
++        const float (*m)[4] = idx && row + 2u < 64u ? &c.transformmatrices[row] : &c.posnormalmatrix[0];
++        float view[3];
++        for (int r = 0; r < 3; ++r)
++          view[r] = m[r][0] * in[0] + m[r][1] * in[1] + m[r][2] * in[2] + m[r][3];
++        const float w = c.projection[3][0] * view[0] + c.projection[3][1] * view[1] +
++                        c.projection[3][2] * view[2] + c.projection[3][3];
++        if (w <= 0.f)
++          continue;
++        ++front;
++        const float coord[4] = {in[0], in[1], in[2], 1.f};
++        float uv[3];
++        for (int r = 0; r < 3; ++r) {
++          const float* tr = c.texmatrices[3u * i + r];
++          uv[r] = tr[0] * coord[0] + tr[1] * coord[1] + tr[2] * coord[2] + tr[3] * coord[3];
++        }
++        if (tg.projection == 0u)
++          uv[2] = 1.f;
++        if ((tg.posttransform & 1u) != 0u) {
++          float n[3] = {uv[0], uv[1], uv[2]};
++          if ((tg.posttransform & 2u) != 0u) {
++            const float len = std::sqrt(n[0] * n[0] + n[1] * n[1] + n[2] * n[2]);
++            if (len > 0.f)
++              for (float& x : n)
++                x /= len;
++          }
++          for (int r = 0; r < 3; ++r) {
++            const float* pr = c.posttexmatrices[3u * i + r];
++            uv[r] = pr[0] * n[0] + pr[1] * n[1] + pr[2] * n[2] + pr[3];
++          }
++        }
++        if (uv[2] == 0.f)
++          continue;
++        const float s = uv[0] / uv[2], t = uv[1] / uv[2];
++        if (uv[2] < 0.f) {
++          ++qneg;
++          nsmin = std::min(nsmin, s); nsmax = std::max(nsmax, s);
++          ntmin = std::min(ntmin, t); ntmax = std::max(ntmax, t);
++        } else {
++          if (s >= 0.f && s <= 1.f && t >= 0.f && t <= 1.f)
++            ++qpos_in;
++          smin = std::min(smin, s); smax = std::max(smax, s);
++          tmin = std::min(tmin, t); tmax = std::max(tmax, t);
++        }
++      }
++      wiids_gxdiag::log("frame=%llu   texgen%u final: front=%u qneg=%u qpos_in01=%u s/q=[%g,%g] t/q=[%g,%g] "
++                        "neg s/q=[%g,%g] t/q=[%g,%g]",
++                        wiids_gxdiag::frame(), i, front, qneg, qpos_in, smin, smax, tmin, tmax, nsmin, nsmax,
++                        ntmin, ntmax);
++    }
++  }
++  // Vertex colours and host depth of the full-screen mask quads.
++  if (plan.vertex_count <= 4u && cover >= 0.9f && !plan.vertices.empty())
++    for (uint32_t v = 0; v < plan.vertex_count; ++v) {
++      const float* in = plan.vertices.data() + static_cast<size_t>(v) * gxc::kVertexFloats;
++      uint32_t row = 0;
++      if (idx)
++        std::memcpy(&row, in + gxc::kVertexPosMtxOffset / 4u, sizeof(row));
++      const float (*m)[4] = idx && row + 2u < 64u ? &c.transformmatrices[row] : &c.posnormalmatrix[0];
++      float view[4] = {0.f, 0.f, 0.f, 1.f};
++      for (int r = 0; r < 3; ++r)
++        view[r] = m[r][0] * in[0] + m[r][1] * in[1] + m[r][2] * in[2] + m[r][3];
++      float clip[4];
++      for (int r = 0; r < 4; ++r)
++        clip[r] = c.projection[r][0] * view[0] + c.projection[r][1] * view[1] + c.projection[r][2] * view[2] +
++                  c.projection[r][3] * view[3];
++      // Host depth -z_gc/w: [0, 1] is kept, > 1 is beyond the near plane.
++      wiids_gxdiag::log("frame=%llu   v%u pos=%.3f,%.3f,%.3f view_z=%.6f c0=%.3f,%.3f,%.3f,%.3f hostz/w=%.9f",
++                        wiids_gxdiag::frame(), v, in[0], in[1], in[2], view[2], in[4], in[5], in[6], in[7],
++                        clip[3] != 0.f ? -clip[2] / clip[3] : 0.f);
++    }
++  for (uint32_t t = 0; t < 8u; ++t)
++    if ((plan.texmap_mask & (1u << t)) != 0u)
++      wiids_gxdiag::log("frame=%llu   texmap%u valid=%d addr=0x%08X fmt=0x%X %ux%u mode0=0x%X efbcopy=%d",
++                        wiids_gxdiag::frame(), t, plan.textures[t].valid ? 1 : 0, plan.textures[t].address,
++                        plan.textures[t].format, plan.textures[t].width, plan.textures[t].height,
++                        plan.textures[t].mode0, g_efbCopyTextures.contains(plan.textures[t].address) ? 1 : 0);
++  if (plan.texmap_mask == 0u && plan.has_texture)
++    wiids_gxdiag::log("frame=%llu   texmap0 efbcopy=%d", wiids_gxdiag::frame(),
++                      g_efbCopyTextures.contains(plan.tex_address) ? 1 : 0);
++}
++
+ // The texture bind group for a plan's texmaps (0 when untextured); false when a
+ // referenced texmap does not resolve and the draw is not drawable.
+ bool bind_plan_textures(const gxc::DrawPlan& plan, BindGroupRef* out) {
+@@ -832,6 +1040,8 @@ bool bind_plan_textures(const gxc::DrawPlan& plan, BindGroupRef* out) {
+     auto efbIt = g_efbCopyTextures.find(address);
+     if (efbIt != g_efbCopyTextures.end() && efbIt->second) {
+       ++g_textureCacheStats.hits;
++      if ((wiids_gxdiag::fix_bits() & 1) != 0)
++        return fallback_white_texture(); // experiment: EFB copies read as white
+       return efbIt->second;
+     }
+     if (!g_hostTextures.empty()) {
+@@ -982,6 +1192,14 @@ bool bind_plan_textures(const gxc::DrawPlan& plan, BindGroupRef* out) {
+             plan.tex_height, plan.tex_data, plan.tex_available, plan.has_tlut,
+             plan.tlut_address, plan.tlut_format, plan.tlut_entries,
+             plan.tlut_data, plan.tlut_available);
++        if (!bound) {
++          if (wiids_gxdiag::enabled())
++            wiids_gxdiag::log("frame=%llu FALLBACK texture unresolved addr=0x%08X fmt=0x%X %ux%u "
++                              "data=%d vtx=%u",
++                              wiids_gxdiag::frame(), plan.tex_address, plan.tex_format, plan.tex_width,
++                              plan.tex_height, plan.tex_data != nullptr ? 1 : 0, plan.vertex_count);
++          bound = fallback_white_texture();
++        }
+         if (bound) {
+           const std::array entries{
+               WGPUBindGroupEntry{.binding = 0,
+@@ -1015,6 +1233,19 @@ bool bind_plan_textures(const gxc::DrawPlan& plan, BindGroupRef* out) {
+               pt.address, pt.size, pt.format, pt.width, pt.height, pt.data,
+               pt.available, pt.has_tlut, pt.tlut_address, pt.tlut_format,
+               pt.tlut_entries, pt.tlut_data, pt.tlut_available);
++        if (!bound) {
++          // A texmap that does not resolve no longer drops the whole draw (the
++          // geometry, e.g. a battle-arena floor piece, vanished and left the
++          // clear colour). Sample a white stand-in instead so the remaining
++          // stages, vertex colour and lighting still render.
++          if (wiids_gxdiag::enabled())
++            wiids_gxdiag::log("frame=%llu FALLBACK texmap %u unresolved (valid=%d addr=0x%08X "
++                              "fmt=0x%X %ux%u data=%d) mask=0x%X vtx=%u",
++                              wiids_gxdiag::frame(), t, pt.valid ? 1 : 0, pt.address, pt.format,
++                              pt.width, pt.height, pt.data != nullptr ? 1 : 0, plan.texmap_mask,
++                              plan.vertex_count);
++          bound = fallback_white_texture();
++        }
+         if (!bound) {
+           complete = false;
+           break;
+@@ -1046,6 +1277,8 @@ bool submit_draw_plan(const gxc::DrawPlan& plan) {
+   if (!plan.ok || plan.vertex_count == 0 || plan.indices.empty()) {
+     return false;
+   }
++  if (wiids_gxdiag::enabled() && wiids_gxdiag::sampling())
++    diag_log_draw(plan, "DRAW");
+ 
+   // GX scissor, as Dolphin BPFunctions::ComputeScissorRects and
+   // SetScissorAndViewport: closed [left, right] x [top, bottom] in GX
+@@ -1064,8 +1297,12 @@ bool submit_draw_plan(const gxc::DrawPlan& plan) {
+     const int32_t left = static_cast<int32_t>((plan.scissor_tl >> 12) & 0x7FFu);
+     const int32_t bottom = static_cast<int32_t>(plan.scissor_br & 0x7FFu);
+     const int32_t right = static_cast<int32_t>((plan.scissor_br >> 12) & 0x7FFu);
+-    if (left > right || top > bottom)
++    if (left > right || top > bottom) {
++      if (wiids_gxdiag::enabled())
++        wiids_gxdiag::log("frame=%llu DROP empty scissor tl=0x%06X br=0x%06X vtx=%u", wiids_gxdiag::frame(),
++                          plan.scissor_tl, plan.scissor_br, plan.vertex_count);
+       return true;  // nothing inside the scissor: the draw renders no pixels
++    }
+     struct Range {
+       int32_t offset, start, end;
+     };
+diff --git a/GXRuntime/graphics/aurora/lib/gfx/gxcore_draw.hpp b/GXRuntime/graphics/aurora/lib/gfx/gxcore_draw.hpp
+index c43b990..51468ab 100644
+--- a/GXRuntime/graphics/aurora/lib/gfx/gxcore_draw.hpp
++++ b/GXRuntime/graphics/aurora/lib/gfx/gxcore_draw.hpp
+@@ -39,7 +39,10 @@ struct DrawData {
+ // grew texdims/indtexscale/indtexmtx; indirect texmaps join the texture group).
+ // v9: per-vertex normal matrices (VertexShaderConstants grew normalmatrices).
+ // v10: texgens from normal/binormal/tangent (WGSL and vertex layout change).
+-constexpr uint32_t GXCorePipelineConfigVersion = 10;
++// v11: subtract blends use the key's factors (logic-op approximations).
++// v12: ShaderKey wiids_qneg_center (+3 pad bytes).
++// v13: vertices within 0.01% past the near plane are kept on it (WGSL).
++constexpr uint32_t GXCorePipelineConfigVersion = 13;
+ 
+ struct PipelineConfig {
+   uint32_t version = GXCorePipelineConfigVersion;
+diff --git a/GXRuntime/graphics/aurora/lib/window.cpp b/GXRuntime/graphics/aurora/lib/window.cpp
+index 55cb702..81dc9ef 100644
+--- a/GXRuntime/graphics/aurora/lib/window.cpp
++++ b/GXRuntime/graphics/aurora/lib/window.cpp
+@@ -545,8 +545,8 @@ void set_background_input(bool value) { SDL_SetHint(SDL_HINT_JOYSTICK_ALLOW_BACK
+ } // namespace aurora::window
+ 
+ #if defined(SDL_PLATFORM_ANDROID)
+-extern "C" JNIEXPORT void JNICALL Java_org_libsdl_app_SDLSurface_auroraNativeSetSurfaceReady(JNIEnv*, jclass,
+-                                                                                             jboolean ready) {
++extern "C" JNIEXPORT void JNICALL Java_dev_wiids_colosseum_ColosseumSurface_nativeSetReady(JNIEnv*, jclass,
++                                                                                        jboolean ready) {
+   aurora::window::set_surface_ready(ready == JNI_TRUE);
+ }
+ #endif
+diff --git a/GXRuntime/graphics/frontend/src/retail_gx_frontend.cpp b/GXRuntime/graphics/frontend/src/retail_gx_frontend.cpp
+index 030bcce..1e1415d 100644
+--- a/GXRuntime/graphics/frontend/src/retail_gx_frontend.cpp
++++ b/GXRuntime/graphics/frontend/src/retail_gx_frontend.cpp
+@@ -2,6 +2,8 @@
+ #include "gxruntime/aurora_recomp/retail_gx_frontend.hpp"
+ #include "gxruntime/aurora_recomp/retail_gx_frontend_c.h"
+ 
++#include "gxruntime/wiids_gxdiag.h"
++
+ #include <cstdio>
+ #include <cstring>
+ #include <new>
+@@ -853,6 +855,12 @@ bool RetailGxFrontend::handle_draw(std::uint8_t command,
+                                     spec->vertex_offset, spec->index_size, stride,
+                                     spec->element_size, spec->element_bias, &spans[i]) ||
+         !dol_gx_recomp_resolve_cp_array(&state_, attr, spans[i], &array)) {
++      if (wiids_gxdiag::enabled())
++        wiids_gxdiag::log("frame=%llu DROP frontend draw 0x%02X vtx=%u: array %u unresolved "
++                          "(base_valid=%d base=0x%08X stride=%u span=%u)",
++                          wiids_gxdiag::frame(), command, vertex_count, attr,
++                          state_.arrays[attr].base_valid ? 1 : 0,
++                          state_.arrays[attr].physical_base, stride, spans[i]);
+       if (++skipped_draws_ <= 8u)
+         std::fprintf(stderr,
+                      "[aurora-recomp] skipped draw 0x%02X: array %u unresolved "
+diff --git a/GXRuntime/graphics/gxcore/include/gxruntime/gxcore/shader.hpp b/GXRuntime/graphics/gxcore/include/gxruntime/gxcore/shader.hpp
+index df0c668..c955fb1 100644
+--- a/GXRuntime/graphics/gxcore/include/gxruntime/gxcore/shader.hpp
++++ b/GXRuntime/graphics/gxcore/include/gxruntime/gxcore/shader.hpp
+@@ -287,6 +287,10 @@ struct ShaderKey {
+   // scalar block stays a multiple of 4 (unique-object-representation).
+   std::uint8_t num_ind_stages = 0;      // genMode bits 16-18
+   std::uint8_t ind_stage_used_mask = 0; // bit i: an active TEV stage reads ind stage i
++  // WiiDS experiment (debug.wiids.colo.gxfix bit 2): projected texcoords with
++  // q < 0 sample the texture centre. Four bytes keep the block 4-aligned.
++  std::uint8_t wiids_qneg_center = 0;
++  std::uint8_t wiids_pad[3]{};
+   IndStageKey ind_stages[kMaxIndStages]{};
+   LightChanKey litchan[4]{}; // color0, color1, alpha0, alpha1
+   TexGenKey tex_gens[kMaxTexGens]{};
+@@ -556,6 +560,10 @@ struct DrawPlan {
+   // (the flat tex_* fields above); >1 bit makes the per-texmap set authoritative.
+   std::uint32_t texmap_mask = 0;
+   PlanTexture textures[8]{};
++  // Raw BP 0x41 (blend/logic-op mode) and 0x43 (EFB pixel format) at draw
++  // time, for the debug.wiids.colo.gxdiag log only.
++  std::uint32_t diag_cmode0 = 0;
++  std::uint32_t diag_zcontrol = 0;
+ };
+ 
+ // --- EFB copy-to-texture (S16) ------------------------------------------------
+diff --git a/GXRuntime/graphics/gxcore/src/gxcore.cpp b/GXRuntime/graphics/gxcore/src/gxcore.cpp
+index 1944148..7d2c5f7 100644
+--- a/GXRuntime/graphics/gxcore/src/gxcore.cpp
++++ b/GXRuntime/graphics/gxcore/src/gxcore.cpp
+@@ -1,6 +1,7 @@
+ // SPDX-License-Identifier: GPL-3.0-or-later
+ #include "gxruntime/gxcore/gxcore.hpp"
+ #include "gxruntime/gxcore/shader.hpp"
++#include "gxruntime/wiids_gxdiag.h"
+ 
+ #include <array>
+ #include <cstdlib>
+@@ -716,6 +717,7 @@ void GxCoreState::build_draw_plan_into(const ar::ConsumedDraw& draw,
+         !walk.has_nbt)
+       ++counters.unsupported_texgen;
+   }
++  key.wiids_qneg_center = (wiids_gxdiag::fix_bits() & 2) != 0 ? 1u : 0u;
+   const std::uint32_t tex_format = draw.texture.format;
+   if (draw.texture.valid &&
+       (tex_format == 0x8u || tex_format == 0x9u || tex_format == 0xAu))
+@@ -846,8 +848,73 @@ void GxCoreState::build_draw_plan_into(const ar::ConsumedDraw& draw,
+   pipe.src_factor = static_cast<std::uint8_t>(bits(cmode0, 3, 8));
+   pipe.color_update = static_cast<std::uint8_t>(bits(cmode0, 1, 3));
+   pipe.alpha_update = static_cast<std::uint8_t>(bits(cmode0, 1, 4));
+-  if (bits(cmode0, 1, 1) != 0u)
+-    ++counters.logic_op_ignored;
++  // Blend state as Dolphin BlendingState::Generate (VideoCommon/RenderState.cpp).
++  // SrcBlendFactor/DstBlendFactor: 0 Zero, 1 One, 2 Src/DstClr, 3 Inv, 4 SrcAlpha,
++  // 5 InvSrcAlpha, 6 DstAlpha, 7 InvDstAlpha.
++  constexpr std::uint8_t kZero = 0, kOne = 1, kClr = 2, kInvClr = 3, kDstAlpha = 6, kInvDstAlpha = 7;
++  const std::uint32_t zcontrol = bp_valid_[0x43] ? bp_regs_[0x43] : 0u;
++  const bool target_has_alpha = bits(zcontrol, 3, 0) == 1u; // RGBA6_Z24
++  plan.diag_cmode0 = cmode0;
++  plan.diag_zcontrol = zcontrol;
++  if (pipe.blend_subtract != 0u) {
++    // GX subtract is dst - src with both factors ONE; the pipeline now honours
++    // the key's factors (needed by the logic-op approximations below).
++    pipe.blend_enable = 1;
++    pipe.src_factor = kOne;
++    pipe.dst_factor = kOne;
++  } else if (pipe.blend_enable != 0u) {
++    if (!target_has_alpha) {
++      // An EFB without alpha reads destination alpha as 1 (Dolphin
++      // RemoveDstAlphaUsage); the host target's alpha holds whatever the TEV
++      // last wrote, which turned DSTALPHA blends black.
++      auto remove_dst_alpha = [&](std::uint8_t f) -> std::uint8_t {
++        return f == kDstAlpha ? kOne : f == kInvDstAlpha ? kZero : f;
++      };
++      pipe.src_factor = remove_dst_alpha(pipe.src_factor);
++      pipe.dst_factor = remove_dst_alpha(pipe.dst_factor);
++    }
++  } else if (bits(cmode0, 1, 1) != 0u) {
++    // Logic op (blend off): WebGPU has none, so approximate with blending as
++    // Dolphin ApproximateLogicOpWithBlending does. These were previously
++    // ignored, i.e. drawn as COPY - an opaque overwrite where the game meant
++    // e.g. NOOP (no colour change) or AND/OR masking.
++    struct Approx {
++      bool blend, subtract;
++      std::uint8_t src, dst;
++    };
++    static constexpr Approx kApprox[16] = {
++        {false, false, kOne, kZero},       // CLEAR
++        {true, false, kClr, kZero},        // AND
++        {true, true, kOne, kInvClr},       // AND_REVERSE
++        {false, false, kOne, kZero},       // COPY
++        {true, true, kClr, kOne},          // AND_INVERTED
++        {true, false, kZero, kOne},        // NOOP
++        {true, false, kInvClr, kInvClr},   // XOR
++        {true, false, kInvClr, kOne},      // OR
++        {true, false, kInvClr, kInvClr},   // NOR
++        {true, false, kInvClr, kZero},     // EQUIV
++        {true, false, kInvClr, kZero},     // INVERT
++        {true, false, kOne, kInvDstAlpha}, // OR_REVERSE
++        {false, false, kOne, kZero},       // COPY_INVERTED
++        {true, false, kInvClr, kOne},      // OR_INVERTED
++        {true, false, kInvClr, kInvClr},   // NAND
++        {false, false, kOne, kZero},       // SET
++    };
++    const std::uint32_t mode = bits(cmode0, 4, 12);
++    if (mode == 5u) {
++      // NOOP: Dolphin drops the colour write (alpha only via dst alpha, which
++      // this renderer does not model).
++      pipe.color_update = 0;
++      pipe.alpha_update = 0;
++    } else if (kApprox[mode].blend) {
++      pipe.blend_enable = 1;
++      pipe.blend_subtract = kApprox[mode].subtract ? 1u : 0u;
++      pipe.src_factor = kApprox[mode].src;
++      pipe.dst_factor = kApprox[mode].dst;
++    }
++    if (mode != 3u)
++      ++counters.logic_op_ignored; // counted as "approximated" from here on
++  }
+ 
+   // Topology.
+   const auto primitive =
+diff --git a/GXRuntime/graphics/gxcore/src/gxcore_shader.cpp b/GXRuntime/graphics/gxcore/src/gxcore_shader.cpp
+index 7f7e4f5..b0df8d1 100644
+--- a/GXRuntime/graphics/gxcore/src/gxcore_shader.cpp
++++ b/GXRuntime/graphics/gxcore/src/gxcore_shader.cpp
+@@ -420,7 +420,15 @@ void emit_tev_fragment(std::string& out, const ShaderKey& key) {
+       // not only STQ texgens: a dual-transform post matrix can leave an ST
+       // texgen's q != 1, and the hardware divides it all the same.
+       const bool proj = texcoord < kMaxTexGens;
+-      if (proj)
++      if (proj && key.wiids_qneg_center != 0u)
++        emitf(out,
++              // WiiDS experiment: q < 0 samples the texture centre.
++              "    { let q = in.uv%u.z; let uv = select(select(in.uv%u.xy / q, "
++              "in.uv%u.xy, q == 0.0), vec2f(0.5, 0.5), q < 0.0); "
++              "rawtextemp = vec4i(round(textureSample(tex%u, samp%u, uv) * "
++              "255.0)); }\n",
++              texcoord, texcoord, texcoord, texunit, texunit);
++      else if (proj)
+         emitf(out,
+               // Dolphin PixelShaderGen: q == 0 keeps st, otherwise st / q,
+               // negative q included (a projector behind the surface).
+@@ -1046,6 +1054,14 @@ std::string generate_wgsl(const ShaderKey& key) {
+             // GC clip z lands in [-w, 0]; the substrate runs reversed-Z
+             // (graphics/aurora lib/gx/gx.hpp UseReversedZ), so flip.
+             "    clip.z = -clip.z;\n"
++            // Geometry placed on the near plane (Colosseum's battle shadow
++            // mask starts each pass with a full-screen quad at z = -near) sits
++            // within float rounding of the host's z <= w clip; per-vertex
++            // rounding then clipped a random straight-edged part of it away,
++            // leaving the mask black and the arena floor black where it was
++            // sampled. Keep vertices within 0.01% of the near plane on it
++            // (Dolphin nudges clip depth for the same reason, 1e-7).
++            "    if (clip.w > 0.0 && clip.z > clip.w && clip.z <= clip.w * 1.0001) { clip.z = clip.w; }\n"
+             "    o.pos = clip;\n");
+   // Vertex colors (Dolphin VertexShaderGen WriteVertexBody). First select each
+   // channel's vertex color with the GX presence rules: channel 0 prefers
+diff --git a/GXRuntime/src/core/native_sdk.c b/GXRuntime/src/core/native_sdk.c
+index 7e96cdd..02fb0fc 100644
+--- a/GXRuntime/src/core/native_sdk.c
++++ b/GXRuntime/src/core/native_sdk.c
+@@ -624,7 +624,18 @@ static inline int dolrecomp_ranges_overlap(const uint8_t *a, uint32_t an,
+   return a < b + bn && b < a + an;
+ }
+ 
++// WiiDS: the host may watch each call of the recorder, before anything is
++// decided or written. The observer changes nothing here, and with none
++// installed this is one load and a branch.
++static void (*wiids_gs_queue_observer)(CPUState *);
++__attribute__((visibility("default")))
++void wiids_set_gs_queue_observer_v1(void (*observer)(CPUState *)) {
++  wiids_gs_queue_observer = observer;
++}
++
+ int dolrecomp_native_gs_queue_command(CPUState *ctx) {
++  if (wiids_gs_queue_observer)
++    wiids_gs_queue_observer(ctx);
+   if (!dolrecomp_subst_enabled())
+     return 0;
+   const int which = DOLRECOMP_SUBST_GS_QUEUE_COMMAND;
+diff --git a/module-template/module.exports b/module-template/module.exports
+index 7088f3f..6c468c7 100644
+--- a/module-template/module.exports
++++ b/module-template/module.exports
+@@ -12,10 +12,8 @@
+        already (GXRuntime marks it visibility("default")); only this version
+        script was hiding it on Linux. */
+     ppc_set_mem_write_journal;
+-    /* Hook-aware modules (make_hook_aware_module.py): StaticRecompCore checks it. */
+-    dolrecomp_hook_aware_calls;
+-    dolrecomp_hook_aware_addresses;
+-    dolrecomp_hook_live;
++    /* WiiDS: observer of the Colosseum GS command recorder (native_sdk.c). */
++    wiids_set_gs_queue_observer_v1;
+   local:
+     *;
+ };

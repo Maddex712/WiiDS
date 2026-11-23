@@ -57,7 +57,7 @@ class AchievementsActivity : Activity(), DisplayManager.DisplayListener {
         private val FILTERS = listOf("All", "Earned", "Locked")
         /** Library shelf order. */
         private val GAMES = listOf(FrontendGame.MARIO_KART, FrontendGame.RETRO_REWIND, FrontendGame.NSMB, FrontendGame.MSMBWII,
-            FrontendGame.SUNSHINE, FrontendGame.ECLIPSE, FrontendGame.GALAXY, FrontendGame.KAIZO, FrontendGame.POKEMON_XD)
+            FrontendGame.SUNSHINE, FrontendGame.ECLIPSE, FrontendGame.GALAXY, FrontendGame.KAIZO, FrontendGame.POKEMON_XD, FrontendGame.POKEMON_COLOSSEUM)
         fun gameTitle(id: String): String = when (FrontendGame.fromId(id)) {
             FrontendGame.MARIO_KART -> "Mario Kart Wii"
             FrontendGame.RETRO_REWIND -> "Retro Rewind"
@@ -72,6 +72,9 @@ class AchievementsActivity : Activity(), DisplayManager.DisplayListener {
             FrontendGame.MKDD -> "Mario Kart: Double Dash!!"
             FrontendGame.MKDD_PLUS -> "Mario Kart: Double Dash!! Plus"
             FrontendGame.POKEMON_XD -> "Pokemon XD: Gale of Darkness"
+            FrontendGame.POKEMON_XG -> "Pokémon XG: NeXt Gen"
+            FrontendGame.POKEMON_COLOSSEUM -> "Pokémon Colosseum"
+            FrontendGame.CITY_FOLK -> dev.wiids.cityfolk.CityFolkStorage.TITLE
             null -> "WiiDS"
         }
     }

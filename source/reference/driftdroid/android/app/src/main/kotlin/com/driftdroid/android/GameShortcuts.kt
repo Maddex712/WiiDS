@@ -16,20 +16,20 @@ internal object GameShortcuts {
         val games = FrontendGame.values().filter {
             it != FrontendGame.RETRO_REWIND || BuildConfig.THOR_RETRO_REWIND
         }
-        ThorDialogs.builder(activity)
+        var selected: FrontendGame? = null
+        val dialog = ThorDialogs.builder(activity)
             .setTitle("Game shortcuts")
-            .setItems(games.map { it.label }.toTypedArray()) { _, which ->
-                val game = games[which]
-                ThorDialogs.builder(activity)
-                    .setTitle(game.label)
-                    .setMessage("Add a shortcut that opens this game directly. Import and set up the game in WiiDS first. " +
-                        "For Cocoon, set it as your default launcher, then add the shortcut there.")
-                    .setPositiveButton("Add shortcut") { _, _ -> request(activity, game) }
-                    .setNegativeButton("Back") { _, _ -> show(activity) }
-                    .show()
+            .setSingleChoiceItems(games.map { it.label }.toTypedArray(), -1) { prompt, which ->
+                selected = games[which]
+                (prompt as android.app.AlertDialog).getButton(android.app.AlertDialog.BUTTON_POSITIVE).isEnabled = true
             }
+            .setPositiveButton("Add to Home screen") { _, _ -> selected?.let { request(activity, it) } }
             .setNegativeButton("Back", null)
-            .show()
+            .create()
+        dialog.setOnShowListener {
+            dialog.getButton(android.app.AlertDialog.BUTTON_POSITIVE).isEnabled = selected != null
+        }
+        dialog.show()
     }
 
     /** No ROM URI or transient permission is needed after the game has been imported. */
@@ -46,7 +46,7 @@ internal object GameShortcuts {
     internal fun request(activity: Activity, game: FrontendGame) {
         val manager = activity.getSystemService(ShortcutManager::class.java)
         if (manager == null || !manager.isRequestPinShortcutSupported) {
-            message(activity, "Your default launcher does not support adding shortcuts. Choose Cocoon or another supported launcher as the default, then try again.")
+            message(activity, "Your Home screen launcher does not support pinning shortcuts.")
             return
         }
         // Existing artwork is validated and may need disk reads; keep that off the UI thread.

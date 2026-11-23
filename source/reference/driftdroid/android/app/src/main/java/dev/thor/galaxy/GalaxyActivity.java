@@ -163,10 +163,11 @@ public class GalaxyActivity extends NativeActivity implements DisplayManager.Dis
     @Override public void onDisplayRemoved(int id) { showLower(); }
     @Override public void onDisplayChanged(int id) { showLower(); }
 
+    @Override public void onBackPressed() { showSettings(); }
+
     @Override public boolean dispatchKeyEvent(KeyEvent event) {
         if (event.getKeyCode() == KeyEvent.KEYCODE_BACK) {
-            // Back opens Galaxy's settings menu; its "Return to WiiDS" row leaves.
-            if (event.getAction() == KeyEvent.ACTION_UP && event.getRepeatCount() == 0) showSettings();
+            if (event.getAction() == KeyEvent.ACTION_UP && !event.isCanceled()) onBackPressed();
             return true;
         }
         return super.dispatchKeyEvent(event);

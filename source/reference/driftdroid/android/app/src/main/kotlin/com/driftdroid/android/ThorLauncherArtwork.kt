@@ -9,10 +9,8 @@ import java.nio.file.Files
 import java.security.MessageDigest
 
 /**
- * Where the launcher's cases and music come from. A player's own set (personal use only, never in
- * the APK) in <app external files>/custom/launcher (artwork.json + images) and
- * custom/launcher-audio (audio.json + WAVs) replaces what WiiDS builds from the discs into
- * WiiCompiled/ThorMap; removing a folder goes back to the built one.
+ * Launcher asset lookup. A player's custom files take precedence over the bundled assets.
+ * Disc-generated case art and audio supply the remaining fallbacks.
  */
 internal object ThorLauncherFolders {
     fun cases(context: Context, thorMap: File): File = caseLayers(context, thorMap).first()
@@ -22,6 +20,11 @@ internal object ThorLauncherFolders {
     ).distinct()
     fun audio(context: Context, thorMap: File): File = custom(context, "launcher-audio", "audio.json")
         ?: bundled(context, "launcher-audio", "audio.json") ?: File(thorMap, "launcher-audio")
+    fun wiiChannels(context: Context): List<File> = listOfNotNull(
+        context.getExternalFilesDir(null)?.let { File(it, "custom/wii-channels") },
+        ThorBundledPresentation.root(context)?.let { File(it, "wii-channels") },
+    ).filter { it.isDirectory }.distinct()
+
     private fun bundled(context: Context, name: String, manifest: String): File? =
         ThorBundledPresentation.root(context)?.let { File(it, name) }?.takeIf { File(it, manifest).isFile }
     private fun custom(context: Context, name: String, manifest: String): File? =

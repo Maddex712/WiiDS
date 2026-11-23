@@ -6,10 +6,13 @@ import android.os.PowerManager;
 import android.app.GameManager;
 import android.app.GameState;
 import android.content.Context;
+import android.content.Intent;
 import android.content.SharedPreferences;
+import android.view.KeyEvent;
 import android.view.Surface;
 import android.view.SurfaceHolder;
 import android.view.Display;
+import com.driftdroid.android.WiiDsSessionDialog;
 import java.io.File;
 import java.util.ArrayList;
 import org.libsdl.sdl2.app.SDLActivity;
@@ -20,6 +23,7 @@ public class GameActivity extends SDLActivity {
     private volatile String displayRequest = "not requested";
     private volatile String gamePolicy = "not queried";
     private ThorSunshineScreen lowerScreen;
+    private WiiDsSessionDialog sessionMenu;
     private SharedPreferences settings() { return getSharedPreferences("eclipse_settings", MODE_PRIVATE); }
     @Override protected SDLSurface createSDLSurface(Context context) {
         return new SDLSurface(context) {
@@ -146,31 +150,48 @@ public class GameActivity extends SDLActivity {
         getWindow().addFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
         super.onCreate(state);
         // The Thor's lower panel shows the area, collection and FLUDD (ThorSunshineScreen).
-        if (getIntent().getBooleanExtra("thor_library", false)) lowerScreen = new ThorSunshineScreen(this);
-        if (android.os.Build.VERSION.SDK_INT >= 33)
-            getOnBackInvokedDispatcher().registerOnBackInvokedCallback(android.window.OnBackInvokedDispatcher.PRIORITY_DEFAULT, this::finish);
+        if (getIntent().getBooleanExtra("thor_library", false)) {
+            lowerScreen = new ThorSunshineScreen(this);
+            sessionMenu = new WiiDsSessionDialog(this, "Super Mario Eclipse",
+                () -> startActivity(new Intent(this, LauncherActivity.class)
+                    .putExtra(LauncherActivity.EXTRA_SETTINGS_ONLY, true)),
+                this::finish);
+        }
+        if (Build.VERSION.SDK_INT >= 33)
+            getOnBackInvokedDispatcher().registerOnBackInvokedCallback(
+                android.window.OnBackInvokedDispatcher.PRIORITY_DEFAULT, this::onBackPressed);
         traceLifecycle("create end");
     }
-    @Override public boolean dispatchKeyEvent(android.view.KeyEvent event) {
-        if (event.getKeyCode() == android.view.KeyEvent.KEYCODE_BACK) {
-            if(event.getAction()==android.view.KeyEvent.ACTION_DOWN&&ControllerProfiles.backAssigned(this,event.getDevice()))
+
+    @Override public boolean dispatchKeyEvent(KeyEvent event) {
+        if (event.getKeyCode() != KeyEvent.KEYCODE_BACK) return super.dispatchKeyEvent(event);
+        if (sessionMenu == null) {
+            if (event.getAction() == KeyEvent.ACTION_DOWN && ControllerProfiles.backAssigned(this, event.getDevice()))
                 assignedBackPresses.add(event.getDeviceId());
-            if(assignedBackPresses.contains(event.getDeviceId())) {
-                if(event.getAction()==android.view.KeyEvent.ACTION_UP)assignedBackPresses.remove(event.getDeviceId());
-                SDLActivity.handleKeyEvent(mSurface,event.getKeyCode(),event,null);
+            if (assignedBackPresses.contains(event.getDeviceId())) {
+                if (event.getAction() == KeyEvent.ACTION_UP) assignedBackPresses.remove(event.getDeviceId());
+                SDLActivity.handleKeyEvent(mSurface, event.getKeyCode(), event, null);
                 return true;
             }
-            if (event.getAction() == android.view.KeyEvent.ACTION_UP) finish();
-            return true;
         }
-        return super.dispatchKeyEvent(event);
+        if (event.getAction() == KeyEvent.ACTION_UP && !event.isCanceled()) onBackPressed();
+        return true;
     }
+
+    @Override public void onBackPressed() {
+        if (sessionMenu != null) sessionMenu.show();
+        else finish();
+    }
+
+    @Override public void superOnBackPressed() { onBackPressed(); }
+
     @Override public void finish() {
         traceLifecycle("finish requested");
         if (getIntent().getBooleanExtra("thor_library", false)) ThorStorage.returnToLibrary(this);
         super.finish();
     }
     @Override protected void onDestroy() {
+        if (sessionMenu != null) sessionMenu.dismiss();
         if (lowerScreen != null) { lowerScreen.stop(); lowerScreen = null; }
         traceLifecycle("destroy begin");
         // SDL's super.onDestroy sends SDL_QUIT, then joins SDLThread without a

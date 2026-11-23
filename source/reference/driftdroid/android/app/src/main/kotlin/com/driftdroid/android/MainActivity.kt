@@ -100,11 +100,15 @@ class MainActivity : SDLActivity() {
         }
     }
 
+    @Deprecated("Android compatibility")
+    override fun onBackPressed() {
+        if (!isFinishing && !isDestroyed && !mBrokenLibraries) nativeToggleSettingsOverlay()
+    }
+
     override fun dispatchKeyEvent(event: KeyEvent): Boolean {
         if (event.keyCode == KeyEvent.KEYCODE_BACK) {
-            // SDL's native key-down can wait for its Android activity mutex on the UI thread.
-            // WiiDS owns Back for settings, so keep both events out of SDL's input path.
-            if (event.action == KeyEvent.ACTION_UP && !event.isCanceled) nativeToggleSettingsOverlay()
+            // SDL's native key-down can wait on the activity mutex on the UI thread.
+            if (event.action == KeyEvent.ACTION_UP && !event.isCanceled) onBackPressed()
             return true
         }
         return super.dispatchKeyEvent(event)
@@ -226,6 +230,10 @@ class MainActivity : SDLActivity() {
         }
         for (root in ModManager.enabledOverlayRoots(this)) {
             nativeAddOverlayRoot(root)
+        }
+        if (BuildConfig.THOR_BUILD && resolvedProduct == PRODUCT_RETRO_REWIND &&
+            intent.getBooleanExtra(RetroRewindStartupMods.EXTRA_PREPARED, false)) {
+            RetroRewindStartupMods.preparedRoot(this)?.let { nativeAddOverlayRoot(it.absolutePath) }
         }
         // Only ever used as a FIRST-RUN default (native side only writes it when no explicit
         // [video] widescreen key exists in Config.toml yet, i.e. the user has never touched the

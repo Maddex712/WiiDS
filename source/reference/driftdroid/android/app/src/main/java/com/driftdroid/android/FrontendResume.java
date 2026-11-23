@@ -27,6 +27,9 @@ public final class FrontendResume {
             case MKDD: return ":mkdd_game";
             case MKDD_PLUS: return ":mkdd_plus_game";
             case POKEMON_XD: return ":xd_game";
+            case POKEMON_XG: return ":xg_game";
+            case POKEMON_COLOSSEUM: return ":colosseum_game";
+            case CITY_FOLK: return ":city_folk_game";
             default: return null;
         }
     }
@@ -44,6 +47,9 @@ public final class FrontendResume {
             case MKDD: return "dev.thor.mkdd.WiiDsMkddGameActivity";
             case MKDD_PLUS: return "dev.thor.mkdd.WiiDsMkddPlusGameActivity";
             case POKEMON_XD: return "dev.wiids.xd.XdGameActivity";
+            case POKEMON_XG: return "dev.wiids.xd.XgGameActivity";
+            case POKEMON_COLOSSEUM: return "dev.wiids.colosseum.ColosseumGameActivity";
+            case CITY_FOLK: return "dev.wiids.cityfolk.CityFolkGameActivity";
             default: return null;
         }
     }

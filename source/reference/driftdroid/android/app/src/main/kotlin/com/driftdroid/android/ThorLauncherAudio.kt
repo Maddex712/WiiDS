@@ -6,6 +6,7 @@ import android.media.AudioFocusRequest
 import android.media.AudioFormat
 import android.media.AudioManager
 import android.media.AudioTrack
+import android.media.MediaPlayer
 import android.media.SoundPool
 import android.os.Handler
 import android.os.Looper
@@ -38,11 +39,17 @@ internal object ThorLauncherAudio {
     private val main = Handler(Looper.getMainLooper())
     private val worker = Executors.newSingleThreadExecutor { Thread(it, "ThorLauncherAudio").apply { isDaemon = true } }
 
-    private data class Music(val pcm: ByteArray, val rate: Int, val channels: Int, val loopStart: Int, val loopEnd: Int)
+    private data class Music(val pcm: ByteArray, val rate: Int, val channels: Int, val loopStart: Int,
+                             val loopEnd: Int)
 
     private var app: Context? = null
     private var folder: File? = null
     private var track: AudioTrack? = null
+    private var inSettings = false
+    private var selectedTrack: MenuMusicLibrary.Track? = null
+    private var customPlayer: MediaPlayer? = null
+    private var customReady = false
+    private var customFailed = false
     private var music: Music? = null
     private var loading = false
     private var visible = false
@@ -63,7 +70,7 @@ internal object ThorLauncherAudio {
     fun muted(context: Context): Boolean = prefs(context).getBoolean("muted", false)
     fun setVolume(context: Context, value: Int) { prefs(context).edit().putInt("volume", value.coerceIn(0, 10)).apply(); applyGain() }
     fun setMuted(context: Context, value: Boolean) { prefs(context).edit().putBoolean("muted", value).apply(); applyGain() }
-    fun available(): Boolean = music != null || loading
+    fun available(): Boolean = (selectedTrack != null && !customFailed) || music != null || loading
     private fun prefs(context: Context) = context.applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
 
     /** The launcher is visible: load once, take audio focus and fade the theme in. */
@@ -74,15 +81,39 @@ internal object ThorLauncherAudio {
         visible = true
         launching = false
         loadSounds()
-        if (music == null) { load(dir); return }
-        startMusic(fadeMs = 1400)
+        syncMusicChoice(context)
+        playConfigured(fadeMs = 1400)
+    }
+
+    fun setInSettings(context: Context, value: Boolean) {
+        if (inSettings == value) return
+        inSettings = value
+        refreshMusic(context)
+    }
+
+    /** A changed preference takes effect without recreating the launcher. */
+    fun refreshMusic(context: Context) {
+        if (syncMusicChoice(context)) playConfigured(fadeMs = 1400)
+    }
+
+    private fun syncMusicChoice(context: Context): Boolean {
+        val selected = if (inSettings) MenuMusicLibrary.settingsTrack else MenuMusicLibrary.selected(context)
+        if (selected?.id == selectedTrack?.id) return false
+        main.removeCallbacks(fade)
+        fadeDone = null
+        releasePlayback()
+        gain = 0f
+        selectedTrack = selected
+        customFailed = false
+        return true
     }
 
     /** Home, sleep, another Activity: pause where we are and give focus back. */
     fun hide() {
         visible = false
         main.removeCallbacks(fade)
-        track?.let { runCatching { it.pause() } }
+        fadeDone = null
+        if (launching) releasePlayback() else pausePlayback()
         gain = 0f; target = 0f
         abandonFocus()
     }
@@ -91,8 +122,7 @@ internal object ThorLauncherAudio {
     fun fadeForLaunch(ms: Long) {
         launching = true
         fadeTo(0f, ms) {
-            track?.let { runCatching { it.pause(); it.flush() }; it.release() }
-            track = null
+            releasePlayback()
             abandonFocus()
         }
     }
@@ -114,7 +144,91 @@ internal object ThorLauncherAudio {
         return v * v * 0.9f // perceptual curve; 6/10 is a comfortable default
     }
 
-    private fun applyGain() { track?.let { runCatching { it.setVolume(gain * musicGain()) } } }
+    private fun applyGain() {
+        val level = gain * musicGain()
+        track?.let { runCatching { it.setVolume(level) } }
+        if (customReady) customPlayer?.let { runCatching { it.setVolume(level, level) } }
+    }
+
+    private fun pausePlayback() {
+        track?.let { runCatching { it.pause() } }
+        if (customReady) customPlayer?.let { runCatching { it.pause() } }
+    }
+
+    private fun releasePlayback() {
+        track?.release()
+        track = null
+        releaseCustom()
+    }
+
+    private fun releaseCustom() {
+        val player = customPlayer
+        customPlayer = null
+        customReady = false
+        player?.release()
+    }
+
+    private fun playConfigured(fadeMs: Long) {
+        if (!visible || launching) return
+        val selected = selectedTrack
+        if (selected != null && !customFailed) {
+            if (customReady) playCustom(fadeMs) else if (customPlayer == null) loadCustom(selected)
+        } else if (music != null) {
+            startMusic(fadeMs)
+        } else {
+            folder?.let(::load)
+        }
+    }
+
+    private fun loadCustom(selected: MenuMusicLibrary.Track) {
+        val player = MediaPlayer()
+        customPlayer = player
+        runCatching {
+            player.setAudioAttributes(AudioAttributes.Builder().setUsage(AudioAttributes.USAGE_GAME)
+                .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC).build())
+            when (selected) {
+                is MenuMusicLibrary.Track.Imported -> selected.file.inputStream().use {
+                    player.setDataSource(it.fd)
+                }
+                is MenuMusicLibrary.Track.Bundled -> {
+                    val resources = checkNotNull(app).resources
+                    checkNotNull(resources.openRawResourceFd(selected.resource)).use {
+                        player.setDataSource(it.fileDescriptor, it.startOffset, it.length)
+                    }
+                }
+            }
+            player.setOnErrorListener { failed, _, _ ->
+                if (customPlayer === failed) customError()
+                true
+            }
+            player.setOnPreparedListener { prepared ->
+                if (customPlayer === prepared) {
+                    prepared.isLooping = true
+                    customReady = true
+                    playCustom(1400)
+                }
+            }
+            player.prepareAsync()
+        }.onFailure { customError() }
+    }
+
+    private fun customError() {
+        Log.w(TAG, "Selected menu track unavailable; playing the original theme")
+        releaseCustom()
+        customFailed = true
+        playConfigured(900)
+    }
+
+    private fun playCustom(fadeMs: Long) {
+        if (!visible || launching || !requestFocus()) return
+        val player = customPlayer ?: return
+        runCatching {
+            player.setVolume(0f, 0f)
+            if (!player.isPlaying) player.start()
+        }.onFailure { customError(); return }
+        gain = 0f
+        fadeTo(1f, fadeMs)
+    }
 
     private fun startMusic(fadeMs: Long) {
         if (!visible || launching) return
@@ -175,10 +289,10 @@ internal object ThorLauncherAudio {
             AudioManager.AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK -> {
                 focused = false
                 main.removeCallbacks(fade)
-                track?.let { runCatching { it.pause() } }
+                pausePlayback()
                 gain = 0f
             }
-            AudioManager.AUDIOFOCUS_GAIN -> { focused = true; if (visible && !launching) startMusic(900) }
+            AudioManager.AUDIOFOCUS_GAIN -> { focused = true; playConfigured(900) }
         }
     }
 
@@ -228,15 +342,19 @@ internal object ThorLauncherAudio {
                 val file = checked(dir, entry, MAX_MUSIC_BYTES) ?: return@runCatching null
                 val (pcm, rate, channels) = readWav(file) ?: return@runCatching null
                 val frames = pcm.size / (2 * channels)
+                // Manifest loop end is inclusive.
                 Music(pcm, rate, channels, entry.optInt("loopStart", 0).coerceIn(0, frames - 1),
-                    (entry.optInt("loopEnd", frames - 1) + 1).coerceIn(1, frames)) // manifest end is inclusive
+                    (entry.optInt("loopEnd", frames - 1) + 1).coerceIn(1, frames))
             }.onFailure { Log.w(TAG, "Launcher music unavailable", it) }.getOrNull()
             main.post {
                 loading = false
-                if (dir != folder) return@post
+                if (dir != folder) {
+                    playConfigured(1400)
+                    return@post
+                }
                 music = result
                 if (result == null) Log.i(TAG, "No private launcher music staged (launcher-audio/audio.json)")
-                startMusic(fadeMs = 1400)
+                if (selectedTrack == null || customFailed) startMusic(fadeMs = 1400)
             }
         }
     }

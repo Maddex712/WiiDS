@@ -1,10 +1,10 @@
 # WiiDS
 
-## 1.26.2 prerelease - screen setup and Pokemon XD repairs
+## WiiDS 2.0
 
-[Download WiiDS 1.26.2 prerelease](https://github.com/Maddex712/WiiDS/releases/tag/v1.26.2). Install **WiiDS-1.26.2-arm64.apk** over your multi-game WiiDS app. **Options > Screen setup** lets you choose the top and companion displays, including independent screen attachments on supported Android firmware. This targets OneXSugar and Retroid Pocket 5/6 attachment layouts; those physical combinations have not yet been verified.
+[Download WiiDS 2.0](https://github.com/Maddex712/WiiDS/releases/tag/v2.0.0) · [Release notes](docs/releases/2.0.md)
 
-Includes targeted XD sample-freshness, companion-window reuse, shader-ready wait and presentation-recovery repairs, plus the Project+ picker imports from 1.26.1. **Physical gameplay stutter/flicker resolution and named-device compatibility remain unverified.** Standalone XD saves are not automatically migrated. [Full fixes, setup and preview limits](docs/release/WIIDS-1.26.2-PRERELEASE.md). Stable **WiiDS 1.2.5** remains below; the stable updater does not offer this prerelease.
+The new Wii Home Menu includes animated channels and an optional charcoal-gray dark theme with Wii-blue accents. The signed APK includes the artwork and menu music. In WiiDS Settings, use **Menu Theme** or **Menu music** to change them.
 
 <img src="docs/images/wiids-minimal-logo.png" width="120" alt="Minimal WiiDS dual-screen app logo">
 
@@ -28,7 +28,7 @@ Play supported Wii and GameCube games on the AYN Thor, with a companion on its l
 and your own [compatible game dump](#exact-game-files-for-each-game). The region and revision must match.
 **Games are not included.** Leave room for the APK, your dump and the prepared game files.
 
-1. **[Download WiiDS 1.2.5 (ARM64 APK)](https://github.com/Maddex712/WiiDS/releases/download/v1.2.5/WiiDS-1.2.5-arm64.apk)** on your Thor.
+1. **[Download WiiDS 2.0 (ARM64 APK)](https://github.com/Maddex712/WiiDS/releases/download/v2.0.0/WiiDS-2.0-arm64.apk)** on your Thor.
 2. **Install the APK and open WiiDS.** Allow your browser or file manager to install apps if Android asks.
    Wait for WiiDS to prepare its files. If you already use WiiDS, open **Options → Check for updates** or install the APK over your current copy to keep your data.
 3. **Copy your game dump to the Thor.** Open **Options → Your games** (it opens automatically on first use).

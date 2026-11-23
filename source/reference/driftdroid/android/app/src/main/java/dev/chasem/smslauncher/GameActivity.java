@@ -1,10 +1,8 @@
 package dev.chasem.smslauncher;
 
 import android.os.Bundle;
-import android.app.AlertDialog;
 import android.content.Intent;
 import android.view.KeyEvent;
-import com.driftdroid.android.ThorDialogs;
 import android.os.Build;
 import android.os.PowerManager;
 import android.app.GameManager;
@@ -14,6 +12,7 @@ import android.content.SharedPreferences;
 import android.view.Surface;
 import android.view.SurfaceHolder;
 import android.view.Display;
+import com.driftdroid.android.WiiDsSessionDialog;
 import java.io.File;
 import java.util.ArrayList;
 import org.libsdl.sdl2.app.SDLActivity;
@@ -24,7 +23,7 @@ public class GameActivity extends SDLActivity {
     private volatile String displayRequest = "not requested";
     private volatile String gamePolicy = "not queried";
     private ThorSunshineScreen lowerScreen;
-    private AlertDialog sunshineMenu;
+    private WiiDsSessionDialog sessionMenu;
     private SharedPreferences settings() { return getSharedPreferences("settings", MODE_PRIVATE); }
     @Override protected SDLSurface createSDLSurface(Context context) {
         return new SDLSurface(context) {
@@ -151,44 +150,37 @@ public class GameActivity extends SDLActivity {
         getWindow().addFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
         super.onCreate(state);
         // The Thor's lower panel shows the area, collection and FLUDD (ThorSunshineScreen).
-        if (getIntent().getBooleanExtra("thor_library", false)) lowerScreen = new ThorSunshineScreen(this);
-        if (android.os.Build.VERSION.SDK_INT >= 33)
-            getOnBackInvokedDispatcher().registerOnBackInvokedCallback(android.window.OnBackInvokedDispatcher.PRIORITY_DEFAULT, this::onBackPressed);
+        if (getIntent().getBooleanExtra("thor_library", false)) {
+            lowerScreen = new ThorSunshineScreen(this);
+            sessionMenu = new WiiDsSessionDialog(this, "Super Mario Sunshine",
+                () -> startActivity(new Intent(this, LauncherActivity.class)
+                    .putExtra(LauncherActivity.EXTRA_SETTINGS_ONLY, true)),
+                this::finish);
+        }
+        if (Build.VERSION.SDK_INT >= 33)
+            getOnBackInvokedDispatcher().registerOnBackInvokedCallback(
+                android.window.OnBackInvokedDispatcher.PRIORITY_DEFAULT, this::onBackPressed);
         traceLifecycle("create end");
     }
-    @Override public boolean dispatchKeyEvent(android.view.KeyEvent event) {
-        if (event.getKeyCode() == android.view.KeyEvent.KEYCODE_BACK) {
-            if(event.getAction()==android.view.KeyEvent.ACTION_DOWN&&ControllerProfiles.backAssigned(this,event.getDevice()))
+
+    @Override public boolean dispatchKeyEvent(KeyEvent event) {
+        if (event.getKeyCode() != KeyEvent.KEYCODE_BACK) return super.dispatchKeyEvent(event);
+        if (sessionMenu == null) {
+            if (event.getAction() == KeyEvent.ACTION_DOWN && ControllerProfiles.backAssigned(this, event.getDevice()))
                 assignedBackPresses.add(event.getDeviceId());
-            if(assignedBackPresses.contains(event.getDeviceId())) {
-                if(event.getAction()==android.view.KeyEvent.ACTION_UP)assignedBackPresses.remove(event.getDeviceId());
-                SDLActivity.handleKeyEvent(mSurface,event.getKeyCode(),event,null);
+            if (assignedBackPresses.contains(event.getDeviceId())) {
+                if (event.getAction() == KeyEvent.ACTION_UP) assignedBackPresses.remove(event.getDeviceId());
+                SDLActivity.handleKeyEvent(mSurface, event.getKeyCode(), event, null);
                 return true;
             }
-            if (event.getAction() == KeyEvent.ACTION_UP && !event.isCanceled()) onBackPressed();
-            return true;
         }
-        return super.dispatchKeyEvent(event);
+        if (event.getAction() == KeyEvent.ACTION_UP && !event.isCanceled()) onBackPressed();
+        return true;
     }
+
     @Override public void onBackPressed() {
-        if (!getIntent().getBooleanExtra("thor_library", false)) {
-            finish();
-            return;
-        }
-        if (isFinishing() || isDestroyed() || sunshineMenu != null) return;
-        AlertDialog menu = ThorDialogs.INSTANCE.builder(this)
-            .setTitle("Sunshine settings")
-            .setItems(new String[]{"Resume", "Game settings", "Return to WiiDS"}, (dialog, item) -> {
-                if (item == 1) {
-                    startActivity(new Intent(this, LauncherActivity.class)
-                        .putExtra(LauncherActivity.EXTRA_SETTINGS_ONLY, true));
-                } else if (item == 2) {
-                    finish();
-                }
-            }).create();
-        sunshineMenu = menu;
-        menu.setOnDismissListener(dialog -> sunshineMenu = null);
-        menu.show();
+        if (sessionMenu != null) sessionMenu.show();
+        else finish();
     }
 
     @Override public void superOnBackPressed() { onBackPressed(); }
@@ -199,7 +191,7 @@ public class GameActivity extends SDLActivity {
         super.finish();
     }
     @Override protected void onDestroy() {
-        if (sunshineMenu != null) sunshineMenu.dismiss();
+        if (sessionMenu != null) sessionMenu.dismiss();
         if (lowerScreen != null) { lowerScreen.stop(); lowerScreen = null; }
         traceLifecycle("destroy begin");
         // SDL's super.onDestroy sends SDL_QUIT, then joins SDLThread without a

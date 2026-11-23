@@ -1,0 +1,427 @@
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index da26b50..cb7413f 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -5,6 +5,26 @@ set(CMAKE_C_STANDARD 11)
+ set(CMAKE_CXX_STANDARD 20)
+ set(CMAKE_CXX_STANDARD_REQUIRED ON)
+ 
++if (ANDROID)
++    set(CMAKE_POSITION_INDEPENDENT_CODE ON)
++    set(WIIDS_CF_NOD_ROOT "" CACHE PATH "nod source and Android build directory")
++    set(WIIDS_CF_SDL_ROOT "" CACHE PATH "SDL3 source directory used by WiiDS")
++    set(WIIDS_CF_SDL_LIBRARY "" CACHE FILEPATH "WiiDS Android SDL3 shared library")
++    add_library(nod::nod STATIC IMPORTED GLOBAL)
++    set_target_properties(nod::nod PROPERTIES
++        IMPORTED_LOCATION "${WIIDS_CF_NOD_ROOT}/target/aarch64-linux-android/release/libnod.a"
++        INTERFACE_INCLUDE_DIRECTORIES "${WIIDS_CF_NOD_ROOT}/nod-ffi/include")
++    set(AURORA_NOD_PROVIDER vendor CACHE STRING "" FORCE)
++    add_library(SDL3::SDL3 SHARED IMPORTED GLOBAL)
++    set_target_properties(SDL3::SDL3 PROPERTIES
++        IMPORTED_LOCATION "${WIIDS_CF_SDL_LIBRARY}"
++        INTERFACE_INCLUDE_DIRECTORIES "${WIIDS_CF_SDL_ROOT}/include")
++    set(SDL3_FOUND TRUE)
++    set(AURORA_SDL3_PROVIDER system CACHE STRING "" FORCE)
++    set(AURORA_SDL3_LINKAGE shared CACHE STRING "" FORCE)
++    set(AURORA_ENABLE_THP OFF CACHE BOOL "" FORCE)
++endif ()
++
+ set(AURORA_ENABLE_DVD ON CACHE BOOL "" FORCE)
+ set(AURORA_ENABLE_CARD ON CACHE BOOL "" FORCE)
+ # Local fixes to Aurora, kept as patches so the submodule stays pristine (the same series as the
+@@ -162,6 +182,30 @@ function(cf_runtime_target tgt)
+     endif ()
+ endfunction()
+ 
++if (ANDROID)
++    set(WIIDS_CF_GENERATED_DIR "" CACHE PATH "C++ generated from the player's validated disc")
++    if (NOT EXISTS "${WIIDS_CF_GENERATED_DIR}/func_table.cpp")
++        message(FATAL_ERROR "WIIDS_CF_GENERATED_DIR must contain the output of cfrecompile")
++    endif ()
++    file(GLOB CF_LOCAL_MODULE CONFIGURE_DEPENDS "${WIIDS_CF_GENERATED_DIR}/funcs_*.cpp")
++    list(LENGTH CF_LOCAL_MODULE CF_LOCAL_CHUNKS)
++    if (NOT CF_LOCAL_CHUNKS EQUAL 64)
++        message(FATAL_ERROR "Expected 64 local game translation units, found ${CF_LOCAL_CHUNKS}")
++    endif ()
++    add_library(wiids_city_folk SHARED ${RECOMP_RUNTIME_SOURCES}
++        src/recomp/wiids_android.cpp
++        "${WIIDS_CF_GENERATED_DIR}/func_table.cpp" ${CF_LOCAL_MODULE})
++    cf_runtime_target(wiids_city_folk)
++    target_include_directories(wiids_city_folk PRIVATE "${WIIDS_CF_GENERATED_DIR}")
++    target_compile_definitions(wiids_city_folk PRIVATE CF_STATIC_MODULE=1 WIIDS_ANDROID=1)
++    target_compile_options(wiids_city_folk PRIVATE -ffp-contract=off)
++    set_source_files_properties(${CF_LOCAL_MODULE} PROPERTIES
++        COMPILE_OPTIONS "-Wno-unused-label;-Wno-unused-variable")
++    target_link_options(wiids_city_folk PRIVATE "LINKER:--no-undefined")
++    target_link_libraries(wiids_city_folk PRIVATE android log ${CMAKE_DL_LIBS})
++    return()
++endif ()
++
+ # Function maps: the DOL's (config/<id>/symbols.txt) and one per REL module
+ # (config/<id>/rels/<module>.txt). Missing ones are filled by the recompiler's own scan.
+ set(CF_GAME_ID "RUUE01" CACHE STRING "Game id of CF_DISC (RUUE01 USA rev 1; RUUP01, RUUJ01, RUUK01)")
+diff --git a/src/game/cf_features.h b/src/game/cf_features.h
+index c7d91d0..73d0edb 100644
+--- a/src/game/cf_features.h
++++ b/src/game/cf_features.h
+@@ -35,5 +35,8 @@ void sdCardMenu(bool& dirty);
+ // cf_menu_nav.cpp: a layout's root pane is drawn (cf_hud.cpp): its Bounding panes become items
+ // for "Snap pointer to menu items" (screens that hit-test with positions they stored, e.g. pockets).
+ void navLayoutDrawn(Ctx& c, u32 rootPane);
++// The layout scale (layout units per KPAD pointer unit) the game's pane hit tests were last seen
++// to use (304 x -228 until one is calibrated).
++void navWalkScale(float& sx, float& sy);
+ 
+ }  // namespace recomp::cf
+diff --git a/src/game/cf_game.cpp b/src/game/cf_game.cpp
+index 402220b..a2ca083 100644
+--- a/src/game/cf_game.cpp
++++ b/src/game/cf_game.cpp
+@@ -24,6 +24,9 @@
+ #include "game/cf_warp.h"
+ 
+ #include "recomp/distributions.h"
++#ifdef WIIDS_ANDROID
++#include "recomp/wiids_android.h"
++#endif
+ 
+ #include <algorithm>
+ #include <atomic>
+@@ -109,6 +112,9 @@ static void forceWc24OnFrame(Ctx& c, u32 frame) {
+ 
+ bool onGuestFrame(Ctx& c) {
+     const u32 frame = sFrames.fetch_add(1, std::memory_order_relaxed) + 1;
++#ifdef WIIDS_ANDROID
++    wiids::publishState(c);  // companion screen state feed (wiids_android.cpp), read-only
++#endif
+     forceSaveOnFrame(c, frame);
+     forceWc24OnFrame(c, frame);
+     movein::onGuestFrame(c, frame);  // cf_move_in.cpp: CF_OPEN_MENU
+diff --git a/src/game/cf_hud.cpp b/src/game/cf_hud.cpp
+index c2445c8..9f467f1 100644
+--- a/src/game/cf_hud.cpp
++++ b/src/game/cf_hud.cpp
+@@ -25,6 +25,9 @@
+ #include "recomp/runtime.h"
+ #include "recomp/widescreen.h"
+ #include "game/cf_light.h"
++#ifdef WIIDS_ANDROID
++#include "recomp/wiids_android.h"
++#endif
+ 
+ #include <cstdio>
+ #include <cstdlib>
+@@ -166,6 +169,9 @@ HLE(fn_802B6B48) {
+         return !(v && *v == '0');
+     }();
+     quickstart::noteWipeDraw(c.r[3]);  // cf_quick_start.cpp: the town's circle opening ends Quick Start
++#ifdef WIIDS_ANDROID
++    wiids::noteWipe(rd8(c.r[3] + 0x44));  // companion screen state feed (dWipeFader_c frame, as above)
++#endif
+     ws::WipeScope wipe;
+     if (!sTag) return callOriginal(c, "fn_802B6B48");
+     interp::TagScope t(interp::TagCat::Hud, c.r[3], rd32(c.r[3]), 0x57495045);
+@@ -185,6 +191,12 @@ HLE(Draw__Q34nw4r3lyt4PaneFRCQ34nw4r3lyt8DrawInfo) {
+         cflight::onLayoutDraw(c);  // cf_light.cpp: the 2D starts, the 3D scene has ended
+         cf::navLayoutDrawn(c, pane);  // menu items for the pointer snap (cf_menu_nav.cpp)
+         world::onLayoutDraw();  // cf_world.cpp: the 2D starts, the world effects end (after enhanced lighting's scene end)
++#ifdef WIIDS_ANDROID
++        // Companion screen state feed (wiids_android.cpp), read-only. True: a layout of the guest
++        // Map screen while the lower screen owns the map (opt-in): not drawn. Hit tests read the
++        // matrices CalculateMtx made, so the screen still works.
++        if (wiids::noteLayoutDrawn(pane, c.lr)) return;
++#endif
+     }
+     const float tx = rdf32(pane + kGlbTx);
+     std::optional<ws::AnchorScope> scope;
+diff --git a/src/game/cf_menu_nav.cpp b/src/game/cf_menu_nav.cpp
+index 53f860f..cf848fd 100644
+--- a/src/game/cf_menu_nav.cpp
++++ b/src/game/cf_menu_nav.cpp
+@@ -297,6 +297,11 @@ void cf::navLayoutDrawn(Ctx& c, u32 root) {
+     publish(found, sLastWalkScale, root, hud, false, seq);
+ }
+ 
++void cf::navWalkScale(float& sx, float& sy) {
++    sx = sLastWalkScale.sx;
++    sy = sLastWalkScale.sy;
++}
++
+ // 2. The game's gui::Manager::update (keyboards).
+ HLE(fn_80314AF4) {
+     const u32 mgr = c.r[3], chan = c.r[4];
+diff --git a/src/port/crash_handler.cpp b/src/port/crash_handler.cpp
+index 3919a41..d73ff12 100644
+--- a/src/port/crash_handler.cpp
++++ b/src/port/crash_handler.cpp
+@@ -82,7 +82,7 @@ void printStackTo(std::FILE* out, const char* reason) {
+         }
+         std::fputc('\n', out);
+     }
+-#else
++#elif !defined(__ANDROID__)
+     // backtrace_symbols_fd writes "binary(symbol+off) [addr]" lines without allocating; the
+     // executable's own functions are named only for exported symbols, so the offsets are
+     // what to feed to addr2line (docs/LINUX.md).
+@@ -193,9 +193,11 @@ void onSignal(int sig, siginfo_t* info, void* uctx) {
+ }
+ 
+ void installSignalHandlers() {
++#ifndef __ANDROID__
+     // backtrace() loads libgcc_s on first use (allocates): do that now, not in a handler.
+     void* warm[1];
+     backtrace(warm, 1);
++#endif
+     static char sAltStack[64 * 1024];
+     stack_t ss{};
+     ss.ss_sp = sAltStack;
+@@ -274,6 +276,9 @@ void dumpAllThreads(const char* reason) {
+     std::fprintf(stderr, "=== end of thread stacks ===\n");
+     std::fflush(stderr);
+ }
++#elif defined(__ANDROID__)
++// Android owns native crash and thread diagnostics. execinfo requires API 33.
++void dumpAllThreads(const char*) {}
+ #else
+ // Linux (issue #11: a Steam Deck log said nothing about where the game stopped): each thread is
+ // sent a signal whose handler writes its own backtrace ("binary(symbol+off) [addr]" lines, without
+diff --git a/src/port/install.cpp b/src/port/install.cpp
+index 2a7ad19..02082cf 100644
+--- a/src/port/install.cpp
++++ b/src/port/install.cpp
+@@ -138,6 +138,14 @@ fs::path sysDir(Kind, bool create) {
+ // (docs/MACOS.md): ~/Library/Application Support (config and data) and ~/Library/Caches; the
+ // XDG variables still override them (scratch folders for test runs).
+ fs::path sysDir(Kind kind, bool create) {
++#ifdef WIIDS_ANDROID
++    if (const char* root = std::getenv("CF_WIIDS_ROOT"); root && root[0] == '/') {
++        fs::path dir = fs::path(root) / (kind == Kind::Cache ? "cache" : "config");
++        std::error_code ec;
++        if (create) fs::create_directories(dir, ec);
++        return dir;
++    }
++#endif
+     const char* var = kind == Kind::Config ? "XDG_CONFIG_HOME" : kind == Kind::Data ? "XDG_DATA_HOME" : "XDG_CACHE_HOME";
+ #ifdef __APPLE__
+     const char* fallback = kind == Kind::Cache ? "Library/Caches" : "Library/Application Support";
+diff --git a/src/recomp/main.cpp b/src/recomp/main.cpp
+index df1e349..aa3d573 100644
+--- a/src/recomp/main.cpp
++++ b/src/recomp/main.cpp
+@@ -35,6 +35,10 @@
+ #include "recomp/texture_packs.h"
+ #include "recomp/widescreen.h"
+ #include "recomp/wiimote.h"
++#ifdef WIIDS_ANDROID
++#include "recomp/wiids_android.h"
++#include <android/log.h>
++#endif
+ #ifndef CF_STATIC_MODULE
+ #include "setup/disc.h"
+ #include "setup/setup.h"
+@@ -119,6 +123,10 @@ void boot() {
+ bool sNoGpuAdapter = false;  // Aurora found no usable graphics adapter (no Vulkan/D3D driver)
+ 
+ void logCallback(AuroraLogLevel level, const char* module, const char* message, unsigned int) {
++#ifdef WIIDS_ANDROID
++    __android_log_print(level >= LOG_ERROR ? ANDROID_LOG_ERROR : ANDROID_LOG_INFO,
++                        "WiiDSCityFolk", "[%s] %s", module, message);
++#endif
+     static const char* names[] = {"DEBUG", "INFO", "WARNING", "ERROR", "FATAL"};
+     std::fprintf(level >= LOG_ERROR ? stderr : stdout, "[%s: %s] %s\n", names[level], module, message);
+     std::fflush(stdout);
+@@ -204,7 +212,9 @@ int main(int argc, char* argv[]) {
+     using namespace recomp;
+     // Windows: no console window for players; output to a terminal, a redirect or last_run.log.
+     port::recovery::setupConsole(argc, argv);
++#ifndef WIIDS_ANDROID
+     port::installCrashHandler();
++#endif
+     port::setHangDetail(&hangDetail);
+     port::startHangWatchdog();
+     port::parseOptions(argc, argv);
+@@ -242,6 +252,9 @@ int main(int argc, char* argv[]) {
+     config.appName = "Animal Crossing City Folk Recompiled";
+     config.logCallback = &logCallback;
+     port::loadSettings();
++#ifdef WIIDS_ANDROID
++    wiids::syncSettings();
++#endif
+     // Start-up recovery (docs/SETUP.md "When the game does not start"): after a start that failed,
+     // offers to reset the settings, rebuild the game data or put the saves aside.
+ #ifdef CF_STATIC_MODULE
+@@ -466,7 +479,11 @@ int main(int argc, char* argv[]) {
+     auto lastIteration = SteadyClock::now();
+     u32 lastGuestFrames = frame::guestFrames();
+     bool presentStallReported = false, guestStallReported = false;
+-    while (!exiting) {
++    while (!exiting
++#ifdef WIIDS_ANDROID
++           && !wiids::quitRequested()
++#endif
++    ) {
+         port::heartbeat();
+         sStallOpen.store(false, std::memory_order_relaxed);
+         if (!paused) port::setPhase("game loop: window events (aurora_update)");  // (paused: nullptr, a wait on purpose)
+@@ -485,6 +502,21 @@ int main(int argc, char* argv[]) {
+                 audio::outSetPaused(false);
+             }
+         }
++#ifdef WIIDS_ANDROID
++        wiids::syncSettings();
++        const bool blocked = wiids::paused();
++        static bool menuPaused = false;
++        if (blocked != menuPaused) {
++            menuPaused = blocked;
++            audio::outSetPaused(blocked || paused || precache::holdGame());
++        }
++        if (blocked) {
++            frame::setHostPaused(true);
++            lastPresented = lastGuestProgress = lastIteration = SteadyClock::now();
++            std::this_thread::sleep_for(std::chrono::milliseconds(16));
++            continue;
++        }
++#endif
+         // Shaders first (precache.h holdGame): at startup the game does not start, and after a
+         // settings change that needs other shader variants it waits, until they are compiled.
+         const bool hold = !exiting && precache::holdGame();
+@@ -611,8 +643,14 @@ int main(int argc, char* argv[]) {
+         pacing::beforeFrame();
+         interp::hostMark(0);
+         port::setPhase("game loop: aurora_begin_frame (frame slot, staging buffer)");
++#ifdef WIIDS_ANDROID
++        const auto perfT0 = SteadyClock::now();
++#endif
+         if (!aurora_begin_frame()) continue;
+         lastPresented = SteadyClock::now();
++#ifdef WIIDS_ANDROID
++        const auto perfT1 = lastPresented;
++#endif
+         if (presentStallReported) log("[hang] frames are presented again");
+         presentStallReported = false;
+         pacing::afterBegin();
+@@ -620,6 +658,9 @@ int main(int argc, char* argv[]) {
+         ws::beginFrame();
+         port::setPhase(frame::interpolating() ? "game loop: replaying a game frame" : "game loop: running the game (lockstep)");
+         const bool running = frame::hostFrame();
++#ifdef WIIDS_ANDROID
++        const auto perfT2 = SteadyClock::now();
++#endif
+         pacing::afterReplay();
+         interp::hostMark(2);
+         port::setPhase("game loop: F1 menu / overlays");
+@@ -628,7 +669,18 @@ int main(int argc, char* argv[]) {
+         port::setPhase("game loop: present hold");
+         pacing::beforeEnd();
+         port::setPhase("game loop: aurora_end_frame (GX FIFO drain, hand-off to the render worker)");
++#ifdef WIIDS_ANDROID
++        const auto perfT3 = SteadyClock::now();
++#endif
+         aurora_end_frame();
++#ifdef WIIDS_ANDROID
++        {
++            const auto ms = [](SteadyClock::time_point a, SteadyClock::time_point b) {
++                return std::chrono::duration<double, std::milli>(b - a).count();
++            };
++            wiids::perfFrame(ms(perfT0, perfT1), ms(perfT1, perfT2), ms(perfT3, SteadyClock::now()));
++        }
++#endif
+         port::setPhase("game loop");
+         pacing::afterFrame();
+         interp::hostMark(3);
+@@ -638,6 +690,9 @@ int main(int argc, char* argv[]) {
+     }
+ 
+     port::setPhase("shutdown (releasing graphics objects, writing caches)");
++#ifdef WIIDS_ANDROID
++    wiids::syncSettings();
++#endif
+     menu::shutdown();
+     wiimote::hidShutdown();  // real Wii Remotes: motor off, devices closed
+     vi::requestStop();
+@@ -647,5 +702,9 @@ int main(int argc, char* argv[]) {
+     texpacks::shutdown();
+     aurora_shutdown();
+     port::recovery::onExit();
++#ifdef WIIDS_ANDROID
++    return 0;
++#else
+     std::_Exit(0);
++#endif
+ }
+diff --git a/src/recomp/menu.cpp b/src/recomp/menu.cpp
+index 7d120c4..3243a7b 100644
+--- a/src/recomp/menu.cpp
++++ b/src/recomp/menu.cpp
+@@ -596,6 +596,9 @@ void updateToast() {
+ // 8 s once the game shows frames (not during setup or "Preparing shaders"), never again in a session
+ // after the menu was opened. Takes no input.
+ void startHint() {
++#ifdef WIIDS_ANDROID
++    return;
++#endif
+     static double sShownAt = -1.0;
+     static bool sDone = false;
+     if (sOpen) sDone = true;
+diff --git a/src/recomp/runtime.cpp b/src/recomp/runtime.cpp
+index d203421..ae4b6c5 100644
+--- a/src/recomp/runtime.cpp
++++ b/src/recomp/runtime.cpp
+@@ -24,6 +24,10 @@
+ #include <unordered_set>
+ #include <vector>
+ 
++#ifdef WIIDS_ANDROID
++#include <android/log.h>
++#endif
++
+ #ifdef _WIN32
+ #define WIN32_LEAN_AND_MEAN
+ #define NOMINMAX
+@@ -252,6 +256,12 @@ void log(const char* fmt, ...) {
+     }
+     va_list ap;
+     va_start(ap, fmt);
++#ifdef WIIDS_ANDROID
++    va_list androidArgs;
++    va_copy(androidArgs, ap);
++    __android_log_vprint(ANDROID_LOG_DEBUG, "WiiDSCityFolk", fmt, androidArgs);
++    va_end(androidArgs);
++#endif
+     if (port::recovery::runLog()) {  // Windows: also into last_run.log (port/recovery.h)
+         char buf[2048];
+         va_list copy;
+@@ -274,6 +284,9 @@ void fatal(const char* fmt, ...) {
+     va_copy(copy, ap);
+     std::vsnprintf(buf, sizeof(buf), fmt, copy);
+     va_end(copy);
++#ifdef WIIDS_ANDROID
++    __android_log_write(ANDROID_LOG_ERROR, "WiiDSCityFolk", buf);
++#endif
+     {
+         // Into the recovery state too, so the next start's "[recovery] ... crash" line says it.
+         std::string note = buf;
+diff --git a/src/recomp/wiimote.cpp b/src/recomp/wiimote.cpp
+index 82ac7c5..2e3dd1a 100644
+--- a/src/recomp/wiimote.cpp
++++ b/src/recomp/wiimote.cpp
+@@ -14,6 +14,9 @@
+ // "@x/y" pointer positions (CF_INPUT_CLOCK as for hle_pad.cpp).
+ // Settings: [wiimote] in settings.ini (port::addSettingsExtension).
+ #include "recomp/wiimote.h"
++#ifdef WIIDS_ANDROID
++#include "recomp/wiids_android.h"
++#endif
+ 
+ #include "port/options.h"
+ #include "port/settings.h"
+@@ -818,6 +821,9 @@ void sample(int chan, State& out) {
+         }
+         if (f >= sAutoAFrom[chan] && f < sAutoAUntil[chan]) out.buttons |= kBtnA;
+     }
++#ifdef WIIDS_ANDROID
++    if (chan == 0) wiids::applyInput(out);
++#endif
+     game::filterRemote(chan, out);  // City Folk's Quick Start (src/game/cf_quick_start.cpp)
+     menunav::notePointer(chan, out.connected && out.pointerValid, out.px, out.py);
+     {

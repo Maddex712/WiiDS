@@ -29,6 +29,7 @@ import com.driftdroid.android.rom.GameCatalog.Game
 import com.driftdroid.android.rom.GameInstaller
 import com.driftdroid.android.rom.EclipseMod
 import com.driftdroid.android.rom.MkddPlusMod
+import com.driftdroid.android.rom.XgMod
 import com.driftdroid.android.rom.GameScanner
 import com.driftdroid.android.rom.MsmbwiiMod
 import com.driftdroid.android.rom.RomScanner
@@ -59,6 +60,8 @@ class GamesActivity : Activity() {
     private var galaxyChosen: String? = null
     // A chosen Galaxy disc WiiDS can't name by path; the add-on copies it from the document.
     private var galaxyChosenDocument: WiiDsDisc.Source.Document? = null
+    private var projectPlusMessage: String? = null
+    private var xgPickerError: String? = null
     private var eclipsePatchedImage: Button? = null
     private var galaxyAgain: Button? = null
     private var kaizoAgain: Button? = null
@@ -160,6 +163,13 @@ class GamesActivity : Activity() {
     @Deprecated("Activity result API is not used by this app")
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         super.onActivityResult(requestCode, resultCode, data)
+        if (requestCode == REQUEST_PICK_XG_PATCH) {
+            if (resultCode == RESULT_OK) data?.data?.let {
+                xgPickerError = if (XgMod.start(this, it)) null else "Close the running game and finish other setup or save operations first."
+                refresh()
+            }
+            return
+        }
         if (requestCode == REQUEST_PICK_PLUS_PATCH) {
             if (resultCode == RESULT_OK && data?.data != null) {
                 if (!MkddPlusMod.start(this, data.data!!)) plusMessage = "Close the running game and finish other setup or save operations first."
@@ -254,6 +264,18 @@ class GamesActivity : Activity() {
         for ((game, card) in separateSetupCards) {
             if (game == FrontendGame.PROJECT_PLUS) {
                 card.progress.visibility = View.GONE
+                val install = ProjectPlusInstaller.state
+                if (install.running) {
+                    val downloading = install.official && install.phase.startsWith("Downloading")
+                    val size = dev.wiids.brawl.ProjectPlusImport.officialDownloadSize()
+                    val percent = (install.bytes * 100 / size).toInt().coerceIn(0, 100)
+                    show(card, if (downloading) "${install.phase} (${percent}%)" else install.phase, WHITE)
+                    card.progress.visibility = View.VISIBLE
+                    card.progress.isIndeterminate = !downloading
+                    card.progress.progress = percent
+                    button(card, "Cancel setup", install.cancellable) { ProjectPlusInstaller.cancel() }
+                    continue
+                }
                 val (storageMessage, projectPlusReady, brawlReady) = runCatching {
                     val blocker = GameStorage.blocker(this)
                     if (blocker != null) Triple(blocker, false, false)
@@ -267,7 +289,7 @@ class GamesActivity : Activity() {
                         show(card, storageMessage, AMBER)
                         button(card, "Unavailable", false) {}
                     }
-                    projectPlusReady -> {
+                    projectPlusReady && dev.wiids.brawl.BrawlStorage.projectPlusInstalled(this) -> {
                         show(card, "Ready. Open the Brawl stack in the library to play Project+.", GREEN)
                         button(card, "Project+ setup", !installBusy) { startActivity(Intent(this, ProjectPlusImportActivity::class.java)) }
                     }
@@ -278,12 +300,18 @@ class GamesActivity : Activity() {
                         }
                     }
                     else -> {
-                        show(card, "Choose your Project+ ZIP, or select sd.raw and RSBE01.gct. WiiDS copies them for you. Project+ uses its own saves.", MUTED)
-                        button(card, "Import Project+", !installBusy) {
-                            startActivity(Intent(this, ProjectPlusImportActivity::class.java))
+                        val error = projectPlusMessage ?: install.error
+                        show(card, error ?: "Download Project+ 3.2.1 and set it up automatically. Allow about 2.2 GB of free space.",
+                            if (error == null) MUTED else AMBER)
+                        button(card, "Install Project+", !installBusy) {
+                            ProjectPlusInstaller.requestOfficial(this) { projectPlusMessage = it; refresh() }
                         }
                     }
                 }
+                continue
+            }
+            if (game == FrontendGame.POKEMON_XG) {
+                refreshXgCard(card, installBusy)
                 continue
             }
             val installed = GameStorage.ready(this, game)
@@ -619,7 +647,7 @@ class GamesActivity : Activity() {
             val line = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
             row.forEachIndexed { index, game ->
                 val card = when (game) {
-                    FrontendGame.RETRO_REWIND, FrontendGame.MKDD_PLUS, FrontendGame.PROJECT_PLUS ->
+                    FrontendGame.RETRO_REWIND, FrontendGame.MKDD_PLUS, FrontendGame.PROJECT_PLUS, FrontendGame.POKEMON_XG ->
                         buildSeparateSetupCard(game)
                     FrontendGame.MARIO_KART -> buildCard(Game.MARIO_KART)
                     FrontendGame.NSMB -> buildCard(Game.NSMB)
@@ -631,6 +659,8 @@ class GamesActivity : Activity() {
                     FrontendGame.BRAWL -> buildCard(Game.BRAWL)
                     FrontendGame.MKDD -> buildCard(Game.MKDD)
                     FrontendGame.POKEMON_XD -> buildCard(Game.POKEMON_XD)
+                    FrontendGame.POKEMON_COLOSSEUM -> buildCard(Game.POKEMON_COLOSSEUM)
+                    FrontendGame.CITY_FOLK -> buildCard(Game.CITY_FOLK)
                 }
                 line.addView(card, LinearLayout.LayoutParams(0, -1, 1f).apply {
                     if (index == 0 && row.size > 1) marginEnd = dp(16)
@@ -671,6 +701,42 @@ class GamesActivity : Activity() {
         }, "WiiDsYourGamesRetroCheck").start()
     }
 
+    private fun refreshXgCard(card: Card, installBusy: Boolean) {
+        val install = XgMod.state
+        val available = dev.wiids.xd.XdStorage.xgRuntimeAvailable(this)
+        val originalReady = GameStorage.ready(this, FrontendGame.POKEMON_XD)
+        card.progress.visibility = View.GONE
+        when {
+            install.running -> {
+                show(card, install.phase, WHITE)
+                card.progress.visibility = View.VISIBLE
+                card.progress.isIndeterminate = install.total <= 1
+                card.progress.progress = (install.done * 100 / install.total).toInt()
+                button(card, "Cancel", true) { XgMod.cancel() }
+            }
+            GameStorage.ready(this, FrontendGame.POKEMON_XG) -> {
+                show(card, "Installed. Ready to play.", GREEN)
+                button(card, "Ready", false) {}
+            }
+            !originalReady -> {
+                show(card, "Import your USA Pokémon XD revision 0 disc before applying the XG patch.", MUTED)
+                button(card, "Open Pokémon XD setup", !installBusy) {
+                    startActivity(Intent(this, GamesActivity::class.java).putExtra("storage_game", FrontendGame.POKEMON_XD.id))
+                }
+            }
+            else -> {
+                show(card, xgPickerError ?: install.error
+                    ?: if (available) "Extract Pokémon XG v1.2.1-3.ups from the creator’s download. XG keeps its own game and saves."
+                       else "This preview can prepare the XG disc. The native XG runtime is still in development.", MUTED)
+                button(card, "Choose XG 1.2.1 patch", !installBusy) {
+                    val intent = Intent(Intent.ACTION_OPEN_DOCUMENT).addCategory(Intent.CATEGORY_OPENABLE).setType("*/*")
+                    runCatching { startActivityForResult(intent, REQUEST_PICK_XG_PATCH) }
+                        .onFailure { xgPickerError = "This device has no file chooser."; refresh() }
+                }
+            }
+        }
+    }
+
     private fun buildSeparateSetupCard(game: FrontendGame): View = LinearLayout(this).apply {
         orientation = LinearLayout.VERTICAL
         background = rounded(0xFF1A2D47.toInt())
@@ -685,6 +751,12 @@ class GamesActivity : Activity() {
         }
         addView(progress, LinearLayout.LayoutParams(-1, dp(10)).apply { topMargin = dp(8) })
         separateSetupCards[game] = Card(status, progress, action)
+        if (game == FrontendGame.PROJECT_PLUS) addView(styledButton("Other Project+ setup options") {
+            startActivity(Intent(this@GamesActivity, ProjectPlusImportActivity::class.java))
+        }, LinearLayout.LayoutParams(-2,-2).apply { topMargin = dp(8) })
+        if (game == FrontendGame.POKEMON_XG) addView(styledButton("XG patch and instructions") {
+            runCatching { startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://projectpokemon.org/home/files/file/4787-pokemon-xg-next-gen/"))) }
+        }, LinearLayout.LayoutParams(-2, -2).apply { topMargin = dp(8) })
         if (game == FrontendGame.MKDD_PLUS) addView(styledButton("Plus patch and instructions") {
             runCatching { startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://retroachievements.org/forums/topic/27182"))) }
         }, LinearLayout.LayoutParams(-2,-2).apply { topMargin = dp(8) })
@@ -767,6 +839,7 @@ class GamesActivity : Activity() {
         const val EXTRA_SETUP_RETRO_REWIND = "setup_retro_rewind"
         private const val STATE_PICKED_GAME = "picked_game"
         private const val REQUEST_PICK_PLUS_PATCH = 4714
+        private const val REQUEST_PICK_XG_PATCH = 4715
         private const val REQUEST_PICK = 4710
         private const val REQUEST_PICK_MOD = 4711
         private const val REQUEST_PICK_ECLIPSE_PATCH = 4712

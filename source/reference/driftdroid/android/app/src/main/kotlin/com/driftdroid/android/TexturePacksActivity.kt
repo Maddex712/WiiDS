@@ -144,6 +144,11 @@ class TexturePacksActivity : Activity() {
     private fun showCatalog(content: LinearLayout, game: FrontendGame) {
         if (game == FrontendGame.ECLIPSE)
             content.addView(label("These packs improve textures shared with Sunshine.", 14f))
+        if (game == FrontendGame.RETRO_REWIND) {
+            content.addView(button("Retro Rewind mods") {
+                if (canRemove()) ModManager.showManagerDialog(this, retroRewind = true)
+            })
+        }
         val installed = TexturePacks.installed(this, game).map { it.id }.toSet()
         val active = TexturePacks.enabled(this, game).orEmpty().toSet()
         for (group in TexturePacks.catalog(game).chunked(2)) {
@@ -235,7 +240,7 @@ class TexturePacksActivity : Activity() {
             content.addView(label("Pack support is unavailable for this case in this build.", 17f))
             return
         }
-        if (game == FrontendGame.MARIO_KART || game == FrontendGame.RETRO_REWIND) {
+        if (game == FrontendGame.MARIO_KART) {
             content.addView(button("Manage Riivolution packs") {
                 if (canRemove()) ModManager.showManagerDialog(this)
             })
@@ -340,7 +345,7 @@ class TexturePacksActivity : Activity() {
         super.onActivityResult(requestCode, resultCode, data)
         if (resultCode != RESULT_OK) return
         if (requestCode == ModManager.REQUEST_CODE_PICK_ZIP) {
-            ModManager.onZipPicked(this, data?.data)
+            if (canRemove()) ModManager.onZipPicked(this, data?.data, selected == FrontendGame.RETRO_REWIND)
             return
         }
         val game = selected ?: return

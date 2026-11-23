@@ -5,9 +5,10 @@ import android.os.Bundle;
 import android.view.Display;
 import dev.wiids.xd.sdl.SDLActivity;
 import com.driftdroid.android.dualscreen.WiiDsDisplays;
+import com.driftdroid.android.dualscreen.WiiDsFullscreen;
 
 /** Actual SDL3 host, packaged only with the linked native runtime. */
-public final class XdGameActivity extends SDLActivity implements DisplayManager.DisplayListener {
+public class XdGameActivity extends SDLActivity implements DisplayManager.DisplayListener {
     // Reserve low address space before SDL loads or creates its surface.
     static { System.loadLibrary("wiids_xd_memory"); }
     private DisplayManager displays;
@@ -22,13 +23,22 @@ public final class XdGameActivity extends SDLActivity implements DisplayManager.
         return new XdSurface(context);
     }
     @Override protected String[] getArguments() {
-        return new String[]{"--data",XdStorage.root(this).getAbsolutePath(),
-            "--libraries",getApplicationInfo().nativeLibraryDir,"--disc",XdStorage.iso(this).getAbsolutePath()};
+        boolean xg = isXg();
+        String[] arguments = {"--data", XdStorage.root(this, xg).getAbsolutePath(),
+            "--libraries", getApplicationInfo().nativeLibraryDir, "--disc", XdStorage.iso(this, xg).getAbsolutePath()};
+        if (!xg) return arguments;
+        String[] modArguments = java.util.Arrays.copyOf(arguments, arguments.length + 2);
+        modArguments[arguments.length] = "--edition";
+        modArguments[arguments.length + 1] = "xg";
+        return modArguments;
     }
+    boolean isXg() { return false; }
     @Override public void onCreate(Bundle state) {
-        XdStorage.root(this).mkdirs(); XdStorage.saves(this).mkdirs();
-        new java.io.File(XdStorage.root(this),"cache").mkdirs();
+        XdStorage.root(this, isXg()).mkdirs();
+        XdStorage.saves(this, isXg()).mkdirs();
+        new java.io.File(XdStorage.root(this, isXg()), "cache").mkdirs();
         super.onCreate(state);
+        if (isXg()) WiiDsFullscreen.apply(this);
         getWindow().addFlags(android.view.WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE);
         displays=(DisplayManager)getSystemService(DISPLAY_SERVICE);
         if(displays!=null) displays.registerDisplayListener(this,null);
@@ -42,7 +52,7 @@ public final class XdGameActivity extends SDLActivity implements DisplayManager.
         Display display=WiiDsDisplays.companion(this,displays);
         if(display==null) { closeCompanion(); return; }
         if(companion!=null&&companion.isShowing()&&companion.getDisplay().getDisplayId()==display.getDisplayId()) return;
-        closeCompanion(); companion=new XdPresentation(this,display,this::openMenu);
+        closeCompanion(); companion=new XdPresentation(this,display,isXg());
         final XdPresentation created=companion;
         created.setOnDismissListener(ignored->{
             if(companion!=created)return;
@@ -52,7 +62,12 @@ public final class XdGameActivity extends SDLActivity implements DisplayManager.
         try { companion.show(); }
         catch(android.view.WindowManager.InvalidDisplayException|android.view.WindowManager.BadTokenException|SecurityException failure) { closeCompanion(); }
     }
-    @Override public void onResume() { super.onResume(); resumed=true; showCompanion(); }
+    @Override public void onResume() {
+        super.onResume();
+        if (isXg()) WiiDsFullscreen.apply(this);
+        resumed=true;
+        showCompanion();
+    }
     @Override public void onPause() {
         resumed=false;lifecycleHandler.removeCallbacks(reconcile);closeCompanion();closeMenu();XdNative.suspend();super.onPause();
     }
@@ -68,7 +83,7 @@ public final class XdGameActivity extends SDLActivity implements DisplayManager.
     @Override public void onBackPressed(){openMenu();}
     void openMenu(){
         if(menu!=null||!resumed||destroying||isFinishing())return;
-        if(!XdNative.menuOpen(true)){android.widget.Toast.makeText(this,"Pokemon XD is still starting.",android.widget.Toast.LENGTH_SHORT).show();return;}
+        if(!XdNative.menuOpen(true)){android.widget.Toast.makeText(this,isXg()?"Pokémon XG is still starting.":"Pokémon XD is still starting.",android.widget.Toast.LENGTH_SHORT).show();return;}
         if(companion!=null)companion.setMenuOpen(true);
         menu=new XdSettingsMenu(this);menu.show();
     }
@@ -78,10 +93,13 @@ public final class XdGameActivity extends SDLActivity implements DisplayManager.
             .addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK|android.content.Intent.FLAG_ACTIVITY_CLEAR_TOP));
         finish();android.os.Process.killProcess(android.os.Process.myPid());
     }
-    @Override public void onWindowFocusChanged(boolean focus){if(menu==null||focus)super.onWindowFocusChanged(focus);}
+    @Override public void onWindowFocusChanged(boolean focus) {
+        if (menu==null||focus) super.onWindowFocusChanged(focus);
+        if (focus && isXg()) WiiDsFullscreen.apply(this);
+    }
     @Override public boolean dispatchKeyEvent(android.view.KeyEvent event){
         if(menu==null&&(event.getKeyCode()==android.view.KeyEvent.KEYCODE_BACK||event.getKeyCode()==android.view.KeyEvent.KEYCODE_BUTTON_SELECT)){
-            if(event.getAction()==android.view.KeyEvent.ACTION_UP)openMenu();return true;
+            if(event.getAction()==android.view.KeyEvent.ACTION_UP&&!event.isCanceled())openMenu();return true;
         }
         // Virtual gamepad keys from Android's input tool use the connected controller mapping.
         if(menu==null&&!dev.wiids.xd.sdl.SDLControllerManager.isDeviceSDLJoystick(event.getDeviceId())&&

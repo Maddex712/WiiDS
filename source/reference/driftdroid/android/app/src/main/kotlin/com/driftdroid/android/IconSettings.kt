@@ -76,16 +76,21 @@ object IconSettings {
         if (uri == null) {
             return
         }
-        val bitmap =
-            runCatching {
-                activity.contentResolver.openInputStream(uri)?.use { decodeScaled(it.readBytes()) }
+        val resolver = activity.applicationContext.contentResolver
+        Thread {
+            val icon = runCatching {
+                resolver.openInputStream(uri)?.use { input ->
+                    decodeScaled(BoundedInput.bytes(input, 16 * 1024 * 1024))?.let {
+                        Icon.createWithAdaptiveBitmap(toAdaptiveBitmap(it))
+                    }
+                }
             }.getOrNull()
-        if (bitmap == null) {
-            Toast.makeText(activity, "Couldn't read that picture.", Toast.LENGTH_LONG).show()
-            return
-        }
-        // The launcher stores the shortcut's bitmap itself, so nothing needs keeping on our side.
-        applyIcon(activity, Icon.createWithAdaptiveBitmap(toAdaptiveBitmap(bitmap)))
+            activity.runOnUiThread {
+                if (activity.isFinishing || activity.isDestroyed) return@runOnUiThread
+                if (icon != null) applyIcon(activity, icon)
+                else Toast.makeText(activity, "Couldn't read that picture.", Toast.LENGTH_LONG).show()
+            }
+        }.apply { name = "WiiDsIconImport"; isDaemon = true }.start()
     }
 
     private fun useNormalIcon(activity: Activity) {
@@ -119,8 +124,11 @@ object IconSettings {
     private fun decodeScaled(bytes: ByteArray): Bitmap? {
         val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
         BitmapFactory.decodeByteArray(bytes, 0, bytes.size, bounds)
+        val longest = maxOf(bounds.outWidth, bounds.outHeight)
+        if (bounds.outWidth <= 0 || bounds.outHeight <= 0 || longest > 32_768 ||
+            bounds.outWidth.toLong() * bounds.outHeight > 120_000_000L) return null
         var sample = 1
-        while (minOf(bounds.outWidth, bounds.outHeight) / (sample * 2) >= ICON_PX * 2) {
+        while (longest / sample > ICON_PX * 2) {
             sample *= 2
         }
         return BitmapFactory.decodeByteArray(bytes, 0, bytes.size, BitmapFactory.Options().apply { inSampleSize = sample })

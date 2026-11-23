@@ -23,7 +23,9 @@ object GameCatalog {
         BRAWL_USA_REV2("RSBE01", 2, WiiDsDisc.Platform.WII, "Super Smash Bros. Brawl", "USA"),
         GALAXY_USA("RMGE01", 0, WiiDsDisc.Platform.WII, "Super Mario Galaxy", "USA"),
         MKDD_USA("GM4E01", 0, WiiDsDisc.Platform.GAMECUBE, "Mario Kart: Double Dash!!", "USA"),
-        POKEMON_XD_USA("GXXE01", 0, WiiDsDisc.Platform.GAMECUBE, "Pokemon XD: Gale of Darkness", "USA");
+        POKEMON_XD_USA("GXXE01", 0, WiiDsDisc.Platform.GAMECUBE, "Pokemon XD: Gale of Darkness", "USA"),
+        POKEMON_COLOSSEUM_USA("GC6E01", 0, WiiDsDisc.Platform.GAMECUBE, "Pokémon Colosseum", "USA"),
+        CITY_FOLK_PAL_REV1("RUUP01", 1, WiiDsDisc.Platform.WII, dev.wiids.cityfolk.CityFolkStorage.TITLE, "Europe (PAL)");
 
         val requirement: String
             get() = "$gameName, $regionName ${if (platform == WiiDsDisc.Platform.GAMECUBE) "GameCube " else ""}disc, " +
@@ -51,6 +53,8 @@ object GameCatalog {
             // Only the disc: the importer replaces this folder whole. Saves are mkdd/saves.
             MKDD_USA -> File(dev.thor.mkdd.MkddStorage.root(context), "game")
             POKEMON_XD_USA -> dev.wiids.xd.XdStorage.game(context)
+            POKEMON_COLOSSEUM_USA -> dev.wiids.colosseum.ColosseumStorage.game(context)
+            CITY_FOLK_PAL_REV1 -> dev.wiids.cityfolk.CityFolkStorage.game(context)
             MARIO_KART_PAL -> File(context.filesDir, "WiiCompiled/DiscData")
             NSMB_USA_REV1 -> File(context.filesDir, "games/nsmbw")
             SUNSHINE_USA -> File(context.filesDir, "games/sms")
@@ -67,7 +71,10 @@ object GameCatalog {
 
         fun isInstalled(context: Context) =
             if (this == GALAXY_USA) com.driftdroid.android.ThorGameLaunch.galaxyInstalled(context)
-            else if (this == POKEMON_XD_USA) dev.wiids.xd.XdStorage.imported(context) else installedFile(context).isFile
+            else if (this == POKEMON_XD_USA) dev.wiids.xd.XdStorage.imported(context)
+            else if (this == POKEMON_COLOSSEUM_USA) dev.wiids.colosseum.ColosseumStorage.imported(context)
+            else if (this == CITY_FOLK_PAL_REV1) dev.wiids.cityfolk.CityFolkStorage.imported(context)
+            else installedFile(context).isFile
     }
 
     enum class Game(val title: String, val disc: Disc, val note: String? = null) {
@@ -83,6 +90,10 @@ object GameCatalog {
             "Runs inside WiiDS with its own game data and saves. Import your USA revision 0 disc; the lower screen is generated automatically."),
         MKDD("Mario Kart: Double Dash!!", Disc.MKDD_USA, "Import your own USA disc (GM4E01). Double Dash runs inside WiiDS with its own memory card; the lower screen's standings, items and course maps are built from your disc."),
         POKEMON_XD("Pokemon XD: Gale of Darkness", Disc.POKEMON_XD_USA, "Import your own USA GXXE01 revision 0 disc using Choose file. Runs inside WiiDS with dual screen menus and its own saves. Your original disc file is kept."),
+        POKEMON_COLOSSEUM("Pokémon Colosseum", Disc.POKEMON_COLOSSEUM_USA,
+            "Import your unchanged USA GC6E01 disc. Colosseum uses its own memory card in WiiDS."),
+        CITY_FOLK(dev.wiids.cityfolk.CityFolkStorage.TITLE, Disc.CITY_FOLK_PAL_REV1,
+            "Import your European Wii disc, revision 1. Touch the lower screen to aim the Wii Remote."),
         KAIZO("Kaizo Mario Galaxy Rebalanced 2.1", Disc.GALAXY_USA,
             "Uses your USA Galaxy revision 0 disc and the creator’s original Rebalanced 2.1 ZIP. Separate saves and mod-generated lower-screen models."),
     }
@@ -100,6 +111,8 @@ object GameCatalog {
     fun isPlayable(context: Context, game: Game) =
         if (game == Game.KAIZO) com.driftdroid.android.ThorGameLaunch.kaizoInstalled(context)
         else if (game == Game.POKEMON_XD) dev.wiids.xd.XdStorage.ready(context)
+        else if (game == Game.POKEMON_COLOSSEUM) dev.wiids.colosseum.ColosseumStorage.ready(context)
+        else if (game == Game.CITY_FOLK) dev.wiids.cityfolk.CityFolkStorage.ready(context)
         else game.disc.isInstalled(context) && (game != Game.MSMBWII || msmbwiiModInstalled(context))
 
     const val ACCEPTED_FORMATS = "ISO, WBFS (one file or split), RVZ, WIA, GCZ or CISO. NKit images aren't accepted."

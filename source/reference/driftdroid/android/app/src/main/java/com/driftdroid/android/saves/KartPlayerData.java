@@ -125,6 +125,43 @@ public final class KartPlayerData {
             saveCrc(b);write(file(stage,driver.root,"rksys.dat"),b);
         });
     }
+    /** Restores only the Mii whose full record the imported license cached. */
+    public static void restoreSavedMii(SaveArchive.Profile p,Driver driver,File work,File previous) throws IOException {
+        checkedDriver(p,driver);
+        transact(p,work,previous,stage->{
+            byte[] save=checkedDriver(stage,driver);
+            int cached=8+driver.slot*LICENSE_BYTES+0x5684;
+            require(nonzero(driver.id,0,driver.id.length) && idMatches(save,cached+0x18,driver.id)
+                    && crc16(save,cached,RECORD_BYTES)==number(save,cached+RECORD_BYTES,2),
+                "This license has no valid saved Mii. Import the original Mii in Options > Mii Data, then use Choose driver Mii.");
+            // RVLFaceLib rejects temporary IDs and special Miis that can mingle.
+            long idFlags=number(driver.id,0,4);
+            boolean localOnly=(number(save,cached+0x20,2)&4)!=0;
+            require((idFlags&0x20000000L)==0 && ((idFlags&0x80000000L)!=0 || localOnly),
+                "This cached Mii cannot be added to a Wii Mii database. Import the original Mii in Options > Mii Data.");
+            encodeName(name(save,cached+2));
+
+            File target=file(stage,"miis","RFL_DB.dat");
+            byte[] db=read(target,DB_BYTES);
+            validateDatabase(db);
+            int matching=-1,free=-1;
+            for(int slot=0;slot<100;slot++){
+                int at=4+slot*RECORD_BYTES;
+                if(!nonzero(db,at,RECORD_BYTES)){
+                    if(free==-1)free=at;
+                }else if(idMatches(db,at+0x18,driver.id)){
+                    require(matching==-1,"More than one Mii has this ID. Open Mii Data to review the database.");
+                    matching=at;
+                }
+            }
+            int destination=matching>=0?matching:free;
+            require(destination>=0,"There are no free Mii slots. Make room in Mii Data before restoring a new Mii.");
+            System.arraycopy(save,cached,db,destination,RECORD_BYTES);
+            put(db,DB_CRC,crc16(db,0,DB_CRC),2);
+            write(target,db);
+        });
+    }
+
     private interface Edit {void apply(SaveArchive.Profile profile) throws IOException;}
     private static void transact(SaveArchive.Profile p,File work,File previous,Edit edit) throws IOException {
         require(!SaveArchive.pending(work),"Recover the interrupted save operation first.");

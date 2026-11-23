@@ -71,7 +71,7 @@ class LibraryActivity : Activity() {
     private lateinit var modsButton: Button
     private lateinit var miiDataButton: Button
     private lateinit var updateButton: Button
-    private var thorLauncher: ThorLauncherView? = null
+    private var thorLauncher: LibraryLauncher? = null
     private var thorCompanion: ThorLowerCompanion? = null
     private var thorLibraryProduct: Int? = 0
     private var thorLibraryOptions = false
@@ -87,17 +87,21 @@ class LibraryActivity : Activity() {
     private val mainHandler = Handler(Looper.getMainLooper())
     private var presentationLoading = false
     private var libraryResumed = false
+    private var preparingRetroMods = false
+    private var menuUpdateNoticePending = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         if (BuildConfig.THOR_BUILD && com.driftdroid.android.dualscreen.ScreenSetupActivity.enterLibrary(this)) return
         if (BuildConfig.THOR_BUILD) {
+            menuUpdateNoticePending = LibraryMenuUpdate.prepare(this)
             presentationLoading = true
             val preparing = TextView(this).apply {
                 text = "Preparing your WiiDS library…"
                 textSize = 22f
-                setTextColor(Color.rgb(0x47, 0x55, 0x64))
-                setBackgroundColor(Color.rgb(0xF1, 0xF5, 0xF8))
+                ThorMenuTheme.current(this@LibraryActivity)
+                setTextColor(ThorMenuTheme.TEXT)
+                setBackgroundColor(ThorMenuTheme.tone(0xfff1f5f8.toInt(), ThorMenuTheme.surfaceBottom))
                 gravity = Gravity.CENTER
             }
             setContentView(preparing)
@@ -143,7 +147,7 @@ class LibraryActivity : Activity() {
                 setOnClickListener { com.driftdroid.android.dualscreen.ScreenSetupActivity.open(this@LibraryActivity) }
             })
         }
-        if (routePendingFrontend()) return
+        if (routePendingSaveManager() || routePendingFrontend()) return
         if (routePendingThorUpdate()) return
         if (BuildConfig.THOR_BUILD) {
             val restartProduct = intent.getStringExtra(EXTRA_RESTART_PRODUCT)
@@ -158,7 +162,27 @@ class LibraryActivity : Activity() {
     override fun onNewIntent(request: Intent) {
         super.onNewIntent(request)
         setIntent(request)
-        if (!presentationLoading) routePendingFrontend()
+        if (!presentationLoading && !routePendingSaveManager()) routePendingFrontend()
+    }
+
+    private fun routePendingSaveManager(): Boolean {
+        val id = intent.getStringExtra(EXTRA_SAVES_GAME) ?: return false
+        intent.removeExtra(EXTRA_SAVES_GAME)
+        val game = FrontendGame.fromId(id) ?: return false
+        val deadline = android.os.SystemClock.uptimeMillis() + 4500
+        mainHandler.post(object : Runnable {
+            override fun run() {
+                if (isFinishing || isDestroyed) return
+                if (libraryResumed && runCatching { SaveManagerProfiles.requireStopped(this@LibraryActivity) }.isSuccess) {
+                    startActivity(Intent(this@LibraryActivity, SaveManagerActivity::class.java).putExtra("game", game.id))
+                } else if (android.os.SystemClock.uptimeMillis() < deadline) {
+                    mainHandler.postDelayed(this, 150)
+                } else if (libraryResumed) {
+                    Toast.makeText(this@LibraryActivity, "Close games before opening Save Manager.", Toast.LENGTH_LONG).show()
+                }
+            }
+        })
+        return true
     }
 
     private fun routePendingFrontend(): Boolean {
@@ -185,6 +209,9 @@ class LibraryActivity : Activity() {
                 FrontendGame.PROJECT_PLUS -> launchProjectPlusFromLibrary()
                 FrontendGame.MKDD -> launchMkddFromLibrary()
                 FrontendGame.POKEMON_XD -> launchPokemonXdFromLibrary()
+                FrontendGame.POKEMON_XG -> launchPokemonXgFromLibrary()
+                FrontendGame.POKEMON_COLOSSEUM -> launchColosseumFromLibrary()
+                FrontendGame.CITY_FOLK -> launchCityFolkFromLibrary()
                 FrontendGame.MKDD_PLUS -> launchMkddPlusFromLibrary()
             }
         }
@@ -201,11 +228,7 @@ class LibraryActivity : Activity() {
     private fun resumeLibrary() {
         applyThorFullscreen()
         if (routePendingThorUpdate()) return
-        // First run: nothing imported yet, so start where every game is set up.
-        if (!gamesOfferedThisProcess && com.driftdroid.android.rom.GameCatalog.Disc.values().none { it.isInstalled(this) }) {
-            gamesOfferedThisProcess = true
-            openGames()
-        }
+        if (!menuUpdateNoticePending) offerGameSetup()
         refreshNsmbInstalled()
         refreshChannelButtons()
         // Art an app update added (or a failed build) is made from the imported discs in the background.
@@ -218,6 +241,11 @@ class LibraryActivity : Activity() {
         if (BuildConfig.THOR_BUILD) {
             if (thorCompanion == null) thorCompanion = ThorLowerCompanion(this, File(filesDir, "WiiCompiled/ThorMap")).also {
                 it.onOpenAchievements = { game, item -> if (libraryResumed) openAchievements(game, item) }
+                // The Wii Home Menu theme's channel screen below: "Start" and "Wii Menu".
+                it.onChannelButton = { name -> if (libraryResumed) (thorLauncher as? WiiChannelMenuView)?.lowerButton(name) }
+                it.drawChannelBanner = { canvas, bounds, product, loopMillis ->
+                    (thorLauncher as? WiiChannelMenuView)?.drawChannelPreview(canvas, bounds, product, loopMillis)
+                }
             }
             updateLowerStatus()
             thorCompanion?.start()
@@ -255,6 +283,28 @@ class LibraryActivity : Activity() {
             updateAfterSettings = null
             if (packageManager.canRequestPackageInstalls()) downloadUpdate(update)
         }
+        showMenuUpdateNotice()
+    }
+
+    private fun offerGameSetup() {
+        // With no games imported, start where every game is set up.
+        if (!gamesOfferedThisProcess && com.driftdroid.android.rom.GameCatalog.Disc.values().none { it.isInstalled(this) }) {
+            gamesOfferedThisProcess = true
+            openGames()
+        }
+    }
+
+    private fun showMenuUpdateNotice() {
+        if (!menuUpdateNoticePending || !libraryResumed || presentationLoading || routingPendingUpdate ||
+            isFinishing || isDestroyed || !hasWindowFocus()) return
+        ThorDialogs.builder(this)
+            .setTitle("New WiiDS menu")
+            .setMessage("This update selects Wii Home Menu and Kart Theme. You can change both in WiiDS Settings under Menu Theme and Menu music.")
+            .setPositiveButton("Got it", null)
+            .setOnDismissListener { if (libraryResumed && !isFinishing && !isDestroyed) offerGameSetup() }
+            .show()
+        menuUpdateNoticePending = false
+        LibraryMenuUpdate.markNoticeShown(this)
     }
 
     override fun onPause() {
@@ -322,7 +372,10 @@ class LibraryActivity : Activity() {
                 PROJECT_PLUS_CASE -> projectPlusAvailable
                 MKDD_CASE -> mkddInstalled
                 MKDD_PLUS_CASE -> mkddPlusInstalled
-                12 -> ThorGameLaunch.pokemonXdInstalled(this)
+                POKEMON_XD_CASE -> ThorGameLaunch.pokemonXdInstalled(this)
+                POKEMON_XG_CASE -> ThorGameLaunch.pokemonXgInstalled(this)
+                COLOSSEUM_CASE -> ThorGameLaunch.pokemonColosseumInstalled(this)
+                CITY_FOLK_CASE -> ThorGameLaunch.cityFolkInstalled(this)
                 else -> true
             }
             thorCompanion?.setLibrarySelection(thorLibraryProduct, thorLibraryOptions, ready, status = status,
@@ -334,7 +387,10 @@ class LibraryActivity : Activity() {
 
     override fun onWindowFocusChanged(hasFocus: Boolean) {
         super.onWindowFocusChanged(hasFocus)
-        if (hasFocus) applyThorFullscreen()
+        if (hasFocus) {
+            applyThorFullscreen()
+            showMenuUpdateNotice()
+        }
     }
 
     private fun applyThorFullscreen() {
@@ -348,22 +404,13 @@ class LibraryActivity : Activity() {
         }
     }
 
-    /** The existing launcher remains the first-run fallback until the owner's disc art is staged. */
+    /** Bundled Wii channels can open independently of the disc-generated shelf assets. */
     private fun showThorLauncher(): Boolean {
         if (!BuildConfig.THOR_BUILD) return false
         return runCatching {
             val folder = File(filesDir, "WiiCompiled/ThorMap")
-            val manifest = org.json.JSONObject(File(folder, "menu.json").readText())
-            require(manifest.getInt("schema") == 1)
-            val artwork = ThorMenuArtwork(folder)
-            val images = manifest.getJSONObject("images")
-            val chrome = listOf("background", "header", "button", "button_selected").associateWith { role ->
-                artwork.bitmap(images.getJSONObject(role).getString("texture"))
-            }.toMutableMap()
-            if (images.has("footer")) chrome["footer"] = artwork.bitmap(images.getJSONObject("footer").getString("texture"))
-            if (images.has("panel")) chrome["panel"] = artwork.bitmap(images.getJSONObject("panel").getString("texture"))
             val entries = listOf(
-                // The first LIBRARY_CASES entries are game cases, in shelf order.
+                // The first LIBRARY_GAMES.size entries are cases, in shelf order.
                 ThorLauncherView.Entry("Mario Kart Wii", "Play the original Mario Kart Wii.", { baseButton.isEnabled },
                     art = "original") { baseButton.performClick() },
                 ThorLauncherView.Entry("Retro Rewind", "Race the Retro Rewind course collection.", { retroButton.isEnabled && BuildConfig.THOR_RETRO_REWIND },
@@ -397,6 +444,15 @@ class LibraryActivity : Activity() {
                 ThorLauncherView.Entry("Pokemon XD: Gale of Darkness", "Play your own USA disc with dual screen menus and separate saves.", { ThorGameLaunch.pokemonXdInstalled(this) },
                     art = "pokemon-xd", casePlastic = ThorLauncherView.CasePlastic.GAMECUBE_BLACK, updatesShortcut = false,
                     discScale = ThorLauncherView.GAMECUBE_DISC) { launchPokemonXdFromLibrary() },
+                ThorLauncherView.Entry("Pokémon XG: NeXt Gen", "Play StarsMmd’s 1.2.1 mod with dual-screen menus and its own saves.",
+                    { ThorGameLaunch.pokemonXgInstalled(this) }, art = "pokemon-xg", casePlastic = ThorLauncherView.CasePlastic.GAMECUBE_BLACK,
+                    updatesShortcut = false, discScale = ThorLauncherView.GAMECUBE_DISC) { launchPokemonXgFromLibrary() },
+                ThorLauncherView.Entry("Pokémon Colosseum", "Play your USA disc with a separate memory card.",
+                    { ThorGameLaunch.pokemonColosseumInstalled(this) }, art = "pokemon-colosseum",
+                    casePlastic = ThorLauncherView.CasePlastic.GAMECUBE_BLACK, updatesShortcut = false,
+                    discScale = ThorLauncherView.GAMECUBE_DISC) { launchColosseumFromLibrary() },
+                ThorLauncherView.Entry(dev.wiids.cityfolk.CityFolkStorage.TITLE, "Play your European Wii disc.",
+                    { ThorGameLaunch.cityFolkInstalled(this) }, art = "city-folk", updatesShortcut = false) { launchCityFolkFromLibrary() },
                 ThorLauncherView.Entry("Manage games", "Install or offload games while keeping saves and settings.") {
                     startActivity(Intent(this, GameStorageActivity::class.java))
                 },
@@ -427,32 +483,46 @@ class LibraryActivity : Activity() {
                 ThorLauncherView.Entry("Texture Packs", "Browse, download and enable texture packs.") { modsButton.performClick() },
                 ThorLauncherView.Entry("Diagnostics", "Export logs to help investigate a problem.") { diagnosticsButton.performClick() },
                 ThorLauncherView.Entry("App Icon", "Choose an icon for your launcher.") { iconButton.performClick() },
-                ThorLauncherView.Entry("Menu Theme", "Switch the menus between the Mario Kart Wii and Wii Menu styles.") {
-                    val style = ThorMenuTheme.next(this)
-                    thorLauncher?.invalidate()
-                    updateLowerStatus()
-                    Toast.makeText(this, "Menu theme: ${style.label}", Toast.LENGTH_SHORT).show()
-                },
+                ThorLauncherView.Entry("Menu Theme", "Choose Mario Kart Wii, Wii Menu colours, or a light or dark Wii Home Menu.") { chooseMenuTheme() },
+                ThorLauncherView.Entry("Menu music", "Choose Kart Theme, Wii Theme, or import your own track.") { chooseMenuMusic() },
                 ThorLauncherView.Entry("Screen setup", "Choose top and bottom screens for your handheld or screen attachment.") { com.driftdroid.android.dualscreen.ScreenSetupActivity.open(this) },
                 ThorLauncherView.Entry("Server Settings", "Configure an optional private server.") { serverSettingsButton.performClick() },
             )
-            val view = ThorLauncherView(this, artwork, chrome, entries, LIBRARY_CASES, LIBRARY_BUNDLES,
-                onSelectionChanged = { product, options ->
-                    thorLibraryProduct = product
-                    product?.let { LIBRARY_GAMES.getOrNull(it) }?.let { lastLibraryGame = it }
-                    thorLibraryOptions = options
-                    updateLowerStatus()
-                },
-                onPhaseChanged = { phase, product, message ->
-                    thorPhase = phase
-                    thorPhaseMessage = message
-                    if (product != null && !thorLibraryOptions) thorLibraryProduct = product
-                    updateLowerStatus()
-                },
-                preflight = { product -> thorLaunchBlocker(product) },
-                onAchievements = { product -> LIBRARY_GAMES.getOrNull(product)?.let { openAchievements(it.id, null) } },
-                thorMap = folder) { statusText.text.toString() }
-            thorLauncher = view
+            val onSelection: (Int?, Boolean) -> Unit = { product, options ->
+                thorLibraryProduct = product
+                product?.let { LIBRARY_GAMES.getOrNull(it) }?.let { lastLibraryGame = it }
+                thorLibraryOptions = options
+                updateLowerStatus()
+            }
+            val onPhase: (ThorLauncherView.Phase, Int?, String) -> Unit = { phase, product, message ->
+                thorPhase = phase
+                thorPhaseMessage = message
+                ThorLauncherAudio.setInSettings(this, phase == ThorLauncherView.Phase.OPTIONS)
+                if (product != null && !thorLibraryOptions) thorLibraryProduct = product
+                updateLowerStatus()
+            }
+            val view: View = if (ThorMenuTheme.channels(this))
+                WiiChannelMenuView(this, entries, LIBRARY_GAMES.size, onSelection, onPhase,
+                    preflight = { product -> thorLaunchBlocker(product) }, thorMap = folder,
+                    onArtworkChanged = { thorCompanion?.invalidateChannelBanner() })
+            else {
+                val manifest = org.json.JSONObject(File(folder, "menu.json").readText())
+                require(manifest.getInt("schema") == 1)
+                val artwork = ThorMenuArtwork(folder)
+                val images = manifest.getJSONObject("images")
+                val roles = listOf("background", "header", "button", "button_selected") +
+                    listOf("footer", "panel").filter(images::has)
+                val chrome = roles.associateWith { role ->
+                    artwork.bitmap(images.getJSONObject(role).getString("texture"))
+                }
+                ThorLauncherView(this, artwork, chrome, entries, LIBRARY_GAMES.size, LIBRARY_BUNDLES,
+                    onSelectionChanged = onSelection,
+                    onPhaseChanged = onPhase,
+                    preflight = { product -> thorLaunchBlocker(product) },
+                    onAchievements = { product -> LIBRARY_GAMES.getOrNull(product)?.let { openAchievements(it.id, null) } },
+                    thorMap = folder) { statusText.text.toString() }
+            }
+            thorLauncher = view as LibraryLauncher
             statusText.addTextChangedListener(object : android.text.TextWatcher {
                 override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
                 override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) { view.invalidate() }
@@ -471,6 +541,54 @@ class LibraryActivity : Activity() {
     /** Runs once, from the case launcher's commit point (or a closed case whose game is missing). */
     private fun openGamesForPokemonXd() {
         startActivity(Intent(this, GamesActivity::class.java).putExtra("storage_game", FrontendGame.POKEMON_XD.id))
+    }
+
+    private fun openGamesForPokemonXg() {
+        startActivity(Intent(this, GamesActivity::class.java).putExtra("storage_game", FrontendGame.POKEMON_XG.id))
+    }
+
+    private fun openGamesForColosseum() {
+        startActivity(Intent(this, GamesActivity::class.java).putExtra("storage_game", FrontendGame.POKEMON_COLOSSEUM.id))
+    }
+
+    private fun openGamesForCityFolk() {
+        startActivity(Intent(this, GamesActivity::class.java).putExtra("storage_game", FrontendGame.CITY_FOLK.id))
+    }
+
+    private fun launchCityFolkFromLibrary() {
+        val message = when (ThorGameLaunch.launchCityFolk(this)) {
+            ThorGameLaunch.Result.OPENED -> return
+            ThorGameLaunch.Result.NOT_INSTALLED -> {
+                openGamesForCityFolk()
+                CITY_FOLK_NOT_INSTALLED
+            }
+            ThorGameLaunch.Result.UNAVAILABLE -> "Close the running game or finish setup before opening Animal Crossing."
+        }
+        thorLauncher?.launchFailed(message) ?: Toast.makeText(this, message, Toast.LENGTH_LONG).show()
+    }
+
+    private fun launchColosseumFromLibrary() {
+        val message = when (ThorGameLaunch.launchPokemonColosseum(this)) {
+            ThorGameLaunch.Result.OPENED -> return
+            ThorGameLaunch.Result.NOT_INSTALLED -> {
+                openGamesForColosseum()
+                COLOSSEUM_NOT_INSTALLED
+            }
+            ThorGameLaunch.Result.UNAVAILABLE -> "Close the running game or finish setup before opening Pokémon Colosseum."
+        }
+        thorLauncher?.launchFailed(message) ?: Toast.makeText(this, message, Toast.LENGTH_LONG).show()
+    }
+
+    private fun launchPokemonXgFromLibrary() {
+        val message = when (ThorGameLaunch.launchPokemonXg(this)) {
+            ThorGameLaunch.Result.OPENED -> return
+            ThorGameLaunch.Result.NOT_INSTALLED -> {
+                openGamesForPokemonXg()
+                "Set up Pokémon XG in Your games first."
+            }
+            ThorGameLaunch.Result.UNAVAILABLE -> "Close the running game or finish setup before opening Pokémon XG."
+        }
+        thorLauncher?.launchFailed(message) ?: Toast.makeText(this, message, Toast.LENGTH_LONG).show()
     }
 
     private fun launchPokemonXdFromLibrary() {
@@ -580,10 +698,14 @@ class LibraryActivity : Activity() {
         updateLowerStatus()
     }
 
+    private fun openGamesForProjectPlus() {
+        startActivity(Intent(this, GamesActivity::class.java).putExtra("storage_game", FrontendGame.PROJECT_PLUS.id))
+    }
+
     private fun launchProjectPlusFromLibrary() {
         val message = when (ThorGameLaunch.launchProjectPlus(this)) {
             ThorGameLaunch.Result.OPENED -> return
-            ThorGameLaunch.Result.NOT_INSTALLED -> "Set up Project+ in Manage games first."
+            ThorGameLaunch.Result.NOT_INSTALLED -> { openGamesForProjectPlus(); return }
             ThorGameLaunch.Result.UNAVAILABLE -> "Project+ could not be opened. Try again."
         }
         statusText.text = message
@@ -1137,7 +1259,7 @@ class LibraryActivity : Activity() {
             locked = !retroInstalled, lockedLabel = "Retro Rewind · install")
         // Nothing to update or delete until a copy is actually installed.
         retroMenuButton.visibility = if (retroInstalled) View.VISIBLE else View.GONE
-        thorLauncher?.invalidate()
+        thorLauncher?.redraw()
         updateLowerStatus()
     }
 
@@ -1149,6 +1271,80 @@ class LibraryActivity : Activity() {
      * button-assignment screens (captured before SDL, saved per controller); the others change
      * buttons inside the game, so this says where.
      */
+    private fun chooseMenuMusic() {
+        val tracks = MenuMusicLibrary.tracks(this)
+        val choices = arrayOf(*tracks.map { it.menuLabel }.toTypedArray(), "Original WiiDS theme")
+        val currentId = MenuMusicLibrary.selected(this)?.id
+        val selected = tracks.indexOfFirst { it.id == currentId }.takeIf { it >= 0 } ?: tracks.size
+        ThorDialogs.builder(this)
+            .setTitle("Main menu music")
+            .setSingleChoiceItems(choices, selected) { dialog, index ->
+                MenuMusicLibrary.select(this, tracks.getOrNull(index))
+                ThorLauncherAudio.refreshMusic(this)
+                dialog.dismiss()
+            }
+            .setPositiveButton("Import audio") { _, _ ->
+                val picker = Intent(Intent.ACTION_OPEN_DOCUMENT).addCategory(Intent.CATEGORY_OPENABLE)
+                    .setType("audio/*").putExtra(Intent.EXTRA_ALLOW_MULTIPLE, true)
+                startActivityForResult(picker, REQUEST_MENU_MUSIC)
+            }
+            .setNeutralButton("Volume") { _, _ -> chooseMenuMusicVolume() }
+            .setNegativeButton("Done", null)
+            .show()
+    }
+
+    private fun chooseMenuMusicVolume() {
+        val levels = Array(11) { if (it == 0) "Mute" else "$it / 10" }
+        val current = if (ThorLauncherAudio.muted(this)) 0 else ThorLauncherAudio.volume(this)
+        ThorDialogs.builder(this)
+            .setTitle("Menu music volume")
+            .setSingleChoiceItems(levels, current) { dialog, level ->
+                ThorLauncherAudio.setMuted(this, level == 0)
+                if (level > 0) ThorLauncherAudio.setVolume(this, level)
+                dialog.dismiss()
+                chooseMenuMusic()
+            }
+            .setNegativeButton("Back") { _, _ -> chooseMenuMusic() }
+            .show()
+    }
+
+    private fun importMenuMusic(data: Intent?) {
+        val files = data?.clipData
+        val picked = if (files == null) listOfNotNull(data?.data)
+            else (0 until minOf(files.itemCount, 25)).mapNotNull { files.getItemAt(it).uri }
+        if (picked.isEmpty()) return
+        MenuMusicLibrary.import(this, picked) { result ->
+            if (isFinishing || isDestroyed) return@import
+            val message = buildList {
+                if (result.added > 0) add("Imported ${result.added}")
+                if (result.existing > 0) add("${result.existing} already available")
+                if (result.skipped > 0) add("${result.skipped} couldn't be imported")
+            }.joinToString(" · ")
+            Toast.makeText(this, message, Toast.LENGTH_LONG).show()
+            ThorLauncherAudio.refreshMusic(this)
+            if (libraryResumed) chooseMenuMusic()
+        }
+    }
+
+    /** Menu Theme: the shelf themes recolour; switching to or from the Wii Home Menu rebuilds the library. */
+    private fun chooseMenuTheme() {
+        val styles = ThorMenuTheme.Style.values()
+        val current = ThorMenuTheme.current(this)
+        ThorDialogs.builder(this)
+            .setTitle("Menu Theme")
+            .setSingleChoiceItems(styles.map { it.label }.toTypedArray(), current.ordinal) { dialog, which ->
+                dialog.dismiss()
+                val chosen = styles[which]
+                if (chosen == current) return@setSingleChoiceItems
+                val relayout = chosen.channels != current.channels
+                ThorMenuTheme.set(this, chosen)
+                Toast.makeText(this, "Menu theme: ${chosen.label}", Toast.LENGTH_SHORT).show()
+                if (relayout) recreate() else { thorLauncher?.redraw(); updateLowerStatus() }
+            }
+            .setNegativeButton("Cancel", null)
+            .show()
+    }
+
     private fun showControllerButtons() {
         val games = arrayOf("Super Mario Sunshine", "Super Mario Eclipse", "Super Mario Galaxy",
             "New Super Mario Bros. Wii and MSMBWii", "Mario Kart Wii and Retro Rewind")
@@ -1246,7 +1442,22 @@ class LibraryActivity : Activity() {
      */
     private fun thorLaunchBlocker(product: Int): String? {
         SaveManagerProfiles.launchBlocker(this)?.let { return it }
-        if (product == 12) {
+        if (product == COLOSSEUM_CASE) {
+            if (ThorGameLaunch.pokemonColosseumInstalled(this)) return null
+            mainHandler.post { openGamesForColosseum() }
+            return COLOSSEUM_NOT_INSTALLED
+        }
+        if (product == CITY_FOLK_CASE) {
+            if (ThorGameLaunch.cityFolkInstalled(this)) return null
+            mainHandler.post { openGamesForCityFolk() }
+            return CITY_FOLK_NOT_INSTALLED
+        }
+        if (product == POKEMON_XG_CASE) {
+            if (ThorGameLaunch.pokemonXgInstalled(this)) return null
+            mainHandler.post { openGamesForPokemonXg() }
+            return "Set up Pokémon XG first."
+        }
+        if (product == POKEMON_XD_CASE) {
             if (!ThorGameLaunch.pokemonXdInstalled(this)) mainHandler.post { openGamesForPokemonXd() }
             return if (ThorGameLaunch.pokemonXdInstalled(this)) null else "Import your USA Pokemon XD revision 0 disc in Your games first."
         }
@@ -1266,7 +1477,9 @@ class LibraryActivity : Activity() {
         }
         if (product == PROJECT_PLUS_CASE) {
             refreshNsmbInstalled()
-            return if (projectPlusAvailable) null else "Set up Project+ in Manage games first."
+            if (projectPlusAvailable) return null
+            mainHandler.post { openGamesForProjectPlus() }
+            return "Install Project+ in Your games first."
         }
         if (product == BRAWL_CASE) {
             refreshNsmbInstalled()
@@ -1421,6 +1634,37 @@ class LibraryActivity : Activity() {
     }
 
     private fun launchProduct(product: String, romPath: String? = null) {
+        if (preparingRetroMods) return
+        if (BuildConfig.THOR_BUILD && product == MainActivity.PRODUCT_RETRO_REWIND &&
+            !ThorGameSession.hasRetainedRuntime() && RetroRewindStartupMods.shouldPrepare(this)) {
+            SaveManagerProfiles.launchBlocker(this)?.let {
+                Toast.makeText(this, it, Toast.LENGTH_LONG).show()
+                return
+            }
+            preparingRetroMods = true
+            Toast.makeText(this, "Preparing Retro Rewind mods…", Toast.LENGTH_SHORT).show()
+            Thread {
+                val prepared = runCatching {
+                    RetroRewindStartupMods.prepare(this,
+                        ModManager.installedPacks(this).filter { it.enabled }.map { it.dir })
+                }
+                mainHandler.post {
+                    preparingRetroMods = false
+                    if (isFinishing || isDestroyed || !libraryResumed) return@post
+                    prepared.onFailure {
+                        android.util.Log.w("WiiDS", "Could not prepare Retro Rewind startup mods", it)
+                        Toast.makeText(this, "Couldn't load startup mods. Starting with your usual files.",
+                            Toast.LENGTH_LONG).show()
+                    }
+                    startProduct(product, romPath, prepared.getOrDefault(false))
+                }
+            }.start()
+            return
+        }
+        startProduct(product, romPath)
+    }
+
+    private fun startProduct(product: String, romPath: String?, startupModsPrepared: Boolean = false) {
         SaveManagerProfiles.launchBlocker(this)?.let {
             Toast.makeText(this, it, Toast.LENGTH_LONG).show()
             return
@@ -1433,6 +1677,7 @@ class LibraryActivity : Activity() {
         val intent = Intent(this, MainActivity::class.java)
         intent.putExtra(MainActivity.EXTRA_PRODUCT, product)
         if (romPath != null) intent.putExtra(MainActivity.EXTRA_ROM_PATH, romPath)
+        if (startupModsPrepared) intent.putExtra(RetroRewindStartupMods.EXTRA_PREPARED, true)
         startActivity(intent)
     }
 
@@ -1556,6 +1801,7 @@ class LibraryActivity : Activity() {
             REQUEST_CODE_EXPORT_MII_DATA -> handleMiiExportDestinationPicked(data?.data)
             REQUEST_CODE_IMPORT_MII_DATA -> handleMiiImportSourcePicked(data?.data)
             REQUEST_CODE_IMPORT_SINGLE_MII -> handleSingleMiiSourcePicked(data?.data)
+            REQUEST_MENU_MUSIC -> if (resultCode == RESULT_OK) importMenuMusic(data)
             REQUEST_YOUR_GAMES -> if (resultCode == RESULT_OK &&
                 data?.getBooleanExtra(GamesActivity.EXTRA_SETUP_RETRO_REWIND, false) == true &&
                 BuildConfig.THOR_RETRO_REWIND && isRomImported()) {
@@ -1577,8 +1823,8 @@ class LibraryActivity : Activity() {
      * consoles) - checked before import so a wrong/corrupt file can't silently wedge the Mii
      * Channel, with the previous database always backed up first regardless.
      */
-    private fun miiDatabaseFile(): File =
-        File(filesDir, "WiiCompiled/NAND/shared2/menu/FaceLib/RFL_DB.dat")
+    private fun miiDatabaseFile(base: File = filesDir): File =
+        File(base, "WiiCompiled/NAND/shared2/menu/FaceLib/RFL_DB.dat")
 
     /** Custom setView(), not setItems() - see showInstallRetroRewindDialog's doc comment for why
      * AlertDialog.Builder can't combine setMessage() with setItems() (confirmed directly
@@ -1647,39 +1893,7 @@ class LibraryActivity : Activity() {
      * the existing database - see MiiDatabaseEditor.kt for the format details and where they came
      * from. Backs up the current database first, same as the whole-database Replace path.
      */
-    private fun insertSingleMii(source: Uri) {
-        try {
-            val size = queryFileSize(source)
-            if (size >= 0 && size != MiiDatabaseEditor.MII_RECORD_BYTES.toLong()) {
-                throw IllegalArgumentException(
-                    "not a single-Mii file (expected ${MiiDatabaseEditor.MII_RECORD_BYTES} bytes, got $size)",
-                )
-            }
-            val record =
-                contentResolver.openInputStream(source)?.use { it.readBytes() }
-                    ?: throw IllegalStateException("couldn't open the picked file")
-
-            val dbFile = miiDatabaseFile()
-            if (!dbFile.isFile) {
-                throw IllegalStateException("no existing Mii database - start Mario Kart Wii once first")
-            }
-            val database = dbFile.readBytes()
-
-            when (val result = MiiDatabaseEditor.insertMii(database, record)) {
-                is MiiDatabaseEditor.Result.Failure -> throw IllegalStateException(result.message)
-                is MiiDatabaseEditor.Result.Success -> {
-                    val backup = File(dbFile.parentFile, "RFL_DB.dat.bak")
-                    dbFile.copyTo(backup, overwrite = true)
-                    dbFile.writeBytes(result.database)
-                    statusText.setTextColor(Color.rgb(20, 140, 60))
-                    statusText.text = "Mii added to slot ${result.slotIndex + 1} of 100."
-                }
-            }
-        } catch (e: Exception) {
-            statusText.setTextColor(Color.rgb(190, 30, 30))
-            statusText.text = "Mii import failed: ${e.message ?: "unknown error"}"
-        }
-    }
+    private fun insertSingleMii(source: Uri) = importMiis(source, single = true)
 
     private fun launchMiiExportPicker() {
         if (!miiDatabaseFile().isFile) {
@@ -1729,45 +1943,72 @@ class LibraryActivity : Activity() {
             .show()
     }
 
-    private fun importMiiDatabase(source: Uri): Unit =
-        try {
-            val picked =
-                contentResolver.openInputStream(source)?.use { it.readBytes() }
-                    ?: throw IllegalStateException("couldn't open the picked file")
-            // Real CRC-16 validation (matches KartPad's own check), not just a size comparison -
-            // catches a corrupted-but-right-size file that a size-only check would wave through.
-            if (!MiiDatabaseEditor.isValidDatabase(picked)) {
-                throw IllegalArgumentException("that doesn't look like a valid Mii database file")
-            }
-            val dest = miiDatabaseFile()
-            if (!dest.isFile) {
-                throw IllegalStateException("no existing Mii database - start Mario Kart Wii once first")
-            }
-            val backup = File(dest.parentFile, "RFL_DB.dat.bak")
-            dest.copyTo(backup, overwrite = true)
-            dest.writeBytes(picked)
-            statusText.setTextColor(Color.rgb(20, 140, 60))
-            statusText.text = "Mii data replaced (previous copy saved as RFL_DB.dat.bak)."
-            Unit
-        } catch (e: Exception) {
-            statusText.setTextColor(Color.rgb(190, 30, 30))
-            statusText.text = "Mii import failed: ${e.message ?: "unknown error"}"
-        }
+    private fun importMiiDatabase(source: Uri) = importMiis(source, single = false)
 
-    /**
-     * Bundles the runtime's own log files (see android_jni_bridge.cpp's freopen() of
-     * stdout/stderr, and main.cpp's per-run Logs/<product>_<epoch>_pid<pid>/console.log folders -
-     * both live directly under filesDir/WiiCompiled since ApplicationDataDirectory() resolves to
-     * that same path on Android) into a single zip the user picks a destination for. This exists
-     * so troubleshooting doesn't require a USB cable and `adb shell run-as ... cat` - the only way
-     * this app's logs have been readable until now.
-     */
+    private fun importMiis(source: Uri, single: Boolean) {
+        val saves = SaveManagerProfiles
+        synchronized(com.driftdroid.android.rom.GameInstaller) {
+            saves.launchBlocker(this)?.let {
+                statusText.text = it
+                return
+            }
+            if (!saves.busy.compareAndSet(false, true)) {
+                statusText.text = "Wait for the save operation to finish."
+                return
+            }
+        }
+        statusText.text = "Checking Mii data…"
+        val app = applicationContext
+        Thread {
+            val result = try {
+                runCatching {
+                    saves.withSaveLock(app) {
+                        val limit = if (single) MiiDatabaseEditor.MII_RECORD_BYTES else MiiDatabaseEditor.DATABASE_BYTES
+                        val picked = app.contentResolver.openInputStream(source)?.use {
+                            BoundedInput.bytes(it, limit, exact = true)
+                        } ?: throw java.io.IOException("Couldn't open the picked file.")
+                        val db = miiDatabaseFile(app.filesDir.canonicalFile)
+                        val backup = File(db.parentFile, "RFL_DB.dat.bak")
+                        com.driftdroid.android.saves.SaveArchive.safe(db)
+                        com.driftdroid.android.saves.SaveArchive.safe(backup)
+                        require(db.isFile) { "Start Mario Kart Wii once to create the Mii database." }
+                        val old = db.inputStream().use {
+                            BoundedInput.bytes(it, MiiDatabaseEditor.DATABASE_BYTES, exact = true)
+                        }
+                        val (next, message) = if (single) {
+                            when (val inserted = MiiDatabaseEditor.insertMii(old, picked)) {
+                                is MiiDatabaseEditor.Result.Failure -> throw java.io.IOException(inserted.message)
+                                is MiiDatabaseEditor.Result.Success -> inserted.database to
+                                    "Mii added to slot ${inserted.slotIndex + 1} of 100."
+                            }
+                        } else {
+                            require(MiiDatabaseEditor.isValidDatabase(picked)) { "Invalid Mii database." }
+                            picked to "Mii data replaced. The previous copy is in RFL_DB.dat.bak."
+                        }
+                        saves.requireStopped(app)
+                        AtomicConfigFile.writeBytes(backup, old)
+                        AtomicConfigFile.writeBytes(db, next)
+                        message
+                    }
+                }
+            } finally {
+                saves.busy.set(false)
+            }
+            runOnUiThread {
+                if (isFinishing || isDestroyed) return@runOnUiThread
+                statusText.setTextColor(if (result.isSuccess) Color.rgb(20, 140, 60) else Color.rgb(190, 30, 30))
+                statusText.text = result.getOrElse { "Mii import failed: ${it.message ?: "unknown error"}" }
+            }
+        }.apply { name = "WiiDsMiiImport"; isDaemon = true }.start()
+    }
+
+    /** Export allowlisted WiiDS runtime logs and Double Dash crash information. */
     private fun launchDiagnosticsExportPicker() {
         val stamp = SimpleDateFormat("yyyy-MM-dd_HHmmss", Locale.US).format(Date())
         val intent = Intent(Intent.ACTION_CREATE_DOCUMENT)
         intent.addCategory(Intent.CATEGORY_OPENABLE)
         intent.type = "application/zip"
-        intent.putExtra(Intent.EXTRA_TITLE, "DriftDroid-diagnostics-$stamp.zip")
+        intent.putExtra(Intent.EXTRA_TITLE, "WiiDS-diagnostics-$stamp.zip")
         startActivityForResult(intent, REQUEST_CODE_EXPORT_DIAGNOSTICS)
     }
 
@@ -1794,9 +2035,13 @@ class LibraryActivity : Activity() {
     private fun writeDiagnosticsZip(destination: Uri): String? {
         return try {
             val wiiCompiledDir = File(filesDir, "WiiCompiled")
-            // Exclude binary guest snapshots and asset/saves trees. The file
-            // selector also refuses symlinks and non-runtime filenames.
-            val files = DiagnosticsExportFiles.collect(wiiCompiledDir).take(MAX_LOG_FILES)
+            val mkddRoot = dev.thor.mkdd.MkddStorage.root(this)
+            val doubleDash = listOf(true, false).mapNotNull { plus ->
+                DiagnosticsExportFiles.doubleDashPanic(mkddRoot, plus)?.let { plus to it }
+            }
+            val exits = doubleDashCrashHistory()
+            val files = DiagnosticsExportFiles.collect(wiiCompiledDir)
+                .take(MAX_LOG_FILES - doubleDash.size - if (exits.isEmpty()) 0 else 1)
 
             val output =
                 contentResolver.openOutputStream(destination)
@@ -1806,21 +2051,24 @@ class LibraryActivity : Activity() {
                     zip.putNextEntry(ZipEntry("README.txt"))
                     zip.write(
                         buildString {
-                            appendLine("DriftDroid runtime diagnostics - review before sharing.")
+                            appendLine("WiiDS runtime diagnostics - review before sharing.")
+                            appendLine("WiiDS: ${BuildConfig.VERSION_NAME} (${BuildConfig.VERSION_CODE})")
                             appendLine("Device: ${android.os.Build.MANUFACTURER} ${android.os.Build.MODEL}")
                             appendLine("API level: ${android.os.Build.VERSION.SDK_INT}")
                             appendLine("Each log is truncated to its last $MAX_LOG_FILE_BYTES bytes.")
                             appendLine("Binary memory snapshots and game archives are excluded.")
-                            appendLine("Files included: ${files.size}")
+                            appendLine("Logs included: ${files.size + doubleDash.size + if (exits.isEmpty()) 0 else 1}")
                         }.toByteArray(),
                     )
                     zip.closeEntry()
 
+                    if (exits.isNotEmpty()) {
+                        zip.putNextEntry(ZipEntry("double-dash/process-exits.txt"))
+                        zip.write(exits.toByteArray(Charsets.UTF_8))
+                        zip.closeEntry()
+                    }
                     val buffer = ByteArray(32 * 1024)
-                    for (file in files) {
-                        check(DiagnosticsExportFiles.isAllowed(wiiCompiledDir, file)) { "A diagnostic log changed before export." }
-                        val entryName =
-                            file.relativeTo(wiiCompiledDir).invariantSeparatorsPath
+                    fun writeLog(file: File, entryName: String) {
                         zip.putNextEntry(ZipEntry(entryName))
                         RandomAccessFile(file, "r").use { input ->
                             val size = input.length()
@@ -1836,6 +2084,14 @@ class LibraryActivity : Activity() {
                         }
                         zip.closeEntry()
                     }
+                    for ((plus, file) in doubleDash) {
+                        check(DiagnosticsExportFiles.doubleDashPanic(mkddRoot, plus) == file) { "A diagnostic log changed before export." }
+                        writeLog(file, if (plus) "double-dash-plus/panic.txt" else "double-dash/panic.txt")
+                    }
+                    for (file in files) {
+                        check(DiagnosticsExportFiles.isAllowed(wiiCompiledDir, file)) { "A diagnostic log changed before export." }
+                        writeLog(file, file.relativeTo(wiiCompiledDir).invariantSeparatorsPath)
+                    }
                 }
             }
             null
@@ -1843,6 +2099,19 @@ class LibraryActivity : Activity() {
             e.message ?: "unknown error"
         }
     }
+
+    private fun doubleDashCrashHistory(): String = runCatching {
+        val manager = getSystemService(android.app.ActivityManager::class.java)
+        val processes = mapOf("$packageName:mkdd_game" to "Double Dash", "$packageName:mkdd_plus_game" to "Double Dash Plus")
+        manager.getHistoricalProcessExitReasons(packageName, 0, 32)
+            .filter { it.processName in processes && it.reason in setOf(
+                android.app.ApplicationExitInfo.REASON_CRASH, android.app.ApplicationExitInfo.REASON_CRASH_NATIVE,
+                android.app.ApplicationExitInfo.REASON_ANR) }
+            .joinToString("\n") { exit ->
+                val description = exit.description.orEmpty().lineSequence().first().take(512)
+                "${processes.getValue(exit.processName)} at ${Date(exit.timestamp)} (pid ${exit.pid}, reason ${exit.reason}, status ${exit.status}) $description"
+            }
+    }.getOrDefault("")
 
     private fun handleFolderPicked(treeUri: Uri?) {
         if (treeUri == null) return
@@ -2019,22 +2288,14 @@ class LibraryActivity : Activity() {
         statusPoller = null
     }
 
-    private fun queryFileSize(uri: Uri): Long =
-        try {
-            contentResolver.query(uri, null, null, null, null)?.use { cursor ->
-                val index = cursor.getColumnIndex(OpenableColumns.SIZE)
-                if (index >= 0 && cursor.moveToFirst() && !cursor.isNull(index)) cursor.getLong(index) else -1L
-            } ?: -1L
-        } catch (_: Exception) {
-            -1L
-        }
-
     companion object {
         /** The Games screen opens by itself at most once per launch. */
         private var gamesOfferedThisProcess = false
         internal const val EXTRA_FRONTEND_GAME = "wiids_frontend_game"
+        const val EXTRA_SAVES_GAME = "wiids_open_game_saves"
         internal const val EXTRA_RESTART_PRODUCT = "thor_restart_product"
         private const val REQUEST_YOUR_GAMES = 4714
+        private const val REQUEST_MENU_MUSIC = 4715
         private const val REQUEST_CODE_PICK_RETRO_REWIND_FOLDER = 0x52520000 // "RR"
         private const val REQUEST_CODE_PICK_RETRO_REWIND_ZIP = 0x52520001
         private const val REQUEST_CODE_EXPORT_DIAGNOSTICS = 0x52520002
@@ -2044,12 +2305,13 @@ class LibraryActivity : Activity() {
         private const val REQUEST_CODE_IMPORT_MII_DATA = 0x52520004
         private const val REQUEST_CODE_IMPORT_SINGLE_MII = 0x52520005
         /** Existing shelf order is stable; Eclipse follows Sunshine in its GameCube stack. */
-        private const val LIBRARY_CASES = 13
         /** Base game first, then its mods: they share one stack on the main shelf. */
-        private val LIBRARY_BUNDLES = listOf(listOf(0, 1), listOf(2, 3), listOf(4, 5), listOf(6, 7), listOf(8, 11), listOf(9, 10), listOf(12))
+        private val LIBRARY_BUNDLES = listOf(listOf(0, 1), listOf(2, 3), listOf(4, 5), listOf(6, 7), listOf(8, 11), listOf(9, 10), listOf(12, 13))
         /** Stable game identity of each library case, in shelf order. */
         private val LIBRARY_GAMES = listOf(FrontendGame.MARIO_KART, FrontendGame.RETRO_REWIND, FrontendGame.NSMB, FrontendGame.MSMBWII,
-            FrontendGame.SUNSHINE, FrontendGame.ECLIPSE, FrontendGame.GALAXY, FrontendGame.KAIZO, FrontendGame.BRAWL, FrontendGame.MKDD, FrontendGame.MKDD_PLUS, FrontendGame.PROJECT_PLUS, FrontendGame.POKEMON_XD)
+            FrontendGame.SUNSHINE, FrontendGame.ECLIPSE, FrontendGame.GALAXY, FrontendGame.KAIZO, FrontendGame.BRAWL, FrontendGame.MKDD, FrontendGame.MKDD_PLUS,
+            FrontendGame.PROJECT_PLUS, FrontendGame.POKEMON_XD, FrontendGame.POKEMON_XG,
+            FrontendGame.POKEMON_COLOSSEUM, FrontendGame.CITY_FOLK)
         private const val GALAXY_CASE = ThorLibraryCompanionView.GALAXY
         private const val KAIZO_CASE = ThorLibraryCompanionView.KAIZO
         private const val NSMB_CASE = ThorLibraryCompanionView.NSMB
@@ -2060,6 +2322,12 @@ class LibraryActivity : Activity() {
         private const val PROJECT_PLUS_CASE = ThorLibraryCompanionView.PROJECT_PLUS
         private const val MKDD_CASE = ThorLibraryCompanionView.MKDD
         private const val MKDD_PLUS_CASE = ThorLibraryCompanionView.MKDD_PLUS
+        private const val POKEMON_XD_CASE = ThorLibraryCompanionView.POKEMON_XD
+        private const val POKEMON_XG_CASE = ThorLibraryCompanionView.POKEMON_XG
+        private const val COLOSSEUM_CASE = ThorLibraryCompanionView.COLOSSEUM
+        private const val COLOSSEUM_NOT_INSTALLED = "Import your USA Pokémon Colosseum disc in Your games first."
+        private const val CITY_FOLK_CASE = ThorLibraryCompanionView.CITY_FOLK
+        private const val CITY_FOLK_NOT_INSTALLED = "Import your European Animal Crossing Wii disc in Your games first."
         private const val MKDD_NOT_INSTALLED = "Import your USA Mario Kart: Double Dash!! disc in Your games first."
         private const val BRAWL_NOT_INSTALLED = "Import your USA Brawl revision 2 disc in Your games first."
         private const val NSMB_NOT_INSTALLED = "Import your New Super Mario Bros. Wii disc on the Your games screen first."

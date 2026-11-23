@@ -36,6 +36,8 @@ internal object GameStorage {
         GameCatalog.Disc.GALAXY_USA -> FrontendGame.GALAXY
         GameCatalog.Disc.MKDD_USA -> FrontendGame.MKDD
         GameCatalog.Disc.POKEMON_XD_USA -> FrontendGame.POKEMON_XD
+        GameCatalog.Disc.POKEMON_COLOSSEUM_USA -> FrontendGame.POKEMON_COLOSSEUM
+        GameCatalog.Disc.CITY_FOLK_PAL_REV1 -> FrontendGame.CITY_FOLK
     }
     fun ready(c: Context, g: FrontendGame): Boolean = when(g) {
         FrontendGame.MARIO_KART -> GameCatalog.Disc.MARIO_KART_PAL.isInstalled(c)
@@ -50,6 +52,9 @@ internal object GameStorage {
         FrontendGame.PROJECT_PLUS -> !disabled(c, g) && dev.wiids.brawl.BrawlStorage.projectPlusInstalled(c)
         FrontendGame.MKDD -> ThorGameLaunch.mkddInstalled(c)
         FrontendGame.POKEMON_XD -> dev.wiids.xd.XdStorage.ready(c)
+        FrontendGame.POKEMON_XG -> !disabled(c, g) && dev.wiids.xd.XdStorage.xgReady(c)
+        FrontendGame.POKEMON_COLOSSEUM -> dev.wiids.colosseum.ColosseumStorage.ready(c)
+        FrontendGame.CITY_FOLK -> dev.wiids.cityfolk.CityFolkStorage.ready(c)
         FrontendGame.MKDD_PLUS -> ThorGameLaunch.mkddPlusInstalled(c)
     }
     fun requireIdle(c: Context) {
@@ -105,6 +110,9 @@ internal object GameStorage {
             FrontendGame.PROJECT_PLUS -> Unit
             FrontendGame.MKDD -> { target("disc",outside,"mkdd/game"); target("art",outside,"mkdd/lower-art") }
             FrontendGame.POKEMON_XD -> target("disc",outside,"pokemon-xd/game")
+            FrontendGame.POKEMON_XG -> target("disc",outside,"pokemon-xg/game")
+        FrontendGame.POKEMON_COLOSSEUM -> target("disc",outside,"pokemon-colosseum/game")
+        FrontendGame.CITY_FOLK -> target("disc",outside,"city-folk/game")
             FrontendGame.MKDD_PLUS -> {
                 target("plus-disc",outside,"mkdd/plus/game")
                 target("plus-art",outside,"mkdd/plus/lower-art")
@@ -127,6 +135,12 @@ internal object GameStorage {
         protected+=File(outside,"brawl/Config.toml")
         protected+=File(outside,"pokemon-xd/saves")
         protected+=File(outside,"pokemon-xd/save-backups")
+        protected+=File(outside,"pokemon-xg/saves")
+        protected+=File(outside,"pokemon-xg/save-backups")
+        protected+=File(outside,"pokemon-colosseum/saves")
+        protected+=File(outside,"pokemon-colosseum/config")
+        protected+=File(outside,"city-folk/saves")
+        protected+=File(outside,"city-folk/config")
         protected+=File(outside,"mkdd/saves")
         protected+=File(outside,"mkdd/save-backups")
         protected+=File(outside,"mkdd/plus/saves")

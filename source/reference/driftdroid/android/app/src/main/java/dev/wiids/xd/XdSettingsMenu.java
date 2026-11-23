@@ -28,7 +28,7 @@ final class XdSettingsMenu extends Dialog {
     private final Runnable poll=new Runnable(){public void run(){
         if(!isShowing())return;
         values=XdNative.runtimeRead();
-        boolean ready=values!=null&&values.length==12&&values[1]==2;
+        boolean ready=values!=null&&values.length==13&&values[1]==2;
         state.setText(ready?"Changes save as they apply":"Waiting for a safe pause point");
         for(Button b:settings){b.setEnabled(ready);if(ready)b.setText(settingLabel((Integer)b.getTag()));} if(!navigation.isEmpty()&&navigation.get(focusIndex).isEnabled()&&!navigation.get(focusIndex).isFocused())navigation.get(focusIndex).requestFocus();
         handler.postDelayed(this,100);
@@ -94,7 +94,7 @@ final class XdSettingsMenu extends Dialog {
         page=target;settings.clear();navigation.clear();focusIndex=0;
         ScrollView scroll=new ScrollView(getContext());scroll.setFillViewport(true);scroll.setVerticalScrollBarEnabled(false);
         rows=new Sheet(getContext());rows.setOrientation(LinearLayout.VERTICAL);scroll.addView(rows);
-        TextView title=new TextView(getContext());title.setText(new String[]{"WiiDS menu","Display","Controls","Saves","Audio","Game"}[page]);title.setTextColor(XdSkin.TEXT);title.setTypeface(XdSkin.HEAVY);rows.addView(title);
+        TextView title=new TextView(getContext());title.setText(new String[]{host.isXg() ? "WiiDS menu · Pokémon XG" : "WiiDS menu","Display","Controls","Saves","Audio","Game"}[page]);title.setTextColor(XdSkin.TEXT);title.setTypeface(XdSkin.HEAVY);rows.addView(title);
         state=new TextView(getContext());state.setTextColor(XdSkin.TEXT_2);state.setTypeface(XdSkin.BOLD);rows.addView(state);
         if(page==0){
             int tile=XdKey.TILE;
@@ -123,11 +123,14 @@ final class XdSettingsMenu extends Dialog {
         }else if(page==1){setting(2);setting(3);setting(4);setting(5);
             note("16:9 shows more of the scene. Original follows the retail game's update rate.");
         }else if(page==2){
-            note("A: confirm / interact\nB: back\nD-pad / left stick: move and choose\nStart: field menu\nBack / Select: WiiDS menu\n\nAll commands, moves, items, targets, switching and messages use the original game menus. The lower display shows game information.");
+            String battleControls = host.isXg()
+                ? "Tap the commands, moves, and Pokémon shown on the lower screen. You can also use the controller."
+                : "All commands, moves, items, targets, switching and messages use the original game menus. The lower display shows game information.";
+            note("A: confirm / interact\nB: back\nD-pad / left stick: move and choose\nStart: field menu\nBack / Select: WiiDS menu\n\n" + battleControls);
         }else if(page==3){
-            note("Use Save in XD's field menu to save your progress. WiiDS keeps this game's card separate. Return to the library to back up, export or restore it with Save manager. The menu waits for active card operations before pausing.");
+            note("Use Save in the field menu to save your progress. WiiDS keeps this game's card separate. Return to the library to back up, export or restore it with Save manager. The menu waits for active card operations before pausing.");
         }else if(page==4){setting(6);setting(7);setting(8);setting(9);
-        }else if(page==5){setting(10);setting(11);note("Text speed changes dialogue pacing. Fast battle animations speed up move animations.");}
+        }else if(page==5){setting(10);setting(11);setting(12);note("Hold the right stick button (R3) or Tab to fast-forward. Release it to return to normal speed.");}
         if(page!=0)button("Back",XdKey.ROUND,()->showPage(0));setContentView(scroll);focus(0);
     }
     private String settingLabel(int key){
@@ -143,6 +146,7 @@ final class XdSettingsMenu extends Dialog {
             case 9:return "Pokémon cries: "+v+"%";
             case 10:return "Text speed: "+new String[]{"Normal","2x","3x","Instant"}[Math.max(0,Math.min(3,v))];
             case 11:return "Fast battle animations: "+(v!=0?"On":"Off");
+            case 12:return "Fast-forward key: "+(v!=0?"On":"Off");
             default:return "Unavailable";
         }
     }

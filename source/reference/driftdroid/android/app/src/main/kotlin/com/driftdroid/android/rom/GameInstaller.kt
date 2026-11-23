@@ -22,7 +22,7 @@ object GameInstaller {
     @Volatile var state = State()
         private set
 
-    val running get() = state.running || MkddPlusMod.state.running
+    val running get() = state.running || MkddPlusMod.state.running || XgMod.state.running
     @Volatile var recoveryError: String? = null
         private set
 
@@ -39,7 +39,7 @@ object GameInstaller {
             .exceptionOrNull()?.let { recoveryError = it.message ?: "Project+ import needs recovery. Open Project+ setup." }
         val destinations = GameCatalog.Disc.values().filter { it != GameCatalog.Disc.GALAXY_USA }
             .map { it.installDir(context) } +
-            File(dev.thor.mkdd.MkddStorage.root(context), "plus/game")
+            listOf(File(dev.thor.mkdd.MkddStorage.root(context), "plus/game"), dev.wiids.xd.XdStorage.game(context, true))
         for (destination in destinations) {
             val error = runCatching { DiscInstallCommit.recover(destination) }
                 .getOrElse { "The previous disc import could not be recovered. Keep its recovery files and reopen WiiDS." }
@@ -144,8 +144,25 @@ object GameInstaller {
         if (disc == GameCatalog.Disc.POKEMON_XD_USA) {
             dev.wiids.xd.XdDisc.validate(temp) { importCancelled }?.let { problem -> temp.deleteRecursively(); return problem }
         }
+        if (disc == GameCatalog.Disc.POKEMON_COLOSSEUM_USA) {
+            val problem = try {
+                dev.wiids.colosseum.ColosseumStorage.verifyStaged(temp) { importCancelled }
+            } catch (_: java.io.IOException) {
+                "Could not verify the Pokémon Colosseum disc."
+            }
+            if (problem != null) {
+                temp.deleteRecursively()
+                return problem
+            }
+        }
         if (disc == GameCatalog.Disc.MKDD_USA) {
             dev.thor.mkdd.MkddStorage.validate(temp) { importCancelled }?.let { problem -> temp.deleteRecursively(); return problem }
+        }
+        if (disc == GameCatalog.Disc.CITY_FOLK_PAL_REV1) {
+            dev.wiids.cityfolk.CityFolkStorage.verifyStaged(context, temp) { importCancelled }?.let { problem ->
+                temp.deleteRecursively()
+                return problem
+            }
         }
         if(disc==GameCatalog.Disc.BRAWL_USA_REV2) {
             dev.wiids.brawl.BrawlStorage.validate(temp)?.let { problem -> temp.deleteRecursively();return problem }
